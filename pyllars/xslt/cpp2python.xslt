@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
-     version="2.0">
+     version="1.0">
     <xsl:param name="libname" select="NONAME"/>
     <xsl:output media-type="text" method="text"></xsl:output>
 
@@ -64,15 +64,16 @@
     <xsl:template  match="//*" mode="gen_type_imports">
         <xsl:variable name="context" select="@context"/>
         <xsl:variable name="type" select="@type"/>
+        <xsl:variable name="ptrtypeid" select="//PointerType[@id=$type]/@type"/>
         <xsl:variable name="namespace"><xsl:apply-templates select="." mode="get_namespace"/></xsl:variable>
         <xsl:choose>
             <xsl:when test="$context!=''">
                 <xsl:if test="count(//Namespace[@id=$context])>0"><xsl:variable name="typename"><xsl:apply-templates select="." mode="typename"/></xsl:variable>
-#@add_import(&quot;<xsl:value-of select="$namespace"/>&quot;,&quot;<xsl:value-of select="$typename"/>&quot;)</xsl:if>
+#@add_import(&quot;<xsl:value-of select="$namespace"/>&quot;,&quot;<xsl:value-of select="@name"/>&quot;)</xsl:if>
                 <xsl:apply-templates select="//*[@id=$context]" mode="gen_type_imports"/>
             </xsl:when>
-            <xsl:when test="count(//FunctionType[@id=$type])>0"><xsl:text>                
-</xsl:text>#@add_func_defn(&quot;func_<xsl:value-of select="@id"/>&quot;,&quot;<xsl:apply-templates select="." mode="typename"/>)</xsl:when>
+            <xsl:when test="count(//FunctionType[@id=$type])>0 or count(//FunctionType[@id=$ptrtypeid])>0"><xsl:text>                
+</xsl:text>#@add_func_defn(&quot;func<xsl:value-of select="@id"/>&quot;,&quot;<xsl:apply-templates select="." mode="typename"/>)</xsl:when>
             <xsl:otherwise><xsl:apply-templates select="//*[@id=$type]" mode="get_type_imports"/></xsl:otherwise>
         </xsl:choose>
     </xsl:template>
@@ -84,9 +85,7 @@
     </xsl:template>
     
     <!-- how to transform elements into typenames !-->
-    <xsl:template match="Typedef" mode="typename">
-<xsl:value-of select="@name"/>
-    </xsl:template>
+    <xsl:template match="Typedef" mode="typename"><xsl:value-of select="@name"/></xsl:template>
        
     <xsl:template match="CvQualifiedType" mode="typename">
         <xsl:variable name="type" select="@type"/>
@@ -121,37 +120,36 @@
         <xsl:variable name="namespace"><xsl:apply-templates select="//*[@id=$contextid]" mode="get_namespace"/></xsl:variable>
         <xsl:variable name="prefix"><xsl:if test="$contextid!=$scopeid"><xsl:value-of select="$namespace"/>.</xsl:if></xsl:variable>
 <xsl:value-of select="$prefix"/><xsl:value-of select="translate(@name,'&lt;&gt;,:','____')"/>
-    </xsl:template>
-    
+    </xsl:template>   
     
     <xsl:template match="Union" mode="typename">
 CUnion_Anon_<xsl:value-of select="@id"/>
     </xsl:template>
     
     <xsl:template match="PointerType|ReferenceType" mode="typename">
+         <xsl:param name="scopeid"/>
         <xsl:variable name="type" select="@type"/>
-        <xsl:variable name="typename"><xsl:apply-templates select="//*[@id=$type]" mode="typename">
-        </xsl:apply-templates></xsl:variable>
+        <xsl:variable name="typename"><xsl:apply-templates select="//*[@id=$type]" mode="typename"><xsl:with-param name="scoped" select="$scopeid"/></xsl:apply-templates></xsl:variable>
         <xsl:choose>
+            <xsl:when test="count(//FunctionType[@id=$type])>0">func<xsl:value-of select="$type"/></xsl:when>
             <xsl:when test="$typename='void'">c_void_p</xsl:when>
             <xsl:when test="$typename='char'">c_char_p</xsl:when>
             <xsl:when test="$typename='c_char'">c_char_p</xsl:when>
-            <xsl:otherwise>POINTER(<xsl:value-of select="$typename"/>)</xsl:otherwise>
-        </xsl:choose>
+            <xsl:otherwise>POINTER(<xsl:value-of select="$typename"/>)</xsl:otherwise></xsl:choose>
     </xsl:template>
     
-    <xsl:template match="ArrayType" mode="typename">\
+    <xsl:template match="ArrayType" mode="typename">
+        <xsl:param name="scopeid"/>
         <xsl:variable name="type" select="@type" />
         <xsl:variable name="max" select="@max"/>
         <xsl:variable name="typename"><xsl:apply-templates select="//*[@id=$type]" mode="typename">
+        <xsl:with-param name="scopeid" select="$scopeid"/>
         </xsl:apply-templates></xsl:variable>
 <xsl:if test="$max=''">POINTER(<xsl:value-of select="$typename"/>)</xsl:if>
 <xsl:if test="$max!=''">(<xsl:value-of select="$typename"/>*<xsl:value-of select="number($max)+1"/>)</xsl:if>
     </xsl:template>
     
-    <xsl:template match="FunctionType" mode="typename">
-func_<xsl:value-of select="@id"/>
-    </xsl:template>
+    <xsl:template match="FunctionType" mode="typename">func<xsl:value-of select="@id"/></xsl:template>
     
     <xsl:template match="Enumeration" mode="typename"><xsl:param name="pos"/>c_uint</xsl:template>
     
@@ -163,6 +161,7 @@ func_<xsl:value-of select="@id"/>
       * Generate the callaable python argument for a call to native lib
       -->
     <xsl:template match="//Argument" mode="gen_callable">
+        <xsl:param name="scopeid"/>
         <xsl:variable name="context" select="@type"/>
         <xsl:variable name="name"><xsl:choose><xsl:when test="@name!=''"><xsl:value-of select="@name"/></xsl:when><xsl:otherwise>arg<xsl:value-of select="position()"/></xsl:otherwise>
         </xsl:choose></xsl:variable>
@@ -170,9 +169,9 @@ func_<xsl:value-of select="@id"/>
             <xsl:when test="count(//ArrayType[@id=$context]|//PointerType[@id=$context]|//FundamentalType[@id=$context]|//Typedef[@id=$context])>0"><xsl:value-of select="$name"/></xsl:when>
             <xsl:otherwise><xsl:value-of select="$name"/>._cobject</xsl:otherwise>
         </xsl:choose>
+        <xsl:apply-templates select="." mode="gen_imports"><xsl:with-param name="scopeid" select="$scopeid"/></xsl:apply-templates>
     </xsl:template>
     
- 
     <!-- 
       * Generate meta data: import dependencnies and typedefinitions needed for a Field declaration
       * @param scopeid  The id of the Namespace to which the meta data is to be generated
@@ -196,18 +195,20 @@ func_<xsl:value-of select="@id"/>
        * Generate a field definition for a Struct as it would appear in a ctypes field declaration
        -->
     <xsl:template match="//Field" mode="gen_field_entry">
+        <xsl:param name="scopeid"/>
         <xsl:variable name="id" select="@id"/>
         <xsl:variable name="name"><xsl:choose>
             <xsl:when test="@name!=''"><xsl:value-of select="@name"/></xsl:when>
             <xsl:otherwise>member<xsl:value-of select="@id"/></xsl:otherwise>
         </xsl:choose></xsl:variable>
-        <xsl:variable name="type" select="@type"/>(&quot;<xsl:value-of select="$name"/>&quot;,<xsl:apply-templates select="//*[@id=$type]" mode="typename"/>),
+        <xsl:variable name="type" select="@type"/>(&quot;<xsl:value-of select="$name"/>&quot;,<xsl:apply-templates select="//*[@id=$type]" mode="typename">
+        <xsl:with-param name="scopeid" select="$scopeid"/>
+        </xsl:apply-templates>),
     </xsl:template>
    
     <!-- how to transform elements into typedefinitions !-->
     <xsl:template match="FundamentalType" mode="gen_meta_data">
-        <xsl:param name="name"></xsl:param><xsl:text>
-</xsl:text>#@typedefs[&quot;<xsl:value-of select="$name"/>&quot;] = &quot;<xsl:call-template name="get_basic_type" ><xsl:with-param name="type"><xsl:value-of select="translate(@name,' ','_')"/></xsl:with-param></xsl:call-template>&quot;
+        <xsl:param name="name"/>
     </xsl:template>
     
     <xsl:template match="Struct" mode="typedefinition">
@@ -215,14 +216,13 @@ func_<xsl:value-of select="@id"/>
         <xsl:variable name="prefix"><xsl:if test="@name=''">CStruct_Anon<xsl:value-of select="@id"/></xsl:if></xsl:variable><xsl:text>
 </xsl:text><xsl:apply-templates select="//Field[@context=$id]" mode="gen_meta_data"><xsl:with-param name="scopeid" select="$scopeid"/></xsl:apply-templates><xsl:text>
 class </xsl:text><xsl:value-of select="$prefix"/><xsl:value-of select="@name"/><xsl:text>( Structure):
-    _fields_ = [ </xsl:text><xsl:apply-templates mode="gen_field_entry" select="//Field[@context=$id]"/>]
+    _fields_ = [ </xsl:text><xsl:apply-templates mode="gen_field_entry" select="//Field[@context=$id]"><xsl:with-param name="scopied" select="$scopeid"/></xsl:apply-templates>]
 <xsl:apply-templates select="//Field[@context=$id]" mode="gen_imports"><xsl:with-param name="scopeid" select="$scopeid"/></xsl:apply-templates><xsl:text>
 </xsl:text><xsl:apply-templates select="//Field[@context=$id]" mode="gen_meta_data"><xsl:with-param name="scopeid" select="$scopeid"/></xsl:apply-templates><xsl:text>
 
-</xsl:text><xsl:apply-templates select="//Method[@context=$id]" mode="typedefinition"><xsl:with-param name="typename"><xsl:value-of select="$prefix"/><xsl:value-of select="@name"/>/></xsl:with-param><xsl:with-param name="scopeid" select="$scopeid"/></xsl:apply-templates>
+</xsl:text><xsl:apply-templates select="//Method[@context=$id]" mode="typedefinition"><xsl:with-param name="typename"><xsl:value-of select="$prefix"/><xsl:value-of select="@name"/></xsl:with-param><xsl:with-param name="scopeid" select="$scopeid"/></xsl:apply-templates>
     </xsl:template>
-    
-    
+   
     <xsl:template match="Union" mode="typedefinition">
         <xsl:param name="pos"/>
         <xsl:param name="scopeid"/>
@@ -230,40 +230,48 @@ class </xsl:text><xsl:value-of select="$prefix"/><xsl:value-of select="@name"/><
         <xsl:apply-templates select="." mode="generate_definitions"><xsl:with-param name="scopeid" select="$scopeid"/></xsl:apply-templates><xsl:text>        
 
 class CUnion_Anon_</xsl:text><xsl:value-of select="@id"/><xsl:text>( Union ):
-    _fields_ = [ </xsl:text><xsl:apply-templates mode="gen_field_entry" select="//Field[@context=$id]"/>]
+    _fields_ = [ </xsl:text><xsl:apply-templates mode="gen_field_entry" select="//Field[@context=$id]"><xsl:with-param name="scopeid" select="$scopeid"/></xsl:apply-templates>]
         <xsl:text>
     
 </xsl:text>
     </xsl:template>
     
     <xsl:template match="Constructor" mode="generate_def">
+        <xsl:param name="scopeid"/>
         <xsl:variable name="id" select="@id"/>
         <xsl:variable name="context" select="@context"/>
-        <xsl:variable name="typename"><xsl:apply-templates select="//*[@id=$context]" mode="typename"/></xsl:variable><xsl:text>
+        <xsl:variable name="typename"><xsl:apply-templates select="//*[@id=$context]" mode="typename"><xsl:with-param name="scopeid" select="$scopeid"></xsl:with-param></xsl:apply-templates></xsl:variable><xsl:text>
 
     @staticmethod
     def new</xsl:text><xsl:value-of select="position()"/>(self, <xsl:for-each select="./Argument">
-        <xsl:choose><xsl:when test="@name!=''"><xsl:value-of select="@name"/>,</xsl:when><xsl:otherwise>arg<xsl:value-of select="position()"/>,</xsl:otherwise></xsl:choose></xsl:for-each>):<xsl:text>
-        </xsl:text><xsl:for-each select="./Argument"><xsl:variable name="typeid" select="@type"/><xsl:text>
-        </xsl:text><xsl:variable name="name"> <xsl:choose><xsl:when test="@name!=''"><xsl:value-of select="@name"/>,</xsl:when>
-            <xsl:otherwise>arg<xsl:value-of select="position()"/>,</xsl:otherwise></xsl:choose></xsl:variable><xsl:text>
-        assert(isinstance(</xsl:text><xsl:apply-templates select="." mode="gen_callable"/>,<xsl:value-of select="$typename"/>))
-        </xsl:for-each><xsl:text>
-        obj =  </xsl:text><xsl:value-of select="$typename"/><xsl:text>
-        obj._cobject = nativelib.</xsl:text><xsl:apply-templates select="//*[@id=$context]" mode="typename"/>_new(<xsl:for-each select="./Argument"><xsl:apply-templates select="." mode="gen_callable"/>, </xsl:for-each>)<xsl:text>
+        <xsl:choose><xsl:when test="@name!=''"><xsl:value-of select="@name"/>,</xsl:when><xsl:otherwise>arg<xsl:value-of select="position()"/>,</xsl:otherwise></xsl:choose></xsl:for-each>):<xsl:variable name="typeid" select="@type"/><xsl:variable name="name"> <xsl:choose><xsl:when test="@name!=''"><xsl:value-of select="@name"/>,</xsl:when><xsl:otherwise>arg<xsl:value-of select="position()"/>,</xsl:otherwise></xsl:choose></xsl:variable><xsl:text>
+        </xsl:text>&quot;&quot;&quot;<xsl:text>
+        Signature: </xsl:text><xsl:for-each select="./Argument"><xsl:variable name="argname"><xsl:choose><xsl:when test="@name"><xsl:value-of select="@name"/></xsl:when><xsl:otherwise>arg<xsl:value-of select="position()"/></xsl:otherwise></xsl:choose></xsl:variable><xsl:variable name="argtype" select="@type"/><xsl:text>
+           </xsl:text><xsl:value-of select="$argname"/>:<xsl:apply-templates select="//*[@id=$argtype]" mode="typename"/><xsl:text>            
+        </xsl:text></xsl:for-each>&quot;&quot;&quot;<xsl:for-each select="./Argument"><xsl:variable name="argname"><xsl:choose><xsl:when test="@name"><xsl:value-of select="@name"/></xsl:when><xsl:otherwise>arg<xsl:value-of select="position()"/></xsl:otherwise></xsl:choose></xsl:variable><xsl:text>
+        assert(isinstance(</xsl:text><xsl:value-of select="$argname"/>,<xsl:value-of select="$typename"/>))</xsl:for-each><xsl:text>
+        obj =  </xsl:text><xsl:value-of select="$typename"/>\<xsl:text>
+            ( nativelib.</xsl:text><xsl:value-of select="$typename"/>_new(<xsl:for-each select="./Argument"><xsl:apply-templates select="." mode="gen_callable"><xsl:with-param name="scopeid" select="$scopeid"/></xsl:apply-templates>, </xsl:for-each>))<xsl:text>
         return obj
         </xsl:text>
    </xsl:template>
     
-    <xsl:template match="Method" mode="typedefinition">
+    <xsl:template match="Method|OperatorMethod" mode="typedefinition">
         <xsl:param name="scopeid"/>
         <xsl:param name="typename"/>
+        <xsl:variable name="context" select="@context"/>
         <xsl:variable name="mname" select="@name"/>
-        <xsl:variable name="count" select="count(//Method[@name=$mname])"/>
+        <xsl:variable name="realname"><xsl:choose><xsl:when test="@name='='">assign</xsl:when>
+        <xsl:when test="@name='*='">__mul__</xsl:when>
+        <xsl:when test="@name='+='">__iadd__</xsl:when>
+        <xsl:when test="@name='/='">__div__</xsl:when>
+        <xsl:when test="@name='|='">__mod__</xsl:when>
+        <xsl:otherwise><xsl:value-of select="@name"/></xsl:otherwise></xsl:choose></xsl:variable>
+        <xsl:variable name="count" select="count(//Method[@name=$mname and @context=$context])+count(//OperatorMethod[@name=$mname and @context=$context])"/>
         <xsl:variable name="ext"><xsl:if test="$count>1">_<xsl:value-of select="position()"/></xsl:if></xsl:variable>
-    def <xsl:value-of select="@name"/><xsl:value-of select="$ext"/>(self, <xsl:for-each select="./Argument"><xsl:value-of select="@name"/>,</xsl:for-each>):<xsl:for-each select="./Argument"><xsl:variable name="typeid" select="@type"/><xsl:text>
-        assert(isinstance(</xsl:text><xsl:apply-templates select="." mode="gen_callable"/>,<xsl:apply-templates select="//*[@id=$typeid]" mode="typename"/>)</xsl:for-each><xsl:text>
-        return nativelib.</xsl:text><xsl:value-of select="$typename"/>__<xsl:value-of select="@name"/>(self._cobject, <xsl:for-each select="./Argument"><xsl:apply-templates select="." mode="gen_callable"/>,</xsl:for-each>)
+    def <xsl:value-of select="$realname"/><xsl:value-of select="$ext"/>(self, <xsl:for-each select="./Argument"><xsl:variable name="argname"><xsl:choose><xsl:when test="@name"><xsl:value-of select="@name"/></xsl:when><xsl:otherwise>arg<xsl:value-of select="position()"/></xsl:otherwise></xsl:choose></xsl:variable><xsl:value-of select="$argname"/>,</xsl:for-each>):<xsl:for-each select="./Argument"><xsl:variable name="argname"><xsl:choose><xsl:when test="@name"><xsl:value-of select="@name"/></xsl:when><xsl:otherwise>arg<xsl:value-of select="position()"/></xsl:otherwise></xsl:choose></xsl:variable><xsl:variable name="typeid" select="@type"/><xsl:text>
+        assert(isinstance(</xsl:text><xsl:value-of select="$argname"/>,<xsl:apply-templates select="//*[@id=$typeid]" mode="typename"/>)</xsl:for-each><xsl:text>
+        return nativelib.</xsl:text><xsl:value-of select="$typename"/>__<xsl:value-of select="$realname"/>(self._cobject, <xsl:for-each select="./Argument"><xsl:apply-templates select="." mode="gen_callable"/>,</xsl:for-each>)
         <xsl:for-each select="./Argument"><xsl:variable name="typeid" select="@type"/><xsl:apply-templates select="//*[@id=$typeid]" mode="gen_imports"><xsl:with-param name="scopeid" select="$scopeid"></xsl:with-param></xsl:apply-templates>
         </xsl:for-each> 
         <xsl:apply-templates select=".//Argument" mode="gen_meta_data"><xsl:with-param name="scopeid" select="$scopeid"/></xsl:apply-templates>
@@ -271,30 +279,39 @@ class CUnion_Anon_</xsl:text><xsl:value-of select="@id"/><xsl:text>( Union ):
   
     <xsl:template match="Class" mode="typedefinition">
         <xsl:param name="scopeid"/>
-        <xsl:variable name="id" select="@id"/>
-        <xsl:variable name="typename"><xsl:apply-templates select="." mode="typename"/></xsl:variable>
+         <xsl:variable name="id" select="@id"/>
+        <xsl:variable name="typename"><xsl:apply-templates select="." mode="typename"><xsl:with-param name="scopeid" select="$scopeid"/></xsl:apply-templates></xsl:variable>
         <xsl:apply-templates select="." mode="generate_definitions"><xsl:with-param name="scopeid" select="$scopeid"/></xsl:apply-templates><xsl:text>        
 
-class </xsl:text><xsl:value-of select="@name"/><xsl:text>( object ):
-    </xsl:text><xsl:apply-templates select="//Constructor[@context=$id and @access='public']" mode="generate_def"></xsl:apply-templates>    <xsl:text>
+class </xsl:text><xsl:value-of select="$typename"/><xsl:text>( object ):
+    </xsl:text><xsl:apply-templates select="//Constructor[@context=$id and @access='public']" mode="generate_def"><xsl:with-param name="scopeid" select="$scopeid"></xsl:with-param></xsl:apply-templates>    <xsl:text>
     def __init__(self,*args):
-        self._cobject = None</xsl:text><xsl:for-each select="//Constructor[@context=$id and @access='public']"><xsl:text>
-        try:
-            self._cobject = nativelib.</xsl:text><xsl:value-of select="@name"/>_new<xsl:value-of select="position()"/>(*args)<xsl:text>
-         except:
-             pass
-         </xsl:text></xsl:for-each><xsl:text>
+        &quot;&quot;&quot;</xsl:text><xsl:for-each select="//Constructor[@context=$id and @access='public']"><xsl:text>
+        Signature[</xsl:text><xsl:value-of select="position()"/>]: <xsl:if test="count(./Argument)=0"><xsl:text>
+           No arguments</xsl:text></xsl:if><xsl:for-each select="./Argument"><xsl:variable name="argname">args[<xsl:value-of select="position()-1"/>]</xsl:variable><xsl:variable name="argtype" select="@type"/><xsl:text>
+           </xsl:text><xsl:value-of select="$argname"/>:<xsl:apply-templates select="//*[@id=$argtype]" mode="typename"/><xsl:text>            
+        </xsl:text></xsl:for-each></xsl:for-each><xsl:text>&quot;&quot;&quot;
+        self._cobject = None
+        if len(*args) == 1 and isinstance(*args, c_void_p):
+        	self._cobject = (*args)[0]
+        else:
+            </xsl:text><xsl:for-each select="//Constructor[@context=$id and @access='public']"><xsl:text>
+            try:
+                self._cobject = nativelib.</xsl:text><xsl:value-of select="@name"/>_new<xsl:value-of select="position()"/>(*args)<xsl:text>
+            except:
+                pass
+        </xsl:text></xsl:for-each><xsl:text>
         if self._cobject is None:
              raise Exception("No signature found to create object")
 
     def copy(self):
-        return </xsl:text><xsl:apply-templates select="." mode="typename"/>( self._cobject )<xsl:text>
+        return </xsl:text><xsl:value-of select="$typename"/>(nativelib.<xsl:value-of select="$typename"/>_copy( self._cobject ))<xsl:text>
 
     def __del__(self)
-        nativelib.</xsl:text><xsl:apply-templates select="." mode="typename"/>_delete(self._cobject)
+        nativelib.</xsl:text><xsl:value-of select="$typename"/>_delete(self._cobject)
         self._cobjet = None<xsl:text>
             
-    </xsl:text><xsl:apply-templates select="//Method[@context=$id]" mode="typedefinition"><xsl:with-param name="typename" select="@name"/><xsl:with-param name="scopeid" select="$scopeid"/></xsl:apply-templates>
+    </xsl:text><xsl:apply-templates select="//Method[@context=$id]|//OperatorMethod[@context=$id]" mode="typedefinition"><xsl:with-param name="typename" select="$typename"/><xsl:with-param name="scopeid" select="$scopeid"/></xsl:apply-templates>
     </xsl:template>
 
     <xsl:template match="FunctionType" mode="gen_meta_data">
@@ -307,10 +324,8 @@ class </xsl:text><xsl:value-of select="@name"/><xsl:text>( object ):
         <xsl:variable name="returntype"><xsl:apply-templates select="//*[@id=$return]" mode="typename">
             <xsl:with-param name="pos" select="$pos"/>
         </xsl:apply-templates></xsl:variable><xsl:text>
-#@-functiontypes.append(&quot;&quot;&quot;func</xsl:text><xsl:value-of select="@id"/> = CFUNCTYPE( <xsl:value-of select="$returntype"/>, <xsl:for-each select="./Argument">
-    <xsl:variable name="argtype" select="@type"/>
-#-    <xsl:apply-templates select="//*[@id=$argtype]" mode="typename"><xsl:with-param name="pos" select="$pos"/></xsl:apply-templates>, 
-</xsl:for-each>#--)&quot;&quot;&quot;)    
+#@-functiontypes.append(&quot;&quot;&quot;func</xsl:text><xsl:value-of select="@id"/> = CFUNCTYPE( <xsl:value-of select="$returntype"/>, <xsl:for-each select="./Argument"><xsl:variable name="argtype" select="@type"/>
+#-    <xsl:apply-templates select="//*[@id=$argtype]" mode="typename"><xsl:with-param name="pos" select="$pos"/></xsl:apply-templates>, </xsl:for-each>)&quot;&quot;&quot;)    
     </xsl:template>   
     
     <xsl:template match="Enumeration" mode="typedefinition"><xsl:text>>
@@ -323,12 +338,19 @@ class</xsl:text><xsl:value-of select="translate(@name,'&lt;&gt;,:','____')"/>(ob
     
     <xsl:template match="//Typedef" mode="typedefinition">
         <xsl:param name="scopeid"/>
+        <xsl:param name="pos"/>
         <xsl:variable name="typeid" select="@type"/>
-        <xsl:variable name="typename"><xsl:apply-templates select="//*[@id=$typeid]" mode="typename">
-        </xsl:apply-templates></xsl:variable><xsl:text>
-            
+        <xsl:variable name="ptrtypeid" select="//PointerType[@id=$typeid]/@type"/>
+        <xsl:variable name="typename"><xsl:apply-templates select="//*[@id=$typeid]" mode="typename"><xsl:with-param name="scopeid" select="$scopeid"/></xsl:apply-templates></xsl:variable>          
+        <xsl:choose><xsl:when test="count(//FunctionType[@id=$typeid])>0 or count(//FunctionType[@id=$ptrtypeid])>0"><xsl:text>
+</xsl:text>#@add_functypedef(&quot;<xsl:value-of select="@name"/>&quot;, &quot;<xsl:value-of select="$typename"/>&quot;)<xsl:text>
+</xsl:text><xsl:variable name="returntype"><xsl:choose><xsl:when test="@returns"><xsl:value-of select="@returns"/></xsl:when>
+<xsl:otherwise>void</xsl:otherwise></xsl:choose></xsl:variable>#@-functiontypes.append(&quot;&quot;&quot;func<xsl:value-of select="//FunctionType[@id=$scopeid or @id=$ptrtypeid]/@id"/> = CFUNCTYPE( <xsl:value-of select="$returntype"/>, <xsl:for-each select="//FunctionType[@id=$scopeid or @id=$ptrtypeid]/Argument"><xsl:variable name="argtype" select="@type"/><xsl:text>
+</xsl:text>#-    <xsl:apply-templates select="//*[@id=$argtype]" mode="typename"><xsl:with-param name="pos" select="$pos"/></xsl:apply-templates>, </xsl:for-each>)&quot;&quot;&quot;)    
+</xsl:when><xsl:when test="@context!=$scopeid or count(//FundamentalType[@id=$typeid])>0"><xsl:text>
+</xsl:text>#@add_typedef(&quot;<xsl:value-of select="@name"/>&quot;, &quot;<xsl:value-of select="$typename"/>&quot;)</xsl:when> <xsl:otherwise><xsl:text>
 #typedef
-</xsl:text><xsl:value-of select="@name"/> = <xsl:value-of select="$typename"/>
+</xsl:text><xsl:value-of select="@name"/> = <xsl:value-of select="$typename"/></xsl:otherwise></xsl:choose>
 <xsl:apply-templates select="//*[@id=$typeid]" mode="gen_meta_data"><xsl:with-param name="scopeid" select="$scopeid"/></xsl:apply-templates>
     </xsl:template>
   
@@ -336,7 +358,7 @@ class</xsl:text><xsl:value-of select="translate(@name,'&lt;&gt;,:','____')"/>(ob
     <xsl:template match="//*" mode="generate_definitions">  
         <xsl:param name="scopeid"/>
         <xsl:variable name="myid" select="@id"/>
-        <xsl:for-each select="//Typedef[@context=$myid]|//Class[@context=$myid]|//Struct[@context=$myid]|//Union[@context=$myid]"><xsl:variable name='type' select='@type'/>
+        <xsl:for-each select="//Union[@context=$myid]|//Typedef[@context=$myid]|//Class[@context=$myid]|//Struct[@context=$myid]|//Union[@context=$myid]"><xsl:variable name='type' select='@type'/>
             <xsl:variable name="fileid" select="@file"/>
             <xsl:variable name="location" select="//File[@id=$fileid]/@name"/><xsl:if test="not(starts-with($location,'//'))"><xsl:apply-templates mode="typedefinition" select=".">
             <xsl:with-param name="scopeid" select="$scopeid"/>
@@ -347,7 +369,9 @@ class</xsl:text><xsl:value-of select="translate(@name,'&lt;&gt;,:','____')"/>(ob
     <xsl:template match="/GCC_XML">
         <xsl:for-each select="Namespace"><xsl:variable name="scopeid" select="@id"/>
             <xsl:text>
-=====</xsl:text><xsl:value-of select="$libname"/><xsl:text>=======
+====</xsl:text><xsl:apply-templates select="." mode="get_namespace"></xsl:apply-templates><xsl:text>
+from ctypes import *
+
 try:
     libnative = CDLL(&quot;</xsl:text><xsl:value-of select="$libname"/><xsl:text>&quot;)
 except:
@@ -355,16 +379,8 @@ except:
     
 def init( libname ):
     libnative = CDLL(libname)
-
-
-====</xsl:text><xsl:apply-templates select="." mode="get_namespace"></xsl:apply-templates>
-from ctypes import *
-from lib<xsl:value-of select="$libname"/>.function_types import *
-
-libnative = CDLL(lib<xsl:value-of select="$libname"/>.libname())
-
-    
-<xsl:apply-templates select="." mode="generate_definitions"><xsl:with-param name="scopeid" select="$scopeid"></xsl:with-param></xsl:apply-templates>
+#!!
+</xsl:text><xsl:apply-templates select="." mode="generate_definitions"><xsl:with-param name="scopeid" select="$scopeid"></xsl:with-param></xsl:apply-templates>
         </xsl:for-each>
     </xsl:template>
 </xsl:stylesheet>
