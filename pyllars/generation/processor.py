@@ -20,6 +20,9 @@ class ResultsProcessor(object):
         self._python_code = {"globals":[]}
         
     def process(self, to_path):
+        '''
+        Process self's file to generate python code to provided path
+        '''
         imports = {}
         self._curr_package = "globals"
         def add_import( package, element):
