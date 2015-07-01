@@ -17,7 +17,7 @@ class ResultsProcessor(object):
         Constructor
         '''
         self._file = infile
-        self._python_code = {"globals":[]}
+        self._python_code = []
         
     def process(self, to_path):
         '''
@@ -33,18 +33,68 @@ class ResultsProcessor(object):
         codetext = ""
         typedefs={}
         functypedefs={}
+        functiontypes=[]
         def add_typedef( name, basictype):
             typedefs[name] = basictype
+        def add_functiontype(typedef):
+            functiontypes.append(typedef)
         def add_functypedef( name, basictype):
             functypedefs[name] = basictype
-        functiontypes=[]
+        def output_code(package, typedefs, functypedefs, functiontypes):
+            if package.startswith('.'): package = package[1:]
+            packagedir = os.path.join(to_path, package.replace(".","/"))
+            if not os.path.exists(packagedir):
+                os.makedirs(packagedir)
+            initfile = os.path.join(packagedir,"__init__.py")
+            print("Writing to %s"%initfile)
+            code = self._python_code
+            with open(initfile,'w') as outfile:
+                count = 0
+                for line in code:
+                    if not line.startswith("#!!"):
+                        outfile.write(line +"\n" )
+                        count += 1
+                    else:
+                        count +=1
+                        break
+                code= code[count:]
+                for package,items in imports.items():
+                    if not package or package=="::": package = "globals"
+                    if items:
+                        outfile.write("from %s import %s\n"%( package, ", ".join(items)))
+                outfile.write("\n")
+                if typedefs:
+                    outfile.write("#TYPEDEFS\n")
+                    for typename, basictype in typedefs.items():
+                        outfile.write("%s = %s\n"%( typename, basictype))
+                    outfile.write("\n")
+
+                if functiontypes:
+                    for func in functiontypes:
+                        outfile.write(func+"\n")
+                if functypedefs:
+                    self._python_code.append("#FUNCTION TYPEDEFS")
+                    for typename, basictype in functypedefs.items():
+                        outfile.write("%s = %s\n"%( typename, basictype))
+
+                
+                for line in code:
+                    outfile.write(line +"\n" )
+            typedefs={}
+            functypedefs={}
+            functiontypes=[]
+            self._python_code = []
+            
         for line in self._file:
             line = line.replace('\n','').replace('\r','')
             #print ("PROCESSING LINE %s"%line)
             if line.startswith("===") and line.replace('=',''):
-                self._curr_package = line.replace('=','')
-                if self._curr_package not in self._python_code:
-                    self._python_code[self._curr_package] =[]
+                new_package = line.replace('=','')
+                if new_package == "::":
+                    new_package = "globals"
+                if new_package != self._curr_package:
+                    output_code(self._curr_package, typedefs, functypedefs, functiontypes)
+                    self._curr_package = new_package
                 #print("CURR PACKAGE NOW %s"%self._curr_package)
                 if codetext:
                     eval(codetext)
@@ -62,45 +112,7 @@ class ResultsProcessor(object):
                     codetext = ""
             else:
                 #print("ADDING CODE ")
-                self._python_code[self._curr_package].append(line)
+                self._python_code.append(line)
                 if codetext:
                     eval(codetext)
                     codetext = ""
-        for package,code in self._python_code.items():
-            if package.startswith('.'): package = package[1:]
-            packagedir = os.path.join(to_path, package.replace(".","/"))
-            if not os.path.exists(packagedir):
-                os.makedirs(packagedir)
-            initfile = os.path.join(packagedir,"__init__.py")
-            print("Writing to %s"%initfile)
-            with open(initfile,'w') as outfile:
-                count = 0
-                for line in code:
-                    if not line.startswith("#!!"):
-                        outfile.write(line +"\n" )
-                        count += 1
-                    else:
-                        count +=1
-                        break
-                code= code[count:]
-                for package,items in imports.items():
-                    if not package: package = "globals"
-                    if items:
-                        outfile.write("from %s import %s\n"%( package, ", ".join(items)))
-                outfile.write("\n")
-                if typedefs:
-                    outfile.write("#TYPEDEFS\n")
-                    for typename, basictype in typedefs.items():
-                        outfile.write("%s = %s\n"%( typename, basictype))
-                    outfile.write("\n")
-                if functiontypes:
-                    for func in functiontypes:
-                        outfile.write(func +"\n")
-                    outfile.write("\n")
-                if functypedefs:
-                    outfile.write("#FUNCTION TYPEDEFS\n")
-                    for typename, basictype in functypedefs.items():
-                        outfile.write("%s = %s\n"%( typename, basictype))
-                    outfile.write("\n")
-                for line in code:
-                    outfile.write(line +"\n" )
