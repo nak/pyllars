@@ -175,18 +175,38 @@
     
     <xsl:template match="FundamentalType" mode="convert_python_to_C"><xsl:param name="paramname"/><xsl:variable name="type"><xsl:call-template name="get_basic_type"><xsl:with-param name="type" select="@name"/></xsl:call-template></xsl:variable><xsl:text>
                     </xsl:text><xsl:choose><xsl:when test="$type='long unsigned int' or $type='unsigned __int128' or $type='unsigned int128' or $type='__int128'">
-               long int &amp; <xsl:value-of select="$paramname"/>_C = PyInt_Check(<xsl:value-of select="$paramname"/>)? ((PyIntObject*)<xsl:value-of select="$paramname"/>)->ob_ival:((PyLongObject*)<xsl:value-of select="$paramname"/>)->ob_ival;
+               <xsl:value-of select="$type"/> <xsl:value-of select="$paramname"/>_C = PyInt_Check(<xsl:value-of select="$paramname"/>)? PyInt_AsLong(<xsl:value-of select="$paramname"/>):PyLong_AsLong(<xsl:value-of select="$paramname"/>);
             </xsl:when>
         <xsl:when test="$type='unsigned int' or $type='long int' or $type='short int' or $type='signed char' or $type='char' or $type='unsigned char' or $type='unsigned int'or $type='short unsigned int' or $type='int'">
-                long int &amp; <xsl:value-of select="$paramname"/>_C = ((PyIntObject*)<xsl:value-of select="$paramname"/>)->ob_ival;</xsl:when>
+               <xsl:value-of select="$type"/> <xsl:value-of select="$paramname"/>_C = PyInt_Check(<xsl:value-of select="$paramname"/>)? PyInt_AsLong(<xsl:value-of select="$paramname"/>):PyLong_AsLong(<xsl:value-of select="$paramname"/>);</xsl:when>
         <xsl:when test="$type='bool'">
-                long int &amp;  <xsl:value-of select="$paramname"/>_C = ((PyBoolObject*)<xsl:value-of select="$paramname"/>)->ob_ival;</xsl:when>
-        <xsl:when test="$type='float' or $type='double'">
-                double &amp;  <xsl:value-of select="$paramname"/>_C = ((PyFloatObject*)<xsl:value-of select="$paramname"/>)->ob_fval;</xsl:when>
-        <xsl:when test="$type='void'"></xsl:when>
+                bool  <xsl:value-of select="$paramname"/>_C = (PyInt_Check(<xsl:value-of select="$paramname"/>)? PyInt_AsLong(<xsl:value-of select="$paramname"/>):PyLongAsLong(<xsl:value-of select="$paramname"/>))!=0</xsl:when>
+            <xsl:when test="$type='double'">
+                double  <xsl:value-of select="$paramname"/>_C = PyFloat_AsDouble(<xsl:value-of select="$paramname"/>);</xsl:when>
+            <xsl:when test="$type='float'">
+                float  <xsl:value-of select="$paramname"/>_C = PyFloat_AsFloat(<xsl:value-of select="$paramname"/>);</xsl:when>
+            <xsl:when test="$type='void'"></xsl:when>
         <xsl:otherwise>if(true){
                 Unknown_type_<xsl:value-of select="$type"/></xsl:otherwise></xsl:choose><xsl:text>     
                 </xsl:text>
+    </xsl:template>
+    
+    <xsl:template match="FundamentalType" mode="convert_C_to_python"><xsl:param name="paramname"/><xsl:variable name="type"><xsl:call-template name="get_basic_type"><xsl:with-param name="type" select="@name"/></xsl:call-template></xsl:variable><xsl:text>
+                    </xsl:text><xsl:choose><xsl:when test="$type='long unsigned int' or $type='unsigned __int128' or $type='unsigned int128' or $type='__int128'">
+                        <xsl:value-of select="$type"/> <xsl:value-of select="$paramname"/>_py = PyLong_FromLong(<xsl:value-of select="$paramname"/>);
+                    </xsl:when>
+                        <xsl:when test="$type='unsigned int' or $type='long int' or $type='short int' or $type='signed char' or $type='char' or $type='unsigned char' or $type='unsigned int'or $type='short unsigned int' or $type='int'">
+                            <xsl:value-of select="$type"/> <xsl:value-of select="$paramname"/>_py = PyLong_FromInt(<xsl:value-of select="$paramname"/>);</xsl:when>
+                            <xsl:when test="$type='bool'">
+                                bool  <xsl:value-of select="$paramname"/>_py = PyInt_FromInt(<xsl:value-of select="$paramname"/>);</xsl:when>
+                            <xsl:when test="$type='double'">
+                                double  <xsl:value-of select="$paramname"/>_py = PyFloat_FromDouble(<xsl:value-of select="$paramname"/>);</xsl:when>
+                            <xsl:when test="$type='float'">
+                                float  <xsl:value-of select="$paramname"/>_py = PyFloat_FromFloat(<xsl:value-of select="$paramname"/>);</xsl:when>
+                            <xsl:when test="$type='void'"></xsl:when>
+                            <xsl:otherwise>if(true){
+                                Unknown_type_<xsl:value-of select="$type"/></xsl:otherwise></xsl:choose><xsl:text>     
+                </xsl:text>        
     </xsl:template>
     
     <xsl:template match="Struct|Class" mode="convert_python_to_C"><xsl:param name="deref">*</xsl:param><xsl:param name="ctypename"><xsl:apply-templates select="." mode="gen_C_typename"/>&amp;</xsl:param><xsl:param name="paramname"/><xsl:variable name="pytype"><xsl:apply-templates select="." mode="gen_python_wrapper_C_typename"/></xsl:variable><xsl:text>
@@ -203,6 +223,10 @@
     <xsl:template match="Argument" mode="convert_python_to_C"><xsl:variable name="type" select="@type"/><xsl:variable name="name"><xsl:choose>
         <xsl:when test="@name"><xsl:value-of select="@name"/></xsl:when><xsl:otherwise>Anon_<xsl:value-of select="position()"/></xsl:otherwise>
     </xsl:choose></xsl:variable><xsl:apply-templates mode="convert_python_to_C" select="//*[@id=$type]"><xsl:with-param name="paramname" select="$name"></xsl:with-param></xsl:apply-templates></xsl:template>
+    
+    <xsl:template match="Argument" mode="convert_C_to_python"><xsl:variable name="type" select="@type"/><xsl:variable name="is_fundamental"><xsl:apply-templates select="//*[@id=$type]" mode="is_fundamental"/></xsl:variable><xsl:variable name="name"><xsl:choose>
+        <xsl:when test="@name"><xsl:value-of select="@name"/></xsl:when><xsl:otherwise>Anon_<xsl:value-of select="position()"/></xsl:otherwise>
+    </xsl:choose></xsl:variable><xsl:if test="$is_fundamental='true'"><xsl:apply-templates mode="convert_C_to_python" select="//*[@id=$type]"><xsl:with-param name="paramname" select="$name"></xsl:with-param></xsl:apply-templates></xsl:if></xsl:template>
     
     <!-- ==========================================
          C to Python conversion
@@ -362,6 +386,8 @@ private:
                 if(status == 0){
                     <xsl:apply-templates select="./Argument" mode="convert_python_to_C"/><xsl:text>
                     self-&gt;_Cobject = new </xsl:text><xsl:value-of select="$namespace"/>::<xsl:value-of select="@name"/>(<xsl:for-each select="./Argument"><xsl:variable name="name"><xsl:choose><xsl:when test="@name"><xsl:value-of select="@name"/></xsl:when><xsl:otherwise>Anon_<xsl:value-of select="position()"/></xsl:otherwise></xsl:choose>_C</xsl:variable><xsl:value-of select="$name"/><xsl:if test="position()!=last()">,</xsl:if></xsl:for-each><xsl:text>);
+                    </xsl:text><xsl:apply-templates select="./Argument" mode="convert_C_to_python"/><xsl:text>
+                        
                 }
             }
         }
@@ -418,6 +444,7 @@ static PyObject*<xsl:text>
                         </xsl:text><xsl:if test="count(./Argument)>0">if( 0 == status ){</xsl:if><xsl:choose>
                             <xsl:when test="$resulttypeid!='' and $resulttypename!='void' and @static!='1'"><xsl:text>
                        </xsl:text><xsl:value-of select="$resulttypename"/><xsl:text> result = self-&gt;_Cobject-&gt;</xsl:text><xsl:value-of select="$realname"/>(<xsl:apply-templates select="./Argument" mode="gen_C_arglist"/>);<xsl:text>
+                       </xsl:text> <xsl:apply-templates select="./Argument" mode="convert_python_to_C"/><xsl:text>
                        result_py = </xsl:text><xsl:apply-templates select="//*[@id=$resulttypeid]" mode="convert_C_to_python"><xsl:with-param name="paramname">result</xsl:with-param></xsl:apply-templates><xsl:text>;
                     </xsl:text></xsl:when>
                             <xsl:when test="$resulttypeid!='' and $resulttypename!='void' and @static='1'"><xsl:text>
@@ -511,13 +538,45 @@ static PyMemberDef </xsl:text><xsl:value-of select="$py_classname"/><xsl:text>_m
     <!-- ===============================
         Generate native python definition for a class or struct
         ================================ -->   
-    <xsl:template match="Class|Struct" mode="gen_py_defn">         <xsl:variable name="classid" select="@id"/>
-        <xsl:variable name="name"><xsl:choose><xsl:when test="@name"><xsl:value-of select="@name"/></xsl:when><xsl:otherwise>Anon_<xsl:value-of select="@id"/></xsl:otherwise>
-        </xsl:choose></xsl:variable>
-        <xsl:variable name="namespace"><xsl:apply-templates select="." mode="get_namespace"></xsl:apply-templates></xsl:variable>
-        <xsl:variable name="namespace_prefix"><xsl:apply-templates select="." mode="get_namespace_prefix"/></xsl:variable>
-        <xsl:variable name="py_classname"><xsl:apply-templates mode="gen_python_wrapper_C_typename" select="."/></xsl:variable>
-        <xsl:text>
+    
+    <xsl:template match="Class|Struct" mode="gen_method_list">
+        <xsl:param name="basetypeid"/>
+        <xsl:param name="py_classname"><xsl:apply-templates mode="gen_python_wrapper_C_typename" select="."/></xsl:param>
+        <xsl:param name="parentclassid"/>
+        <xsl:param name="name"><xsl:choose><xsl:when test="@name"><xsl:value-of select="@name"/></xsl:when><xsl:otherwise>Anon_<xsl:value-of select="@id"/></xsl:otherwise>
+        </xsl:choose></xsl:param>
+        <xsl:param name="namespace"><xsl:apply-templates select="." mode="get_namespace"></xsl:apply-templates></xsl:param>
+        <xsl:param name="namespace_prefix"><xsl:apply-templates select="." mode="get_namespace_prefix"/></xsl:param>
+        <xsl:variable name="classid" select="@id"/>
+        <xsl:for-each select="//Method[@context=$classid and (@access='public')]">
+            <xsl:variable name="methname" select="@name"/>
+            <xsl:if test="count(//Method[@context=$parentclassid and @name=$methname])=0" >
+            {&quot;<xsl:apply-templates select="." mode="get_realname"/>&quot;,  (PyCFunction)<xsl:value-of select="$py_classname"/>__<xsl:apply-templates select="." mode="get_realname"/>,<xsl:apply-templates select="." mode="gen_methflags"/>, &quot;&quot;},</xsl:if></xsl:for-each> 
+        <xsl:for-each select="./Base">
+            <xsl:variable select="@type" name="basetypeid"/>
+           <xsl:apply-templates select="." mode="gen_method_list">
+               <xsl:with-param name="basetypeid" select="$basetypeid"/>
+               <xsl:with-param name="py_classname" select="$py_classname"/>
+               <xsl:with-param name="parentclassid"><xsl:choose>
+                   <xsl:when test="$parentclassid!=''"><xsl:value-of select="$parentclassid"/></xsl:when>
+                   <xsl:otherwise><xsl:value-of select="$classid"/></xsl:otherwise>
+               </xsl:choose></xsl:with-param>
+               <xsl:with-param name="name" select="$name"/>
+               <xsl:with-param name="namespace" select="$namespace"/>
+               <xsl:with-param name="namepsace_prefix" select="$namespace_prefix"/>
+           </xsl:apply-templates>
+        </xsl:for-each>
+    </xsl:template>
+    
+    <xsl:template match="Class|Struct" mode="gen_py_defn">
+        <xsl:param name="is_base">1</xsl:param>
+        <xsl:param name="py_classname"><xsl:apply-templates mode="gen_python_wrapper_C_typename" select="."/></xsl:param>
+        <xsl:param name="classid" select="@id"/>
+        <xsl:param name="name"><xsl:choose><xsl:when test="@name"><xsl:value-of select="@name"/></xsl:when><xsl:otherwise>Anon_<xsl:value-of select="@id"/></xsl:otherwise>
+        </xsl:choose></xsl:param>
+        <xsl:param name="namespace"><xsl:apply-templates select="." mode="get_namespace"></xsl:apply-templates></xsl:param>
+        <xsl:param name="namespace_prefix"><xsl:apply-templates select="." mode="get_namespace_prefix"/></xsl:param>
+        <xsl:if test="$is_base='1'"><xsl:text>
 static void
 </xsl:text><xsl:value-of select="$py_classname"/><xsl:text>_dealloc(</xsl:text><xsl:value-of select="$py_classname"/><xsl:text>* self);
 
@@ -526,14 +585,12 @@ static PyObject *
 static int
 </xsl:text><xsl:value-of select="$py_classname"/><xsl:text>_init(</xsl:text><xsl:value-of select="$py_classname"/><xsl:text> *self, PyObject *args, PyObject *kwds);
            
-</xsl:text><xsl:apply-templates select="//Method[@context=$classid and (@access='public')]" mode="gen_pynative_defn"/>
+</xsl:text></xsl:if><xsl:apply-templates select="//Method[@context=$classid and (@access='public')]" mode="gen_pynative_defn"/>
         <xsl:text>
 static PyMethodDef </xsl:text><xsl:value-of select="$py_classname"/><xsl:text>_methods[] = {
-             </xsl:text><xsl:for-each select="//Method[@context=$classid and (@access='public')]">
-                 {&quot;<xsl:apply-templates select="." mode="get_realname"/>&quot;,  (PyCFunction)<xsl:value-of select="$py_classname"/>__<xsl:apply-templates select="." mode="get_realname"/>,<xsl:apply-templates select="." mode="gen_methflags"/>, &quot;&quot;},
-             </xsl:for-each><xsl:text>{NULL}  /* Sentinel */
+             </xsl:text><xsl:apply-templates select="." mode="gen_method_list"/>
+             <xsl:text>{NULL}  /* Sentinel */
 };
-
 </xsl:text><xsl:apply-templates select="." mode="gen_pymembers"/><xsl:text>
 
 static PyTypeObject </xsl:text><xsl:value-of select="$py_classname"/><xsl:text>Type = {
@@ -646,6 +703,7 @@ static int
 </xsl:text>
 </xsl:for-each><xsl:text>
 
+#define PyFloatObject PyObject
 
 static bool
 checkType( PyTypeObject* const  type, PyObject * const obj){
