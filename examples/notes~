@@ -1,0 +1,8 @@
+if pointer:
+   needs method added to 'get object at index' returning pythong object of dereferenced type ("at(index)")
+
+   dealloc overriden to not delete _CObject, but to set to null
+
+   init overriden to only accept a python derferenced type wrappper object as argument (and only argument)
+
+   method to derefence poitner object (= "at(0)")

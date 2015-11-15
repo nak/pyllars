@@ -8,19 +8,21 @@
 
 namespace __pyllars_internal {
 
+template< typename c_type>
+  PyObject* toPyObject( const c_type * var);
 
 /*********
  * Class to define Python wrapper to C class/type
  **/
  typedef const char* cname;
 
-template< typename ReturnType, typename... Args>
+template< const char* const func_name, const char* const names[], typename ReturnType, typename ...Args>
 struct PythonFunctionWrapper {
     PyObject_HEAD
 
     static PyTypeObject Type;
 
-    static constexpr cname name="python_c_wrapper";
+    static constexpr cname name=func_name;
 
     //template< typename Type>
     //static PyObject* pyObject(){ return nullptr;}
@@ -64,19 +66,32 @@ private:
     PythonFunctionWrapper():_cfunc(nullptr){}
     ~PythonFunctionWrapper(){}
 
-    template<int ...S>
-    ReturnType callFunc(PyObject* pyargs[], container<S...> s) {
-       return _cfunc(toCObject<Args>(*PyTuple_GetItem(s.pyobjs,S))...);
+    template<typename ...PyO>
+    ReturnType callFuncBase( PyObject *pytuple, PyObject *kwds, PyO* ...pyargs){
+        char format[sizeof...(Args)+1] = {0};
+        memset(format, 'O', sizeof...(Args));
+        if(!PyArg_ParseTupleAndKeywords(pytuple, kwds, format, (char**)names, pyargs...)){
+          PyErr_Print();
+          throw "Illegal arumgnet(s)";
+        }
+        return _cfunc(toCObject<Args>(*pyargs)...);
     }
+
+    template<int ...S>
+    ReturnType callFunc(PyObject* const tuple, PyObject* kw, container<S...> s) {
+       return callFuncBase(tuple, kw, PyTuple_GetItem(s.pyobjs,S)...);
+    }
+
+
     func_type _cfunc;
 };
 
 
-template< typename ReturnType, typename... Args>
-PyTypeObject PythonFunctionWrapper<ReturnType, Args...>::Type = {
+template< const char* const func_name, const char* const names[], typename ReturnType, typename... Args >
+PyTypeObject PythonFunctionWrapper<func_name, names, ReturnType, Args...>::Type = {
     PyObject_HEAD_INIT(nullptr)
     0,                         /*ob_size*/
-    PythonFunctionWrapper::name,             /*tp_name*/
+    func_name,             /*tp_name*/
     sizeof(PythonFunctionWrapper),             /*tp_basicsize*/
     0,                         /*tp_itemsize*/
     nullptr, /*tp_dealloc*/
@@ -116,24 +131,18 @@ PyTypeObject PythonFunctionWrapper<ReturnType, Args...>::Type = {
 };
 
 
-template< typename ReturnType, typename... Args>
-void PythonFunctionWrapper<ReturnType, Args...>::_init(){
+template<const char* const func_name, const char* const names[], typename ReturnType, typename... Args>
+void PythonFunctionWrapper<func_name, names, ReturnType, Args...>::_init(){
      if (PyType_Ready(&Type) < 0)
         return;
 
     Py_INCREF(&Type);
 }
 
-template<typename ReturnType, typename... Args>
-PyObject* PythonFunctionWrapper<ReturnType, Args...>::_call(PyObject *callable_object, PyObject *args, PyObject *kw){
-  assert(kw==nullptr);
-  PyObject* pyargs[sizeof...(Args)];
-  for(Py_ssize_t i = 0; i < sizeof...(Args); ++i){
-     pyargs[i] = PyTuple_GetItem(args, i);
-  }
-
+template<const char* const func_name, const char* const names[], typename ReturnType, typename... Args>
+PyObject* PythonFunctionWrapper<func_name, names, ReturnType, Args...>::_call(PyObject *callable_object, PyObject *args, PyObject *kw){
   PythonFunctionWrapper& wrapper = *reinterpret_cast<PythonFunctionWrapper* const>(callable_object);
-  return toPyObject<ReturnType>(wrapper.callFunc(pyargs, typename argGenerator<sizeof...(Args)>::type(args)));
+  return toPyObject<ReturnType>(wrapper.callFunc(args, kw, typename argGenerator<sizeof...(Args)>::type(args)));
 }
 
 }

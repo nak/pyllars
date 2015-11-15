@@ -1,0 +1,15 @@
+if pointer:
+   needs method added to 'get object at index' returning pythong object of dereferenced type ("at(index)")
+
+   dealloc overriden to not delete _CObject, but to set to null
+
+   init overriden to only accept a python derferenced type wrappper object as argument (and only argument)
+
+   method to derefence pointer object (= "at(0)")
+
+
+Can't do this to arbitrary depth????
+   use void* pointer;
+   track depth
+   at depth 0, return real object
+   create pointer python method to used this

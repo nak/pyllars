@@ -20,126 +20,402 @@ struct PythonCPointerWrapper;
 #include <limits.h>
 #include <limits>
 #include <vector>
+#include <map>
+#include <functional>
 
-
+// TODO (jrusnak#1#): All adding of bases, but not through template parameter....
 namespace __pyllars_internal {
 
-template<int ...S>
-struct container {
-    container( PyObject* const objs):pyobjs(objs){}
-    PyObject* const pyobjs;
-};
+    ////////////////////////////////
+    // Helper functions
 
-template<int N, int ...S>
-struct argGenerator : argGenerator<N-1, N-1, S...> {
+    template< typename c_type>
+    PyObject* toPyObject( const c_type &var);
 
-};
+    template<int ...S>
+    struct container {
+        container( PyObject* const objs):pyobjs(objs){}
+        PyObject* const pyobjs;
+    };
 
-template<int ...S>
-struct argGenerator<0, S...> {
-  typedef container<S...> type;
+    template<int N, int ...S>
+    struct argGenerator : argGenerator<N-1, N-1, S...> {
 
-};
+    };
+
+    template<int ...S>
+    struct argGenerator<0, S...> {
+      typedef container<S...> type;
+
+    };
 
 
+    template< typename CClass, typename ReturnType, typename ...Args, typename ...PyO>
+    static ReturnType call_methodC( ReturnType (CClass::*method)(Args...),
+                                    typename std::remove_reference<CClass>::type &self,
+                                    PyObject *pytuple, PyObject *kwds, PyO* ...pyargs);
 
-/*********
- * Class to define Python wrapper to C class/type
- **/
-template< typename CClass, typename ...Bases>
-struct PythonClassWrapper {
-    PyObject_HEAD
-
-    typename std::remove_reference<CClass>::type* get_CObject() {
-        return _CObject;
+    template<typename CClass,typename ReturnType, typename ...Args, int ...S, const char* const... names>
+    static ReturnType call_methodBase( ReturnType (CClass::*method)(Args...),
+                                        typename std::remove_reference<CClass>::type &self,
+                                        PyObject *args, PyObject *kwds, container<S...> s) {
+        return call_methodC(method, self, args, kwds, PyTuple_GetItem(s.pyobjs,S)...);
     }
 
-    static PyTypeObject Type;
+    template<typename CClass,typename ReturnType, typename ...Args>
+    static ReturnType call_method( ReturnType ( CClass::*method)(Args...),
+                                   typename std::remove_reference<CClass>::type &self,
+                                   PyObject *args, PyObject *kwds );
 
-    static PyMemberDef _members[];
-
-    static PyMethodDef _methods[];
-
-    static const char* const name;
-
-
-    template< typename ...Args, char* ...names>
-    static std::remove_reference<CClass>* constructorC( PyObject *pytuple, PyObject *kwds, PyObject* const pyargs...);
-
-    template<typename ...Args, int ...S, char*... names>
-// TODO (jrusnak#1#): check null pointer in toCObject ...
-//
-    static typename std::remove_reference<CClass>::type* constructBase(PyObject *args, PyObject *kwds, container<S...> s) {
-        return constructorC<Args...,names...>(args, kwds, PyTuple_GetItem(s.pyobjs,S)...);
-    }
-
-    template<typename ...Args>
-    static typename std::remove_reference<CClass>::type* construct( PyObject *args, PyObject *kwds) {
-        try{
-            return constructBase(args, kwds, typename container<sizeof...(Args)>::type(args));
-        } catch(...){
-            return nullptr;
-        }
-    }
-
-    typedef typename std::remove_reference<CClass>::type* (*constructor)( PyObject *args, PyObject *kwds);
-    static void add_constructor( constructor c){
-        _constructors.push(c);
-    }
-
-    /**
-     * Add a type definition to the given module
-     * @return: 0 on success, negative otherwise
+     /**
+     * This class is needed to prevent ambiguities in add_method
      **/
-    static int addType( PyObject* const to_module) {
-        if (PyType_Ready(&Type) < 0)
-            return -1;
+    template< const char* const name, class CClass, typename ReturnType, typename ...Args>
+    class NonPrimitive{
+    public:
+       typedef ReturnType(CClass::*method_t)(Args...);
+       typedef ReturnType CClass::* member_t;
 
+       static method_t method;
+       static member_t member;
 
-        Py_INCREF( (&Type) );
-        PyModule_AddObject(to_module, name, (PyObject *)&Type);
+       static PyObject* call(PyObject* self, PyObject* args, PyObject* kwds){
+            if(!self) return nullptr;
+            PythonClassWrapper<CClass>* _this = (PythonClassWrapper<CClass>*)self;
+            if(_this->_CObject){
+                if (method){
+                    try{
+                        return toPyObject<ReturnType>(call_method<CClass, ReturnType, Args...>
+                            (method, *_this->_CObject,args, kwds));
+                    } catch(...){
+                        return nullptr;
+                    }
+                } else if(member){
+                    return toPyObject<ReturnType>(*(_this->_CObject).*member);
+                }
+            }
+            return nullptr;
+       }
+    };
+     template< const char* const name, class CClass, typename ReturnType, typename ...Args>
+     typename NonPrimitive<name, CClass, ReturnType, Args...>::method_t NonPrimitive<name, CClass, ReturnType, Args...>::method;
+    template< const char* const name, class CClass, typename ReturnType, typename ...Args>
+     typename NonPrimitive<name, CClass, ReturnType, Args...>::member_t NonPrimitive<name, CClass, ReturnType, Args...>::member;
 
-        if (PyType_Ready(&Type) < 0)
-            return -1;
+   template<typename CClass,typename ReturnType, typename ...Args>
+    static ReturnType call_method( ReturnType ( CClass::*method)(Args...),
+                                   typename std::remove_reference<CClass>::type &self,
+                                   PyObject *args, PyObject *kwds ){
 
-        return 0;
+        return call_methodBase(method, self, args, kwds, typename argGenerator<sizeof...(Args)>::type(args));
+
     }
 
-    template< typename Type>
-    static char toFormatCharArg();
 
-    template< typename Type>
-    static PyObject* pyObject(){ return nullptr;}
+    static PyMethodDef emptyMethods[] = {nullptr};
+    static PyMemberDef emptyMembers[] = {nullptr};
+    //
+    /////////////////////////
 
-    friend class PythonCPointerWrapper<CClass, Bases...>;
+    /*********
+     * Class to define Python wrapper to C class/type
+     **/
+    template<typename CClass, typename ...Bases>
+    struct PythonClassWrapper {
+        PyObject_HEAD /*Per Python API docs*/
 
-//private:
-    typedef typename std::remove_reference<CClass>::type CClass_NoRef;
-    CClass_NoRef* _CObject;
+        typedef typename std::remove_reference<CClass>::type CClass_NoRef;
 
-    static int
-    _init( PythonClassWrapper *self, PyObject *args, PyObject *kwds);
-
-
-    static PyObject* _new( PyTypeObject* type, PyObject* args, PyObject*kwds) {
-        PythonClassWrapper  *self;
-        self = (PythonClassWrapper*)type ->tp_alloc(type, 0);
-        if ( nullptr != self) {
-            self->_CObject = nullptr;
+        typename std::remove_reference<CClass>::type* get_CObject() {
+            return _CObject;
         }
-        return (PyObject*) self;
-    }
 
-    static void _dealloc( PythonClassWrapper* self) {
-        if(!self) return;
-        delete self->_CObject;
-        self->_CObject = nullptr;
-        self->ob_type->tp_free((PyObject*)self);
-    }
+        static PyTypeObject Type;
 
-    static std::vector<constructor> _constructors;
+        static const char* const name;
+
+
+        template< typename ...Args, const char* const ...names, typename ...PyO>
+        static std::remove_reference<CClass>* constructorC( PyObject *pytuple, PyObject *kwds, PyO* ...pyargs);
+
+        template<typename ...Args, int ...S, const char* const... names>
+        static typename std::remove_reference<CClass>::type* constructBase(PyObject *args, PyObject *kwds, container<S...> s) {
+            return constructorC<Args...,names...>(args, kwds, PyTuple_GetItem(s.pyobjs,S)...);
+        }
+
+        template<typename ...Args>
+        static typename std::remove_reference<CClass>::type* construct( PyObject *args, PyObject *kwds) {
+            try{
+                return constructBase(args, kwds, typename container<sizeof...(Args)>::type(args));
+            } catch(...){
+                return nullptr;
+            }
+        }
+
+        typedef typename std::remove_reference<CClass>::type* (*constructor)( PyObject *args, PyObject *kwds);
+        static void add_constructor( constructor c){
+            _constructors.push(c);
+        }
+
+    ////////////////////////////////////////////////////
+
+         /**
+         * Add a type definition to the given module
+         * @return: 0 on success, negative otherwise
+         **/
+        static int addType( PyObject* const to_module) {
+            if (PyType_Ready(&Type) < 0)
+                return -1;
+
+
+            Py_INCREF( (&Type) );
+            PyModule_AddObject(to_module, name, (PyObject *)&Type);
+
+            if (PyType_Ready(&Type) < 0)
+                return -1;
+
+            return 0;
+        }
+
+
+        template<const char* const name,  typename ReturnType, typename ...Args>
+        static void add_method( typename NonPrimitive<name, CClass, ReturnType, Args...>::method_t method) {
+            static const char* const doc = "Call method ";
+            char *doc_string = new char[strlen(name) +strlen(doc)]+1;
+            snprintf(doc_string, strlen(name) +strlen(doc), "%s%s",doc,name);
+
+            PyMethodDef pyMeth = {
+              name,
+              (PyCFunction)NonPrimitive<name, CClass_NoRef, ReturnType, Args...>::call,
+              METH_KEYWORDS,
+              doc_string
+            };
+
+            NonPrimitive<name, CClass, ReturnType, Args...>::method = method;
+            _add_method(pyMeth);
+        }
+
+
+
+        template< const char* const name, typename Type>
+        static void add_member( typename NonPrimitive<name, CClass_NoRef, Type>::member_t member){
+            static const char* const doc = "Get attribute ";
+            char *doc_string = new char[strlen(name) +strlen(doc)]+1;
+            snprintf(doc_string, strlen(name) +strlen(doc)+1, "%s%s",doc,name);
+            static const char* const getter_prefix = "get_";
+            char *getter_name = new char[strlen(name) +strlen(getter_prefix)]+1;
+            snprintf(getter_name, strlen(name) +strlen(getter_prefix)+1, "%s%s_",getter_prefix,name);
+            NonPrimitive<name, CClass_NoRef, Type>::member = member;
+            PyMethodDef pyMeth = {getter_name,
+                    (PyCFunction)NonPrimitive<name, CClass_NoRef, Type>::call,
+                    METH_KEYWORDS,
+                    doc_string
+              };
+            _add_method(pyMeth);
+        }
+
+
+        friend class PythonCPointerWrapper<CClass, Bases...>;
+
+    //private:
+        CClass_NoRef* _CObject;
+
+        static int
+        _init( PythonClassWrapper *self, PyObject *args, PyObject *kwds);
+
+
+        static PyObject* _new( PyTypeObject* type, PyObject* args, PyObject*kwds) {
+            PythonClassWrapper  *self;
+            self = (PythonClassWrapper*)type ->tp_alloc(type, 0);
+            if ( nullptr != self) {
+                self->_CObject = nullptr;
+            }
+            return (PyObject*) self;
+        }
+
+        static void _dealloc( PythonClassWrapper* self) {
+            if(!self) return;
+            delete self->_CObject;
+            self->_CObject = nullptr;
+            self->ob_type->tp_free((PyObject*)self);
+        }
+
+
+    private:
+
+        static size_t s_methodIndex;
+        static size_t s_memberIndex;
+
+        static std::vector<constructor> _constructors;
+        static std::vector<PyMemberDef> _memberCollection;
+        static std::vector<PyMethodDef> _methodCollection;
+
+        static void _add_method( PyMethodDef method){
+            //insert at beginning to keep null sentinel at end of list:
+            _methodCollection.insert(_methodCollection.begin(), method);
+            Type.tp_methods = _methodCollection.data();
+        }
+
+
+        static void _add_member( const char* const name, PyMemberDef member){
+            //insert at beginning to keep null sentinel at end of list:
+            _memberCollection.insert(_memberCollection.begin(), member);
+            Type.tp_members = _memberCollection.data();
+        }
+
+    };
+
+
+template<const char* const name>
+class NonPrimitive<name, long int, long int>{
+public:
+   typedef int member_t;
+   static PyObject* call(PyObject*, PyObject*, PyObject*){
+    return nullptr;
+   }
+};
+template<const char* const name>
+class NonPrimitive<name, long long int, long long int>{
+public:
+   typedef int member_t;
+   static PyObject* call(PyObject*, PyObject*, PyObject*){
+    return nullptr;
+   }
 };
 
+template<const char* const name>
+class NonPrimitive<name, int,int>{
+public:
+   typedef int member_t;
+   static PyObject* call(PyObject*, PyObject*, PyObject*){
+    return nullptr;
+   }
+};
+
+
+template<const char* const name>
+class NonPrimitive<name, short int, short int>{
+public:
+   typedef int member_t;
+   static PyObject* call(PyObject*, PyObject*, PyObject*){
+    return nullptr;
+   }
+};
+
+template<const char* const name>
+class NonPrimitive<name, char,char>{
+public:
+   typedef int member_t;
+   static PyObject* call(PyObject*, PyObject*, PyObject*){
+    return nullptr;
+   }
+};
+
+template<const char* const name>
+class NonPrimitive<name, long unsigned int,long unsigned int>{
+public:
+   typedef int member_t;
+   static PyObject* call(PyObject*, PyObject*, PyObject*){
+    return nullptr;
+   }
+};
+template<const char* const name>
+class NonPrimitive<name, long long unsigned int,long long unsigned int>{
+public:
+   typedef int member_t;
+   static PyObject* call(PyObject*, PyObject*, PyObject*){
+    return nullptr;
+   }
+};
+template<const char* const name>
+class NonPrimitive< name, unsigned int, unsigned int>{
+public:
+   typedef int member_t;
+   static PyObject* call(PyObject*, PyObject*, PyObject*){
+    return nullptr;
+   }
+};
+template<const char* const name>
+class NonPrimitive<name, short unsigned int,short unsigned int>{
+public:
+   typedef int member_t;
+   static PyObject* call(PyObject*, PyObject*, PyObject*){
+    return nullptr;
+   }
+};
+template<const char* const name>
+class NonPrimitive< name, unsigned char, unsigned char>{
+public:
+   typedef int member_t;
+   static PyObject* call(PyObject*, PyObject*, PyObject*){
+    return nullptr;
+   }
+};
+template<const char* const name>
+class NonPrimitive<name, double, double>{
+public:
+   typedef int member_t;
+   static PyObject* call(PyObject*, PyObject*, PyObject*){
+    return nullptr;
+   }
+};
+template<const char* const name>
+class NonPrimitive<name, float, float>{
+public:
+   typedef int member_t;
+   static PyObject* call(PyObject*, PyObject*, PyObject*){
+    return nullptr;
+   }
+};
+template<const char* const name, typename CClass, typename ...Args>
+class NonPrimitive<name, CClass, void, Args...>{
+public:
+    typedef void(CClass::*method_t)(Args...);
+    typedef int member_t;
+    static method_t method;
+    static PyObject* call(PyObject* self, PyObject* args, PyObject* kwds){
+         if(!self) return nullptr;
+        PythonClassWrapper<CClass>* _this = (PythonClassWrapper<CClass>*)self;
+        if(_this->_CObject){
+            if (method){
+                try{
+                    call_method<CClass, void, Args...>
+                        (method, *_this->_CObject,args, kwds);
+                    return Py_None;
+                } catch(...){
+                    return nullptr;
+                }
+            }
+        }
+        return nullptr;
+    }
+};
+template< const char* const name, class CClass, typename ...Args>
+typename NonPrimitive<name, CClass, void, Args...>::method_t NonPrimitive<name, CClass, void, Args...>::method;
+
+template<const char* const name, typename T>
+class NonPrimitive<name, T*, T*>{
+public:
+   typedef int member_t;
+   static PyObject* call(PyObject*, PyObject*, PyObject*){
+    return nullptr;
+   }
+};
+template<const char* const name, typename T>
+class NonPrimitive<name, T&, T&>{
+public:
+   typedef int member_t;
+   static PyObject* call(PyObject*, PyObject*, PyObject*){
+    return nullptr;
+   }
+};
+template< typename CClass,
+          typename... Bases >
+std::vector<PyMethodDef> PythonClassWrapper<CClass,  Bases...>::_methodCollection = std::vector<PyMethodDef>(emptyMethods, emptyMethods+1);
+
+template< typename CClass,
+          typename... Bases >
+std::vector<PyMemberDef> PythonClassWrapper<CClass,  Bases...>::_memberCollection = std::vector<PyMemberDef>(emptyMembers, emptyMembers+1);
 
 #include "pyllars/pyllars_utils.h"
 
@@ -434,6 +710,7 @@ PythonClassWrapper<CClass, Bases...>::_init( PythonClassWrapper *self, PyObject 
 
 template< typename CClass, typename ...Bases>
 PyTypeObject PythonClassWrapper<CClass, Bases...>::Type = {
+
     PyObject_HEAD_INIT(nullptr)
     0,                         /*ob_size*/
     PythonClassWrapper::name,             /*tp_name*/
@@ -462,8 +739,8 @@ PyTypeObject PythonClassWrapper<CClass, Bases...>::Type = {
     0,		                       /* tp_weaklistoffset */
     nullptr,		               /* tp_iter */
     nullptr,		               /* tp_iternext */
-    PythonClassWrapper::_methods,             /* tp_methods */
-    PythonClassWrapper::_members,             /* tp_members */
+    PythonClassWrapper::_methodCollection.data(),             /* tp_methods */
+    PythonClassWrapper::_memberCollection.data(),             /* tp_members */
     nullptr,                         /* tp_getset */
     nullptr,                         /* tp_base */
     nullptr,                         /* tp_dict */
@@ -474,6 +751,17 @@ PyTypeObject PythonClassWrapper<CClass, Bases...>::Type = {
     nullptr,                         /* tp_alloc */
     PythonClassWrapper::_new,             /* tp_new */
 };
+
+
+  template< typename CClass, typename ReturnType, typename ...Args, typename ...PyO>
+    static ReturnType call_methodC( ReturnType (CClass::*method)(Args...),
+                                    typename std::remove_reference<CClass>::type &self,
+                                    PyObject *pytuple, PyObject *kwds, PyO* ...pyargs){
+       return  (self.*method)(toCObject<Args>(*pyargs)...);
+    }
+
+////////////////////////////
+
 
 template< typename CClass,
           typename... Bases>
@@ -548,6 +836,16 @@ struct PythonCPointerWrapper {
         return status;
     }
 
+
+    static PyTypeObject Type;
+
+    static const char* const name;
+
+    void* ptr(){
+        return _content;
+    }
+
+private:
     static PyObject* _at( PyObject * self, PyObject* args, PyObject* kwargs) {
         static const char* kwlist[] = {"index",nullptr};
 
@@ -577,60 +875,30 @@ struct PythonCPointerWrapper {
         return result;
     }
 
-    static PyTypeObject Type;
+    static std::vector<PyMethodDef> s_methodCollection;
+    static std::vector<PyMemberDef> s_memberCollection;
+    static PyMethodDef s_methodList[];
+    static PyMemberDef s_memberList[];
 
-    static PyMemberDef _members[];
-
-    static PyMethodDef _methods[];
-
-    static const char* const name;
-
-    void* ptr(){
-        return _content;
-    }
-
-private:
-
+    //  !!!!!!CAUTION: If you change the layout you must consider changing
+    //  !!!!!!The offset computation below
     void* _content;
     size_t _depth;
-
 };
 
-
-template< typename CClass,
-          typename... Bases >
-PyMemberDef PythonCPointerWrapper<CClass,  Bases...>::_members[] = {
-    {
-        (char*)"depth", T_OBJECT_EX, offsetof(PythonCPointerWrapper, _depth), 0,
-        (char*)"depth of pointer"
-    },
-    {nullptr}  /* Sentinel */
-};
-
-
-template< typename CClass,
-          typename... Bases >
-PyMethodDef PythonCPointerWrapper<CClass,  Bases...>::_methods[] = {
-    {
-        "at", (PyCFunction)PythonCPointerWrapper::_at,
-        METH_VARARGS,
-        "Return the dereferenced item at provided index"
-    },
-    {nullptr}  /* Sentinel */
-};
 
 
 template<typename CClass, typename ...Bases>
-template< typename ...Args, char* ...names>
- std::remove_reference<CClass>* PythonClassWrapper<CClass, Bases...>::constructorC( PyObject *pytuple, PyObject *kwds, PyObject* const pyargs...){
-        static char* kwlist[] = {names..., nullptr};
-        char format[sizeof...(Args)+1] = {'O'};
-        format[sizeof...(Args)] = 0;
+template< typename ...Args, const char * const ...names, typename ...PyO>
+ std::remove_reference<CClass>* PythonClassWrapper<CClass, Bases...>::constructorC( PyObject *pytuple, PyObject *kwds, PyO*... pyargs){
+    static char* kwlist[] = {names..., nullptr};
+    char format[sizeof...(Args)+1] = {'O'};
+    format[sizeof...(Args)] = 0;
 
-        if(!PyArg_ParseTupleAndKeywords(pytuple, kwds, format, kwlist, pyargs)){
-          return nullptr;
-        }
-        return new CClass(toCObject<Args>(pyargs)...);
+    if(!PyArg_ParseTupleAndKeywords(pytuple, kwds, format, kwlist, pyargs...)){
+      return nullptr;
+    }
+    return new CClass(toCObject<Args>(pyargs)...);
 }
 
 
@@ -665,8 +933,8 @@ PyTypeObject PythonCPointerWrapper<CClass,  Bases...>::Type = {
     0,		               /* tp_weaklistoffset */
     nullptr,		               /* tp_iter */
     nullptr,		               /* tp_iternext */
-    PythonCPointerWrapper<CClass,  Bases...>::_methods,             /* tp_methods */
-    PythonCPointerWrapper::_members,             /* tp_members */
+    PythonCPointerWrapper::s_methodCollection.data(),             /* tp_methods */
+    PythonCPointerWrapper::s_memberCollection.data(),             /* tp_members */
     nullptr,                         /* tp_getset */
     nullptr,                         /* tp_base */
     nullptr,                         /* tp_dict */
@@ -678,18 +946,41 @@ PyTypeObject PythonCPointerWrapper<CClass,  Bases...>::Type = {
     PythonCPointerWrapper<CClass,  Bases...>::_new,                 /* tp_new */
 };
 
+template<typename CClass, typename ...Bases>
+PyMethodDef PythonCPointerWrapper<CClass, Bases...>::s_methodList[] = {
+    {
+        "at", (PyCFunction)PythonCPointerWrapper::_at,
+        METH_VARARGS,
+        "Return the dereferenced item at provided index"
+    },
+    {nullptr}  /* Sentinel */
+};
+template<typename CClass, typename ...Bases>
+std::vector<PyMethodDef> PythonCPointerWrapper<CClass, Bases...>::s_methodCollection =
+   std::vector<PyMethodDef>(PythonCPointerWrapper::s_methodList, PythonCPointerWrapper::s_methodList+2);
+
+struct UNUSED{
+  PyObject_HEAD
+};
+template<typename CClass, typename ...Bases>
+PyMemberDef PythonCPointerWrapper<CClass, Bases...>::s_memberList[] = { {
+            //  !!!!!!!!!CAUTION : CANNOT USE OFFSETOF HERE, SO HAVE TO COMPUTE, BUT IS
+            //  !!!!!!!!!DEPENDENT ON LAYOUT
+              (char*)"depth", T_OBJECT_EX, sizeof(PythonCPointerWrapper) - sizeof(UNUSED) + sizeof(void*), 0,
+              (char*)"depth of pointer"
+            },
+            {nullptr}/*Sentinel*/
+};
+template<typename CClass, typename ...Bases>
+std::vector<PyMemberDef> PythonCPointerWrapper<CClass, Bases...>::s_memberCollection=
+   std::vector<PyMemberDef>(PythonCPointerWrapper::s_memberList, PythonCPointerWrapper::s_memberList+2);;
+
 
 template<>
 const char* const PythonClassWrapper<int>::name = "type_int";
 
 template<>
 const char* const PythonCPointerWrapper<int>::name = "ptr_int";
-
-template<>
-PyMethodDef PythonClassWrapper<int>::_methods[] = {nullptr};
-
-template<>
-PyMemberDef PythonClassWrapper<int>::_members[] = {nullptr};
 
 
 template<>
@@ -699,25 +990,10 @@ template<>
 const char* const PythonCPointerWrapper<long>::name = "ptr_long";
 
 template<>
-PyMethodDef PythonClassWrapper<long>::_methods[] = {nullptr};
-
-template<>
-PyMemberDef PythonClassWrapper<long>::_members[] = {nullptr};
-
-
-template<>
 const char* const PythonClassWrapper<short>::name = "type_short";
 
 template<>
 const char* const PythonCPointerWrapper<short>::name = "ptr_short";
-
-template<>
-PyMethodDef PythonClassWrapper<short>::_methods[] = {nullptr};
-
-template<>
-PyMemberDef PythonClassWrapper<short>::_members[] = {nullptr};
-
-
 
 template<>
 const char* const PythonClassWrapper<char>::name = "type_char";
@@ -725,25 +1001,12 @@ const char* const PythonClassWrapper<char>::name = "type_char";
 template<>
 const char* const PythonCPointerWrapper<char>::name = "ptr_char";
 
-template<>
-PyMethodDef PythonClassWrapper<char>::_methods[] = {nullptr};
-
-template<>
-PyMemberDef PythonClassWrapper<char>::_members[] = {nullptr};
-
 
 template<>
 const char* const PythonClassWrapper<unsigned long>::name = "type_unsigned_long";
 
 template<>
 const char* const PythonCPointerWrapper<unsigned long>::name = "ptr_unsigned_long";
-
-template<>
-PyMethodDef PythonClassWrapper<unsigned long>::_methods[] = {nullptr};
-
-template<>
-PyMemberDef PythonClassWrapper<unsigned long>::_members[] = {nullptr};
-
 
 
 
@@ -753,14 +1016,6 @@ const char* const PythonClassWrapper<unsigned short>::name = "type_unsigned_shor
 template<>
 const char* const PythonCPointerWrapper<unsigned short>::name = "ptr_unsigned_short";
 
-template<>
-PyMethodDef PythonClassWrapper<unsigned short>::_methods[] = {nullptr};
-
-template<>
-PyMemberDef PythonClassWrapper<unsigned short>::_members[] = {nullptr};
-
-
-
 
 template<>
 const char* const PythonClassWrapper<unsigned char>::name = "type_unsigned_char";
@@ -769,26 +1024,10 @@ template<>
 const char* const PythonCPointerWrapper<unsigned char>::name = "ptr_unsigned_char";
 
 template<>
-PyMethodDef PythonClassWrapper<unsigned char>::_methods[] = {nullptr};
-
-template<>
-PyMemberDef PythonClassWrapper<unsigned char>::_members[] = {nullptr};
-
-
-
-
-template<>
 const char* const PythonClassWrapper<double>::name = "type_unsigned_long";
 
 template<>
 const char* const PythonCPointerWrapper<double>::name = "ptr_unsigned_long";
-
-template<>
-PyMethodDef PythonClassWrapper<double>::_methods[] = {nullptr};
-
-template<>
-PyMemberDef PythonClassWrapper<double>::_members[] = {nullptr};
-
 
 
 template<>
@@ -797,11 +1036,69 @@ const char* const PythonClassWrapper<float>::name = "type_unsigned_long";
 template<>
 const char* const PythonCPointerWrapper<float>::name = "ptr_unsigned_long";
 
-template<>
-PyMethodDef PythonClassWrapper<float>::_methods[] = {nullptr};
+
+////
+
 
 template<>
-PyMemberDef PythonClassWrapper<float>::_members[] = {nullptr};
+const char* const PythonClassWrapper<int const>::name = "type_int";
+
+template<>
+const char* const PythonCPointerWrapper<int const>::name = "ptr_int";
+
+
+template<>
+const char* const PythonClassWrapper<long const>::name = "type_long";
+
+template<>
+const char* const PythonCPointerWrapper<long const>::name = "ptr_long";
+
+template<>
+const char* const PythonClassWrapper<short const>::name = "type_short";
+
+template<>
+const char* const PythonCPointerWrapper<short const>::name = "ptr_short";
+
+template<>
+const char* const PythonClassWrapper<char const>::name = "type_char";
+
+template<>
+const char* const PythonCPointerWrapper<char const>::name = "ptr_char";
+
+
+template<>
+const char* const PythonClassWrapper<unsigned long const>::name = "type_unsigned_long";
+
+template<>
+const char* const PythonCPointerWrapper<unsigned long const>::name = "ptr_unsigned_long";
+
+
+
+template<>
+const char* const PythonClassWrapper<unsigned short const>::name = "type_unsigned_short";
+
+template<>
+const char* const PythonCPointerWrapper<unsigned short const>::name = "ptr_unsigned_short";
+
+
+template<>
+const char* const PythonClassWrapper<unsigned char const>::name = "type_unsigned_char";
+
+template<>
+const char* const PythonCPointerWrapper<unsigned char const>::name = "ptr_unsigned_char";
+
+template<>
+const char* const PythonClassWrapper<double const>::name = "type_unsigned_long";
+
+template<>
+const char* const PythonCPointerWrapper<double const>::name = "ptr_unsigned_long";
+
+
+template<>
+const char* const PythonClassWrapper<float const>::name = "type_unsigned_long";
+
+template<>
+const char* const PythonCPointerWrapper<float const>::name = "ptr_unsigned_long";
 
 
 template< typename CClass,

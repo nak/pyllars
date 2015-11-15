@@ -52,6 +52,7 @@ struct gens<0, S...> {
     return pyobj;
   }
 
+// TODO (jrusnak#1#): Do all primitives, including const ones
   template<>
   PyObject* toPyObject<char>( const char & var){
     return PyInt_FromLong( var);
@@ -72,6 +73,46 @@ struct gens<0, S...> {
     return PyInt_FromLong( var);
   }
 
+   template<>
+  PyObject* toPyObject<float>( const float & var){
+    return PyFloat_FromDouble( var);
+  }
+
+  template<>
+  PyObject* toPyObject<double>( const double & var){
+    return PyFloat_FromDouble( var);
+  }
+  /////////////
+
+   template<>
+  PyObject* toPyObject<char const>( const char & var){
+    return PyInt_FromLong( var);
+  }
+
+  template<>
+  PyObject* toPyObject<short const>( const short & var){
+    return PyInt_FromLong( var);
+  }
+
+  template<>
+  PyObject* toPyObject<int const>( const int & var){
+    return PyInt_FromLong( var);
+  }
+
+  template<>
+  PyObject* toPyObject<long const>( const long & var){
+    return PyInt_FromLong( var);
+  }
+
+   template<>
+  PyObject* toPyObject<float const>( const float & var){
+    return PyFloat_FromDouble( var);
+  }
+
+  template<>
+  PyObject* toPyObject<double const>( const double & var){
+    return PyFloat_FromDouble( var);
+  }
 #ifndef __PYLLARS__INTERNAL__POINTER_H
 }
 #endif // __PYLLARS__INTERNAL__POINTER_H
