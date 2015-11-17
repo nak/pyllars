@@ -26,8 +26,7 @@ namespace __pyllars_internal {
 ////////////////////////////
 
 
-template< typename CClass,
-          typename... Bases>
+template< typename CClass, typename... Bases>
 struct PythonCPointerWrapper {
 
     PyObject_HEAD
@@ -64,38 +63,38 @@ struct PythonCPointerWrapper {
 
     static int
     _init( PythonCPointerWrapper *self, PyObject *args, PyObject *kwds) {
-       // PyObject *target=nullptr;
-
-        //static const char *kwlist[] = {"target", nullptr};
         int status = -1;
-        if (args && PyTuple_Size(args)>0){
+        if( kwds && PyDict_Size(kwds)>0){
+            PyErr_SetString(PyExc_TypeError, "Keyword argument(s) unexpected in Pointer cosntructor");
             status = -1;
+            goto onerror;
+        }
+        if (args && PyTuple_Size(args)>1){
+            PyErr_SetString(PyExc_TypeError, "Excpect only one object in Pointer constructor");
+            status = -1;
+        } else if (args && PyTuple_Size(args)==1){
+            PyObject* pyobj = PyTuple_GetItem(args, 0);
+            PyTypeObject * pytypeobj =  &PythonClassWrapper<CClass, Bases...>::Type;
+            typedef typename std::remove_pointer< CClass>::type CClass_bare;
+            PyTypeObject * pyptrtypeobj = &PythonCPointerWrapper<CClass_bare, Bases...>::Type;
+            if (PyObject_TypeCheck(pyobj, pytypeobj)) {
+                self->_content = reinterpret_cast< PythonClassWrapper<CClass, Bases...>*>(pyobj)->get_CObject();
+                self->_depth = 1;
+                status = 0;
+            } else if (PyObject_TypeCheck(pyobj, pyptrtypeobj)){
+                self->_content = reinterpret_cast< PythonCPointerWrapper<CClass_bare, Bases...>*>(pyobj)->ptr();
+                self->_depth = 1;
+                status = 0;
+            } else {
+                PyErr_SetString(PyExc_TypeError, "Invalid type for object when getting its pointer");
+                status = -1;
+            }
         } else {
             self->_content = nullptr;
-            self->_depth = 1;
+            self->_depth = 0;
             status = 0;
         }
-        /*if (self != nullptr &&
-                PyArg_ParseTuple(args, "O", &target)) {
-
-            if (target && target != Py_None) {
-                if (PyObject_IsInstance( target, (PyObject*)&PythonCPointerWrapper::Type)) {
-                    self->_depth = ((PythonCPointerWrapper*)target)->_depth +1;
-                    PyObject* obj  = PyObject_CallObject((PyObject*)&Type, Py_None);
-                    self->_content = &(reinterpret_cast<PythonCPointerWrapper*>(obj)->_content);
-                    status = 0;
-                } else if ( PyObject_IsInstance( target, (PyObject*)&PythonClassWrapper<CClass>::Type )) {
-                    self->_depth = 1;
-                    typename std::remove_reference<CClass>::type* obj = reinterpret_cast< PythonClassWrapper<CClass> *>(target)->get_CObject();
-                    self->_content = (void*)obj;
-                    status = 0;
-                }
-
-
-            } else if (target==Py_None) {
-
-            }
-        }*/
+    onerror:
         return status;
     }
 
