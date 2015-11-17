@@ -1,5 +1,6 @@
 #include <pyllars/pyllars_pointer.h>
 #include <pyllars/pyllars_function_wrapper.h>
+#include <pyllars/pyllars_classwrapper.h>
 
 typedef const char* cstring;
 
@@ -25,11 +26,11 @@ initmod() {
   PyObject* m = Py_InitModule3("test", nullptr,
 			       "Test of pyllars generation");
 
-  init_pyllars_pointer< int>( m );
-  init_pyllars_pointer< double>( m );
-  init_pyllars_pointer< Dummy>( m );
-  init_pyllars_pointer< Dummy&>( m );
-  init_pyllars_pointer< Dummy*>( m );
+  init_pyllars_pointer< int>("int", m );
+  init_pyllars_pointer< double>("double", m );
+  init_pyllars_pointer< Dummy>( "Dummy", m );
+//init_pyllars_pointer< Dummy&>( m );
+//  init_pyllars_pointer< Dummy*>(m );
 }
 
 int16_t dumm( const int a, const double f, Dummy & dummy, Dummy* dummy2){
@@ -47,16 +48,15 @@ const char* const PythonClassWrapper<Dummy*>::name = "type_DummyPtr";
 
 template<>
 const char* const PythonCPointerWrapper<Dummy>::name = "ptrtype_Dummy";
-template<>
-const char* const PythonCPointerWrapper<Dummy&>::name = "ptrtype_DummyRef";
-template<>
-const char* const PythonCPointerWrapper<Dummy*>::name = "ptrtype_DummyPtr";
+//template<>
+//const char* const PythonCPointerWrapper<Dummy*>::name = "ptrtype_DummyPtr";
 extern const char* const names []  = {"intv", "doublev", "dumm1", "dumm2",nullptr};
 extern const char  funcname[] = "dummy_func";
 extern const char print_name[] = "print";
 extern const char member_name[] = "value";
 int main(){
     Py_Initialize();
+    toPyObject<int>(1);
     PythonClassWrapper<Dummy>::add_method<print_name,void>( &Dummy::print);
     PythonClassWrapper<Dummy>::add_member<member_name,const double>( &Dummy::value);
     initmod();
@@ -70,7 +70,8 @@ int main(){
     }
     auto pArgs = PyTuple_New(1);
     PyTuple_SetItem(pArgs, 0, obj);
-    PyObject* o = PyObject_CallObject((PyObject*)&PythonCPointerWrapper<int>::Type, pArgs);
+    PythonClassWrapper<int>::addType("Pointer", &PythonCPointerWrapper<int>::Type);
+    PyObject* o = PyObject_CallObject((PyObject*)&PythonCPointerWrapper<int>::Type, nullptr);
     if (o == nullptr){
         printf("nullptr O\n");
     }
@@ -82,8 +83,10 @@ int main(){
         PyObject* args = PyTuple_New(4);
         PyTuple_SetItem(args, 0, PyInt_FromLong(123));
         PyTuple_SetItem(args, 1, PyFloat_FromDouble(3.21));
-        PyTuple_SetItem(args, 2, toPyObject<Dummy&>(dumm1));
-        PyTuple_SetItem(args, 3, toPyObject<Dummy*>(&dumm2));
+        PyTuple_SetItem(args, 2, toPyObject<Dummy>(dumm1));
+        PyObject* dumm2_ptr = toPyObject<Dummy*>(&dumm2);
+        assert( PyObject_TypeCheck(dumm2_ptr, &PythonCPointerWrapper<Dummy>::Type));
+        PyTuple_SetItem(args, 3, dumm2_ptr);
         int16_t val = toCObject<int16_t>(*PyObject_CallObject( (PyObject*)wrapper, args));
         fprintf(stderr, "VALUE IS %d\n", val);
     } catch(...){
