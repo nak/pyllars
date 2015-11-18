@@ -88,18 +88,9 @@ namespace __pyllars_internal{
         return PyObjectConversionHelper<T>::toPyObject(var);
     }
 
+    template< typename C_type>
+    C_type toCObject( PyObject& pyobj);
 
-    template< typename CClass, typename ReturnType, typename ...Args, typename ...PyO>
-    static ReturnType call_methodC( ReturnType (CClass::*method)(Args...),
-                                    typename std::remove_reference<CClass>::type &self,
-                                    PyObject *pytuple, PyObject *kwds, PyO* ...pyargs);
-
-    template<typename CClass,typename ReturnType, typename ...Args, int ...S, const char* const... names>
-    static ReturnType call_methodBase( ReturnType (CClass::*method)(Args...),
-                                        typename std::remove_reference<CClass>::type &self,
-                                        PyObject *args, PyObject *kwds, container<S...> s) {
-        return call_methodC(method, self, args, kwds, PyTuple_GetItem(s.pyobjs,S)...);
-    }
 
 
     template<typename CClass, typename T, typename ... Args>
@@ -113,6 +104,21 @@ namespace __pyllars_internal{
         }
         static PyObject* call( method_t method, CClass & self, PyObject* args, PyObject* kwds){
             return toPyObject( call_methodBase(method, self, args, kwds, typename argGenerator<sizeof...(Args)>::type(args)));
+        }
+
+    private:
+        template< typename ...PyO>
+        static T call_methodC( T (CClass::*method)(Args...),
+                                        typename std::remove_reference<CClass>::type &self,
+                                        PyObject *pytuple, PyObject *kwds, PyO* ...pyargs){
+            return  (self.*method)(toCObject<Args>(*pyargs)...);
+        }
+
+        template<int ...S, const char* const... names>
+        static T call_methodBase( T (CClass::*method)(Args...),
+                                        typename std::remove_reference<CClass>::type &self,
+                                        PyObject *args, PyObject *kwds, container<S...> s) {
+            return call_methodC(method, self, args, kwds, PyTuple_GetItem(s.pyobjs,S)...);
         }
 
     };
@@ -129,7 +135,23 @@ namespace __pyllars_internal{
             call_methodBase(method, self, args, kwds, typename argGenerator<sizeof...(Args)>::type(args));
             return Py_None;
         }
-    };
+
+    private:
+        template< typename ...PyO>
+        static void call_methodC( void (CClass::*method)(Args...),
+                                        typename std::remove_reference<CClass>::type &self,
+                                        PyObject *pytuple, PyObject *kwds, PyO* ...pyargs){
+              (self.*method)(toCObject<Args>(*pyargs)...);
+        }
+
+        template<int ...S, const char* const... names>
+        static void call_methodBase( void (CClass::*method)(Args...),
+                                        typename std::remove_reference<CClass>::type &self,
+                                        PyObject *args, PyObject *kwds, container<S...> s) {
+             call_methodC(method, self, args, kwds, PyTuple_GetItem(s.pyobjs,S)...);
+        }
+
+     };
     template< class CClass, typename T, typename ...Args>
     typename MethodCallSemantics<CClass, T, Args...>::member_t
     MethodCallSemantics<CClass, T, Args...>::member;
@@ -732,12 +754,6 @@ PyTypeObject PythonClassWrapper<CClass, Bases...>::Type = {
 };
 
 
-  template< typename CClass, typename ReturnType, typename ...Args, typename ...PyO>
-    static ReturnType call_methodC( ReturnType (CClass::*method)(Args...),
-                                    typename std::remove_reference<CClass>::type &self,
-                                    PyObject *pytuple, PyObject *kwds, PyO* ...pyargs){
-       return  (self.*method)(toCObject<Args>(*pyargs)...);
-    }
 
 }
 #endif
