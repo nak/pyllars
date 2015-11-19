@@ -13,10 +13,15 @@ using namespace __pyllars_internal;
 
 class Dummy{
 public:
+
+   Dummy(){}
+
    void print(){
      fprintf (stderr, "YOU'RE IN LUCK!!!\n");
    }
-   const double value = 4.242;
+   double value = 4.242;
+private:
+    Dummy(const Dummy &);
 };
 
 
@@ -27,14 +32,17 @@ initmod() {
 			       "Test of pyllars generation");
 
   init_pyllars_pointer< int>("int", m );
+  init_pyllars_pointer< int&>("int_ref", m );
   init_pyllars_pointer< double>("double", m );
   init_pyllars_pointer< Dummy>( "Dummy", m );
 //init_pyllars_pointer< Dummy&>( m );
 //  init_pyllars_pointer< Dummy*>(m );
 }
 
-int16_t dumm( const int a, const double f, Dummy & dummy, Dummy* dummy2){
-    fprintf(stdout,"Called dummy with %d, %f, %p %p", a, f, &dummy,dummy2);
+int16_t dumm( const int a, const double f,  int& intval, Dummy & dummy, Dummy* dummy2){
+    fprintf(stdout,"Called dummy with %d, %f, %p %p\n", a, f, &dummy,dummy2);
+    intval = 1.234;
+    dummy.value = 424242.42;
     return 42;
 }
 
@@ -50,13 +58,13 @@ template<>
 const char* const PythonCPointerWrapper<Dummy>::name = "ptrtype_Dummy";
 //template<>
 //const char* const PythonCPointerWrapper<Dummy*>::name = "ptrtype_DummyPtr";
-extern const char* const names []  = {"intv", "doublev", "dumm1", "dumm2",nullptr};
+extern const char* const names []  = {"intv", "doublev", "intref", "dumm1", "dumm2",nullptr};
 extern const char  funcname[] = "dummy_func";
 extern const char print_name[] = "print";
 extern const char member_name[] = "value";
 int main(){
     Py_Initialize();
-    toPyObject<int>(1);
+    toPyObject<int>(1, false);
     PythonClassWrapper<Dummy>::add_method<print_name,void>( &Dummy::print);
     PythonClassWrapper<Dummy>::add_member<member_name,const double>( &Dummy::value);
     initmod();
@@ -77,29 +85,35 @@ int main(){
     }
 
     Dummy dumm1, dumm2;
-    auto wrapper = PythonFunctionWrapper< funcname, names, int16_t, int, double, Dummy&, Dummy*>::create(dumm);
-    wrapper->call(123, 3.21, dumm1, &dumm2);
+    int intval2;
+    auto wrapper = PythonFunctionWrapper< funcname, names, int16_t, int, double, int&, Dummy&, Dummy*>::create(dumm);
+    wrapper->call(123, 3.21, intval2, dumm1, &dumm2);
     try{
-        PyObject* args = PyTuple_New(4);
+        int intval = 0;
+        PyObject* args = PyTuple_New(5);
         PyTuple_SetItem(args, 0, PyInt_FromLong(123));
         PyTuple_SetItem(args, 1, PyFloat_FromDouble(3.21));
-        PyTuple_SetItem(args, 2, toPyObject<Dummy>(dumm1));
-        PyObject* dumm2_ptr = toPyObject<Dummy*>(&dumm2);
+        PyTuple_SetItem(args, 2, toPyObject<int&>(intval, true));
+        PyTuple_SetItem(args, 3, toPyObject<Dummy>(dumm1, true));
+        PyObject* dumm2_ptr = toPyObject<Dummy*>(&dumm2, true);
         assert( PyObject_TypeCheck(dumm2_ptr, &PythonCPointerWrapper<Dummy>::Type));
-        PyTuple_SetItem(args, 3, dumm2_ptr);
+        PyTuple_SetItem(args, 4, dumm2_ptr);
         int16_t val = toCObject<int16_t>(*PyObject_CallObject( (PyObject*)wrapper, args));
         fprintf(stderr, "VALUE IS %d\n", val);
+        fprintf(stderr, "NEW INTEGRAL VALUE IS %d\n", intval);
+        fprintf(stderr, "NEW DUMMY VALUE IS %f\n", dumm1.value);
     } catch(...){
         fprintf(stderr, "Error caught on function call\n");
         return 1;
     }
     {
         Dummy obj;
-        PyObject* pyobj = toPyObject(obj);
+        PyObject* pyobj = toPyObject(obj, false);
         PyObject* ret = PyObject_CallMethod(pyobj, (char*)print_name,nullptr);
         ret = PyObject_CallMethod(pyobj, (char*)(std::string("get_")+member_name).c_str(),nullptr);
         double val = toCObject<double>(*ret);
-        fprintf(stderr, ".value is: %f" , val);
+        fprintf(stderr, ".value is: %f\n" , val);
     }
+    fprintf(stderr, "SUCCESS!\n");
     return 0;
 }

@@ -8,9 +8,6 @@
 
 namespace __pyllars_internal {
 
-template< typename c_type>
-  PyObject* toPyObject( const c_type * var);
-
 /*********
  * Class to define Python wrapper to C class/type
  **/
@@ -142,7 +139,7 @@ void PythonFunctionWrapper<func_name, names, ReturnType, Args...>::_init(){
 template<const char* const func_name, const char* const names[], typename ReturnType, typename... Args>
 PyObject* PythonFunctionWrapper<func_name, names, ReturnType, Args...>::_call(PyObject *callable_object, PyObject *args, PyObject *kw){
   PythonFunctionWrapper& wrapper = *reinterpret_cast<PythonFunctionWrapper* const>(callable_object);
-  return toPyObject<ReturnType>(wrapper.callFunc(args, kw, typename argGenerator<sizeof...(Args)>::type(args)));
+  return toPyObject<ReturnType>(wrapper.callFunc(args, kw, typename argGenerator<sizeof...(Args)>::type(args)), false);
 }
 
 }

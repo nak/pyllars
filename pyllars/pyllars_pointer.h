@@ -169,7 +169,7 @@ private:
     template< typename T>
     class PyObjectConversionHelper<T,  typename  std::enable_if< std::is_pointer<T>::value >::type >{
     public:
-        static PyObject* toPyObject( const T & var ){
+        static PyObject* toPyObject( const T & var, const bool asArgument ){
             typedef typename std::remove_pointer<T>::type T_base;
             PyObject* pyobj =nullptr;
             if( std::is_pointer<T>::value ){
