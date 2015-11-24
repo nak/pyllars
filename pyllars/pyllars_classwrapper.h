@@ -15,8 +15,6 @@ namespace __pyllars_internal{
     template< typename C_type>
     C_type toCObject( PyObject& pyobj);
 
-
-
 }
 
 #ifndef __PYLLARS__INTERNAL__CLASS_WRAPPER_H
@@ -60,8 +58,10 @@ namespace __pyllars_internal{
 
 
         static PyObject* toPyObject(  T & var, const bool asArgument ){
+            PyObject* kw = PyDict_New();
+            PyDict_SetItemString(kw, "__internal_allow_null", PyBool_FromLong(asArgument));
             //create the object of the desired type and do some checks
-            PyObject* pyobj = PyObject_CallObject(  (PyObject*)&PythonClassWrapper<T>::Type, nullptr);
+            PyObject* pyobj = PyObject_Call(  (PyObject*)&PythonClassWrapper<T>::Type, nullptr, kw);
             if ( !pyobj || !PyObject_TypeCheck(pyobj,&PythonClassWrapper<T>::Type)){
                 PyErr_SetString(PyExc_TypeError, "Unable to convert C type object to Python object");
                 goto onerror;
@@ -79,8 +79,10 @@ namespace __pyllars_internal{
     public:
 
         static PyObject* toPyObject(  T & var, const bool asArgument ){
+            PyObject* kw = PyDict_New();
+            PyDict_SetItemString(kw, "__internal_allow_null", PyBool_FromLong(asArgument));
             //create the object of the desired type and do some checks
-            PyObject* pyobj = PyObject_CallObject(  (PyObject*)&PythonClassWrapper<T>::Type, nullptr);
+            PyObject* pyobj = PyObject_Call(  (PyObject*)&PythonClassWrapper<T>::Type, nullptr, kw);
             if ( !pyobj || !PyObject_TypeCheck(pyobj,&PythonClassWrapper<T>::Type)){
                 PyErr_SetString(PyExc_TypeError, "Unable to convert C type object to Python object");
                 goto onerror;
@@ -93,8 +95,6 @@ namespace __pyllars_internal{
 
         }
     };
-
-
 
     template<typename T>
     class PyObjectConversionHelper<T,  typename  std::enable_if< std::is_integral<T>::value >::type >{
@@ -122,7 +122,7 @@ namespace __pyllars_internal{
         return PyObjectConversionHelper<T>::toPyObject(var, asArgument);
     }
 
-/////////////////////////////////////////
+    /////////////////////////////////////////
 
     /**
      * class to hold referecne to a class method and define
@@ -151,6 +151,13 @@ namespace __pyllars_internal{
 
     private:
 
+        static void decref(void){
+        }
+
+       static void decref( PyObject* obj){
+            Py_DECREF(obj);
+        }
+
         /**
          * call that invokes method a la C:
          **/
@@ -158,7 +165,9 @@ namespace __pyllars_internal{
         static T call_methodC( T (CClass::*method)(Args...),
                                         typename std::remove_reference<CClass>::type &self,
                                         PyObject *pytuple, PyObject *kwds, PyO* ...pyargs){
-            return  (self.*method)(toCObject<Args>(*pyargs)...);
+            T retval =  (self.*method)(toCObject<Args>(*pyargs)...);
+            decref(((PyObject*)pyargs)...);
+            return retval;
         }
 
         /**
@@ -206,9 +215,11 @@ namespace __pyllars_internal{
         }
 
      };
+
     template< class CClass, typename T, typename ...Args>
     typename MethodCallSemantics<CClass, T, Args...>::member_t
     MethodCallSemantics<CClass, T, Args...>::member;
+
     template< class CClass, typename ...Args>
     typename MethodCallSemantics<CClass, void, Args...>::member_t
     MethodCallSemantics<CClass, void, Args...>::member;
@@ -264,11 +275,11 @@ namespace __pyllars_internal{
            }
         };
     };
+
     template< class CClass, const char* const name>
     template< typename ReturnType, typename ...Args>
     typename MethodContainer<CClass, name, typename std::enable_if< std::is_class<CClass>::value>::type >::template Container<ReturnType, Args...>::method_t
      MethodContainer< CClass, name, typename std::enable_if< std::is_class<CClass>::value>::type >::Container<ReturnType, Args...>::method;
-
 
     /**
      * Specialization for integral types
@@ -295,7 +306,7 @@ namespace __pyllars_internal{
         class Container{
            typedef int member_t;
            static PyObject* call(PyObject*, PyObject*, PyObject*){
-            return nullptr;
+                return nullptr;
            }
         };
     };
@@ -303,10 +314,8 @@ namespace __pyllars_internal{
     static PyMethodDef emptyMethods[] = {nullptr};
     static PyMemberDef emptyMembers[] = {nullptr};
 
-       //
+    //
     /////////////////////////
-
-
 
     template<typename CClass, typename E=void>
     class InitHelper{
@@ -372,22 +381,166 @@ namespace __pyllars_internal{
         }
     };
 
-    //specialize for non-primitive types:
+    //specialize for non-numeric fundamental types:
     template<typename T>
-    class InitHelper<T , typename std::enable_if<!std::is_integral<T>::value && !std::is_floating_point<T>::value >::type>{
+    class InitHelper<T , typename std::enable_if<!std::is_arithmetic<T>::value && std::is_fundamental<T>::value >::type>{
     public:
         static int init(PythonClassWrapper<T> *self, PyObject* args, PyObject*kwds){
-          if (!self) {
-            return -1;
-          }
-          for (auto it = PythonClassWrapper<T>::_constructors.begin(); it != PythonClassWrapper<T>::_constructors.end(); ++it){
+            if (!self) {
+                return -1;
+            }
+            for (auto it = PythonClassWrapper<T>::_constructors.begin(); it != PythonClassWrapper<T>::_constructors.end(); ++it){
               if ((self->_CObject = (*it)(args, kwds)) != nullptr){
                   break;
               }
-          }
+            }
+            if ( self->_CObject == nullptr){
+                static const char * kwdlist[] = {"value", nullptr};
+                PyObject pyobj;
+                if (PyArg_ParseTupleAndKeywords(args, kwds, "O", (char**)kwdlist, &pyobj) ) {
+                    if(!PyObject_TypeCheck(&pyobj, &PythonClassWrapper<T>::Type)){
+                        PyErr_SetString(PyExc_TypeError, "Invalid type to construct from");
+                        return -1;
+                    }
+                    self->_CObject = new typename std::remove_reference<T>::type(*(reinterpret_cast<PythonClassWrapper<T>*>(&pyobj)->get_CObject()));
+                } else if ((!kwds || PyDict_Size(kwds)==0) && (!args || PyTuple_Size(args)==0)){
+                    self->_CObject = new typename std::remove_reference<T>::type();
+                    memset(self->_CObject, 0, sizeof(typename std::remove_reference<T>::type));
+                }
+            } else if((!args || PyTuple_Size(args)==0) && kwds && PyDict_Size(kwds)==1 ){
+                    if( PyDict_GetItemString(kwds, "__internal_allow_null") == Py_True){
+                        PyErr_Clear();
+                    } else {
+                        PyErr_SetString(PyExc_RuntimeError, "Creation of null C object not allowed");
+                        return -1;
+                    }
+            }
+            if (self->_CObject == nullptr) {
+                PyErr_SetString(PyExc_TypeError, "Invalid argment(s) to constructor");
+                return -1;
+            }
+            return 0;
+        }
+    };
 
-          //if (self->_CObject == nullptr) return -1;
-          return 0;
+    //specialize for pointer types:
+    template<typename T>
+    class InitHelper<T , typename std::enable_if<!std::is_arithmetic<T>::value && std::is_pointer<T>::value >::type>{
+    public:
+        static int init(PythonClassWrapper<T> *self, PyObject* args, PyObject*kwds){
+            if (!self) {
+                return -1;
+            }
+            self->_CObject = nullptr;
+            for (auto it = PythonClassWrapper<T>::_constructors.begin(); it != PythonClassWrapper<T>::_constructors.end(); ++it){
+              if ((self->_CObject = (*it)(args, kwds)) != nullptr){
+                  break;
+              }
+            }
+
+            if (self->_CObject == nullptr) {
+                static const char * kwdlist[] = {"value", nullptr};
+                PyObject pyobj;
+
+                if (PyArg_ParseTupleAndKeywords(args, kwds, "O", (char**)kwdlist, &pyobj)) {
+                    if(!PyObject_TypeCheck(&pyobj, &PythonClassWrapper<T>::Type)){
+                        PyErr_SetString(PyExc_TypeError, "Invalid type to construct from");
+                        return -1;
+                    }
+                    self->_CObject = reinterpret_cast<PythonClassWrapper<T> *>(&pyobj)->get_CObject();
+                } else if((!args || PyTuple_Size(args)==0) && kwds && PyDict_Size(kwds)==1 ){
+                    if( PyDict_GetItemString(kwds, "__internal_allow_null") == Py_True){
+                        PyErr_Clear();
+                    } else {
+                        PyErr_SetString(PyExc_RuntimeError, "Creation of null C object not allowed");
+                        return -1;
+                    }
+                } else {
+                    PyErr_SetString(PyExc_TabError, "Invalid constructor argument(s)");
+                    return -1;
+                }
+            }
+            return 0;
+        }
+    };
+
+    //specialize for reference types:
+    template<typename T>
+    class InitHelper<T , typename std::enable_if<!std::is_arithmetic<T>::value && std::is_reference<T>::value >::type>{
+    public:
+        static int init(PythonClassWrapper<T> *self, PyObject *args, PyObject *kwds){
+            typedef typename std::remove_reference<T>::type T_NoRef;
+            if (!self) {
+                return -1;
+            }
+            self->_CObject = nullptr;
+            for (auto it = PythonClassWrapper<T>::_constructors.begin(); it != PythonClassWrapper<T>::_constructors.end(); ++it){
+              if ((self->_CObject = (*it)(args, kwds)) != nullptr){
+                  break;
+              }
+            }
+
+            if (self->_CObject == nullptr) {
+                static const char * kwdlist[] = {"value", nullptr};
+                PyObject pyobj;
+                memset(&pyobj, 0, sizeof(pyobj));
+                if(kwds){
+                    PyObject_Print(kwds, stderr, 0);
+                }
+                if (PyArg_ParseTupleAndKeywords(args, kwds, "O", (char**)kwdlist, &pyobj)) {
+                    if(PyObject_TypeCheck(&pyobj, &PythonCPointerWrapper<T_NoRef>::Type)){
+                        self->_CObject = (T_NoRef*) reinterpret_cast<PythonCPointerWrapper<T_NoRef> *>(&pyobj)->ptr();
+                    } else if (PyObject_TypeCheck(&pyobj, &PythonClassWrapper<T>::Type)){
+                        self->_CObject = reinterpret_cast<PythonClassWrapper<T> *>(&pyobj)->get_CObject();
+                    } else {
+                        PyErr_SetString(PyExc_TypeError, "Invalid type to construct from");
+                        return -1;
+                    }
+                 }else if((!args || PyTuple_Size(args)==0) && kwds && PyDict_Size(kwds)==1 ){
+                    if( PyDict_GetItemString(kwds, "__internal_allow_null") == Py_True){
+                        PyErr_Clear();
+                    } else {
+                        PyErr_SetString(PyExc_RuntimeError, "Creation of null C object not allowed");
+                        return -1;
+                    }
+                } else {
+                    PyErr_SetString(PyExc_TabError, "Invalid constructor argument(s)");
+                    return -1;
+                }
+            }
+            return 0;
+        }
+    };
+
+    //specialize for other complex types:
+    template<typename T>
+    class InitHelper<T , typename std::enable_if<!std::is_arithmetic<T>::value && !std::is_reference<T>::value &&
+                                                 !std::is_pointer<T>::value && !std::is_fundamental<T>::value >::type>{
+    public:
+        static int init(PythonClassWrapper<T> *self, PyObject* args, PyObject*kwds){
+            if (!self) {
+                return -1;
+            }
+            self->_CObject = nullptr;
+            for (auto it = PythonClassWrapper<T>::_constructors.begin(); it != PythonClassWrapper<T>::_constructors.end(); ++it){
+              if ((self->_CObject = (*it)(args, kwds)) != nullptr){
+                  break;
+              }
+            }
+            if((!args || PyTuple_Size(args)==0) && kwds && PyDict_Size(kwds)==1 ){
+                PyObject_Print(kwds, stderr, 0);
+                    if( PyDict_GetItemString(kwds, "__internal_allow_null") == Py_True){
+                        PyErr_Clear();
+                    } else {
+                        PyErr_SetString(PyExc_RuntimeError, "Creation of null C object not allowed");
+                        return -1;
+                    }
+            } else {
+                    PyErr_SetString(PyExc_TabError, "Invalid constructor argument(s)");
+                    return -1;
+            }
+
+            return 0;
         }
     };
 
@@ -407,6 +560,14 @@ namespace __pyllars_internal{
         static PyTypeObject Type;
 
         static const char* const name;
+
+        static void initialize(const char* const name, PyObject* module){
+            if (module == nullptr)
+                return;
+            if (addToModule( name, module ) < 0)
+                return;
+            parent_module = module;
+        }
 
         //// Define interim constructor function types /////
         template< typename ...Args, const char* const ...names, typename ...PyO>
@@ -513,6 +674,7 @@ namespace __pyllars_internal{
         }
 
         static PyObject * parent_module;
+
         friend class PythonCPointerWrapper<CClass, Bases...>;
 
         template<typename C, typename E>
@@ -567,7 +729,6 @@ namespace __pyllars_internal{
     template< typename CClass, typename ...Bases>
     PyObject* PythonClassWrapper<CClass, Bases...>::parent_module = nullptr;
 
-
     template< typename CClass, typename ...Bases>
     const char* const PythonClassWrapper<CClass, Bases...>::name = nullptr;/*filled on init*/
 
@@ -579,7 +740,6 @@ namespace __pyllars_internal{
 
     template<typename CClass, typename ...Bases>
     std::vector<typename PythonClassWrapper<CClass, Bases...>::constructor > PythonClassWrapper<CClass, Bases...>::_constructors;
-
 
     template< typename CClass, typename ...Bases>
     PyTypeObject PythonClassWrapper<CClass, Bases...>::Type = {
@@ -626,74 +786,6 @@ namespace __pyllars_internal{
     };
 
 
-///////////////////////////////////////////////////
-
-    template <typename C_type, typename E = void>
-    class CObjectConversionHelper{
-    public:
-        static C_type toCObject( PyObject& obj);
-    };
-
-    /**
-    * template fnction to convert python to C object
-    **/
-    template< typename C_type>
-    class CObjectConversionHelper< C_type , typename std::enable_if<std::is_class<C_type>::value || std::is_reference<C_type>::value || std::is_pointer<C_type>::value >::type>{
-    public:
-        static C_type toCObject( PyObject& pyobj){
-            if(&pyobj == nullptr){
-                throw "Invalid argument for conversion";
-            }
-            PyObject_Print(&pyobj, stderr, 0);
-            typedef typename std::remove_reference<C_type>::type C_bare;
-            typedef typename std::remove_reference<typename std::remove_pointer<C_type>::type>::type C_base;
-            if (PyObject_TypeCheck(&pyobj, &PythonCPointerWrapper<C_base>::Type)){
-              return *(C_bare*)reinterpret_cast<PythonCPointerWrapper<C_bare> *>(&pyobj)->ptr();
-            }
-            if (!PyObject_TypeCheck(&pyobj, &PythonClassWrapper< C_bare >::Type) && !PyObject_TypeCheck(&pyobj, &PythonClassWrapper< C_type >::Type)){
-               throw "Invalid type converting to C object";
-            }
-            if (PyObject_TypeCheck(&pyobj, &PythonClassWrapper< C_bare >::Type)){
-                return * (typename std::remove_reference<C_type>::type*)reinterpret_cast<PythonClassWrapper< C_bare >* >(&pyobj)->get_CObject();
-            }
-            return * (typename std::remove_reference<C_type>::type*)reinterpret_cast<PythonClassWrapper< C_type >* >(&pyobj)->get_CObject();
-        }
-    };
-
-
-    template<typename T>
-    class CObjectConversionHelper<T, typename std::enable_if< std::is_integral<T>::value >::type >{
-    public:
-        static T toCObject( PyObject& pyobj){
-        if (PyInt_Check( &pyobj)){
-          return PyInt_AsLong( &pyobj );
-        } else if (PyLong_Check(&pyobj)){
-            return PyLong_AsLong( &pyobj );
-        } else if (!PyObject_TypeCheck(&pyobj, &PythonClassWrapper<long int>::Type)){
-           throw "Invalid type converting to C object";
-        }
-        return *reinterpret_cast<PythonClassWrapper<long int>* >(&pyobj)->get_CObject();
-      }
-    };
-
-
-    template<typename T>
-    class CObjectConversionHelper<T, typename std::enable_if< std::is_floating_point<T>::value >::type >{
-    public:
-        static T toCObject( PyObject& pyobj){
-        if (PyFloat_Check(&pyobj)){
-           return PyFloat_AsDouble( &pyobj );
-        } else if (!PyObject_TypeCheck(&pyobj, &PythonClassWrapper<double>::Type)){
-           throw "Invalid type converting to C object";
-        }
-        return *reinterpret_cast<PythonClassWrapper<double>* >(&pyobj)->get_CObject();
-      }
-    };
-
-    template< typename T>
-    T toCObject( PyObject& pyobj){
-        return CObjectConversionHelper<T>::toCObject(pyobj);
-    }
 
 }
 #endif

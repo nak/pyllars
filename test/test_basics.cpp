@@ -1,6 +1,7 @@
 #include <pyllars/pyllars_pointer.h>
 #include <pyllars/pyllars_function_wrapper.h>
 #include <pyllars/pyllars_classwrapper.h>
+#include <pyllars/pyllars_conversions.h>
 
 typedef const char* cstring;
 
@@ -31,12 +32,10 @@ initmod() {
   PyObject* m = Py_InitModule3("test", nullptr,
 			       "Test of pyllars generation");
 
-  init_pyllars_pointer< int>("int", m );
-  init_pyllars_pointer< int&>("int_ref", m );
-  init_pyllars_pointer< double>("double", m );
-  init_pyllars_pointer< Dummy>( "Dummy", m );
-//init_pyllars_pointer< Dummy&>( m );
-//  init_pyllars_pointer< Dummy*>(m );
+  PythonClassWrapper< int>::initialize("int", m );
+  PythonClassWrapper< int&>::initialize("int_ref", m );
+  PythonClassWrapper< double>::initialize("double", m );
+  PythonClassWrapper< Dummy>::initialize( "Dummy", m );
 }
 
 int16_t dumm( const int a, const double f,  int& intval, Dummy & dummy, Dummy* dummy2){
@@ -97,7 +96,13 @@ int main(){
         PyTuple_SetItem(args, 3, toPyObject<Dummy>(dumm1, true));
         PyObject* dumm2_ptr = toPyObject<Dummy*>(&dumm2, true);
         assert( PyObject_TypeCheck(dumm2_ptr, &PythonCPointerWrapper<Dummy>::Type));
+        assert( dumm2_ptr != Py_None);
         PyTuple_SetItem(args, 4, dumm2_ptr);
+        for (int i = 0; i < 5; ++i){
+            fprintf(stderr, "\n");
+            PyObject_Print( PyTuple_GetItem(args, i), stderr, 0);
+            assert( PyTuple_GetItem(args,i) != Py_None);
+        }
         int16_t val = toCObject<int16_t>(*PyObject_CallObject( (PyObject*)wrapper, args));
         fprintf(stderr, "VALUE IS %d\n", val);
         fprintf(stderr, "NEW INTEGRAL VALUE IS %d\n", intval);
@@ -108,7 +113,7 @@ int main(){
     }
     {
         Dummy obj;
-        PyObject* pyobj = toPyObject(obj, false);
+        PyObject* pyobj = toPyObject(obj, true);
         PyObject* ret = PyObject_CallMethod(pyobj, (char*)print_name,nullptr);
         ret = PyObject_CallMethod(pyobj, (char*)(std::string("get_")+member_name).c_str(),nullptr);
         double val = toCObject<double>(*ret);
