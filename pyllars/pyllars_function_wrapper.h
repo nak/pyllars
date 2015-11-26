@@ -32,6 +32,8 @@ namespace __pyllars_internal {
 
         static PyObject *
         _new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
+            (void)args;
+            (void)kwds;
             PythonFunctionWrapper *self= (PythonFunctionWrapper*)type->tp_alloc(type, 0);
             return (PyObject *)self;
         }
@@ -44,7 +46,8 @@ namespace __pyllars_internal {
               throw "Unable to initialize python object for c function wrapper";
           } else {
               inited = true;
-              Py_INCREF(&Type);
+              PyObject* const type = reinterpret_cast<PyObject*>(&Type);
+              Py_INCREF(type);
               auto pyfuncobj = (PythonFunctionWrapper*)PyObject_CallObject((PyObject*)&Type, nullptr);
               pyfuncobj->_cfunc = func;
               return pyfuncobj;
@@ -64,16 +67,18 @@ namespace __pyllars_internal {
         ReturnType callFuncBase( PyObject *pytuple, PyObject *kwds, PyO* ...pyargs){
             char format[sizeof...(Args)+1] = {0};
             memset(format, 'O', sizeof...(Args));
-            if(!PyArg_ParseTupleAndKeywords(pytuple, kwds, format, (char**)names, pyargs...)){
+             if(!PyArg_ParseTupleAndKeywords(pytuple, kwds, format, (char**)names, &pyargs...)){
               PyErr_Print();
               throw "Illegal arumgnet(s)";
             }
-            return _cfunc(toCObject<Args>(*pyargs)...);
+           return _cfunc(toCObject<Args>(*pyargs)...);
         }
 
         template<int ...S>
         ReturnType callFunc(PyObject* const tuple, PyObject* kw, container<S...> s) {
-           return callFuncBase(tuple, kw, PyTuple_GetItem(s.pyobjs,S)...);
+           (void)s;//only used for unpacking arguments into a list and determine the int... args to this template
+           PyObject pyobjs[sizeof...(S)];
+           return callFuncBase(tuple, kw, &pyobjs[S]...);
         }
 
 
@@ -122,70 +127,31 @@ namespace __pyllars_internal {
         (initproc)PythonFunctionWrapper::_init,  /* tp_init */
         nullptr,                         /* tp_alloc */
         PythonFunctionWrapper::_new,     /* tp_new */
+        nullptr,                         /*tp_free*/ //TODO: Implement a free??
+        nullptr,                         /*tp_is_gc*/
+        nullptr,                         /*tp_bass*/
+        nullptr,                         /*tp_mro*/
+        nullptr,                         /*tp_cache*/
+        nullptr,                         /*tp_subclasses*/
+        nullptr,                          /*tp_weaklist*/
+        nullptr,                          /*tp_del*/
+        0,                          /*tp_version_tag*/
     };
 
     template<const char* const func_name, const char* const names[], typename ReturnType, typename... Args>
     void PythonFunctionWrapper<func_name, names, ReturnType, Args...>::_init(){
          if (PyType_Ready(&Type) < 0)
             return;
-
-        Py_INCREF(&Type);
+        PyObject* const type = reinterpret_cast<PyObject*>(&Type);
+        Py_INCREF(type);
     }
 
     template<const char* const func_name, const char* const names[], typename ReturnType, typename... Args>
     PyObject* PythonFunctionWrapper<func_name, names, ReturnType, Args...>::_call(PyObject *callable_object, PyObject *args, PyObject *kw){
       PythonFunctionWrapper& wrapper = *reinterpret_cast<PythonFunctionWrapper* const>(callable_object);
-      return toPyObject<ReturnType>(wrapper.callFunc(args, kw, typename argGenerator<sizeof...(Args)>::type(args)), false);
+      return toPyObject<ReturnType>(wrapper.callFunc(args, kw, typename argGenerator<sizeof...(Args)>::type()), false);
     }
 
-    ///////////////////////////////////////////
-
-    /**
-    * Callback sementaics, for having C callback to a python function
-    **/
-
-    template< typename ReturnType, typename ...Args>
-    struct C_CallbackWrapper{
-
-        C_CallbackWrapper(PyObject* const pycb):_pyCallback(pycb){
-        }
-
-        static ReturnType callback(Args... args){
-           return callFunc(args..., typename argGenerator<sizeof...(Args)>::type(nullptr));
-        }
-
-    private:
-        template<int ...S>
-        ReturnType callFunc(Args ...args, container<S...> s) {
-            PyObject * pyArgs = PyTuple_New(sizeof...(args));
-            PyTuple_SetItem( toPyObject(args)..., S...);
-            return toCObject<ReturnType>(*PyObject_Call(_pyCallback, pyArgs, nullptr));
-        }
-
-        PyObject* const _pyCallback;
-    };
-
-    //specialize for void return type
-    template< typename ...Args>
-    struct C_CallbackWrapper<void, Args...>{
-
-        C_CallbackWrapper(PyObject* const pycb):_pyCallback(pycb){
-        }
-
-        static void callback(Args... args){
-            callFunc(args..., typename argGenerator<sizeof...(Args)>::type(nullptr));
-        }
-
-    private:
-        template<int ...S>
-        void callFunc(Args ...args, container<S...> s) {
-            PyObject * pyArgs = PyTuple_New(sizeof...(args));
-            PyTuple_SetItem( toPyObject(args)..., S...);
-            PyObject_Call(_pyCallback, pyArgs, nullptr);
-        }
-
-        PyObject* const _pyCallback;
-    };
 
 }
 

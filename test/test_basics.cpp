@@ -2,6 +2,7 @@
 #include <pyllars/pyllars_function_wrapper.h>
 #include <pyllars/pyllars_classwrapper.h>
 #include <pyllars/pyllars_conversions.h>
+#include <pyllars/pyllars_callbacks.h>
 
 typedef const char* cstring;
 
@@ -39,7 +40,7 @@ initmod() {
 }
 
 int16_t dumm( const int a, const double f,  int& intval, Dummy & dummy, Dummy* dummy2){
-    fprintf(stdout,"Called dummy with %d, %f, %p %p\n", a, f, &dummy,dummy2);
+    fprintf(stdout,"Called dummy with %d, %f, %p %p\n", a, f, (void*)&dummy, (void*)dummy2);
     intval = 1.234;
     dummy.value = 424242.42;
     return 42;
@@ -100,7 +101,7 @@ int main(){
         PyTuple_SetItem(args, 4, dumm2_ptr);
         for (int i = 0; i < 5; ++i){
             fprintf(stderr, "\n");
-            PyObject_Print( PyTuple_GetItem(args, i), stderr, 0);
+            //PyObject_Print( PyTuple_GetItem(args, i), stderr, 0);
             assert( PyTuple_GetItem(args,i) != Py_None);
         }
         int16_t val = toCObject<int16_t>(*PyObject_CallObject( (PyObject*)wrapper, args));

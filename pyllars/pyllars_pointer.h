@@ -43,6 +43,8 @@ namespace __pyllars_internal {
 
         static PyObject *
         _new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
+            (void)args;
+            (void)kwds;
             PythonCPointerWrapper *self;
 
             self = (PythonCPointerWrapper*)type->tp_alloc(type, 0);
@@ -104,7 +106,7 @@ namespace __pyllars_internal {
             _content = contents;
         }
 
-        static const char* const get_name(){
+        static const char* get_name(){
             static std::string name_ = typeid(CClass).name() + std::string("_ptr");
             return name_.c_str();
         }
@@ -164,6 +166,7 @@ namespace __pyllars_internal {
     class PyObjectConversionHelper<T,  typename  std::enable_if< std::is_pointer<T>::value >::type >{
     public:
         static PyObject* toPyObject( const T & var, const bool asArgument ){
+            (void)asArgument;
             typedef typename std::remove_pointer<T>::type T_base;
             PyObject* pyobj =nullptr;
             if( std::is_pointer<T>::value ){
@@ -202,7 +205,7 @@ namespace __pyllars_internal {
         char format[sizeof...(Args)+1] = {'O'};
         format[sizeof...(Args)] = 0;
 
-        if(!PyArg_ParseTupleAndKeywords(pytuple, kwds, format, kwlist, pyargs...)){
+        if(!PyArg_ParseTupleAndKeywords(pytuple, kwds, format, kwlist, &pyargs...)){
           return nullptr;
         }
         return new CClass(toCObject<Args>(pyargs)...);
@@ -250,6 +253,15 @@ namespace __pyllars_internal {
         (initproc)PythonCPointerWrapper<CClass,  Bases...>::_init,      /* tp_init */
         nullptr,                         /* tp_alloc */
         PythonCPointerWrapper<CClass,  Bases...>::_new,                 /* tp_new */
+        nullptr,                         /*tp_free*/ //TODO: Implement a free??
+        nullptr,                         /*tp_is_gc*/
+        nullptr,                         /*tp_bass*/
+        nullptr,                         /*tp_mro*/
+        nullptr,                         /*tp_cache*/
+        nullptr,                         /*tp_subclasses*/
+        nullptr,                          /*tp_weaklist*/
+        nullptr,                          /*tp_del*/
+        0,                          /*tp_version_tag*/
     };
 
     template<typename CClass, typename ...Bases>
@@ -259,8 +271,9 @@ namespace __pyllars_internal {
             METH_VARARGS,
             "Return the dereferenced item at provided index"
         },
-        {nullptr}  /* Sentinel */
+        {nullptr, nullptr, 0, nullptr}  /* Sentinel */
     };
+
     template<typename CClass, typename ...Bases>
     std::vector<PyMethodDef> PythonCPointerWrapper<CClass, Bases...>::s_methodCollection =
        std::vector<PyMethodDef>(PythonCPointerWrapper::s_methodList, PythonCPointerWrapper::s_methodList+2);
@@ -269,18 +282,19 @@ namespace __pyllars_internal {
       PyObject_HEAD
     };
     template<typename CClass, typename ...Bases>
-    PyMemberDef PythonCPointerWrapper<CClass, Bases...>::s_memberList[] = { {
+    PyMemberDef PythonCPointerWrapper<CClass, Bases...>::s_memberList[] = {
+               {
                 //  !!!!!!!!!CAUTION : CANNOT USE OFFSETOF HERE, SO HAVE TO COMPUTE, BUT IS
                 //  !!!!!!!!!DEPENDENT ON LAYOUT
                   (char*)"depth", T_OBJECT_EX, sizeof(PythonCPointerWrapper) - sizeof(UNUSED) + sizeof(void*), 0,
                   (char*)"depth of pointer"
                 },
-                {nullptr}/*Sentinel*/
+                {nullptr, 0, 0, 0, nullptr}/*Sentinel*/
     };
 
     template<typename CClass, typename ...Bases>
     std::vector<PyMemberDef> PythonCPointerWrapper<CClass, Bases...>::s_memberCollection=
-       std::vector<PyMemberDef>(PythonCPointerWrapper::s_memberList, PythonCPointerWrapper::s_memberList+2);;
+       std::vector<PyMemberDef>(PythonCPointerWrapper::s_memberList, PythonCPointerWrapper::s_memberList+2);
 
     template< typename CClass, typename ...Bases>
     const char* const PythonCPointerWrapper<CClass, Bases...>::name = PythonCPointerWrapper<CClass, Bases...>::get_name();
