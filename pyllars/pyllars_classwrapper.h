@@ -13,7 +13,7 @@ namespace __pyllars_internal{
     PyObject* toPyObject( T &var, const bool asArgument);
 
     template< typename C_type>
-    C_type toCObject( PyObject& pyobj);
+    typename std::remove_const<C_type>::type toCObject( PyObject& pyobj);
 
 }
 
@@ -323,7 +323,7 @@ namespace __pyllars_internal{
      * It holds the method call/member getter method and allows specialization based on
      * underlying CClass type
      **/
-    template<  class CClass, const char* const name, typename E = void>
+    template<  class CClass,  typename E = void>
     class MethodContainer{
     public:
         template<typename ReturnType, typename ...Args>
@@ -337,8 +337,8 @@ namespace __pyllars_internal{
     /**
      * Specialization for class types
      **/
-    template<class CClass, const char* const name>
-    class MethodContainer<CClass, name, typename std::enable_if< std::is_class<CClass>::value>::type>{
+    template<class CClass>
+    class MethodContainer<CClass, typename std::enable_if< std::is_class<CClass>::value>::type>{
     public:
 
         template<typename ReturnType, typename ...Args>
@@ -369,16 +369,16 @@ namespace __pyllars_internal{
         };
     };
 
-    template< class CClass, const char* const name>
+    template< class CClass>
     template< typename ReturnType, typename ...Args>
-    typename MethodContainer<CClass, name, typename std::enable_if< std::is_class<CClass>::value>::type >::template Container<ReturnType, Args...>::method_t
-     MethodContainer< CClass, name, typename std::enable_if< std::is_class<CClass>::value>::type >::Container<ReturnType, Args...>::method;
+    typename MethodContainer<CClass, typename std::enable_if< std::is_class<CClass>::value>::type >::template Container<ReturnType, Args...>::method_t
+     MethodContainer< CClass, typename std::enable_if< std::is_class<CClass>::value>::type >::Container<ReturnType, Args...>::method;
 
     /**
      * Specialization for integral types
      **/
-    template<typename CClass, const char* const name>
-    class MethodContainer< CClass, name, typename std::enable_if< std::is_integral<CClass>::value>::type>{
+    template<typename CClass>
+    class MethodContainer< CClass, typename std::enable_if< std::is_integral<CClass>::value>::type>{
     public:
        template<  typename ReturnType, typename ...Args>
        class Container{
@@ -392,8 +392,8 @@ namespace __pyllars_internal{
     /**
      * Specialization for floating point types
      **/
-   template< typename CClass, const char* const name>
-    class MethodContainer<  CClass,name, typename std::enable_if< std::is_floating_point<CClass>::value>::type>{
+   template< typename CClass>
+    class MethodContainer<  CClass, typename std::enable_if< std::is_floating_point<CClass>::value>::type>{
     public:
         template<  typename ReturnType, typename ...Args>
         class Container{
@@ -488,8 +488,8 @@ namespace __pyllars_internal{
                   break;
 		}
 	      } catch(...){
-		  PyErr_Clear();
 	      }
+	      PyErr_Clear();
             }
             if ( self->_CObject == nullptr){
                 static const char * kwdlist[] = {"value", nullptr};
@@ -535,8 +535,8 @@ namespace __pyllars_internal{
                   break;
 		}
 	      } catch(...){
-		  PyErr_Clear();
 	      }
+	      PyErr_Clear();
             }
 
             if (self->_CObject == nullptr) {
@@ -584,8 +584,8 @@ namespace __pyllars_internal{
                   break;
 		}
 	      } catch(...){
-		  PyErr_Clear();
 	      }
+	      PyErr_Clear();
             }
 
             if (self->_CObject == nullptr) {
@@ -636,8 +636,8 @@ namespace __pyllars_internal{
                   break;
 		}
 	      } catch(...){
-		  PyErr_Clear();
 	      }
+	      PyErr_Clear();
             }
 
             if (self->_CObject == nullptr) {
@@ -775,9 +775,8 @@ namespace __pyllars_internal{
 		      return 0;
 		    }
 		} catch( ...) {
-		  PyErr_Clear();
 		}
-
+		PyErr_Clear();
             }
             if((!args || PyTuple_Size(args)==0) && kwds && PyDict_Size(kwds)==1 ){
                 if( PyDict_GetItemString(kwds, "__internal_allow_null") == Py_True){
@@ -837,7 +836,7 @@ namespace __pyllars_internal{
         template < const char*  const kwlist[], typename ...Args >
         static CClass_NoRef* create( PyObject* args, PyObject* kwds){
             try{
-                return _createBase( args, kwds, kwlist, typename argGenerator<sizeof...(Args)>::type(),(Args*)nullptr...);
+                return _createBase( args, kwds, kwlist, typename argGenerator<sizeof...(Args)>::type(),(typename std::remove_reference<Args>::type*)nullptr...);
             } catch (const char* const msg){
                 PyErr_SetString(PyExc_RuntimeError, msg);
                 //PyErr_Print();
@@ -897,20 +896,20 @@ namespace __pyllars_internal{
         /**
          * add a method with given compile-time-known name to the contained collection
          **/
-        template<const char* const name,  typename ReturnType, typename ...Args>
-        static void addMethod( typename MethodContainer<CClass_NoRef, name>::template Container<ReturnType, Args...>::method_t method) {
+        template< typename ReturnType, typename ...Args>
+	    static void addMethod( const char* const name,typename MethodContainer<CClass_NoRef>::template Container<ReturnType, Args...>::method_t method) {
             static const char* const doc = "Call method ";
             char *doc_string = new char[strlen(name) +strlen(doc)+1];
             snprintf(doc_string, strlen(name) +strlen(doc)+1, "%s%s",doc,name);
 
             PyMethodDef pyMeth = {
               name,
-              (PyCFunction)MethodContainer<CClass_NoRef, name>::template Container<ReturnType, Args...>::call,
+              (PyCFunction)MethodContainer<CClass_NoRef>::template Container<ReturnType, Args...>::call,
               METH_KEYWORDS,
               doc_string
             };
 
-            MethodContainer<CClass, name>::template Container<ReturnType, Args...>::method = method;
+            MethodContainer<CClass>::template Container<ReturnType, Args...>::method = method;
             _addMethod(pyMeth);
         }
 
@@ -918,8 +917,8 @@ namespace __pyllars_internal{
         /**
          * add a getter method for the given compile-time-known named public class member
          **/
-        template< const char* const name, typename Type>
-        static void addMember( typename MethodContainer<CClass_NoRef, name>::template Container<Type>::member_t member){
+        template< typename Type>
+        static void addMember(const char* const name,  typename MethodContainer<CClass_NoRef>::template Container<Type>::member_t member){
 
             static const char* const doc = "Get attribute ";
             char *doc_string = new char[strlen(name) +strlen(doc)+1];
@@ -927,9 +926,9 @@ namespace __pyllars_internal{
             static const char* const getter_prefix = "get_";
             char *getter_name = new char[strlen(name) +strlen(getter_prefix)+1];
             snprintf(getter_name, strlen(name) +strlen(getter_prefix)+1, "%s%s_",getter_prefix,name);
-            MethodContainer< CClass_NoRef, name>::template Container<Type>::member = member;
+            MethodContainer< CClass_NoRef>::template Container<Type>::member = member;
             PyMethodDef pyMeth = {getter_name,
-                    (PyCFunction)MethodContainer<CClass_NoRef, name>::template Container<Type>::call,
+                    (PyCFunction)MethodContainer<CClass_NoRef>::template Container<Type>::call,
                     METH_KEYWORDS,
                     doc_string
               };

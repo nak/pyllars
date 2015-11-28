@@ -34,6 +34,7 @@ class TestClassCopiable{
 public:
 
    TestClassCopiable(){}
+   TestClassCopiable(const TestClassCopiable& t):value(t.value){}
    TestClassCopiable(callback_t cb){ fprintf(stderr, "Test Class Created with Callback\n Message from CB IS:  %s\n",cb(1.2345));}
 
    void print(){
@@ -77,18 +78,19 @@ static PyObject* wrapper ;
 PyMODINIT_FUNC
 initmod() {
 
-  PyObject* m = Py_InitModule3("test", nullptr,
-			       "Test of pyllars generation");
+    PyObject* m = Py_InitModule3("test", nullptr,
+                   "Test of pyllars generation");
 
-  //PythonClassWrapper< int>::initialize("int", m );
-  PythonClassWrapper< int&>::initialize("int_ref", m );
-  PythonClassWrapper< TestClass&>::initialize("TestClass_ref", m );
-  PythonClassWrapper< TestClassCopiable&>::initialize("TestClassCopiable_ref", m );
-  PythonClassWrapper< double>::initialize("double", m );
-  PythonClassWrapper< TestClass>::initialize( "TestClass", m );
-  PythonClassWrapper< TestClassCopiable>::initialize( "TestClassCopiable", m );
-  wrapper = (PyObject*)PythonFunctionWrapper< funcname, names, int16_t, int, double, int&, TestClass&, TestClass*, callback_t>::create(testFunction);
-  PyModule_AddObject(m, "testFunction", (PyObject*)wrapper);
+    //PythonClassWrapper< int>::initialize("int", m );
+    PythonClassWrapper< int&>::initialize("int_ref", m );
+    PythonClassWrapper< TestClass&>::initialize("TestClass_ref", m );
+    PythonClassWrapper< TestClassCopiable&>::initialize("TestClassCopiable_ref", m );
+    // PythonClassWrapper< double>::initialize("double", m );
+    PythonClassWrapper< TestClass>::initialize( "TestClass", m );
+    PythonClassWrapper< TestClassCopiable>::initialize( "TestClassCopiable", m );
+    PythonCPointerWrapper< int>::initialize("int_ptr", m);
+    wrapper = (PyObject*)PythonFunctionWrapper< funcname, names, int16_t, int, double, int&, TestClass&, TestClass*, callback_t>::create(testFunction);
+    PyModule_AddObject(m, "testFunction", (PyObject*)wrapper);
 }
 #ifndef MAIN
 PyMODINIT_FUNC
@@ -101,14 +103,16 @@ int main()
 #define FAIL 1
 #endif
 {
+#ifdef MAIN
     Py_Initialize();
+#endif
     toPyObject<int>(1, false);
     PythonClassWrapper<TestClass>::addConstructor( PythonClassWrapper<TestClass>::create<nullptr> );
     PythonClassWrapper<TestClass>::addConstructor( PythonClassWrapper<TestClass>::create<cb_name, callback_t> );
     PythonClassWrapper<TestClassCopiable>::addConstructor( PythonClassWrapper<TestClassCopiable>::create<nullptr> );
     PythonClassWrapper<TestClassCopiable>::addConstructor( PythonClassWrapper<TestClassCopiable>::create<cb_name, callback_t> );
     PythonClassWrapper<TestClassCopiable&>::addConstructor( PythonClassWrapper<TestClassCopiable&>::create<copy_constructor_name, TestClassCopiable> );
-    PythonClassWrapper<TestClassCopiable>::addConstructor( PythonClassWrapper<TestClassCopiable>::create<copy_constructor_name, TestClassCopiable> );
+    PythonClassWrapper<TestClassCopiable>::addConstructor( PythonClassWrapper<TestClassCopiable>::create<copy_constructor_name, const TestClassCopiable&> );
     PythonClassWrapper<TestClass>::addMethod<print_name,void>( &TestClass::print);
     PythonClassWrapper<TestClass>::addMember<member_name,const double>( &TestClass::value);
     initmod();
@@ -123,7 +127,7 @@ int main()
         PyTuple_SetItem(args, 0, toPyObject<TestClassCopiable>(testObj, false));
         PyObject_CallObject((PyObject*)&PythonClassWrapper< TestClassCopiable&>::Type, args) ;
     }
-    auto tyobj = &PythonClassWrapper<int>::Type;
+    auto tyobj = &PythonClassWrapper<int&>::Type;
     auto pobjArgs = PyTuple_New(1);
     auto intObj = PyLong_FromLong(0);
     PyTuple_SetItem(pobjArgs, 0, intObj);
@@ -133,7 +137,7 @@ int main()
     }
     auto pArgs = PyTuple_New(1);
     PyTuple_SetItem(pArgs, 0, obj);
-    PythonClassWrapper<int>::addType("Pointer", &PythonCPointerWrapper<int>::Type);
+    //PythonClassWrapper<int>::addType("Pointer", &PythonCPointerWrapper<int>::Type);
     PyObject* o = PyObject_CallObject((PyObject*)&PythonCPointerWrapper<int>::Type, nullptr);
     if (o == nullptr){
         printf("nullptr O\n");

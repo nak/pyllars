@@ -1,6 +1,6 @@
 namespace __pyllars_internal{
-    template< typename C_type>
-    C_type toCObject( PyObject& pyobj);
+    template< typename T>
+    typename std::remove_const<T>::type  toCObject( PyObject& pyobj);
 }
 
 #ifndef __PYLLARS__CONVERSIONS
@@ -21,7 +21,7 @@ namespace __pyllars_internal{
     template <typename C_type, typename E = void>
     class CObjectConversionHelper{
     public:
-        static C_type toCObject( PyObject& obj);
+        static  typename std::remove_const<C_type>::type toCObject( PyObject& obj);
     };
 
     /**
@@ -30,7 +30,7 @@ namespace __pyllars_internal{
     template< typename C_type>
     class CObjectConversionHelper< C_type , typename std::enable_if< std::is_class<C_type>::value || std::is_reference<C_type>::value || (std::is_pointer<C_type>::value && std::is_convertible<C_type, const void*>::value)>::type>{
     public:
-        static C_type toCObject( PyObject& pyobj){
+        static  typename std::remove_const<C_type>::type toCObject( PyObject& pyobj){
             if(&pyobj == nullptr){
                 throw "Invalid argument for conversion";
             }
@@ -39,7 +39,14 @@ namespace __pyllars_internal{
             if (PyObject_TypeCheck(&pyobj, &PythonCPointerWrapper<C_base>::Type)){
               return *(C_bare*)reinterpret_cast<PythonCPointerWrapper<C_bare> *>(&pyobj)->ptr();
             }
+            if (PyObject_TypeCheck(&pyobj, &PythonCPointerWrapper<C_base&>::Type)){
+              return *(C_bare*)reinterpret_cast<PythonCPointerWrapper<C_bare> *>(&pyobj)->ptr();
+            }
+            if (PyObject_TypeCheck(&pyobj, &PythonClassWrapper<typename std::remove_const<C_bare>::type >::Type)){
+              return *(typename std::remove_const<C_bare>::type*)reinterpret_cast<PythonCPointerWrapper<C_bare> *>(&pyobj)->ptr();
+            }
             if (!PyObject_TypeCheck(&pyobj, &PythonClassWrapper< C_bare >::Type) && !PyObject_TypeCheck(&pyobj, &PythonClassWrapper< C_type >::Type)){
+	      PyObject_Print( &pyobj, stderr, 0);
                throw "Invalid type converting to C object";
             } else {
                 return * (typename std::remove_reference<C_type>::type*)reinterpret_cast<PythonClassWrapper< C_bare >* >(&pyobj)->get_CObject();
@@ -54,7 +61,7 @@ namespace __pyllars_internal{
     template<typename T>
     class CObjectConversionHelper<T, typename std::enable_if< std::is_integral<T>::value || (std::is_integral<typename std::remove_reference<T>::type>::value && std::is_reference<T>::value && std::is_const<T>::value)>::type >{
     public:
-        static T toCObject( PyObject& pyobj){
+        static  typename std::remove_const<T>::type toCObject( PyObject& pyobj){
         if (PyInt_Check( &pyobj)){
           return PyInt_AsLong( &pyobj );
         } else if (PyLong_Check(&pyobj)){
@@ -72,7 +79,7 @@ namespace __pyllars_internal{
     template<typename T>
     class CObjectConversionHelper<T, typename std::enable_if< std::is_floating_point<T>::value || (std::is_floating_point<typename std::remove_reference<T>::type>::value && std::is_reference<T>::value && std::is_const<T>::value)>::type >{
     public:
-        static T toCObject( PyObject& pyobj){
+      static typename std::remove_const<T>::type toCObject( PyObject& pyobj){
         if (PyFloat_Check(&pyobj)){
            return PyFloat_AsDouble( &pyobj );
         } else if (!PyObject_TypeCheck(&pyobj, &PythonClassWrapper<double>::Type)){
@@ -159,8 +166,8 @@ namespace __pyllars_internal{
      * function to convert python object to underlying C type using a class helper
      **/
     template< typename T>
-    T toCObject( PyObject& pyobj){
-        return CObjectConversionHelper<T>::toCObject(pyobj);
+    typename std::remove_const<T>::type toCObject( PyObject& pyobj){
+      return CObjectConversionHelper<typename std::remove_const<T>::type>::toCObject(pyobj);
     }
 
 }

@@ -34,6 +34,7 @@ class TestClassCopiable{
 public:
 
    TestClassCopiable(){}
+   TestClassCopiable(const TestClassCopiable& t):value(t.value){}
    TestClassCopiable(callback_t cb){ fprintf(stderr, "Test Class Created with Callback\n Message from CB IS:  %s\n",cb(1.2345));}
 
    void print(){
@@ -77,19 +78,19 @@ static PyObject* wrapper ;
 PyMODINIT_FUNC
 initmod() {
 
-  PyObject* m = Py_InitModule3("test", nullptr,
-			       "Test of pyllars generation");
+    PyObject* m = Py_InitModule3("test", nullptr,
+                   "Test of pyllars generation");
 
-  //PythonClassWrapper< int>::initialize("int", m );
-  PythonClassWrapper< int&>::initialize("int_ref", m );
-  PythonClassWrapper< TestClass&>::initialize("TestClass_ref", m );
-  PythonClassWrapper< TestClassCopiable&>::initialize("TestClassCopiable_ref", m );
-  // PythonClassWrapper< double>::initialize("double", m );
-  PythonClassWrapper< TestClass>::initialize( "TestClass", m );
-  PythonClassWrapper< TestClassCopiable>::initialize( "TestClassCopiable", m );
-  PythonCPointerWrapper< int>::initialize("int_ptr", m);
-  wrapper = (PyObject*)PythonFunctionWrapper< funcname, names, int16_t, int, double, int&, TestClass&, TestClass*, callback_t>::create(testFunction);
-  PyModule_AddObject(m, "testFunction", (PyObject*)wrapper);
+    //PythonClassWrapper< int>::initialize("int", m );
+    PythonClassWrapper< int&>::initialize("int_ref", m );
+    PythonClassWrapper< TestClass&>::initialize("TestClass_ref", m );
+    PythonClassWrapper< TestClassCopiable&>::initialize("TestClassCopiable_ref", m );
+    // PythonClassWrapper< double>::initialize("double", m );
+    PythonClassWrapper< TestClass>::initialize( "TestClass", m );
+    PythonClassWrapper< TestClassCopiable>::initialize( "TestClassCopiable", m );
+    PythonCPointerWrapper< int>::initialize("int_ptr", m);
+    wrapper = (PyObject*)PythonFunctionWrapper< funcname, names, int16_t, int, double, int&, TestClass&, TestClass*, callback_t>::create(testFunction);
+    PyModule_AddObject(m, "testFunction", (PyObject*)wrapper);
 }
 #ifndef MAIN
 PyMODINIT_FUNC
@@ -111,9 +112,11 @@ int main()
     PythonClassWrapper<TestClassCopiable>::addConstructor( PythonClassWrapper<TestClassCopiable>::create<nullptr> );
     PythonClassWrapper<TestClassCopiable>::addConstructor( PythonClassWrapper<TestClassCopiable>::create<cb_name, callback_t> );
     PythonClassWrapper<TestClassCopiable&>::addConstructor( PythonClassWrapper<TestClassCopiable&>::create<copy_constructor_name, TestClassCopiable> );
-    PythonClassWrapper<TestClassCopiable>::addConstructor( PythonClassWrapper<TestClassCopiable>::create<copy_constructor_name, TestClassCopiable> );
-    PythonClassWrapper<TestClass>::addMethod<print_name,void>( &TestClass::print);
-    PythonClassWrapper<TestClass>::addMember<member_name,const double>( &TestClass::value);
+    PythonClassWrapper<TestClassCopiable>::addConstructor( PythonClassWrapper<TestClassCopiable>::create<copy_constructor_name, const TestClassCopiable&> );
+    PythonClassWrapper<TestClass>::addMethod<void>( print_name,&TestClass::print);
+    PythonClassWrapper<TestClass>::addMember<const double>( member_name,&TestClass::value);
+    PythonClassWrapper<TestClassCopiable>::addMethod<void>( print_name,&TestClassCopiable::print);
+    PythonClassWrapper<TestClassCopiable>::addMember<const double>( member_name,&TestClassCopiable::value);
     initmod();
 #ifdef MAIN
     //just test code:
