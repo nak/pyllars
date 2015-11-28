@@ -84,9 +84,10 @@ initmod() {
   PythonClassWrapper< int&>::initialize("int_ref", m );
   PythonClassWrapper< TestClass&>::initialize("TestClass_ref", m );
   PythonClassWrapper< TestClassCopiable&>::initialize("TestClassCopiable_ref", m );
-  PythonClassWrapper< double>::initialize("double", m );
+  // PythonClassWrapper< double>::initialize("double", m );
   PythonClassWrapper< TestClass>::initialize( "TestClass", m );
   PythonClassWrapper< TestClassCopiable>::initialize( "TestClassCopiable", m );
+  PythonCPointerWrapper< int>::initialize("int_ptr", m);
   wrapper = (PyObject*)PythonFunctionWrapper< funcname, names, int16_t, int, double, int&, TestClass&, TestClass*, callback_t>::create(testFunction);
   PyModule_AddObject(m, "testFunction", (PyObject*)wrapper);
 }
@@ -101,7 +102,9 @@ int main()
 #define FAIL 1
 #endif
 {
+#ifdef MAIN
     Py_Initialize();
+#endif
     toPyObject<int>(1, false);
     PythonClassWrapper<TestClass>::addConstructor( PythonClassWrapper<TestClass>::create<nullptr> );
     PythonClassWrapper<TestClass>::addConstructor( PythonClassWrapper<TestClass>::create<cb_name, callback_t> );
@@ -123,7 +126,7 @@ int main()
         PyTuple_SetItem(args, 0, toPyObject<TestClassCopiable>(testObj, false));
         PyObject_CallObject((PyObject*)&PythonClassWrapper< TestClassCopiable&>::Type, args) ;
     }
-    auto tyobj = &PythonClassWrapper<int>::Type;
+    auto tyobj = &PythonClassWrapper<int&>::Type;
     auto pobjArgs = PyTuple_New(1);
     auto intObj = PyLong_FromLong(0);
     PyTuple_SetItem(pobjArgs, 0, intObj);
@@ -133,7 +136,7 @@ int main()
     }
     auto pArgs = PyTuple_New(1);
     PyTuple_SetItem(pArgs, 0, obj);
-    PythonClassWrapper<int>::addType("Pointer", &PythonCPointerWrapper<int>::Type);
+    //PythonClassWrapper<int>::addType("Pointer", &PythonCPointerWrapper<int>::Type);
     PyObject* o = PyObject_CallObject((PyObject*)&PythonCPointerWrapper<int>::Type, nullptr);
     if (o == nullptr){
         printf("nullptr O\n");

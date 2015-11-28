@@ -883,14 +883,14 @@ namespace __pyllars_internal{
               nullptr
             };
             _methodCollection.insert(_methodCollection.begin(), pyMeth);
-	    Type.tp_methods = _methodCollection.data();
+            Type.tp_methods = _methodCollection.data();
             if (PyType_Ready(&Type) < 0)
                 return -1;
             PyObject* const type = reinterpret_cast<PyObject*>(&Type);
             Py_INCREF(type);
             PyModule_AddObject(to_module, name, type);
 
-         
+
             return 0;
         }
 

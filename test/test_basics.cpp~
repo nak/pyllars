@@ -68,6 +68,8 @@ extern const char member_name[] = "value";
 extern const char* const cb_name[] = {"cb",  nullptr};
 extern const char* const copy_constructor_name[] = {"from",  nullptr};
 
+extern const char* const address_name[] = {"addr",  nullptr};
+
 static PyObject* wrapper ;
 
 
@@ -78,7 +80,7 @@ initmod() {
   PyObject* m = Py_InitModule3("test", nullptr,
 			       "Test of pyllars generation");
 
-  PythonClassWrapper< int>::initialize("int", m );
+  //PythonClassWrapper< int>::initialize("int", m );
   PythonClassWrapper< int&>::initialize("int_ref", m );
   PythonClassWrapper< TestClass&>::initialize("TestClass_ref", m );
   PythonClassWrapper< TestClassCopiable&>::initialize("TestClassCopiable_ref", m );
@@ -106,6 +108,7 @@ int main()
     PythonClassWrapper<TestClassCopiable>::addConstructor( PythonClassWrapper<TestClassCopiable>::create<nullptr> );
     PythonClassWrapper<TestClassCopiable>::addConstructor( PythonClassWrapper<TestClassCopiable>::create<cb_name, callback_t> );
     PythonClassWrapper<TestClassCopiable&>::addConstructor( PythonClassWrapper<TestClassCopiable&>::create<copy_constructor_name, TestClassCopiable> );
+    PythonClassWrapper<TestClassCopiable>::addConstructor( PythonClassWrapper<TestClassCopiable>::create<copy_constructor_name, TestClassCopiable> );
     PythonClassWrapper<TestClass>::addMethod<print_name,void>( &TestClass::print);
     PythonClassWrapper<TestClass>::addMember<member_name,const double>( &TestClass::value);
     initmod();
