@@ -23,12 +23,9 @@ namespace __pyllars_internal {
 
         static constexpr cname name = func_name;
 
-        //template< typename Type>
-        //static PyObject* pyObject(){ return nullptr;}
-
         static PyObject* _call(PyObject *callable_object, PyObject *args, PyObject *kw);
 
-        static void _init();
+        static int _init(PyObject* self, PyObject* args, PyObject*kwds);
 
         static PyObject *
         _new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
@@ -48,14 +45,13 @@ namespace __pyllars_internal {
               inited = true;
               PyObject* const type = reinterpret_cast<PyObject*>(&Type);
               Py_INCREF(type);
-              auto pyfuncobj = (PythonFunctionWrapper*)PyObject_CallObject((PyObject*)&Type, nullptr);
+              auto pyfuncobj = (PythonFunctionWrapper*)PyObject_CallObject(type, nullptr);
               pyfuncobj->_cfunc = func;
+              if(!PyCallable_Check((PyObject*)pyfuncobj)){
+                throw "Python object is not callbable as expected!";
+              }
               return pyfuncobj;
           }
-        }
-
-        ReturnType call(Args... args){
-          return _cfunc(args...);
         }
 
     private:
@@ -65,13 +61,18 @@ namespace __pyllars_internal {
 
         template<typename ...PyO>
         ReturnType callFuncBase( PyObject *pytuple, PyObject *kwds, PyO* ...pyargs){
+            if(!_cfunc){
+                PyErr_SetString(PyExc_RuntimeError, "Uninitialized C callable!");
+                PyErr_Print();
+                throw "Uninitialized C callable";
+            }
             char format[sizeof...(Args)+1] = {0};
             memset(format, 'O', sizeof...(Args));
-             if(!PyArg_ParseTupleAndKeywords(pytuple, kwds, format, (char**)names, &pyargs...)){
+            if(!PyArg_ParseTupleAndKeywords(pytuple, kwds, format, (char**)names, &pyargs...)){
               PyErr_Print();
               throw "Illegal arumgnet(s)";
             }
-           return _cfunc(toCObject<Args>(*pyargs)...);
+            return _cfunc(toCObject<Args>(*pyargs)...);
         }
 
         template<int ...S>
@@ -124,7 +125,7 @@ namespace __pyllars_internal {
         nullptr,                         /* tp_descr_get */
         nullptr,                         /* tp_descr_set */
         0,                               /* tp_dictoffset */
-        (initproc)PythonFunctionWrapper::_init,  /* tp_init */
+        _init,  /* tp_init */
         nullptr,                         /* tp_alloc */
         PythonFunctionWrapper::_new,     /* tp_new */
         nullptr,                         /*tp_free*/ //TODO: Implement a free??
@@ -139,17 +140,30 @@ namespace __pyllars_internal {
     };
 
     template<const char* const func_name, const char* const names[], typename ReturnType, typename... Args>
-    void PythonFunctionWrapper<func_name, names, ReturnType, Args...>::_init(){
-         if (PyType_Ready(&Type) < 0)
-            return;
+    int PythonFunctionWrapper<func_name, names, ReturnType, Args...>::_init(PyObject* self, PyObject* args, PyObject*kwds){
+         //avoid compiler warnings (including reinterpret cast to avoid type-punned warning)
+         (void) self;
+         (void) args;
+         (void) kwds;
+         if (PyType_Ready(&Type) < 0){
+            PyErr_SetString(PyExc_RuntimeError,"Unable to initialize Python type");
+            return -1;
+        }
         PyObject* const type = reinterpret_cast<PyObject*>(&Type);
         Py_INCREF(type);
+        return 0;
     }
 
     template<const char* const func_name, const char* const names[], typename ReturnType, typename... Args>
     PyObject* PythonFunctionWrapper<func_name, names, ReturnType, Args...>::_call(PyObject *callable_object, PyObject *args, PyObject *kw){
-      PythonFunctionWrapper& wrapper = *reinterpret_cast<PythonFunctionWrapper* const>(callable_object);
-      return toPyObject<ReturnType>(wrapper.callFunc(args, kw, typename argGenerator<sizeof...(Args)>::type()), false);
+      try{
+        PythonFunctionWrapper& wrapper = *reinterpret_cast<PythonFunctionWrapper* const>(callable_object);
+        return toPyObject<ReturnType>(wrapper.callFunc(args, kw, typename argGenerator<sizeof...(Args)>::type()), false);
+      } catch( const char* const msg){
+        PyErr_SetString(PyExc_RuntimeError, msg);
+        PyErr_Print();
+        return Py_None;
+      }
     }
 
 

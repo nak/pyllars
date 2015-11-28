@@ -60,7 +60,7 @@ class CPPParser(object):
         parser.resolvers.add(FileResolver())
         xml_input = etree.parse(xmlfile, parser)
         import pkgutil
-        xsltcode = pkgutil.get_data("pyllars", "./xslt/cpp2python.xslt")        
+        xsltcode = pkgutil.get_data("pyllars", "./xslt/cpp2pyllars.xslt")        
         s_xslt = etree.parse(StringIO(xsltcode))
         transform = etree.XSLT(s_xslt)
         result = str(transform(xml_input)).replace('\r','')

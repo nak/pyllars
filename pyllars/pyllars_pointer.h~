@@ -1,301 +1,321 @@
-#include <Python.h>
-#include <structmember.h>
 
+#ifndef __PYLLARS__INTERNAL__POINTER_H
+#define __PYLLARS__INTERNAL__POINTER_H
 namespace __pyllars_internal{
 
-  /*********
-   * Class to define Python wrapper to C class/type
-   **/
-  template< typename CClass>
-  struct PythonWrapper{
-    PyObject_HEAD
-    
-    CClass* get_CObject(){ return _CObject;}
-
-    static PyTypeObject Type;
-    
-    static PyMemberDef _members[];
-    
-    static PyMethodDef _methods[];
-    
-    static const char* const name;
-
-    CClass* _CObject;
-
-    static int
-    _init( PythonWrapper *self, PyObject *args, PyObject *kwds){
-      if (!self){ return -1;}
-      static char* kwlist[] = {"value",NULL};
-      int value;
-      if (! PyArg_ParseTupleAndKeywords(args, kwds, "i", kwlist, 
-					&value))
-	return -1; 
-      self->_CObject = new int(value);
-    }
-
-    
-    static PyObject* _new( PyTypeObject* type, PyObject* args, PyObject*kwds){
-      PythonWrapper  *self;
-      self = (PythonWrapper*)type ->tp_alloc(type, 0);
-      if ( NULL != self){
-	self->_CObject = NULL;
-      }
-      return (PyObject*) self;
-    }
-    
-
-    static void _dealloc( PythonWrapper* self){
-      if(!self) return;
-      delete self->_CObject;
-      self->_CObject = NULL;
-      self->ob_type->tp_free((PyObject*)self);
-    }
-
-  };
-
-  template< typename CClass>
-  PyTypeObject PythonWrapper<CClass>::Type =  {
-    PyObject_HEAD_INIT(NULL)
-    0,                         /*ob_size*/
-    PythonWrapper::name,             /*tp_name*/
-    sizeof(PythonWrapper),             /*tp_basicsize*/
-    0,                         /*tp_itemsize*/
-    (destructor)PythonWrapper::_dealloc, /*tp_dealloc*/
-    0,                         /*tp_print*/
-    0,                         /*tp_getattr*/
-    0,                         /*tp_setattr*/
-    0,                         /*tp_compare*/
-    0,                         /*tp_repr*/
-    0,                         /*tp_as_number*/
-    0,                         /*tp_as_sequence*/
-    0,                         /*tp_as_mapping*/
-    0,                         /*tp_hash */
-    0,                         /*tp_call*/
-    0,                         /*tp_str*/
-    0,                         /*tp_getattro*/
-    0,                         /*tp_setattro*/
-    0,                         /*tp_as_buffer*/
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /*tp_flags*/
-    "PythonWrapper object",           /* tp_doc */
-    0,		               /* tp_traverse */
-    0,		               /* tp_clear */
-    0,		               /* tp_richcompare */
-    0,		               /* tp_weaklistoffset */
-    0,		               /* tp_iter */
-    0,		               /* tp_iternext */
-    PythonWrapper::_methods,             /* tp_methods */
-    PythonWrapper::_members,             /* tp_members */
-    0,                         /* tp_getset */
-    0,                         /* tp_base */
-    0,                         /* tp_dict */
-    0,                         /* tp_descr_get */
-    0,                         /* tp_descr_set */
-    0,                         /* tp_dictoffset */
-    (initproc)PythonWrapper::_init,      /* tp_init */
-    0,                         /* tp_alloc */
-    PythonWrapper::_new,                 /* tp_new */
-};
-
-
-
-
-
-
-  template< typename CClass,
-    typename... Bases>
-    struct PythonCPointerWrapper{
-      
-      PyObject_HEAD
-
-      
-      static void _dealloc( PythonCPointerWrapper* self){
-	if( self != NULL ){
-	  self->_content = NULL;
-	  self->ob_type->tp_free((PyObject*)self);
-	}
-      }
-      
-      static PyObject *
-      _new(PyTypeObject *type, PyObject *args, PyObject *kwds)
-      {
-	PythonCPointerWrapper *self;
-	
-	self = (PythonCPointerWrapper*)type->tp_alloc(type, 0);
-	if (self != NULL) {
-	  self->_content = NULL;
-	  self->_depth = 1;
-	}
-	return (PyObject *)self;
-	
-      }
-      
-      static int
-      _init( PythonCPointerWrapper *self, PyObject *args, PyObject *kwds)
-      {
-	PyObject *target=NULL;
-	
-	static char *kwlist[] = {"target", NULL};
-	
-	int status = -1;
-	if (self != NULL &&
-	    PyArg_ParseTupleAndKeywords(args, kwds, "O", kwlist, 
-					&target)){
-	  
-	  if (target && target != Py_None) {
-	    if (PyObject_IsInstance( target, (PyObject*)&PythonCPointerWrapper::Type)){
-	      self->_depth = ((PythonCPointerWrapper*)target)->_depth +1;
-	      PyObject* obj  = PyObject_CallObject((PyObject*)&Type, Py_None);
-	      self->_content = &(reinterpret_cast<PythonCPointerWrapper*>(obj)->_content);
-	      status = 0;
-	    } else if ( PyObject_IsInstance( target, (PyObject*)&PythonWrapper<CClass>::Type )){
-	      self->_depth = 1;
-	      self->_content = (reinterpret_cast< PythonWrapper<CClass*> *>(target)->get_CObject());
-	      status = 0;
-	    }
-	    
-	  
-	  } else if (target==Py_None){
-	    self->_content = NULL;
-	    status = 0;
-	  }
-	}
-	return status;
-      }
-      
-      static PyObject* _at( PyObject * self, PyObject* args, PyObject* kwargs){
-	static char* kwlist[] = {"index",NULL};
-	
-	PyObject* result = Py_None;
-	int index = -1;
-	
-	if( !PyArg_ParseTupleAndKeywords( args,kwargs, "i", kwlist, &index)){
-	  return NULL;
-	}
-	if (reinterpret_cast<PythonCPointerWrapper*>(self)->_depth == 1){
-	  
-	  result =  PyObject_CallObject( (PyObject*)&PythonWrapper<CClass>::Type,
-					 Py_None);
-	  if(result)
-	    reinterpret_cast<PythonWrapper<CClass>* >(result)->_CObject = &((CClass*)reinterpret_cast<PythonCPointerWrapper*>(self)->_content)[index];
-	  
-	} else {
-	  
-	  result = PyObject_CallObject( (PyObject*)&PythonCPointerWrapper::Type,
-					Py_None);
-	  if(result){
-	    reinterpret_cast<PythonCPointerWrapper*>(result)->_content =
-	      reinterpret_cast<void**>(reinterpret_cast<PythonCPointerWrapper*>(self)->_content)[index];
-	  }
-	}
-	
-	return result;
-      }
-      
-      static PyTypeObject Type;
-      
-      static PyMemberDef _members[];
-      
-      static PyMethodDef _methods[];
-
-      static const char* const name;
-
-    private:
-      
-      void* _content;
-      size_t _depth;
-      
-    };
-  
-  template< typename CClass,
-	    typename... Bases >
-  PyMemberDef PythonCPointerWrapper<CClass,  Bases...>::_members[] = {
-    {"depth", T_OBJECT_EX, offsetof(PythonCPointerWrapper, _depth), 0,
-     "depth of pointer"},
-    {NULL}  /* Sentinel */
-  };
-  
-  
-  template< typename CClass,
-	    typename... Bases >
-  PyMethodDef PythonCPointerWrapper<CClass,  Bases...>::_methods[] = {
-    {"at", (PyCFunction)PythonCPointerWrapper::_at,
-     METH_VARARGS,
-     "Return the dereferenced item at provided index"
-    },
-    {NULL}  /* Sentinel */
-  };
-  
-  
-  template< typename CClass,
-	    typename... Bases >
-  PyTypeObject PythonCPointerWrapper<CClass,  Bases...>::Type =  {
-    PyObject_HEAD_INIT(NULL)
-    0,                         /*ob_size*/
-    PythonCPointerWrapper::name,             /*tp_name*/
-    sizeof(PythonCPointerWrapper),             /*tp_basicsize*/
-    0,                         /*tp_itemsize*/
-    (destructor)PythonCPointerWrapper<CClass,  Bases...>::_dealloc, /*tp_dealloc*/
-    0,                         /*tp_print*/
-    0,                         /*tp_getattr*/
-    0,                         /*tp_setattr*/
-    0,                         /*tp_compare*/
-    0,                         /*tp_repr*/
-    0,                         /*tp_as_number*/
-    0,                         /*tp_as_sequence*/
-    0,                         /*tp_as_mapping*/
-    0,                         /*tp_hash */
-    0,                         /*tp_call*/
-    0,                         /*tp_str*/
-    0,                         /*tp_getattro*/
-    0,                         /*tp_setattro*/
-    0,                         /*tp_as_buffer*/
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /*tp_flags*/
-    "PythonCPointerWrapper object",           /* tp_doc */
-    0,		               /* tp_traverse */
-    0,		               /* tp_clear */
-    0,		               /* tp_richcompare */
-    0,		               /* tp_weaklistoffset */
-    0,		               /* tp_iter */
-    0,		               /* tp_iternext */
-    PythonCPointerWrapper<CClass,  Bases...>::_methods,             /* tp_methods */
-    PythonCPointerWrapper::_members,             /* tp_members */
-    0,                         /* tp_getset */
-    0,                         /* tp_base */
-    0,                         /* tp_dict */
-    0,                         /* tp_descr_get */
-    0,                         /* tp_descr_set */
-    0,                         /* tp_dictoffset */
-    (initproc)PythonCPointerWrapper<CClass,  Bases...>::_init,      /* tp_init */
-    0,                         /* tp_alloc */
-    PythonCPointerWrapper<CClass,  Bases...>::_new,                 /* tp_new */
-};
-
-
-
-
-
-  template< typename CClass,
-	    typename... Bases >
-  void init_pyllars_pointer( PyObject* m ) 
-  {
-    if (m == NULL)
-      return;
-    
-    if (PyType_Ready(&PythonCPointerWrapper<CClass, Bases...>::Type) < 0)
-      return;
-    
-    
-    Py_INCREF( (&PythonCPointerWrapper<CClass, Bases...>::Type) );
-    PyModule_AddObject(m, PythonCPointerWrapper<CClass, Bases...>::name, (PyObject *)&PythonCPointerWrapper<CClass, Bases...>::Type);
-
-    if (PyType_Ready(&PythonWrapper<CClass>::Type) < 0)
-      return;
-    
-    
-    Py_INCREF( (&PythonWrapper<CClass>::Type) );
-    PyModule_AddObject(m, PythonWrapper<CClass>::name, (PyObject *)&PythonWrapper<CClass>::Type);
-  }
-  
-  
+    template< typename CClass, typename content_type=const void*>
+    struct PythonCPointerWrapper;
 
 }
+
+#include <Python.h>
+#include <structmember.h>
+#include <limits.h>
+#include <limits>
+#include <vector>
+#include <functional>
+#include "pyllars/pyllars_classwrapper.h"
+
+// TODO (jrusnak#1#): All adding of bases, but not through template parameter....
+namespace __pyllars_internal {
+
+    template< typename CClass, typename content_type>
+    struct PythonCPointerWrapper {
+
+        PyObject_HEAD
+
+        static int addType( const char* const name, PyTypeObject* const contained_type) {
+
+            if (PyType_Ready(contained_type) < 0)
+                return -1;
+
+            Py_INCREF( contained_type );
+            return PyObject_SetAttrString((PyObject*)&Type, name, (PyObject *)contained_type);
+
+        }
+
+        static void _dealloc( PythonCPointerWrapper* self) {
+            if( self != nullptr ) {
+                self->_content = nullptr;
+                self->ob_type->tp_free((PyObject*)self);
+            }
+        }
+
+        static PyObject *_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
+            (void)args;
+            (void)kwds;
+            PythonCPointerWrapper *self;
+
+            self = (PythonCPointerWrapper*)type->tp_alloc(type, 0);
+            if (self != nullptr) {
+                self->_content = nullptr;
+                self->_depth = 1;
+            }
+            return (PyObject *)self;
+
+        }
+
+        static int _init( PythonCPointerWrapper *self, PyObject *args, PyObject *kwds) {
+            int status = -1;
+            if( kwds && PyDict_Size(kwds)>0){
+                PyErr_SetString(PyExc_TypeError, "Keyword argument(s) unexpected in Pointer cosntructor");
+                status = -1;
+                goto onerror;
+            }
+            if (args && PyTuple_Size(args)>1){
+                PyErr_SetString(PyExc_TypeError, "Excpect only one object in Pointer constructor");
+                status = -1;
+            } else if (args && PyTuple_Size(args)==1){
+                PyObject* pyobj = PyTuple_GetItem(args, 0);
+                PyTypeObject * pytypeobj =  &PythonClassWrapper<CClass>::Type;
+                typedef typename std::remove_pointer< CClass>::type CClass_bare;
+                PyTypeObject * pyptrtypeobj = &PythonCPointerWrapper<CClass_bare>::Type;
+                if (PyObject_TypeCheck(pyobj, pytypeobj)) {
+                    self->_content = reinterpret_cast<PythonClassWrapper<CClass>*>(pyobj)->get_CObject();
+                    self->_depth = 1;
+                    status = 0;
+                } else if (PyObject_TypeCheck(pyobj, pyptrtypeobj)){
+                    self->_content = reinterpret_cast< PythonCPointerWrapper<CClass_bare>*>(pyobj)->ptr();
+                    self->_depth = 1;
+                    status = 0;
+                } else {
+                    PyErr_SetString(PyExc_TypeError, "Invalid type for object when getting its pointer");
+                    status = -1;
+                }
+            } else {
+                self->_content = nullptr;
+                self->_depth = 0;
+                status = 0;
+            }
+        onerror:
+            return status;
+        }
+
+        static PyTypeObject Type;
+
+        static const char* const name;
+
+        content_type ptr(){
+            return _content;
+        }
+
+        void set_contents( typename std::remove_reference<CClass>::type * const contents){
+            assert(!_content);
+            _content = contents;
+        }
+
+        static const char* get_name(){
+            static std::string name_ = typeid(CClass).name() + std::string("_ptr");
+            return name_.c_str();
+        }
+
+        static PyTypeObject* const parent_class;
+
+    private:
+
+        static PyObject* _at( PyObject * self, PyObject* args, PyObject* kwargs) {
+            static const char* kwlist[] = {"index",nullptr};
+
+            PyObject* result = Py_None;
+            int index = -1;
+
+            if( !PyArg_ParseTupleAndKeywords( args,kwargs, "i", (char**)kwlist, &index)) {
+                return nullptr;
+            }
+            if (reinterpret_cast<PythonCPointerWrapper*>(self)->_depth == 1) {
+
+                result =  PyObject_CallObject( (PyObject*)&PythonClassWrapper<CClass>::Type,
+                                               Py_None);
+                if(result)
+                    reinterpret_cast<PythonClassWrapper<CClass>* >(result)->_CObject = &((typename std::remove_reference<CClass>::type*)reinterpret_cast<PythonCPointerWrapper*>(self)->_content)[index];
+
+            } else {
+
+                result = PyObject_CallObject( (PyObject*)&PythonCPointerWrapper::Type,
+                                              Py_None);
+                if(result) {
+                    reinterpret_cast<PythonCPointerWrapper*>(result)->_content =
+                        reinterpret_cast<const void* const*>(reinterpret_cast<PythonCPointerWrapper*>(self)->_content)[index];
+                }
+            }
+
+            return result;
+        }
+
+        static std::vector<PyMethodDef> s_methodCollection;
+        static std::vector<PyMemberDef> s_memberCollection;
+        static PyMethodDef s_methodList[];
+        static PyMemberDef s_memberList[];
+
+        //  !!!!!!CAUTION: If you change the layout you must consider changing
+        //  !!!!!!The offset computation below
+        content_type _content;
+        size_t _depth;
+    };
+
+
+
+    template< typename CClass, typename content_type>
+    PyTypeObject* const PythonCPointerWrapper<CClass, content_type>::parent_class = &PythonClassWrapper<CClass>::Type;
+
+    /**
+     * https://www.google.com/search?client=ubuntu&channel=fs&q=python+api+get+module+of+Type&ie=utf-8&oe=utf-8
+     * Specialized for pointers:
+     **/
+    template< typename T>
+    class PyObjectConversionHelper<T,  typename  std::enable_if< std::is_pointer<T>::value >::type >{
+    public:
+        static PyObject* toPyObject( const T & var, const bool asArgument ){
+            (void)asArgument;
+            typedef typename std::remove_pointer<T>::type T_base;
+            PyObject* pyobj =nullptr;
+            if( std::is_pointer<T>::value ){
+
+                if( PyType_Ready(&PythonCPointerWrapper<T_base>::Type) < 0){
+                    PyErr_SetString(PyExc_RuntimeError, "Error initializing pointer class type");
+                    goto onerror;
+                }
+                PythonClassWrapper<T_base>::addType("Pointer", &PythonCPointerWrapper<T_base>::Type);
+
+            }
+
+            if( PyType_Ready(&PythonCPointerWrapper<T>::Type) < 0){
+                PyErr_SetString(PyExc_RuntimeError, "Error initializing pointer class type");
+                goto onerror;
+            }
+            pyobj = PyObject_CallObject(  (PyObject*)&PythonCPointerWrapper<typename std::remove_pointer<T>::type>::Type, nullptr);
+            if ( !pyobj || !PyObject_TypeCheck(pyobj, &PythonCPointerWrapper<typename std::remove_pointer<T>::type>::Type)){
+                  PyErr_SetString(PyExc_TypeError, "Unable to convert C type object to Python object");
+                goto onerror;
+            }
+            reinterpret_cast<PythonCPointerWrapper<typename std::remove_pointer<T>::type>* >(pyobj)->set_contents( var );
+            return pyobj;
+
+            onerror:
+                return Py_None;
+        }
+    };
+
+  /**
+     * https://www.google.com/search?client=ubuntu&channel=fs&q=python+api+get+module+of+Type&ie=utf-8&oe=utf-8
+     * Specialized for pointers:
+     **/
+   template<>
+    class PyObjectConversionHelper<const char*,  typename  std::enable_if< std::is_pointer<char*>::value >::type >{
+    public:
+        static PyObject* toPyObject( const char* const & var, const bool asArgument ){
+            (void)asArgument;
+            if (!var){
+                throw "NULL CHAR* encountered";
+            }
+            return PyString_FromString(var);
+
+        }
+    };
+
+   template<>
+    class PyObjectConversionHelper< char*,  typename  std::enable_if< std::is_pointer<char*>::value >::type >{
+    public:
+        static PyObject* toPyObject( char* const & var, const bool asArgument ){
+            (void)asArgument;
+            if (!var){
+                throw "NULL CHAR* encountered";
+            }
+            return PyString_FromString(var);
+
+        }
+    };
+
+
+    template< typename CClass, typename content_type>
+    PyTypeObject PythonCPointerWrapper<CClass, content_type>::Type = {
+        PyObject_HEAD_INIT(nullptr)
+        0,                         /*ob_size*/
+        PythonCPointerWrapper::name,             /*tp_name*/
+        sizeof(PythonCPointerWrapper),             /*tp_basicsize*/
+        0,                         /*tp_itemsize*/
+        (destructor)PythonCPointerWrapper<CClass>::_dealloc, /*tp_dealloc*/
+        nullptr,                         /*tp_print*/
+        nullptr,                         /*tp_getattr*/
+        nullptr,                         /*tp_setattr*/
+        nullptr,                         /*tp_compare*/
+        nullptr,                         /*tp_repr*/
+        nullptr,                         /*tp_as_number*/
+        nullptr,                         /*tp_as_containeruence*/
+        nullptr,                         /*tp_as_mapping*/
+        nullptr,                         /*tp_hash */
+        nullptr,                         /*tp_call*/
+        nullptr,                         /*tp_str*/
+        nullptr,                         /*tp_getattro*/
+        nullptr,                         /*tp_setattro*/
+        nullptr,                         /*tp_as_buffer*/
+        Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /*tp_flags*/
+        "PythonCPointerWrapper object",           /* tp_doc */
+        nullptr,		               /* tp_traverse */
+        nullptr,		               /* tp_clear */
+        nullptr,		               /* tp_richcompare */
+        0,		               /* tp_weaklistoffset */
+        nullptr,		               /* tp_iter */
+        nullptr,		               /* tp_iternext */
+        PythonCPointerWrapper::s_methodCollection.data(),             /* tp_methods */
+        PythonCPointerWrapper::s_memberCollection.data(),             /* tp_members */
+        nullptr,                         /* tp_getset */
+        nullptr,                         /* tp_base */
+        nullptr,                         /* tp_dict */
+        nullptr,                         /* tp_descr_get */
+        nullptr,                         /* tp_descr_set */
+        0,                         /* tp_dictoffset */
+        (initproc)PythonCPointerWrapper<CClass>::_init,      /* tp_init */
+        nullptr,                         /* tp_alloc */
+        PythonCPointerWrapper<CClass>::_new,                 /* tp_new */
+        nullptr,                         /*tp_free*/ //TODO: Implement a free??
+        nullptr,                         /*tp_is_gc*/
+        nullptr,                         /*tp_bass*/
+        nullptr,                         /*tp_mro*/
+        nullptr,                         /*tp_cache*/
+        nullptr,                         /*tp_subclasses*/
+        nullptr,                          /*tp_weaklist*/
+        nullptr,                          /*tp_del*/
+        0,                          /*tp_version_tag*/
+    };
+
+    template<typename CClass, typename content_type>
+    PyMethodDef PythonCPointerWrapper<CClass, content_type>::s_methodList[] = {
+        {
+            "at", (PyCFunction)PythonCPointerWrapper::_at,
+            METH_VARARGS,
+            "Return the dereferenced item at provided index"
+        },
+        {nullptr, nullptr, 0, nullptr}  /* Sentinel */
+    };
+
+    template<typename CClass, typename content_type>
+    std::vector<PyMethodDef> PythonCPointerWrapper<CClass, content_type>::s_methodCollection =
+       std::vector<PyMethodDef>(PythonCPointerWrapper::s_methodList, PythonCPointerWrapper::s_methodList+2);
+
+    struct UNUSED{
+      PyObject_HEAD
+    };
+    template<typename CClass, typename content_type>
+    PyMemberDef PythonCPointerWrapper<CClass, content_type>::s_memberList[] = {
+               {
+                //  !!!!!!!!!CAUTION : CANNOT USE OFFSETOF HERE, SO HAVE TO COMPUTE, BUT IS
+                //  !!!!!!!!!DEPENDENT ON LAYOUT
+                  (char*)"depth", T_OBJECT_EX, sizeof(PythonCPointerWrapper) - sizeof(UNUSED) + sizeof(void*), 0,
+                  (char*)"depth of pointer"
+                },
+                {nullptr, 0, 0, 0, nullptr}/*Sentinel*/
+    };
+
+    template<typename CClass, typename content_type>
+    std::vector<PyMemberDef> PythonCPointerWrapper<CClass, content_type>::s_memberCollection=
+       std::vector<PyMemberDef>(PythonCPointerWrapper::s_memberList, PythonCPointerWrapper::s_memberList+2);
+
+    template< typename CClass, typename content_type>
+    const char* const PythonCPointerWrapper<CClass, content_type>::name = PythonCPointerWrapper<CClass, content_type>::get_name();
+
+
+
+}
+
+#endif
