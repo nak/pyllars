@@ -196,14 +196,17 @@ namespace __pyllars_internal {
             } else if (self_->_depth == 1) {
                 PyObject* kw = PyDict_New();
                 PyDict_SetItemString(kw, "__internal_allow_null", PyBool_FromLong(true));
-
-                result =  PyObject_Call( (PyObject*)&PythonClassWrapper<CClass>::Type, nullptr, kw);
+                PyObject* emptyTuple = PyTuple_New(0);
+                result =  PyObject_Call( (PyObject*)&PythonClassWrapper<CClass>::Type, emptyTuple, kw);
                 Py_DECREF(kw);
+                Py_DECREF(emptyTuple);
                 if(result)
                     reinterpret_cast<PythonClassWrapper<CClass>* >(result)->_CObject = &((typename std::remove_reference<CClass>::type*)(self_->_content))[index];
             } else {
+                PyObject* emptyTuple = PyTuple_New(0);
                 result = PyObject_CallObject( (PyObject*)&PythonCPointerWrapper::Type,
-                                              nullptr);
+                                              emptyTuple);
+                Py_DECREF(emptyTuple);
                 if(result) {
                     PythonCPointerWrapper* result_ = reinterpret_cast<PythonCPointerWrapper*>(result);
                     PythonCPointerWrapper* self_ = reinterpret_cast<PythonCPointerWrapper*>(self);
@@ -259,7 +262,11 @@ namespace __pyllars_internal {
                 PyErr_SetString(PyExc_RuntimeError, "Error initializing pointer class type");
                 goto onerror;
             }
-            pyobj = PyObject_CallObject(  (PyObject*)&PythonCPointerWrapper<typename std::remove_pointer<T>::type>::Type, nullptr);
+            {
+                PyObject* emptyTuple = PyTuple_New(0);
+                pyobj = PyObject_CallObject(  (PyObject*)&PythonCPointerWrapper<typename std::remove_pointer<T>::type>::Type, emptyTuple);
+                Py_DECREF(emptyTuple);
+            }
             if ( !pyobj || !PyObject_TypeCheck(pyobj, &PythonCPointerWrapper<typename std::remove_pointer<T>::type>::Type)){
                   PyErr_SetString(PyExc_TypeError, "Unable to convert C type object to Python object");
                 goto onerror;

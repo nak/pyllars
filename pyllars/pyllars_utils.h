@@ -4,6 +4,7 @@
 #define __PYLLARS__INTERNAL__UTILS_H
 
 #include <structmember.h>
+#include <memory>
 
 /**
  * Some (perhaps odd) utility classes to aide in converting calls with python tuples
@@ -36,6 +37,49 @@ namespace __pyllars_internal{
       typedef container<S...> type;
 
     };
+
+    template <typename T>
+    struct smart_delete{
+
+        smart_delete(const bool deleteable):_deleteable(deleteable){
+        }
+
+        void operator()(T* ptr) const{
+            if(_deleteable) delete ptr;
+        }
+
+        const bool _deleteable;
+    };
+
+    template <typename T>
+    struct smart_delete<T&>{
+
+        smart_delete(const bool deleteable):_deleteable(deleteable){
+        }
+
+        void operator()(T* ptr) const{
+            if(_deleteable) delete ptr;
+        }
+
+        const bool _deleteable;
+    };
+
+    template <typename T>
+    struct smart_delete<T[]>{
+
+        smart_delete(const bool deleteable):_deleteable(deleteable){
+        }
+
+        void operator()(T* ptr) const{
+            if(_deleteable) delete [] ptr;
+        }
+
+        const bool _deleteable;
+    };
+
+    template <typename T>
+    using smart_ptr = std::unique_ptr< typename std::remove_reference<T>::type, smart_delete<T>>;
+
 }
 
 #define CLASS_NAME(T) #T

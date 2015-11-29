@@ -50,7 +50,7 @@ namespace __pyllars_internal{
         }
         PyObject *pytuple = PyTuple_New(size);
         for (Py_ssize_t i = 0; i < size; ++ i){
-          PyTuple_SetItem( pytuple, i, pyargs[i]);
+          PyTuple_SET_ITEM( pytuple, i, pyargs[i]);
         }
         PyObject* result = PyObject_Call( pycallback, pytuple, nullptr);
         for (Py_ssize_t i = 0; i < size; ++i){
@@ -80,7 +80,7 @@ namespace __pyllars_internal{
             } else if( result == Py_None){
               throw "Invalid return type from callback";
             }
-             return toCObject<ReturnType>(*result);
+             return *toCObject<ReturnType>(*result);
         }
      };
 

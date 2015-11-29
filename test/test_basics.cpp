@@ -29,6 +29,14 @@ private:
     TestClass(const TestClass &);
 };
 
+class TestClassB: public TestClass, public std::vector< float >{
+public:
+    virtual int my_extension(unsigned char flag, double data){
+        fprintf(stderr, "FLAG IS %d\nData: %f\n", flag, data);
+        return 29;
+    }
+
+};
 
 class TestClassCopiable{
 public:
@@ -68,8 +76,12 @@ extern const char print_name[] = "print_me";
 extern const char member_name[] = "value";
 extern const char* const cb_name[] = {"cb",  nullptr};
 extern const char* const copy_constructor_name[] = {"from",  nullptr};
-
+extern const char* const empty_kwlist[] = {nullptr};
 extern const char* const address_name[] = {"addr",  nullptr};
+extern const char ext_name[] = "my_extension";
+extern const char * const ext_kwlist[] = {"flag", "data", nullptr};
+extern const char pb_name[] = "push_back";
+extern const char * const pb_kwlist[] = {"item", nullptr};
 
 static PyObject* wrapper ;
 
@@ -87,6 +99,9 @@ initmod() {
     PythonClassWrapper< TestClassCopiable&>::initialize("TestClassCopiable_ref", m );
     // PythonClassWrapper< double>::initialize("double", m );
     PythonClassWrapper< TestClass>::initialize( "TestClass", m );
+    PythonClassWrapper< TestClassB>::initialize( "TestClassB", m );
+    PythonClassWrapper< TestClassB*>::initialize( "TestClassB_ptr", m );
+    PythonClassWrapper< TestClassB&>::initialize( "TestClassB_ref", m );
     PythonClassWrapper< TestClassCopiable>::initialize( "TestClassCopiable", m );
     PythonCPointerWrapper< int>::initialize("int_ptr", m);
     wrapper = (PyObject*)PythonFunctionWrapper< funcname, names, int16_t, int, double, int&, TestClass&, TestClass*, callback_t>::create(testFunction);
@@ -109,14 +124,19 @@ int main()
     toPyObject<int>(1, false);
     PythonClassWrapper<TestClass>::addConstructor( PythonClassWrapper<TestClass>::create<nullptr> );
     PythonClassWrapper<TestClass>::addConstructor( PythonClassWrapper<TestClass>::create<cb_name, callback_t> );
+    PythonClassWrapper<TestClassB>::addConstructor( PythonClassWrapper<TestClassB>::create<nullptr> );
     PythonClassWrapper<TestClassCopiable>::addConstructor( PythonClassWrapper<TestClassCopiable>::create<nullptr> );
     PythonClassWrapper<TestClassCopiable>::addConstructor( PythonClassWrapper<TestClassCopiable>::create<cb_name, callback_t> );
     PythonClassWrapper<TestClassCopiable&>::addConstructor( PythonClassWrapper<TestClassCopiable&>::create<copy_constructor_name, TestClassCopiable> );
     PythonClassWrapper<TestClassCopiable>::addConstructor( PythonClassWrapper<TestClassCopiable>::create<copy_constructor_name, const TestClassCopiable&> );
-    PythonClassWrapper<TestClass>::addMethod<void>( print_name,&TestClass::print);
-    PythonClassWrapper<TestClass>::addMember<const double>( member_name,&TestClass::value);
-    PythonClassWrapper<TestClassCopiable>::addMethod<void>( print_name,&TestClassCopiable::print);
-    PythonClassWrapper<TestClassCopiable>::addMember<const double>( member_name,&TestClassCopiable::value);
+    PythonClassWrapper<TestClass>::addMethod<print_name,void>( &TestClass::print, empty_kwlist);
+    PythonClassWrapper<TestClassB>::addMethod<ext_name,int, unsigned char, double>( &TestClassB::my_extension, ext_kwlist);
+    PythonClassWrapper<TestClassB>::addMethod<pb_name,void,const float &>( &TestClassB::push_back, pb_kwlist);
+    PythonClassWrapper<TestClass>::addMember<member_name,const double>( &TestClass::value);
+    PythonClassWrapper<TestClassCopiable>::addMethod<print_name,void>( &TestClassCopiable::print, empty_kwlist);
+    PythonClassWrapper<TestClassCopiable>::addMember<member_name,const double>( &TestClassCopiable::value);
+    PythonClassWrapper<TestClassB>::addExtraBaseClass( PythonClassWrapper<TestClass>::TypePtr );
+
     initmod();
 #ifdef MAIN
     //just test code:
@@ -167,7 +187,7 @@ int main()
             //PyObject_Print( PyTuple_GetItem(args, i), stderr, 0);
             assert( PyTuple_GetItem(args,i) != Py_None);
         }
-        int16_t val = toCObject<int16_t>(*PyObject_CallObject( (PyObject*)wrapper, args));
+        int16_t val = *toCObject<int16_t>(*PyObject_CallObject( (PyObject*)wrapper, args));
         fprintf(stderr, "VALUE IS %d\n", val);
         fprintf(stderr, "NEW INTEGRAL VALUE IS %d\n", intval);
         fprintf(stderr, "NEW DUMMY VALUE IS %f\n", dumm1.value);
@@ -180,7 +200,7 @@ int main()
         PyObject* pyobj = toPyObject(obj, true);
         PyObject* ret = PyObject_CallMethod(pyobj, (char*)print_name,nullptr);
         ret = PyObject_CallMethod(pyobj, (char*)(std::string("get_")+member_name).c_str(),nullptr);
-        double val = toCObject<double>(*ret);
+        double val = *toCObject<double>(*ret);
         fprintf(stderr, ".value is: %f\n" , val);
     }
     fprintf(stderr, "SUCCESS!\n");
