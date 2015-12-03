@@ -1,4 +1,6 @@
 //  PREDECLARATIONS
+#include "pyllars_constmethodcallsemantics.h"
+#include "pyllars_methodcallsemantics.h"
 #include "pyllars_utils.h"
 
 namespace __pyllars_internal{
@@ -8,6 +10,9 @@ namespace __pyllars_internal{
     //////////
     template< typename T, const ssize_t max = -1,  typename E = void>
     PyObject* toPyObject( T &var, const bool asArgument);
+
+    template< typename T, const ssize_t max = -1, typename E = void>
+    PyObject* toPyObject(  const T & var, const bool asArgument );
 
     template< typename T>
     smart_ptr<T> toCObject( PyObject& pyobj );
@@ -47,11 +52,6 @@ namespace __pyllars_internal{
 
     };
 
-    /**
-     * Class to define Python wrapper to C class/type
-     **/
-    template< typename CClass, typename Base=PythonBase>
-    struct PythonClassWrapper;
 
     ///////////
     // Helper conversion functions
@@ -61,7 +61,7 @@ namespace __pyllars_internal{
      * Define conversion helper class, which allows easier mechanism
      * for necessary specializations
      **/
-      template< typename T,  const ssize_t max, typename E = void>
+    template< typename T,  const ssize_t max, typename E = void>
     class PyObjectConversionHelper{
     public:
         static PyObject* toPyObject(const T &var, const bool asArgument);
@@ -71,7 +71,7 @@ namespace __pyllars_internal{
     /**
     * specialize for non-copiable types
     **/
-      template< typename T, const ssize_t max>
+    template< typename T, const ssize_t max>
 	class PyObjectConversionHelper<T,  max, typename  std::enable_if<!std::is_copy_constructible<T>::value >::type >{
     public:
 
@@ -102,7 +102,7 @@ namespace __pyllars_internal{
     /**
      * specialize for non-trivial copiable types
      **/
-      template<typename T, const ssize_t max>
+    template<typename T, const ssize_t max>
 	class PyObjectConversionHelper<T, max, typename  std::enable_if< std::is_copy_constructible<T>::value && !std::is_integral<T>::value && !std::is_floating_point<T>::value && !std::is_pointer<T>::value >::type >{
     public:
 
@@ -218,326 +218,21 @@ namespace __pyllars_internal{
      * @param var: value to convert
      * @param asArgument: whether to be used as argument or not (can determine if copy is made or reference semantics used)
      **/
-      template< typename T, const ssize_t max = -1, typename E = void>
+    template< typename T, const ssize_t max = -1, typename E = void>
     PyObject* toPyObject(  T & var, const bool asArgument ){
         return PyObjectConversionHelper<T, max>::toPyObject(var, asArgument);
     }
 
-      template< typename T, const ssize_t max = -1, typename E = void>
+    template< typename T, const ssize_t max = -1, typename E = void>
     PyObject* toPyObject(  const T & var, const bool asArgument ){
      return PyObjectConversionHelper<T, -1>::toPyObject(var, asArgument);
     }
 
     /////////////////////////////////////////
 
-    /**
-     * class to hold referecne to a class method and define
-     * method call semantics
-     **/
-    template<typename CClass, typename T, typename ... Args>
-    class MethodCallSemantics{
-    public:
-      typedef typename extent_as_pointer<T>::type(CClass::*method_t)(Args...);
-        typedef T CClass::* member_t;
-        static member_t member;
-        static const char* const *kwlist;
-
-        /**
-         * if call is a "get_" member element call:
-         **/
-        static PyObject* toPyObj(CClass &self){
-            return toPyObject<T>(self.*member, false);
-        }
-
-        /**
-         * Used for regular methods:
-         */
-        static PyObject* call( method_t method, CClass & self, PyObject* args, PyObject* kwds){
-	  try{
-              return toPyObject( call_methodBase(method, self, args, kwds, typename argGenerator<sizeof...(Args)>::type()), false);
-	  } catch( const char* const msg){
-	    PyErr_SetString( PyExc_RuntimeError, msg);
-	    return  nullptr;
-	  }
-        }
-
-    private:
-
-        /**
-         * call that invokes method a la C:
-         **/
-        template< typename ...PyO>
-	  static typename extent_as_pointer<T>::type call_methodC( typename extent_as_pointer<T>::type  (CClass::*method)(Args...),
-                                        typename std::remove_reference<CClass>::type &self,
-                                        PyObject *args, PyObject *kwds, PyO* ...pyargs){
-            static char format[sizeof...(Args)+1] = {0};
-            if (sizeof...(Args)>0)
-                memset( format, 'O', sizeof...(Args));
-
-            if(!PyArg_ParseTupleAndKeywords(args, kwds, format, (char**)kwlist, &pyargs...)){
-                PyErr_Print();
-                throw "Invalid arguments to method call";
-            }
-            T retval =  (self.*method)(*toCObject<Args>(*pyargs)...);
-            return retval;
-        }
-
-        /**
-         * call that converts python given arguments to make C call:
-         **/
-        template<int ...S>
-        static typename extent_as_pointer<T>::type  call_methodBase( typename extent_as_pointer<T>::type  (CClass::*method)(Args...),
-                                  typename std::remove_reference<CClass>::type &self,
-                                  PyObject* args, PyObject* kwds, container<S...> s) {
-            (void)s;
-            PyObject pyobjs[sizeof...(Args)+1];
-            return call_methodC(method, self, args, kwds, &pyobjs[S]...);
-            (void)pyobjs;
-        }
-
-    };
-
-    template< class CClass, typename ReturnType, typename ...Args>
-    const char* const *
-    MethodCallSemantics<CClass, ReturnType, Args...>::kwlist;
 
 
-    /**
-     * specialize for void returns:
-     **/
-    template<typename CClass, typename ...Args>
-    class MethodCallSemantics<CClass,void, Args...>{
-    public:
-        typedef void(CClass::*method_t)(Args...);
-        typedef void* member_t;
-        static member_t member;
-        static const char* const * kwlist;
 
-        static PyObject* toPyObj(CClass & self){
-            (void)self;
-            return Py_None;
-        }
-        static PyObject* call( method_t method, CClass & self, PyObject* args, PyObject* kwds){
-	  call_methodBase(method, self, args, kwds, typename argGenerator< sizeof...(Args) >::type());
-            return Py_None;
-        }
-
-    private:
-
-        template< typename ...PyO>
-        static void call_methodC( void (CClass::*method)(Args...),
-                                        typename std::remove_reference<CClass>::type &self,
-                                        PyObject* args, PyObject* kwds,
-                                        PyO* ...pyargs){
-
-            char format[sizeof...(Args)+1]={0};
-            if (sizeof...(Args) > 0)
-                memset(format,'O',sizeof...(Args));
-            if(!PyArg_ParseTupleAndKeywords(args, kwds, format, (char**)kwlist, &pyargs...)){
-                PyErr_SetString( PyExc_RuntimeError, "Failed to parse argument on method call");
-            } else {
-                (self.*method)(*toCObject<Args>(*pyargs)...);
-            }
-        }
-
-        template<int ...S>
-        static void call_methodBase( void (CClass::*method)(Args...),
-                                     typename std::remove_reference<CClass>::type &self,
-                                     PyObject *args, PyObject *kwds,
-				     container<S...> unused) {
-	     (void)unused;
-             PyObject pyobjs[sizeof...(Args)+1];
-             call_methodC(method, self, args, kwds, &pyobjs[S]...);
-             (void)pyobjs;
-        }
-
-     };
-
-    template< class CClass, typename T, typename ...Args>
-    typename MethodCallSemantics<CClass, T, Args...>::member_t
-    MethodCallSemantics<CClass, T, Args...>::member;
-
-    template< class CClass, typename ...Args>
-    typename MethodCallSemantics<CClass, void, Args...>::member_t
-    MethodCallSemantics<CClass, void, Args...>::member;
-
-    template< class CClass, typename ...Args>
-    const char* const *
-    MethodCallSemantics<CClass, void, Args...>::kwlist;
-
-
-    /**
-     * This class is needed to prevent ambiguities and compiler issues in add_method
-     * It holds the method call/member getter method and allows specialization based on
-     * underlying CClass type
-     **/
-    template<  class CClass,  typename E = void>
-    class MethodContainer{
-    public:
-        typedef void (*setter_t)(typename std::remove_reference<CClass>::type * , PyObject*);
-
-        template<const char* const name, typename ReturnType, typename ...Args>
-        class Container{
-	  typedef typename extent_as_pointer<ReturnType>::type TrueReturnType;
-	  typedef TrueReturnType(CClass::*method_t)(Args...);
-           typedef ReturnType CClass::* member_t;
-
-            typedef const char* const * kwlist_t;
-           static constexpr  kwlist_t &kwlist = MethodCallSemantics<CClass, ReturnType, Args...>::kwlist;
-
-           static PyObject* call(PyObject* self, PyObject* args, PyObject* kwds);
-
-        };
-    };
-
-
-    template <class CClass, class T>
-    class AttributeSetter{
-    public:
-        static void setFromPyObject( typename std::remove_reference<CClass>::type * self, PyObject* pyobj,typename MethodCallSemantics<CClass, T>::member_t member){
-             self->*member = *toCObject<T>(*pyobj);
-        }
-    };
-
-    template <class CClass, class T>
-    class AttributeSetter< CClass, const T>{
-    public:
-        static void setFromPyObject( typename std::remove_reference<CClass>::type * self, PyObject* pyobj,typename MethodCallSemantics<CClass, const T>::member_t member){
-             (void)self; (void)pyobj;(void)member;
-             PyErr_SetString(PyExc_TypeError, "Attempt to set const field in C class object");
-             PyErr_Print();
-         }
-    };
-
-    /**
-     * Specialization for non-const class types
-     **/
-    template<class CClass>
-    class MethodContainer<CClass, typename std::enable_if< std::is_class<CClass>::value && !std::is_const<CClass>::value >::type>{
-    public:
-        typedef void (*setter_t)(typename std::remove_reference<CClass>::type * , PyObject*);
-
-        template<const char* const name, typename ReturnType, typename ...Args>
-        class Container{
-        public:
-	  typedef typename extent_as_pointer<ReturnType>::type(CClass::*method_t)(Args...);
-            typedef typename MethodCallSemantics<CClass, ReturnType>::member_t member_t;
-
-            typedef const char* const * kwlist_t;
-            static constexpr kwlist_t &kwlist = MethodCallSemantics<CClass, ReturnType, Args...>::kwlist;
-            static method_t method;
-            static member_t constexpr &member = MethodCallSemantics<CClass, ReturnType, Args...>::member;
-
-            static PyObject* call(PyObject* self, PyObject* args, PyObject* kwds){
-                if(!self) return nullptr;
-                PythonClassWrapper<CClass>* _this = (PythonClassWrapper<CClass>*)self;
-                if(_this->get_CObject()){
-                    if (method){
-                        try{
-                            return MethodCallSemantics<CClass, ReturnType, Args...>::call(method, *_this->get_CObject(),args, kwds);
-                        } catch(...){
-                            return nullptr;
-                        }
-                    } else if(member){
-                        return MethodCallSemantics<CClass, ReturnType, Args...>::toPyObj(*_this->get_CObject());
-                    }
-                }
-                return nullptr;
-            }
-            static void setFromPyObject( typename std::remove_reference<CClass>::type * self, PyObject* pyobj){
-                AttributeSetter< CClass, ReturnType>::setFromPyObject(self, pyobj, member);
-            }
-        };
-    };
-
-
-    /**
-     * Specialization for const class types
-     **/
-    template<class CClass>
-    class MethodContainer<CClass, typename std::enable_if< std::is_class<CClass>::value && std::is_const<CClass>::value >::type>{
-    public:
-        typedef void (*setter_t)(typename std::remove_reference<CClass>::type * , PyObject*);
-
-        template<const char* const name, typename ReturnType, typename ...Args>
-        class Container{
-        public:
-	  typedef typename extent_as_pointer<ReturnType>::type(CClass::*method_t)(Args...);
-            typedef typename MethodCallSemantics<CClass, ReturnType>::member_t member_t;
-
-            typedef const char* const * kwlist_t;
-            static constexpr kwlist_t &kwlist = MethodCallSemantics<CClass, ReturnType, Args...>::kwlist;
-            static method_t method;
-            static constexpr member_t &member = MethodCallSemantics<CClass, ReturnType, Args...>::member;
-
-            static PyObject* call(PyObject* self, PyObject* args, PyObject* kwds){
-                if(!self) return nullptr;
-                PythonClassWrapper<CClass>* _this = (PythonClassWrapper<CClass>*)self;
-                if(_this->get_CObject()){
-                    if (method){
-                        try{
-                            return MethodCallSemantics<CClass, ReturnType, Args...>::call(method, *_this->get_CObject(),args, kwds);
-                        } catch(...){
-                            return nullptr;
-                        }
-                    } else if(member){
-                        return MethodCallSemantics<CClass, ReturnType, Args...>::toPyObj(*_this->get_CObject());
-                    }
-                }
-                return nullptr;
-            }
-            static void setFromPyObject( typename std::remove_reference<CClass>::type * self, PyObject* pyobj){
-               PyErr_SetString(PyExc_TypeError, "Attempt to set const field in C class object");
-               PyErr_Print();
-            }
-        };
-    };
-
-    template< class CClass>
-    template< const char* const name, typename ReturnType, typename ...Args>
-    typename MethodContainer<CClass, typename std::enable_if< std::is_class<CClass>::value && !std::is_const<CClass>::value >::type>::template Container<name, ReturnType, Args...>::method_t
-     MethodContainer< CClass, typename std::enable_if< std::is_class<CClass>::value && !std::is_const<CClass>::value >::type>::Container<name, ReturnType, Args...>::method;
-
-
-    template< class CClass>
-    template< const char* const name, typename ReturnType, typename ...Args>
-    typename MethodContainer<CClass, typename std::enable_if< std::is_class<CClass>::value && std::is_const<CClass>::value >::type>::template Container<name, ReturnType, Args...>::method_t
-     MethodContainer< CClass, typename std::enable_if< std::is_class<CClass>::value && std::is_const<CClass>::value >::type>::Container<name, ReturnType, Args...>::method;
-
-
-    /**
-     * Specialization for integral types
-     **/
-    template<typename CClass>
-    class MethodContainer< CClass, typename std::enable_if< std::is_integral<CClass>::value>::type>{
-    public:
-        typedef void (*setter_t)(typename std::remove_reference<CClass>::type * , PyObject*);
-
-        template< const char* const name, typename ReturnType, typename ...Args>
-        class Container{
-           typedef int member_t;
-           static PyObject* call(PyObject*, PyObject*, PyObject*){
-                return nullptr;
-           }
-        };
-    };
-
-    /**
-     * Specialization for floating point types
-     **/
-   template< typename CClass>
-    class MethodContainer<  CClass, typename std::enable_if< std::is_floating_point<CClass>::value>::type>{
-    public:
-        typedef void (*setter_t)(typename std::remove_reference<CClass>::type * , PyObject*);
-
-        template< const char* const, typename ReturnType, typename ...Args>
-        class Container{
-           typedef int member_t;
-           static PyObject* call(PyObject*, PyObject*, PyObject*){
-                return nullptr;
-           }
-        };
-    };
 
     static PyMethodDef emptyMethods[] = {{nullptr, nullptr, 0, nullptr}};
     //
@@ -1186,7 +881,7 @@ namespace __pyllars_internal{
          * add a method with given compile-time-known name to the contained collection
          **/
         template<const char* const name, typename ReturnType, typename ...Args>
-	  static void addMethod( typename MethodContainer<CClass_NoRef>::template Container<name,ReturnType, Args...>::method_t method, const char * const kwlist[]) {
+	    static void addMethod( typename MethodContainer<CClass_NoRef>::template Container<name, ReturnType, Args...>::method_t method, const char * const kwlist[]) {
             static const char* const doc = "Call method ";
             char *doc_string = new char[strlen(name) +strlen(doc)+1];
             snprintf(doc_string, strlen(name) +strlen(doc)+1, "%s%s",doc,name);
@@ -1200,6 +895,27 @@ namespace __pyllars_internal{
 
             MethodContainer<CClass>::template Container<name, ReturnType, Args...>::method = method;
             MethodContainer<CClass>::template Container<name, ReturnType, Args...>::kwlist = kwlist;
+            _addMethod(pyMeth);
+        }
+
+           /**
+         * add a method with given compile-time-known name to the contained collection
+         **/
+        template<const char* const name, typename ReturnType, typename ...Args>
+	    static void addConstMethod( typename ConstMethodContainer<CClass_NoRef>::template Container<name, ReturnType, Args...>::method_t method, const char * const kwlist[]) {
+            static const char* const doc = "Call method ";
+            char *doc_string = new char[strlen(name) +strlen(doc)+1];
+            snprintf(doc_string, strlen(name) +strlen(doc)+1, "%s%s",doc,name);
+
+            PyMethodDef pyMeth = {
+              name,
+              (PyCFunction)ConstMethodContainer<CClass_NoRef>::template Container<name, ReturnType, Args...>::call,
+              METH_KEYWORDS,
+              doc_string
+            };
+
+            ConstMethodContainer<CClass>::template Container<name, ReturnType, Args...>::method = method;
+            ConstMethodContainer<CClass>::template Container<name, ReturnType, Args...>::kwlist = kwlist;
             _addMethod(pyMeth);
         }
 
@@ -1227,7 +943,7 @@ namespace __pyllars_internal{
         /**
          * add a getter method for the given compile-time-known named public class member
          **/
-      template< const char* const name, typename Type>
+        template< const char* const name, typename Type>
         static void addMember( typename MethodContainer<CClass_NoRef>::template Container<name, Type>::member_t member){
 
             static const char* const doc = "Get attribute ";
@@ -1249,6 +965,32 @@ namespace __pyllars_internal{
             _memberNames.push_back(name);
             _memberSetters.push_back(MethodContainer<CClass>::template Container<name, Type>::setFromPyObject);
         }
+
+      /**
+         * add a getter method for the given compile-time-known named public class member
+         **/
+        template< const char* const name, typename Type>
+        static void addConstMember( typename ConstMethodContainer<CClass_NoRef>::template Container<name, Type>::member_t member){
+
+            static const char* const doc = "Get attribute ";
+            char *doc_string = new char[strlen(name) +strlen(doc)+1];
+            snprintf(doc_string, strlen(name) +strlen(doc)+1, "%s%s",doc,name);
+            static const char* const getter_prefix = "get_";
+            char *getter_name = new char[strlen(name) +strlen(getter_prefix)+1];
+            snprintf(getter_name, strlen(name) +strlen(getter_prefix)+1, "%s%s_",getter_prefix,name);
+            ConstMethodContainer< CClass_NoRef>::template Container<name, Type>::member = member;
+            PyMethodDef pyMeth = {getter_name,
+                    (PyCFunction)ConstMethodContainer<CClass_NoRef>::template Container<name,Type>::call,
+                    METH_KEYWORDS,
+                    doc_string
+            };
+            static const char* const kwlist[] = {"value",nullptr};
+            ConstMethodContainer< CClass_NoRef>::template Container<name, Type>::kwlist = kwlist;
+            _addMethod(pyMeth);
+            //TODO: can probably now make _memberSetters a dictionary
+            _memberNames.push_back(name);
+        }
+
 
         void set_content(typename std::remove_reference<CClass>::type * ptr){
             _CObject = ptr;
