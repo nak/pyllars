@@ -954,23 +954,23 @@ namespace __pyllars_internal{
             snprintf(getter_name, strlen(name) +strlen(getter_prefix)+1, "%s%s_",getter_prefix,name);
             MethodContainer< CClass_NoRef>::template Container<name, Type>::member = member;
             PyMethodDef pyMeth = {getter_name,
-                    (PyCFunction)MethodContainer<CClass_NoRef>::template Container<name,Type>::call,
+                    (PyCFunction)MemberContainer<CClass_NoRef>::template Container<name,Type>::call,
                     METH_KEYWORDS,
                     doc_string
               };
-              static const char* const kwlist[] = {"value",nullptr};
-               MethodContainer< CClass_NoRef>::template Container<name, Type>::kwlist = kwlist;
+            static const char* const kwlist[] = {"value",nullptr};
+            MemberContainer< CClass_NoRef>::template Container<name, Type>::kwlist = kwlist;
             _addMethod(pyMeth);
             //TODO: can probably now make _memberSetters a dictionary
             _memberNames.push_back(name);
-            _memberSetters.push_back(MethodContainer<CClass>::template Container<name, Type>::setFromPyObject);
+            _memberSetters.push_back(MemberContainer<CClass>::template Container<name, Type>::setFromPyObject);
         }
 
       /**
          * add a getter method for the given compile-time-known named public class member
          **/
         template< const char* const name, typename Type>
-        static void addConstMember( typename ConstMethodContainer<CClass_NoRef>::template Container<name, Type>::member_t member){
+        static void addConstMember( typename ConstMemberContainer<CClass_NoRef>::template Container<name, Type>::member_t member){
 
             static const char* const doc = "Get attribute ";
             char *doc_string = new char[strlen(name) +strlen(doc)+1];
@@ -978,14 +978,12 @@ namespace __pyllars_internal{
             static const char* const getter_prefix = "get_";
             char *getter_name = new char[strlen(name) +strlen(getter_prefix)+1];
             snprintf(getter_name, strlen(name) +strlen(getter_prefix)+1, "%s%s_",getter_prefix,name);
-            ConstMethodContainer< CClass_NoRef>::template Container<name, Type>::member = member;
+            ConstMemberContainer< CClass_NoRef>::template Container<name, Type>::member = member;
             PyMethodDef pyMeth = {getter_name,
-                    (PyCFunction)ConstMethodContainer<CClass_NoRef>::template Container<name,Type>::call,
+                    (PyCFunction)ConstMemberContainer<CClass_NoRef>::template Container<name,Type>::call,
                     METH_KEYWORDS,
                     doc_string
             };
-            static const char* const kwlist[] = {"value",nullptr};
-            ConstMethodContainer< CClass_NoRef>::template Container<name, Type>::kwlist = kwlist;
             _addMethod(pyMeth);
             //TODO: can probably now make _memberSetters a dictionary
             _memberNames.push_back(name);
