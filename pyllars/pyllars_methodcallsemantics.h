@@ -46,7 +46,7 @@ namespace __pyllars_internal{
          */
         static PyObject* call( method_t method, CClass & self, PyObject* args, PyObject* kwds){
             try{
-              return toPyObject( call_methodBase(method, self, args, kwds, typename argGenerator<sizeof...(Args)>::type()), false);
+              return toPybject( call_methodBase(method, self, args, kwds, typename argGenerator<sizeof...(Args)>::type()), false);
             } catch( const char* const msg){
                 PyErr_SetString( PyExc_RuntimeError, msg);
                 return  nullptr;
@@ -275,7 +275,7 @@ namespace __pyllars_internal{
                 if(!self) return nullptr;
                 PythonClassWrapper<CClass>* _this = (PythonClassWrapper<CClass>*)self;
                 if(_this->get_CObject()){
-                    return toPyObject(*_this->get_CObject());
+		  return toPyObject(_this->get_CObject()->*member, false);
                 }
                 PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
                 return nullptr;

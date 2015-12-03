@@ -136,9 +136,9 @@ int main()
     PythonClassWrapper<TestClass>::addMethod<print_name,void>( &TestClass::print, empty_kwlist);
     PythonClassWrapper<TestClassB>::addMethod<ext_name,int, unsigned char, double>( &TestClassB::my_extension, ext_kwlist);
     PythonClassWrapper<TestClassB>::addMethod<pb_name,void,const float &>( &TestClassB::push_back, pb_kwlist);
-    PythonClassWrapper<TestClass>::addConstMember<member_name,const double>( &TestClass::value);
+    PythonClassWrapper<TestClass>::addConstAttribute<member_name,const double>( &TestClass::value);
     PythonClassWrapper<TestClassCopiable>::addMethod<print_name,void>( &TestClassCopiable::print, empty_kwlist);
-    PythonClassWrapper<TestClassCopiable>::addConstMember<member_name,const double>( &TestClassCopiable::value);
+    PythonClassWrapper<TestClassCopiable>::addConstAttribute<member_name,const double>( &TestClassCopiable::value);
     PythonClassWrapper<TestClassB>::addExtraBaseClass( PythonClassWrapper<TestClass>::TypePtr );
 
     initmod();
