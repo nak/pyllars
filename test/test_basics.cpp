@@ -25,6 +25,8 @@ public:
      fprintf (stderr, "YOU'RE IN LUCK!!!\n");
    }
    double value = 4.242;
+
+   virtual ~TestClass(){}
 private:
     TestClass(const TestClass &);
 };
@@ -35,7 +37,7 @@ public:
         fprintf(stderr, "FLAG IS %d\nData: %f\n", flag, data);
         return 29;
     }
-
+    virtual ~TestClassB(){}
 };
 
 class TestClassCopiable{
@@ -96,9 +98,11 @@ initmod() {
     //PythonClassWrapper< int>::initialize("int", m );
     PythonClassWrapper< int&>::initialize("int_ref", m );
     PythonClassWrapper< TestClass&>::initialize("TestClass_ref", m );
+    PythonClassWrapper< const TestClass&>::initialize("TestClass_const_ref", m );
     PythonClassWrapper< TestClassCopiable&>::initialize("TestClassCopiable_ref", m );
     // PythonClassWrapper< double>::initialize("double", m );
     PythonClassWrapper< TestClass>::initialize( "TestClass", m );
+    PythonClassWrapper< const TestClass>::initialize( "TestClass_const", m );
     PythonClassWrapper< TestClassB>::initialize( "TestClassB", m );
     PythonClassWrapper< TestClassB*>::initialize( "TestClassB_ptr", m );
     PythonClassWrapper< TestClassB&>::initialize( "TestClassB_ref", m );

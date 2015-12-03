@@ -12,6 +12,20 @@
  **/
 namespace __pyllars_internal{
 
+    template<typename T>
+    struct extent_as_pointer{
+      typedef T type;
+    };
+
+    template<typename T>
+    struct extent_as_pointer<T[]>{
+      typedef T* type;
+    };
+
+    template<typename T, const size_t max>
+    struct extent_as_pointer<T[max]>{
+      typedef T* type;
+    };
 
     /**
      * container class for holding a tuple, to be expanded to an argument list
