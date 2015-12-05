@@ -46,7 +46,7 @@ namespace __pyllars_internal{
          */
         static PyObject* call( method_t method, CClass & self, PyObject* args, PyObject* kwds){
             try{
-              return toPybject( call_methodBase(method, self, args, kwds, typename argGenerator<sizeof...(Args)>::type()), false);
+              return toPyObject( call_methodBase(method, self, args, kwds, typename argGenerator<sizeof...(Args)>::type()), false);
             } catch( const char* const msg){
                 PyErr_SetString( PyExc_RuntimeError, msg);
                 return  nullptr;
@@ -275,16 +275,44 @@ namespace __pyllars_internal{
                 if(!self) return nullptr;
                 PythonClassWrapper<CClass>* _this = (PythonClassWrapper<CClass>*)self;
                 if(_this->get_CObject()){
-		  return toPyObject(_this->get_CObject()->*member, false);
+                    return toPyObject(_this->get_CObject()->*member, false);
                 }
                 PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
                 return nullptr;
             }
 
             static void setFromPyObject( typename std::remove_reference<CClass>::type * self, PyObject* pyobj){
-                 self->*member = *toCObject<CClass>(*pyobj);
+                self->*member = *toCObject<T>(*pyobj);
             }
         };
+
+        template<const char* const name, const size_t size, typename T>
+        class Container<name, T[size]>{
+        public:
+            typedef typename std::remove_reference<CClass>::type CClass_NoRef;
+            typedef T T_array[size];
+            typedef T_array CClass_NoRef::* member_t;
+
+            static member_t member;
+
+            static PyObject* call(PyObject* self, PyObject* args, PyObject* kwds){
+                if(!self) return nullptr;
+                PythonClassWrapper<CClass>* _this = (PythonClassWrapper<CClass>*)self;
+                if(_this->get_CObject()){
+                    return toPyObject(_this->get_CObject()->*member, false);
+                }
+                PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
+                return nullptr;
+            }
+
+            static void setFromPyObject( typename std::remove_reference<CClass>::type * self, PyObject* pyobj){
+                T *val = *toCObject<T[size]>(*pyobj);
+                for(size_t i = 0; i < size; ++i){
+                  (self->*member)[i] = val[i];
+                }
+            }
+        };
+
     };
 
     template< class CClass>
@@ -292,6 +320,10 @@ namespace __pyllars_internal{
     typename MemberContainer<CClass>::template Container< name, T>::member_t
     MemberContainer<CClass>::Container< name, T>::member;
 
+    template< class CClass>
+      template< const char* const name, const size_t size, typename T>
+    typename MemberContainer<CClass>::template Container< name, T[size]>::member_t
+    MemberContainer<CClass>::Container< name, T[size]>::member;
 
 
 

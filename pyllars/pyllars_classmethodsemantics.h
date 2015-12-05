@@ -42,9 +42,9 @@ namespace __pyllars_internal{
         /**
          * Used for regular methods:
          */
-        static PyObject* call( method_t method, CClass & self, PyObject* args, PyObject* kwds){
+        static PyObject* call( method_t method, PyObject* args, PyObject* kwds){
             try{
-              return toPyObject( call_methodBase(method, self, args, kwds, typename argGenerator<sizeof...(Args)>::type()), false);
+              return toPyObject( call_methodBase(method,  args, kwds, typename argGenerator<sizeof...(Args)>::type()), false);
             } catch( const char* const msg){
                 PyErr_SetString( PyExc_RuntimeError, msg);
                 return  nullptr;
@@ -99,10 +99,6 @@ namespace __pyllars_internal{
         typedef void(*method_t)(Args...);
         static const char* const * kwlist;
 
-        static PyObject* toPyObj(CClass & self){
-            (void)self;
-            return Py_None;
-        }
         static PyObject* call( method_t method, PyObject* args, PyObject* kwds){
             call_methodBase(method,  args, kwds, typename argGenerator< sizeof...(Args) >::type());
             return Py_None;
@@ -262,8 +258,27 @@ namespace __pyllars_internal{
                 return toPyObject(member, false);
             }
 
-            static void setFromPyObject( typename std::remove_reference<CClass>::type * self, PyObject* pyobj){
-                 member = *toCObject<CClass>(*pyobj);
+            static void setFromPyObject(PyObject* pyobj){
+                 member = *toCObject<T>(*pyobj);
+            }
+        };
+
+          template<const char* const name, size_t size, typename T>
+        class Container<name, T[size]>{
+        public:
+            typedef typename std::remove_reference<CClass>::type CClass_NoRef;
+            typedef T * member_t[size];
+
+            static member_t member;
+
+            static PyObject* call(PyObject* cls, PyObject* args, PyObject* kwds){
+                (void)cls;
+                return toPyObject(member, false);
+            }
+
+            static void setFromPyObject(PyObject* pyobj){
+                 T val[] = *toCObject<T[size]>(*pyobj);
+                 for(size_t i = 0; i < size; ++i)member[i] = val[i];
             }
         };
     };
@@ -299,6 +314,8 @@ namespace __pyllars_internal{
             }
 
         };
+
+
     };
 
     template< class CClass>

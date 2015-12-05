@@ -3556,10 +3556,7 @@
   <Variable id="_1624" name="kSmiTagMask" type="_33c" init="(1 &lt;&lt; kSmiTagSize) - 1" context="_508" location="f10:6862" file="f10" line="6862" mangled="_ZN2v88internalL11kSmiTagMaskE"/>
   <Struct id="_1625" name="SmiTagging&lt;4&gt;" context="_508" location="f10:6875" file="f10" line="6875" members="_2614 _2615 _2616 _2617 _2618 _2619 _2620 _2621 _2622 _2623" size="8" align="8"/>
   <Struct id="_1626" name="SmiTagging&lt;8&gt;" context="_508" location="f10:6904" file="f10" line="6904" members="_2624 _2625 _2626 _2627 _2628 _2629 _2630 _2631 _2632 _2633" size="8" align="8"/>
-  <Function id="_1627" name="IntToSmi" returns="_2634" context="_508" location="f10:6867" file="f10" line="6867" inline="1" mangled="_ZN2v88internal8IntToSmiILi0EEEPNS0_6ObjectEi">
-    <Argument name="value" type="_272" location="f10:6867" file="f10" line="6867"/>
-  </Function>
-  <Function id="_1628" name="IntToSmi" returns="_2634" context="_508" location="f10:6867" file="f10" line="6867" inline="1" mangled="_ZN2v88internal8IntToSmiILi31EEEPNS0_6ObjectEi">
+  <Function id="_1627" name="IntToSmi&lt;0&gt;" returns="_2634" context="_508" location="f10:6867" file="f10" line="6867" inline="1" mangled="_ZN2v88internal8IntToSmiILi0EEEPNS0_6ObjectEi">
     <Argument name="value" type="_272" location="f10:6867" file="f10" line="6867"/>
   </Function>
   <Typedef id="_1629" name="PlatformSmiTagging" type="_1626" context="_508" location="f10:6922" file="f10" line="6922"/>

@@ -31,6 +31,12 @@ private:
     TestClass(const TestClass &);
 };
 
+class TestClassAbstract{
+public:
+    virtual void abstract_method() = 0;
+    virtual ~TestClassAbstract(){}
+};
+
 class TestClassB: public TestClass, public std::vector< float >{
 public:
     virtual int my_extension(unsigned char flag, double data){
@@ -76,7 +82,6 @@ extern const char  funcname[] = "dummy_func";
 extern const char  funcname2[] = "message_me";
 extern const char print_name[] = "print_me";
 extern const char member_name[] = "value";
-extern const char* const cb_name[] = {"cb",  nullptr};
 extern const char* const copy_constructor_name[] = {"from",  nullptr};
 extern const char* const empty_kwlist[] = {nullptr};
 extern const char* const address_name[] = {"addr",  nullptr};
@@ -97,6 +102,7 @@ initmod() {
 
     //PythonClassWrapper< int>::initialize("int", m );
     PythonClassWrapper< int&>::initialize("int_ref", m );
+    PythonClassWrapper< TestClassAbstract >::initialize("TestClassAbstract",m);
     PythonClassWrapper< TestClass&>::initialize("TestClass_ref", m );
     PythonClassWrapper< const TestClass&>::initialize("TestClass_const_ref", m );
     PythonClassWrapper< TestClassCopiable&>::initialize("TestClassCopiable_ref", m );
@@ -108,7 +114,7 @@ initmod() {
     PythonClassWrapper< TestClassB&>::initialize( "TestClassB_ref", m );
     PythonClassWrapper< TestClassCopiable>::initialize( "TestClassCopiable", m );
     PythonCPointerWrapper< int>::initialize("int_ptr", m);
-    wrapper = (PyObject*)PythonFunctionWrapper< funcname, names, int16_t, int, double, int&, TestClass&, TestClass*, callback_t>::create(testFunction);
+    wrapper = (PyObject*)PythonFunctionWrapper< int16_t, int, double, int&, TestClass&, TestClass*, callback_t>::create( funcname,  testFunction, names);
     PyModule_AddObject(m, "testFunction", (PyObject*)wrapper);
 }
 #ifndef MAIN
@@ -126,13 +132,15 @@ int main()
     Py_Initialize();
 #endif
     toPyObject<int>(1, false);
-    PythonClassWrapper<TestClass>::addConstructor( PythonClassWrapper<TestClass>::create<nullptr> );
-    PythonClassWrapper<TestClass>::addConstructor( PythonClassWrapper<TestClass>::create<cb_name, callback_t> );
-    PythonClassWrapper<TestClassB>::addConstructor( PythonClassWrapper<TestClassB>::create<nullptr> );
-    PythonClassWrapper<TestClassCopiable>::addConstructor( PythonClassWrapper<TestClassCopiable>::create<nullptr> );
-    PythonClassWrapper<TestClassCopiable>::addConstructor( PythonClassWrapper<TestClassCopiable>::create<cb_name, callback_t> );
-    PythonClassWrapper<TestClassCopiable&>::addConstructor( PythonClassWrapper<TestClassCopiable&>::create<copy_constructor_name, TestClassCopiable> );
-    PythonClassWrapper<TestClassCopiable>::addConstructor( PythonClassWrapper<TestClassCopiable>::create<copy_constructor_name, const TestClassCopiable&> );
+    static const char* const emptykwlist[] = {nullptr};
+    static const char* const cb_name[] = {"cb",  nullptr};
+    PythonClassWrapper<TestClass>::addConstructor( emptykwlist, PythonClassWrapper<TestClass>::create< > );
+    PythonClassWrapper<TestClass>::addConstructor( cb_name, PythonClassWrapper<TestClass>::create< callback_t> );
+    PythonClassWrapper<TestClassB>::addConstructor( emptykwlist, PythonClassWrapper<TestClassB>::create< > );
+    PythonClassWrapper<TestClassCopiable>::addConstructor( emptykwlist, PythonClassWrapper<TestClassCopiable>::create< > );
+    PythonClassWrapper<TestClassCopiable>::addConstructor( cb_name, PythonClassWrapper<TestClassCopiable>::create<callback_t> );
+    PythonClassWrapper<TestClassCopiable&>::addConstructor(copy_constructor_name,  PythonClassWrapper<TestClassCopiable&>::create<TestClassCopiable> );
+    PythonClassWrapper<TestClassCopiable>::addConstructor( copy_constructor_name,  PythonClassWrapper<TestClassCopiable>::create<const TestClassCopiable&> );
     PythonClassWrapper<TestClass>::addMethod<print_name,void>( &TestClass::print, empty_kwlist);
     PythonClassWrapper<TestClassB>::addMethod<ext_name,int, unsigned char, double>( &TestClassB::my_extension, ext_kwlist);
     PythonClassWrapper<TestClassB>::addMethod<pb_name,void,const float &>( &TestClassB::push_back, pb_kwlist);
@@ -169,7 +177,7 @@ int main()
         printf("nullptr O\n");
     }
     TestClass dumm1, dumm2;
-     auto message_me_py = PythonFunctionWrapper<funcname2, names2, const char*, double>::create(message_me);
+     auto message_me_py = PythonFunctionWrapper<const char*, double>::create(funcname2, &message_me, names2);
     PyObject *arg = PyTuple_New(1);
     PyTuple_SetItem(arg, 0, (PyObject*)message_me_py);
     PyObject_CallObject((PyObject*)&PythonClassWrapper<TestClass>::Type, arg);

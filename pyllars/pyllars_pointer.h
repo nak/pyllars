@@ -4,7 +4,19 @@
 #include <sys/types.h>
 namespace __pyllars_internal{
 
-  template< typename CClass,const ssize_t max=-1, typename content_type=const void* >
+  template< typename CClass>
+  struct ContentType{
+     typedef const unsigned char* content_t;
+     content_t content;
+  };
+
+  template< typename ReturnType, typename ...Args>
+  struct ContentType< ReturnType(Args...)>{
+    typedef ReturnType(*content_t)(Args...);
+    content_t content;
+  };
+
+  template< typename CClass,const ssize_t max=-1, typename content_type= typename ContentType<CClass>::content_t >
     struct PythonCPointerWrapper;
 
 }
@@ -36,7 +48,7 @@ namespace __pyllars_internal {
    };
 
 
-   template< typename CClass,  const ssize_t max, typename content_type>
+    template< typename CClass,  const ssize_t max, typename content_type>
     struct PythonCPointerWrapper {
 
         PyObject_HEAD
@@ -160,7 +172,7 @@ namespace __pyllars_internal {
                 typedef typename std::remove_pointer< CClass>::type CClass_bare;
                 PyTypeObject * pyptrtypeobj = &PythonCPointerWrapper<CClass_bare, max>::Type;
                 if (PyObject_TypeCheck(pyobj, pytypeobj)) {
-                    self->_content = reinterpret_cast<PythonClassWrapper<CClass>*>(pyobj)->get_CObject();
+                    self->_content = (content_type)reinterpret_cast<PythonClassWrapper<CClass>*>(pyobj)->get_CObject();
                     self->_depth = Depth<CClass>::__get_depth()+1;
                     status = 0;
                 } else if (PyObject_TypeCheck(pyobj, pyptrtypeobj)){
@@ -191,8 +203,8 @@ namespace __pyllars_internal {
 
         void set_contents( typename std::remove_reference<CClass>::type * const contents){
             assert(!_content);
-            _content = contents;
-	    if(_content){ _depth = Depth<CClass>::__get_depth()+1;}
+            _content = (content_type)contents;
+            if(_content){ _depth = Depth<CClass>::__get_depth()+1;}
         }
 
         static const char* get_name(){
@@ -243,7 +255,7 @@ namespace __pyllars_internal {
                 if(result) {
                     PythonCPointerWrapper* result_ = reinterpret_cast<PythonCPointerWrapper*>(result);
                     PythonCPointerWrapper* self_ = reinterpret_cast<PythonCPointerWrapper*>(self);
-                    result_->_content = reinterpret_cast<const void* const*>(self_->_content)[index];
+                    result_->_content = reinterpret_cast<typename ContentType<CClass>::content_t const * const>(self_->_content)[index];
                     result_->_depth = self_->_depth-1;
                 }
             }
@@ -420,7 +432,7 @@ namespace __pyllars_internal {
                {
                 //  !!!!!!!!!CAUTION : CANNOT USE OFFSETOF HERE, SO HAVE TO COMPUTE, BUT IS
                 //  !!!!!!!!!DEPENDENT ON LAYOUT
-                  (char*)"depth", T_OBJECT_EX, sizeof(PythonCPointerWrapper) - sizeof(UNUSED) + sizeof(void*), 0,
+                  (char*)"depth", T_OBJECT_EX, sizeof(PythonCPointerWrapper) - sizeof(UNUSED) + sizeof(content_type), 0,
                   (char*)"depth of pointer"
                 },
                 {nullptr, 0, 0, 0, nullptr}/*Sentinel*/

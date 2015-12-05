@@ -58,10 +58,10 @@ namespace __pyllars_internal{
      * Specialization for integer types
      **/
     template<typename T>
-      class CObjectConversionHelper<T, typename std::enable_if< std::is_integral<T>::value ||
+    class CObjectConversionHelper<T, typename std::enable_if< std::is_integral<T>::value ||
             ( std::is_integral<typename std::remove_reference<T>::type>::value &&
-	      std::is_reference<T>::value &&
-	      std::is_const<typename std::remove_reference<T>::type>::value )>::type >{
+                std::is_reference<T>::value &&
+                std::is_const<typename std::remove_reference<T>::type>::value )>::type >{
     public:
       static smart_ptr<T> toCObject( PyObject& pyobj){
         typedef typename std::remove_reference< typename std::remove_const<T>::type>::type T_bare;

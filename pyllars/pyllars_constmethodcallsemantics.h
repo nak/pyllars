@@ -22,7 +22,7 @@ namespace __pyllars_internal{
 
     struct PythonBase;
 
-    template<typename T, typename Base=PythonBase>
+    template<typename T, typename Base=PythonBase, typename E = void>
     struct PythonClassWrapper;
 
 }
