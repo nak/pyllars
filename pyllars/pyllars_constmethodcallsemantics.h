@@ -11,10 +11,10 @@ namespace __pyllars_internal{
     ///////////
     // Helper conversion functions
     //////////
-    template< typename T, const ssize_t max = -1,  typename E = void>
+    template< typename T, bool is_complete, const ssize_t max = -1,  typename E = void>
     PyObject* toPyObject( T &var, const bool asArgument);
 
-    template< typename T, const ssize_t max = -1,  typename E = void>
+    template< typename T, bool is_complete, const ssize_t max = -1,  typename E = void>
     PyObject* toPyObject( const T &var, const bool asArgument);
 
     template< typename T>
@@ -22,7 +22,7 @@ namespace __pyllars_internal{
 
     struct PythonBase;
 
-    template<typename T, typename Base=PythonBase, typename E = void>
+    template<typename T, bool is_complete=true, typename Base=PythonBase, typename E = void>
     struct PythonClassWrapper;
 
 }
@@ -50,7 +50,7 @@ namespace __pyllars_internal{
          */
         static PyObject* call( method_t method, CClass & self, PyObject* args, PyObject* kwds){
             try{
-              return toPyObject( call_methodBase(method, self, args, kwds, typename argGenerator<sizeof...(Args)>::type()), false);
+              return toPyObject<T, true>( call_methodBase(method, self, args, kwds, typename argGenerator<sizeof...(Args)>::type()), false);
             } catch( const char* const msg){
                 PyErr_SetString( PyExc_RuntimeError, msg);
                 return  nullptr;
@@ -165,7 +165,7 @@ namespace __pyllars_internal{
 
             static PyObject* call(PyObject* self, PyObject* args, PyObject* kwds){
                 if(!self) return nullptr;
-                PythonClassWrapper<CClass>* _this = (PythonClassWrapper<CClass>*)self;
+                PythonClassWrapper<CClass, true>* _this = (PythonClassWrapper<CClass, true>*)self;
                 if(_this->get_CObject()){
 
                     try{
@@ -215,9 +215,9 @@ namespace __pyllars_internal{
                     return nullptr;
                 }
                 if(!self) return nullptr;
-                PythonClassWrapper<CClass>* _this = (PythonClassWrapper<CClass>*)self;
+                PythonClassWrapper<CClass, true>* _this = (PythonClassWrapper<CClass, true>*)self;
                 if(_this->get_CObject()){
-                    return toPyObject(_this->get_CObject()->*member, false);
+                    return toPyObject<T, true>((_this->get_CObject()->*member), false);
                 }
                 PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
                 return nullptr;

@@ -164,7 +164,7 @@ namespace __pyllars_internal {
     PyObject* PythonFunctionWrapper<ReturnType, Args...>::_call(PyObject *callable_object, PyObject *args, PyObject *kw){
       try{
         PythonFunctionWrapper& wrapper = *reinterpret_cast<PythonFunctionWrapper* const>(callable_object);
-        return toPyObject<ReturnType>(wrapper.callFunc(args, kw, typename argGenerator<sizeof...(Args)>::type()), false);
+        return toPyObject<ReturnType, true>(wrapper.callFunc(args, kw, typename argGenerator<sizeof...(Args)>::type()), false);
       } catch( const char* const msg){
         PyErr_SetString(PyExc_RuntimeError, msg);
         PyErr_Print();

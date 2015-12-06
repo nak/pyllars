@@ -6,7 +6,7 @@
 namespace __pyllars_internal{
 
   template< typename CClass, bool is_complete = true, const ssize_t max=-1, typename content_type = typename std::remove_reference<CClass>::type* >
-    struct PythonCPointerWrapper;
+  struct PythonCPointerWrapper;
 
 }
 
@@ -78,9 +78,9 @@ namespace __pyllars_internal {
                 PyErr_BadArgument();
                 return nullptr;
             }
-            PyObject* obj= toPyObject( (CClass_NoRef*)&reinterpret_cast<PythonCPointerWrapper*>(self)->_content, false);
+            PyObject* obj= toPyObject<CClass_NoRef*, is_complete>( (CClass_NoRef*)&reinterpret_cast<PythonCPointerWrapper*>(self)->_content, false);
             reinterpret_cast<PythonCPointerWrapper*>(obj)->_depth =
-	      reinterpret_cast<PythonCPointerWrapper*>(self)->_depth+1;
+                reinterpret_cast<PythonCPointerWrapper*>(self)->_depth+1;
             PyErr_Clear();
             return obj;
         }
@@ -166,12 +166,12 @@ namespace __pyllars_internal {
             } else if (args && PyTuple_Size(args)==1){
 	        // we are asked to make a new pointer from an existing object:
                 PyObject* pyobj = PyTuple_GetItem(args, 0);
-                PyTypeObject * pytypeobj =  &PythonClassWrapper<CClass>::Type;
+                PyTypeObject * pytypeobj =  &PythonClassWrapper<CClass, is_complete>::Type;
                 typedef typename std::remove_pointer< CClass>::type CClass_bare;
                 if (PyObject_TypeCheck(pyobj, pytypeobj)) {
 		    // if this is an instance of a basic class:
 		    self->make_reference(pyobj);
-                    self->_content = (content_type)reinterpret_cast<PythonClassWrapper<CClass>*>(pyobj)->get_CObject();
+                    self->_content = (content_type)reinterpret_cast<PythonClassWrapper<CClass, is_complete>*>(pyobj)->get_CObject();
                     self->_depth = ptr_depth<CClass>::value+1;
                     status = 0;
                 } else {
@@ -273,11 +273,12 @@ namespace __pyllars_internal {
                 PyObject* kw = PyDict_New();
                     PyDict_SetItemString(kw, "__internal_allow_null", PyBool_FromLong(true));
                     PyObject* emptyTuple = PyTuple_New(0);
-                    result =  PyObject_Call( (PyObject*)&PythonClassWrapper<CClass>::Type, emptyTuple, kw);
+                    result =  PyObject_Call( (PyObject*)&PythonClassWrapper<CClass, is_complete>::Type, emptyTuple, kw);
                     Py_DECREF(kw);
                     Py_DECREF(emptyTuple);
                     if(result)
-                        reinterpret_cast<PythonClassWrapper<CClass>* >(result)->_CObject = Dereferencer<CClass_NoRef, is_complete>::at(index, ((typename std::remove_reference<CClass>::type*)(self_->_content)));
+                        reinterpret_cast<PythonClassWrapper<CClass, is_complete>* >(result)->_CObject =
+                         Dereferencer<CClass_NoRef, is_complete>::at(index, ((typename std::remove_reference<CClass>::type*)(self_->_content)));
             } else {
                 PyObject* emptyTuple = PyTuple_New(0);
                 result = PyObject_CallObject( (PyObject*)&PythonCPointerWrapper::Type,
@@ -315,7 +316,7 @@ namespace __pyllars_internal {
     };
 
     template< typename CClass, bool is_complete, const ssize_t max, typename content_type>
-    PyTypeObject* const PythonCPointerWrapper<CClass, is_complete, max, content_type>::parent_class = &PythonClassWrapper<CClass>::Type;
+    PyTypeObject* const PythonCPointerWrapper<CClass, is_complete, max, content_type>::parent_class = &PythonClassWrapper<CClass, is_complete>::Type;
 
     template< typename CClass, bool is_complete,  const ssize_t max, typename content_type>
     PyObject* PythonCPointerWrapper<CClass, is_complete, max, content_type>::parent_module = nullptr;
@@ -324,8 +325,8 @@ namespace __pyllars_internal {
      * https://www.google.com/search?client=ubuntu&channel=fs&q=python+api+get+module+of+Type&ie=utf-8&oe=utf-8
      * Specialized for pointers:
      **/
-    template< typename T,  const ssize_t max >
-    class PyObjectConversionHelper<T,  max, typename  std::enable_if< !is_function_ptr<typename std::remove_pointer<T>::type >::value && std::is_pointer<T>::value >::type>{
+    template< typename T,  bool is_complete, const ssize_t max >
+    class PyObjectConversionHelper<T, is_complete, max, typename  std::enable_if< !is_function_ptr<typename std::remove_pointer<T>::type >::value && std::is_pointer<T>::value >::type>{
     public:
         static PyObject* toPyObject( const T & var, const bool asArgument ){
             (void)asArgument;
@@ -334,11 +335,12 @@ namespace __pyllars_internal {
             PyObject* pyobj =nullptr;
             if( std::is_pointer<T>::value ){
                 typedef typename std::remove_pointer<T>::type T_base;
-                if (!PythonCPointerWrapper<T_base, max>::Type[depth].tp_name){
-                    PythonCPointerWrapper<T_base, max>::initialize((PythonClassWrapper<T_base>::get_name()).c_str(), PythonClassWrapper<T_base>::parent_module,
-                       PythonClassWrapper<T_base>::Type.tp_name);
+                if (!PythonCPointerWrapper<T_base, is_complete, max>::Type[depth].tp_name){
+                    PythonCPointerWrapper<T_base, is_complete, max>::initialize((PythonClassWrapper<T_base, is_complete>::get_name()).c_str(),
+                                                                    PythonClassWrapper<T_base, is_complete>::parent_module,
+                       PythonClassWrapper<T_base, is_complete>::Type.tp_name);
                 }
-                if( PyType_Ready(&PythonCPointerWrapper<T_base, max>::Type[depth]) < 0){
+                if( PyType_Ready(&PythonCPointerWrapper<T_base, is_complete, max>::Type[depth]) < 0){
                     PyErr_SetString(PyExc_RuntimeError, "Error initializing pointer class type");
                     goto onerror;
                 }
@@ -346,7 +348,7 @@ namespace __pyllars_internal {
             }
 
 
-            typedef PythonCPointerWrapper<typename std::remove_pointer<T>::type, max> PtrWrapper;
+            typedef PythonCPointerWrapper<typename std::remove_pointer<T>::type, is_complete, max> PtrWrapper;
             {
                 PyObject* emptyTuple = PyTuple_New(0);
                 pyobj = PyObject_CallObject( (PyObject*)&PtrWrapper::Type[ptr_depth<T>::value], emptyTuple);
@@ -367,8 +369,8 @@ namespace __pyllars_internal {
    /**
      *  Specialized for pointer-to-pointer-to-function:
      **/
-    template< typename T,  const ssize_t max >
-    class PyObjectConversionHelper<T,  max, typename  std::enable_if< is_function_ptr< typename std::remove_pointer<T>::type >::value >::type>{
+    template< typename T, bool is_complete, const ssize_t max >
+    class PyObjectConversionHelper<T,  is_complete, max, typename  std::enable_if< is_function_ptr< typename std::remove_pointer<T>::type >::value >::type>{
     public:
         static PyObject* toPyObject( const T & var, const bool asArgument ){
             (void)asArgument;
@@ -377,11 +379,11 @@ namespace __pyllars_internal {
             PyObject* pyobj =nullptr;
             if( std::is_pointer<T>::value ){
                 typedef typename std::remove_pointer<T>::type T_base;
-                if (!PythonCPointerWrapper<T_base, max>::Type[depth].tp_name){
-                    PythonCPointerWrapper<T_base, max>::initialize((PythonClassWrapper<T_base>::get_name()).c_str(), PythonClassWrapper<T_base>::parent_module,
-                       PythonClassWrapper<T_base>::Type.tp_name);
+                if (!PythonCPointerWrapper<T_base, is_complete, max>::Type[depth].tp_name){
+                    PythonCPointerWrapper<T_base, is_complete, max>::initialize((PythonClassWrapper<T_base, is_complete>::get_name()).c_str(), PythonClassWrapper<T_base, true>::parent_module,
+                       PythonClassWrapper<T_base, is_complete>::Type.tp_name);
                 }
-                if( PyType_Ready(&PythonCPointerWrapper<T_base, max>::Type[depth]) < 0){
+                if( PyType_Ready(&PythonCPointerWrapper<T_base, is_complete, max>::Type[depth]) < 0){
                     PyErr_SetString(PyExc_RuntimeError, "Error initializing pointer class type");
                     goto onerror;
                 }
@@ -389,7 +391,7 @@ namespace __pyllars_internal {
             }
 
 
-            typedef PythonCPointerWrapper<typename std::remove_pointer<T>::type, max> PtrWrapper;
+            typedef PythonCPointerWrapper<typename std::remove_pointer<T>::type, is_complete, max> PtrWrapper;
             {
                 PyObject* emptyTuple = PyTuple_New(0);
                 pyobj = PyObject_CallObject( (PyObject*)&PtrWrapper::Type[ptr_depth<T>::value], emptyTuple);
@@ -411,7 +413,7 @@ namespace __pyllars_internal {
      * Specialized for pointers:
      **/
     template< const ssize_t max>
-    class PyObjectConversionHelper<const char*, max, typename  std::enable_if< std::is_pointer<char*>::value >::type >{
+    class PyObjectConversionHelper<const char*, true, max, typename  std::enable_if< std::is_pointer<char*>::value >::type >{
     public:
         static PyObject* toPyObject( const char* const & var, const bool asArgument ){
             (void)asArgument;
@@ -424,7 +426,7 @@ namespace __pyllars_internal {
     };
 
     template<const ssize_t max>
-    class PyObjectConversionHelper< char*,  max, typename  std::enable_if< std::is_pointer<char*>::value >::type >{
+    class PyObjectConversionHelper< char*,  true, max, typename  std::enable_if< std::is_pointer<char*>::value >::type >{
     public:
         static PyObject* toPyObject( char* const & var, const bool asArgument ){
             (void)asArgument;

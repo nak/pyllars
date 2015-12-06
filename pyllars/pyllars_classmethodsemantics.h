@@ -12,10 +12,10 @@ namespace __pyllars_internal{
     ///////////
     // Helper conversion functions
     //////////
-    template< typename T, const ssize_t max = -1,  typename E = void>
+    template< typename T, bool is_complete, const ssize_t max = -1,  typename E = void>
     PyObject* toPyObject( T &var, const bool asArgument);
 
-    template< typename T, const ssize_t max = -1,  typename E = void>
+    template< typename T, bool is_complete, const ssize_t max = -1,  typename E = void>
     PyObject* toPyObject( const T &var, const bool asArgument);
 
     template< typename T>
@@ -44,7 +44,7 @@ namespace __pyllars_internal{
          */
         static PyObject* call( method_t method, PyObject* args, PyObject* kwds){
             try{
-              return toPyObject( call_methodBase(method,  args, kwds, typename argGenerator<sizeof...(Args)>::type()), false);
+              return toPyObject<T, true> ( call_methodBase(method,  args, kwds, typename argGenerator<sizeof...(Args)>::type()), false);
             } catch( const char* const msg){
                 PyErr_SetString( PyExc_RuntimeError, msg);
                 return  nullptr;
@@ -255,7 +255,7 @@ namespace __pyllars_internal{
 
             static PyObject* call(PyObject* cls, PyObject* args, PyObject* kwds){
                 (void)cls;
-                return toPyObject(member, false);
+                return toPyObject<T,true>(member, false);
             }
 
             static void setFromPyObject(PyObject* pyobj){
@@ -273,7 +273,7 @@ namespace __pyllars_internal{
 
             static PyObject* call(PyObject* cls, PyObject* args, PyObject* kwds){
                 (void)cls;
-                return toPyObject(member, false);
+                return toPyObject<T,true>(member, false);
             }
 
             static void setFromPyObject(PyObject* pyobj){
@@ -310,7 +310,7 @@ namespace __pyllars_internal{
 
             static PyObject* call(PyObject* cls, PyObject* args, PyObject* kwds){
                 (void)cls;
-                return toPyObject(member, false);
+                return toPyObject<T,true>(member, false);
             }
 
         };

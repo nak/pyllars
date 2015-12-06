@@ -92,6 +92,7 @@ extern const char * const pb_kwlist[] = {"item", nullptr};
 
 static PyObject* wrapper ;
 
+struct Incomplete;
 
 //function to initialize the Pyllars objects we need
 PyMODINIT_FUNC
@@ -114,6 +115,7 @@ initmod() {
     //PythonClassWrapper< TestClassB*>::initialize( "TestClassB_ptr", m );
     PythonClassWrapper< TestClassB&>::initialize( "TestClassB_ref", m );
     PythonClassWrapper< TestClassCopiable>::initialize( "TestClassCopiable", m );
+    PythonCPointerWrapper< Incomplete, false>::initialize("Incomplete_ptr", m,"Incomplete_Ptr");
     PythonCPointerWrapper< int>::initialize("int_ptr", m,"init_ptr");
     PythonCPointerWrapper< const char>::initialize("const_char_ptr", m);
     wrapper = (PyObject*)PythonFunctionWrapper< int16_t, int, double, int&, TestClass&, TestClass*, callback_t>::create( funcname,  testFunction, names);
@@ -133,7 +135,7 @@ int main()
 #ifdef MAIN
     Py_Initialize();
 #endif
-    toPyObject<int>(1, false);
+    toPyObject<int, true>(1, false);
     static const char* const emptykwlist[] = {nullptr};
     static const char* const cb_name[] = {"cb",  nullptr};
     PythonClassWrapper<TestClass>::addConstructor( emptykwlist, PythonClassWrapper<TestClass>::create< > );
@@ -160,7 +162,7 @@ int main()
         PyTuple_SetItem(args, 0, PyInt_FromLong(123));
 
         PyObject_CallObject((PyObject*)&PythonClassWrapper< int&>::Type, args) ;
-        PyTuple_SetItem(args, 0, toPyObject<TestClassCopiable>(testObj, false));
+        PyTuple_SetItem(args, 0, toPyObject<TestClassCopiable, true>(testObj, false));
         PyObject_CallObject((PyObject*)&PythonClassWrapper< TestClassCopiable&>::Type, args) ;
     }
     auto tyobj = &PythonClassWrapper<int&>::Type;
@@ -189,9 +191,9 @@ int main()
         PyObject* args = PyTuple_New(6);
         PyTuple_SetItem(args, 0, PyInt_FromLong(123));
         PyTuple_SetItem(args, 1, PyFloat_FromDouble(3.21));
-        PyTuple_SetItem(args, 2, toPyObject<int&>(intval, true));
-        PyTuple_SetItem(args, 3, toPyObject<TestClass>(dumm1, true));
-        PyObject* dumm2_ptr = toPyObject<TestClass*>(&dumm2, true);
+        PyTuple_SetItem(args, 2, toPyObject<int&, true>(intval, true));
+        PyTuple_SetItem(args, 3, toPyObject<TestClass, true>(dumm1, true));
+        PyObject* dumm2_ptr = toPyObject<TestClass*, true>(&dumm2, true);
         assert( PyObject_TypeCheck(dumm2_ptr, &PythonCPointerWrapper<TestClass>::Type[0]));
         assert( dumm2_ptr != Py_None);
         PyTuple_SetItem(args, 4, dumm2_ptr);
@@ -211,7 +213,7 @@ int main()
     }
     {
         TestClass obj;
-        PyObject* pyobj = toPyObject(obj, true);
+        PyObject* pyobj = toPyObject<TestClass, true>(obj, true);
         PyObject* ret = PyObject_CallMethod(pyobj, (char*)print_name,nullptr);
         ret = PyObject_CallMethod(pyobj, (char*)(std::string("get_")+member_name).c_str(),nullptr);
         double val = *toCObject<double>(*ret);
