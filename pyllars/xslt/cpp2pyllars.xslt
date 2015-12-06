@@ -193,11 +193,10 @@ extern const char name__<xsl:value-of select="@id"/>[] = &quot;<xsl:value-of sel
            <xsl:with-param name="char" select="'/'"/>
        </xsl:call-template></xsl:variable> -->
      <xsl:variable name="typeid" select="@id"/>
-     <xsl:variable name="truensname"><!-- <xsl:choose ><xsl:when test="$nsname='::'"><xsl:value-of select="substring-before($filename,'.')"/></xsl:when><xsl:otherwise><xsl:value-of select="$nsname"/></xsl:otherwise></xsl:choose> --><xsl:value-of select="$nsname"/></xsl:variable>
-     <xsl:variable name="mod_name"><xsl:choose><xsl:when test="$mod_name_in!=''"><xsl:value-of select="translate($mod_name_in,':','_')"/></xsl:when><xsl:otherwise> mod_<xsl:value-of select="translate($truensname,':','_')"/></xsl:otherwise></xsl:choose></xsl:variable>
+     <xsl:variable name="mod_name"><xsl:choose><xsl:when test="$mod_name_in!=''"><xsl:value-of select="translate($mod_name_in,':','_')"/></xsl:when><xsl:otherwise> mod_<xsl:value-of select="translate($nsname,':','_')"/></xsl:otherwise></xsl:choose></xsl:variable>
     <xsl:if test="@name">
-        <xsl:variable name="typealias" select="//*[@id=$typeid]/@name"/><xsl:text>
-    
+        <xsl:variable name="typealias" select="//*[@id=$typeid]/@name"/>
+        <xsl:variable name="is_complete"><xsl:choose><xsl:when test="@incomplete='1'">false</xsl:when><xsl:otherwise>true</xsl:otherwise></xsl:choose></xsl:variable><xsl:text>
     </xsl:text><xsl:if test="@incomplete!='1' or not(@incomplete)">if (PythonClassWrapper&lt; <xsl:value-of select="$nsnamebare"/>::<xsl:value-of select="$typealias"/> &gt;::initialize<xsl:text>
        </xsl:text>(&quot;<xsl:value-of select="translate(@name,'&lt;&gt;:','___')"/>&quot;, <xsl:value-of select="$mod_name"/> ) &lt; 0)<xsl:text>{
          PyErr_SetString( PyExc_RuntimeError, "Failed to initialize Python-wrapper-to-reference for '</xsl:text><xsl:value-of select="@name"/><xsl:text>'");
@@ -210,7 +209,7 @@ extern const char name__<xsl:value-of select="@id"/>[] = &quot;<xsl:value-of sel
          status = -1;
     }
     
-    </xsl:text>if (PythonCPointerWrapper&lt; <xsl:value-of select="$nsnamebare"/>::<xsl:value-of select="$typealias"/>* &gt;::initialize(&quot;<xsl:value-of select="translate(@name,'&lt;&gt;:','___')"/>_ptr&quot;, <xsl:value-of select="$mod_name"/>   ) &lt; 0)<xsl:text>{
+    </xsl:text>if (PythonCPointerWrapper&lt; <xsl:value-of select="$nsnamebare"/>::<xsl:value-of select="$typealias"/>, <xsl:value-of select="$is_complete"/> &gt;::initialize(&quot;<xsl:value-of select="translate(@name,'&lt;&gt;:','___')"/>_ptr&quot;, <xsl:value-of select="$mod_name"/>   ) &lt; 0)<xsl:text>{
          PyErr_SetString( PyExc_RuntimeError, "Failed to initialize Python-wrapper-to-pointer for '</xsl:text><xsl:value-of select="@name"/><xsl:text>'");
          status = -1;
     }
@@ -236,12 +235,12 @@ extern const char name__<xsl:value-of select="@id"/>[] = &quot;<xsl:value-of sel
            <xsl:with-param name="string"><xsl:value-of select="//File[@id=$fileid]/@name"/></xsl:with-param>
            <xsl:with-param name="char" select="'/'"/>
        </xsl:call-template></xsl:variable> -->
-     <xsl:variable name="truensname" select="$nsname"/><!-- <xsl:choose ><xsl:when test="$nsname='::'"><xsl:value-of select="substring-before($filename,'.')"/></xsl:when><xsl:otherwise><xsl:value-of select="$nsname"/></xsl:otherwise></xsl:choose></xsl:variable> -->
-     <xsl:variable name="mod_name"><xsl:choose><xsl:when test="$mod_name_in!=''"><xsl:value-of select="translate($mod_name_in,':','_')"/></xsl:when><xsl:otherwise> mod_<xsl:value-of select="translate($truensname,':','_')"/></xsl:otherwise></xsl:choose></xsl:variable>
+     <xsl:variable name="mod_name"><xsl:choose><xsl:when test="$mod_name_in!=''"><xsl:value-of select="translate($mod_name_in,':','_')"/></xsl:when><xsl:otherwise> mod_<xsl:value-of select="translate($nsname,':','_')"/></xsl:otherwise></xsl:choose></xsl:variable>
      <xsl:if test="@name">
+         <xsl:variable name="is_complete"><xsl:choose><xsl:when test="@incomplete='1'">false</xsl:when><xsl:otherwise>true</xsl:otherwise></xsl:choose></xsl:variable>
          <xsl:variable name="typeid" select="@id"/>
          <xsl:variable name="typealias" select="//*[@id=$typeid]/@name"/><xsl:text>
-    </xsl:text>if (PythonCPointerWrapper&lt; <xsl:value-of select="$nsnamebare"/>::<xsl:value-of select="$typealias"/>,<xsl:value-of select="@max"/>&gt;::initialize<xsl:text>
+    </xsl:text>if (PythonCPointerWrapper&lt; <xsl:value-of select="$nsnamebare"/>::<xsl:value-of select="$typealias"/>, <xsl:value-of select="$is_complete"/>, <xsl:value-of select="@max"/>&gt;::initialize<xsl:text>
       </xsl:text>(&quot;<xsl:value-of select="translate($typealias,'&lt;&gt;:','___')"/>&quot;, <xsl:value-of select="$mod_name"/> ) &lt; 0)<xsl:text>{
          PyErr_SetString( PyExc_RuntimeError, "Failed to initialize Python-wrapper-to-reference for '</xsl:text><xsl:value-of select="@name"/><xsl:text>'&quot;);
          status = -1;
@@ -263,35 +262,32 @@ extern const char name__<xsl:value-of select="@id"/>[] = &quot;<xsl:value-of sel
      </xsl:message>
 
      <xsl:variable name="classid" select="@id"/>
-     <xsl:variable name="classname"><xsl:choose><xsl:when test="@name='' and //Typedef[@type=$classid]"><xsl:value-of select="//Typedef[@type=$classid]/@name"/></xsl:when><xsl:when test="@name!=''"><xsl:value-of select="@name"/></xsl:when><xsl:otherwise><xsl:apply-templates select="." mode="generate_name"/></xsl:otherwise></xsl:choose></xsl:variable>
+<!--
+     <xsl:variable name="classname"><xsl:choose><xsl:when test="@name='' and //Typedef[@type=$classid]"><xsl:value-of select="//Typedef[@type=$classid]/@name"/></xsl:when><xsl:when test="@name!=''"><xsl:value-of select="@name"/></xsl:when><xsl:otherwise><xsl:apply-templates select="." mode="generate_name"/></xsl:otherwise></xsl:choose></xsl:variable> -->
+
+     <xsl:variable name="classname"><xsl:apply-templates select="." mode="generate_name"/></xsl:variable>
      <xsl:variable name="nsnamebare"><xsl:choose><xsl:when test="$nsname='::'"/><xsl:otherwise><xsl:value-of select="$nsname"/></xsl:otherwise></xsl:choose></xsl:variable>
-<!--     <xsl:variable name="fileid"  select="@file"/>
-     <xsl:variable name="filename"><xsl:call-template name="substring-after-last">
-           <xsl:with-param name="string"><xsl:value-of select="//File[@id=$fileid]/@name"/></xsl:with-param>
-           <xsl:with-param name="char" select="'/'"/>
-       </xsl:call-template></xsl:variable> -->
+
      <xsl:for-each select="//Field[@context=$classid]">
        <xsl:variable name="typeid" select="@type"/>
      </xsl:for-each>
      
-     <xsl:variable name="truensname" select="$nsname"/> <!-- <xsl:choose ><xsl:when test="$nsname='::'"><xsl:value-of select="substring-before($filename,'.')"/></xsl:when><xsl:otherwise><xsl:value-of select="$nsname"/></xsl:otherwise></xsl:choose></xsl:variable> -->
-     <xsl:variable name="mod_name"><xsl:choose><xsl:when test="$mod_name_in!=''"><xsl:value-of select="translate($mod_name_in,':','_')"/></xsl:when><xsl:otherwise>mod_<xsl:value-of select="translate($truensname,':','_')"/> </xsl:otherwise></xsl:choose></xsl:variable>
-       <xsl:text>
+     <xsl:variable name="is_complete"><xsl:choose><xsl:when test="@incomplete='1'">false</xsl:when><xsl:otherwise>true</xsl:otherwise></xsl:choose></xsl:variable>
+     <xsl:variable name="mod_name"><xsl:choose><xsl:when test="$mod_name_in!=''"><xsl:value-of select="translate($mod_name_in,':','_')"/></xsl:when><xsl:otherwise>mod_<xsl:value-of select="translate($nsname,':','_')"/> </xsl:otherwise></xsl:choose></xsl:variable>
+     <xsl:text>
      //Pyllars generation of class or struct or union  </xsl:text><xsl:value-of select="$classname"/> id: <xsl:value-of select="@id"/><xsl:text>
-     </xsl:text> 
-<xsl:text>
-
+    
      </xsl:text><xsl:if test="$classname!=''"><xsl:if test="not(@incomplete) or @incomplete!='1'">if (PythonClassWrapper&lt; <xsl:value-of select="$nsnamebare"/><xsl:if test="$nsnamebare!=''">::</xsl:if><xsl:value-of select="$classname"/> &gt;::initialize<xsl:text>
         </xsl:text>(&quot;<xsl:value-of select="translate($classname,'&lt;&gt;:','___')"/>&quot;, <xsl:value-of select="$mod_name"/>) &lt; 0)<xsl:text>{
          PyErr_SetString( PyExc_RuntimeError, "Failed to initialize Python-wrapper-to-class/type for '</xsl:text><xsl:value-of select="$classname"/><xsl:text>'&quot;);
          status = -1;
      }
-     </xsl:text>if (PythonClassWrapper&lt; <xsl:value-of select="$nsnamebare"/><xsl:if test="$nsnamebare!=''">::</xsl:if><xsl:value-of select="$classname"/>&amp; &gt;::initialize<xsl:text>
+     </xsl:text></xsl:if>if (PythonClassWrapper&lt; <xsl:value-of select="$nsnamebare"/><xsl:if test="$nsnamebare!=''">::</xsl:if><xsl:value-of select="$classname"/>&amp; &gt;::initialize<xsl:text>
        </xsl:text>(&quot;<xsl:value-of select="translate($classname,'&lt;&gt;:','___')"/>_ref&quot;,  <xsl:value-of select="$mod_name"/> ) &lt; 0)<xsl:text>{
          PyErr_SetString( PyExc_RuntimeError, "Failed to initialize Python-wrapper-to-reference for '</xsl:text><xsl:value-of select="$classname"/><xsl:text>'&quot;);
          status = -1;
      }
-     </xsl:text></xsl:if>if (PythonCPointerWrapper&lt; <xsl:value-of select="$nsnamebare"/><xsl:if test="$nsnamebare!=''">::</xsl:if><xsl:value-of select="$classname"/>* &gt;::initialize<xsl:text>
+     </xsl:text>if (PythonCPointerWrapper&lt; <xsl:value-of select="$nsnamebare"/><xsl:if test="$nsnamebare!=''">::</xsl:if><xsl:value-of select="$classname"/>, <xsl:value-of select="$is_complete"/> &gt;::initialize<xsl:text>
        </xsl:text>(&quot;<xsl:value-of select="translate($classname,'&lt;&gt;:','___')"/>_ptr&quot;, <xsl:value-of select="$mod_name"/> ) &lt; 0)<xsl:text>{
          PyErr_SetString( PyExc_RuntimeError, "Failed to initialize Python-wrapper-to-pointer for '</xsl:text><xsl:value-of select="$classname"/><xsl:text>'&quot;);
          status = -1;

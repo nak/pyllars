@@ -101,6 +101,7 @@ initmod() {
                    "Test of pyllars generation");
 
     //PythonClassWrapper< int>::initialize("int", m );
+    PythonClassWrapper< callback_t>::initialize("cb_t",m);
     PythonClassWrapper< int&>::initialize("int_ref", m );
     PythonClassWrapper< TestClassAbstract >::initialize("TestClassAbstract",m);
     PythonClassWrapper< TestClass&>::initialize("TestClass_ref", m );
@@ -110,10 +111,11 @@ initmod() {
     PythonClassWrapper< TestClass>::initialize( "TestClass", m );
     PythonClassWrapper< const TestClass>::initialize( "TestClass_const", m );
     PythonClassWrapper< TestClassB>::initialize( "TestClassB", m );
-    PythonClassWrapper< TestClassB*>::initialize( "TestClassB_ptr", m );
+    //PythonClassWrapper< TestClassB*>::initialize( "TestClassB_ptr", m );
     PythonClassWrapper< TestClassB&>::initialize( "TestClassB_ref", m );
     PythonClassWrapper< TestClassCopiable>::initialize( "TestClassCopiable", m );
-    PythonCPointerWrapper< int>::initialize("int_ptr", m);
+    PythonCPointerWrapper< int>::initialize("int_ptr", m,"init_ptr");
+    PythonCPointerWrapper< const char>::initialize("const_char_ptr", m);
     wrapper = (PyObject*)PythonFunctionWrapper< int16_t, int, double, int&, TestClass&, TestClass*, callback_t>::create( funcname,  testFunction, names);
     PyModule_AddObject(m, "testFunction", (PyObject*)wrapper);
 }
@@ -190,7 +192,7 @@ int main()
         PyTuple_SetItem(args, 2, toPyObject<int&>(intval, true));
         PyTuple_SetItem(args, 3, toPyObject<TestClass>(dumm1, true));
         PyObject* dumm2_ptr = toPyObject<TestClass*>(&dumm2, true);
-        assert( PyObject_TypeCheck(dumm2_ptr, &PythonCPointerWrapper<TestClass>::Type));
+        assert( PyObject_TypeCheck(dumm2_ptr, &PythonCPointerWrapper<TestClass>::Type[0]));
         assert( dumm2_ptr != Py_None);
         PyTuple_SetItem(args, 4, dumm2_ptr);
         PyTuple_SetItem(args, 5, (PyObject*)message_me_py);
