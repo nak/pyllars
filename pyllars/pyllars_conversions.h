@@ -15,22 +15,22 @@ namespace __pyllars_internal{
     /**
      * template fnction to convert python to C object
      **/
-    template <typename C_type, typename E = void>
-    class CObjectConversionHelper{
-    public:
-        static smart_ptr<C_type> toCObject( PyObject& obj);
-    };
+    template < typename C_type, bool is_array, bool is_complete,typename E = void>
+    class CObjectConversionHelper;
 
 
     /**
      * Specialization for classes, references and pointer types (except function ptr typedefs)
      **/
-    template< typename C_type>
-    class CObjectConversionHelper< C_type , typename std::enable_if< std::is_class<C_type>::value || (std::is_reference<C_type>::value && ! std::is_const<typename std::remove_reference<C_type>::type>::value)|| (std::is_pointer<C_type>::value && std::is_convertible<C_type, const void*>::value)>::type>{
+    template< typename C_type, bool is_array, bool is_complete>
+    class CObjectConversionHelper< C_type , is_array,  is_complete,
+                                  typename std::enable_if< std::is_class<C_type>::value ||
+                                                          (std::is_reference<C_type>::value && !
+                                                           std::is_const<typename std::remove_reference<C_type>::type>::value)|| (std::is_pointer<C_type>::value && std::is_convertible<C_type, const void*>::value)>::type>{
     public:
 
         static smart_ptr<C_type> toCObject( PyObject& pyobj){
-           if(&pyobj == nullptr){
+            if(&pyobj == nullptr){
                 throw "Invalid argument for conversion";
             }
             typedef typename std::remove_reference<C_type>::type C_bare;
@@ -60,8 +60,8 @@ namespace __pyllars_internal{
     /**
      * Specialization for integer types
      **/
-    template<typename T>
-    class CObjectConversionHelper<T, typename std::enable_if< std::is_integral<T>::value ||
+    template<typename T, bool is_array, bool is_complete>
+    class CObjectConversionHelper<T, is_array, is_complete, typename std::enable_if< std::is_integral<T>::value ||
             ( std::is_integral<typename std::remove_reference<T>::type>::value &&
                 std::is_reference<T>::value &&
                 std::is_const<typename std::remove_reference<T>::type>::value )>::type >{
@@ -84,8 +84,8 @@ namespace __pyllars_internal{
     /**
      * Specialization for floating point types
      **/
-    template<typename T>
-    class CObjectConversionHelper<T, typename std::enable_if< std::is_floating_point<T>::value ||
+    template<typename T, bool is_array, bool is_complete>
+    class CObjectConversionHelper<T, is_array, is_complete, typename std::enable_if< std::is_floating_point<T>::value ||
        ( std::is_floating_point<typename std::remove_reference<T>::type>::value &&
          std::is_reference<T>::value &&
          std::is_const<typename std::remove_reference<T>::type>::value)>::type >{
@@ -108,16 +108,16 @@ namespace __pyllars_internal{
      **/
      template< typename ReturnType,
                typename ...Args >
-     class CObjectConversionHelper< ReturnType(*)(Args...), void>{
+     class CObjectConversionHelper< ReturnType(*)(Args...), false, true, void>{
      public:
         typedef ReturnType(*callback_t)(Args...);
 
-        static smart_ptr<callback_t> toCObject( PyObject& pyobj){
+        static smart_ptr<callback_t, false> toCObject( PyObject& pyobj){
             if (!PyCallable_Check(&pyobj)){
                 throw "Python callback is not callable!";
             }
             callback_t * retval = new callback_t(PyCallbackWrapper<ReturnType, Args...>(&pyobj).get_C_callback());
-            return smart_ptr<callback_t>(retval, true);
+            return smart_ptr<callback_t, false>(retval, true);
         }
      };
 
@@ -125,14 +125,14 @@ namespace __pyllars_internal{
      * Specialization for char*
      **/
      template<>
-     class CObjectConversionHelper<const char*>{
+     class CObjectConversionHelper<const char*, false, true>{
      public:
        static smart_ptr<const char*> toCObject( PyObject& pyobj){
             const char* name = nullptr;
             if (PyObject_Type(&pyobj)== (PyObject*)&PythonClassWrapper<const char*, true>::Type){
                 PythonClassWrapper<char* const, true>* const self_ = ((PythonClassWrapper<char* const, true>* const)&pyobj);
                 name = (const char*)self_->get_CObject();
-            } else if (PyObject_Type(&pyobj)== (PyObject*)&PythonCPointerWrapper<const char>::Type){
+            } else if (PyObject_Type(&pyobj)== (PyObject*)&PythonCPointerWrapper<const char>::Type[0]){
                 PythonCPointerWrapper<const char, true>* const self_ = ((PythonCPointerWrapper<const char, true>* const)&pyobj);
                 name = (const char*)self_->ptr();
             }else if (PyString_Check(&pyobj)){
@@ -143,7 +143,7 @@ namespace __pyllars_internal{
             }
             if (!name){ throw "Error converting string: null pointer encountered";}
 
-            return smart_ptr<const char*>((const char* *)&name, false);
+            return smart_ptr<const char*, false>((const char* *)&name, false);
         }
      };
 
@@ -151,25 +151,26 @@ namespace __pyllars_internal{
      * Specialization for char*
      **/
      template<>
-     class CObjectConversionHelper<const char* const>{
+     class CObjectConversionHelper<const char* const, false, true>{
      public:
-       static smart_ptr<const char* const > toCObject( PyObject& pyobj){
-           const char* name = nullptr;
+       static smart_ptr<const char* const, false> toCObject( PyObject& pyobj){
+	    const char* name = nullptr;
             if (PyObject_Type(&pyobj)== (PyObject*)&PythonClassWrapper<const char*, true>::Type){
                 PythonClassWrapper<char* const, true>* const self_ = ((PythonClassWrapper<char* const, true>* const)&pyobj);
                 name = (const char*)self_->get_CObject();
-            } else if (PyObject_Type(&pyobj)== (PyObject*)&PythonCPointerWrapper<const char, true>::Type){
+            } else if (PyObject_Type(&pyobj)== (PyObject*)&PythonCPointerWrapper<const char, true>::Type[0]){
                 PythonCPointerWrapper<const char, true>* const self_ = ((PythonCPointerWrapper<const char, true>* const)&pyobj);
                 name = (const char*)self_->ptr();
             }else if (PyString_Check(&pyobj)){
               name =  (const char*)PyString_AS_STRING( &pyobj);
             } else {
+	        name = nullptr;
                 PyObject_Print(&pyobj, stderr, 0);
                 throw "Conversiont o C stgring from non-string Python object!";
             }
             if (!name){ throw "Error converting string: null pointer encountered";}
 
-            return smart_ptr<const char* const>((const char* const *)&name, false);
+            return smart_ptr<const char* const, false>((const char* const *)&name, false);
         }
      };
 
@@ -178,7 +179,7 @@ namespace __pyllars_internal{
      * Specialization for char*
      **/
      template<>
-     class CObjectConversionHelper< char* const>{
+     class CObjectConversionHelper< char* const, false, true>{
      public:
        static smart_ptr< char* const> toCObject( PyObject& pyobj){
             const char* name = nullptr;
@@ -197,9 +198,9 @@ namespace __pyllars_internal{
      * Specialization for char*
      **/
      template<>
-     class CObjectConversionHelper< char* >{
+     class CObjectConversionHelper< char* , true, true>{
      public:
-       static smart_ptr<const char*> toCObject( PyObject& pyobj){
+       static smart_ptr< char*, true> toCObject( PyObject& pyobj){
             const char* name = nullptr;
             if (PyString_Check(&pyobj)){
               name =  (const char*)PyString_AS_STRING( &pyobj);
@@ -207,16 +208,85 @@ namespace __pyllars_internal{
                 throw "Conversiont o C stgring from non-string Python object!";
             }
             if (!name){ throw "Error converting string: null pointer encountered";}
-
-            return smart_ptr<const char*>((const char**)&name, true);
+            char *new_name = new char[strlen(name)+1];
+            strcpy(new_name, name);
+            return smart_ptr< char*, true>(&new_name, true);
         }
      };
+
+
+    /**
+     * Specialization for char*
+     **/
+     template<typename T, const size_t size, const bool is_base_complete>
+     class CObjectConversionHelper< T[size] , false, is_base_complete>{
+     public:
+
+       typedef T T_array[size];
+
+       static smart_ptr< T_array, false> toCObject( PyObject& pyobj){
+
+	 if (PyObject_TypeCheck(&pyobj, &(PythonCPointerWrapper<T, is_base_complete, size>::Type[ptr_depth<T>::value]))){
+               T_array *val = reinterpret_cast<PythonCPointerWrapper<T, is_base_complete, size>* >(&pyobj)->get_contents();
+
+               return smart_ptr< T_array, false>(val, true);
+            } else if(PyObject_TypeCheck(&pyobj, (&PythonClassWrapper<T_array, is_base_complete>(&pyobj)))){
+                return smart_ptr<T, false>(reinterpret_cast<PythonClassWrapper<T_array, is_base_complete>* >(&pyobj)->get_CObject(), false);
+            } else if (PyList_Check(&pyobj)){
+                if (PyList_Size(&pyobj) != size){
+                    throw "Inconsistent sizes in array assignment";
+                }
+                T_array *val = new T_array;
+                for(size_t i = 0; i < size; ++i){
+                    PyObject* listitem = PyList_GetItem(&pyobj, i);
+                    if (PyObject_TypeCheck(&pyobj, (&PythonClassWrapper<T ,is_base_complete>::Type))){
+                        (*val)[i] = *reinterpret_cast< PythonClassWrapper<T, is_base_complete>* >(&pyobj)->get_CObject();
+                    } else if ( std::is_pointer<T>::value && PyObject_TypeCheck(&pyobj, (&PythonCPointerWrapper<typename std::remove_pointer<T>::type, is_base_complete>::Type[ptr_depth<typename std::remove_pointer<T>::type>::value]))){
+                        (*val)[i] = *reinterpret_cast< PythonCPointerWrapper<typename std::remove_pointer<T>::type, is_base_complete>* >(&pyobj)->get_contents();
+                    } else {
+                        delete val;
+                        throw "Invalid type in array element assignment";
+                    }
+                }
+                return smart_ptr<T_array, false>(val, true);
+            }else {
+                throw "Conversiont o C stgring from non-string Python object!";
+            }
+            return smart_ptr<T_array, false>(nullptr, false);
+        }
+     };
+
+   /**
+     * Specialization for char*
+     **/
+     template<typename T, const size_t size, const bool is_base_complete>
+     class CObjectConversionHelper< const T[size] , false, is_base_complete>{
+     public:
+
+       typedef const T T_array[size];
+
+       static smart_ptr< T_array, false> toCObject( PyObject& pyobj){
+
+	 if (PyObject_TypeCheck(&pyobj, &(PythonCPointerWrapper<T, is_base_complete, size>::Type[ptr_depth<T>::value]))){
+               T_array * const val = reinterpret_cast<PythonCPointerWrapper<T, is_base_complete, size>* >(&pyobj)->get_contents();
+
+               return smart_ptr< T_array, false>(val, true);
+            } else if(PyObject_TypeCheck(&pyobj, (&PythonClassWrapper<T_array, is_base_complete>(&pyobj)))){
+                return smart_ptr<T, false>(reinterpret_cast<PythonClassWrapper<T_array, is_base_complete>* >(&pyobj)->get_CObject(), false);
+            }else {
+                throw "Conversiont o C stgring from non-string Python object!";
+            }
+            return smart_ptr<T_array, false>(nullptr, false);
+        }
+     };
+
+
     /**
      * function to convert python object to underlying C type using a class helper
      **/
-    template< typename T>
-    smart_ptr<T> toCObject( PyObject& pyobj){
-        return CObjectConversionHelper<T>::toCObject(pyobj);
+     template< typename T, bool is_array, bool is_complete>
+     smart_ptr<T, is_array> toCObject( PyObject& pyobj){
+        return CObjectConversionHelper<T, is_array, is_complete>::toCObject(pyobj);
     }
 
 }

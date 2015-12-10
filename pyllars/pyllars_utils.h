@@ -72,7 +72,7 @@ namespace __pyllars_internal{
 
     };
 
-    template <typename T>
+    template <typename T, bool is_array = false>
     struct smart_delete{
 
         smart_delete(const bool deleteable):_deleteable(deleteable){
@@ -86,7 +86,7 @@ namespace __pyllars_internal{
     };
 
     template <typename T>
-    struct smart_delete<T&>{
+      struct smart_delete<T&, false>{
 
         smart_delete(const bool deleteable):_deleteable(deleteable){
         }
@@ -99,7 +99,7 @@ namespace __pyllars_internal{
     };
 
     template <typename T>
-    struct smart_delete<T[]>{
+      struct smart_delete<T, true>{
 
         smart_delete(const bool deleteable):_deleteable(deleteable){
         }
@@ -111,8 +111,8 @@ namespace __pyllars_internal{
         const bool _deleteable;
     };
 
-    template <typename T>
-    using smart_ptr = std::unique_ptr< typename std::remove_reference<T>::type, smart_delete<T>>;
+    template <typename T, bool is_array = false>
+    using smart_ptr = std::unique_ptr< typename std::remove_reference<T>::type, smart_delete<T, is_array> >;
 
 }
 

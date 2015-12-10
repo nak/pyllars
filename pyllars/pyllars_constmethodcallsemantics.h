@@ -1,31 +1,11 @@
 #ifndef __PYLLARS_INTERNAL__CONSTMETHODCALLSEMANTICS_H
 #define __PYLLARS_INTERNAL__CONSTMETHODCALLSEMANTICS_H
+#include "pyllars_defns.h"
 #include "pyllars_utils.h"
 /**
 * This unit defines template classes needed to contain CONSTANT method  and member pointers and
 * define Python-to-C call semantics for invoking class instance methods
 **/
-
-namespace __pyllars_internal{
-
-    ///////////
-    // Helper conversion functions
-    //////////
-    template< typename T, bool is_complete, const ssize_t max = -1,  typename E = void>
-    PyObject* toPyObject( T &var, const bool asArgument);
-
-    template< typename T, bool is_complete, const ssize_t max = -1,  typename E = void>
-    PyObject* toPyObject( const T &var, const bool asArgument);
-
-    template< typename T>
-    smart_ptr<T> toCObject( PyObject& pyobj );
-
-    struct PythonBase;
-
-    template<typename T, bool is_complete=true, typename Base=PythonBase, typename E = void>
-    struct PythonClassWrapper;
-
-}
 
 namespace __pyllars_internal{
 
@@ -74,7 +54,7 @@ namespace __pyllars_internal{
                 PyErr_Print();
                 throw "Invalid arguments to method call";
             }
-            T retval =  (self.*method)(*toCObject<Args>(*pyargs)...);
+            T retval =  (self.*method)(*toCObject<Args, false, true>(*pyargs)...);
             return retval;
         }
 
@@ -130,7 +110,7 @@ namespace __pyllars_internal{
             if(!PyArg_ParseTupleAndKeywords(args, kwds, format, (char**)kwlist, &pyargs...)){
                 PyErr_SetString( PyExc_RuntimeError, "Failed to parse argument on method call");
             } else {
-                (self.*method)(*toCObject<Args>(*pyargs)...);
+	      (self.*method)(*toCObject<Args, false, true>(*pyargs)...);
             }
         }
 

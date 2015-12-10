@@ -12,7 +12,7 @@ namespace __pyllars_internal {
      * Class to define Python wrapper to C class/type
      **/
 
-    template< typename ReturnType, typename ...Args>
+    template< bool is_base_return_complete,  typename ReturnType, typename ...Args>
     struct PythonFunctionWrapper {
         PyObject_HEAD
 
@@ -77,13 +77,14 @@ namespace __pyllars_internal {
               PyErr_Print();
               throw "Illegal arumgnet(s)";
             }
-            return _cfunc(*toCObject<Args>(*pyargs)...);
+            return _cfunc(*toCObject<Args, false, true>(*pyargs)...);
         }
 
         template<int ...S>
         ReturnType callFunc(PyObject* const tuple, PyObject* kw, container<S...> s) {
            (void)s;//only used for unpacking arguments into a list and determine the int... args to this template
            PyObject pyobjs[sizeof...(S)];
+	   (void)pyobjs;
            return callFuncBase(tuple, kw, &pyobjs[S]...);
         }
 
@@ -93,8 +94,8 @@ namespace __pyllars_internal {
     };
 
     //Python definition of Type for this function wrapper
-    template< typename ReturnType, typename... Args >
-    PyTypeObject PythonFunctionWrapper<ReturnType, Args...>::Type = {
+    template< bool  is_base_return_complete, typename ReturnType, typename... Args >
+    PyTypeObject PythonFunctionWrapper< is_base_return_complete, ReturnType, Args...>::Type = {
         PyObject_HEAD_INIT(nullptr)
         0,                               /*ob_size*/
         nullptr,                         /*tp_name*/
@@ -145,8 +146,8 @@ namespace __pyllars_internal {
         0,                          /*tp_version_tag*/
     };
 
-    template<typename ReturnType, typename... Args>
-    int PythonFunctionWrapper< ReturnType, Args...>::_init(PyObject* self, PyObject* args, PyObject*kwds){
+    template<bool is_base_return_complete, typename ReturnType, typename... Args>
+      int PythonFunctionWrapper< is_base_return_complete, ReturnType, Args...>::_init(PyObject* self, PyObject* args, PyObject*kwds){
          //avoid compiler warnings (including reinterpret cast to avoid type-punned warning)
          (void) self;
          (void) args;
@@ -160,11 +161,11 @@ namespace __pyllars_internal {
         return 0;
     }
 
-    template<typename ReturnType, typename... Args>
-    PyObject* PythonFunctionWrapper<ReturnType, Args...>::_call(PyObject *callable_object, PyObject *args, PyObject *kw){
+    template<bool is_base_return_complete, typename ReturnType, typename... Args>
+    PyObject* PythonFunctionWrapper<is_base_return_complete, ReturnType, Args...>::_call(PyObject *callable_object, PyObject *args, PyObject *kw){
       try{
         PythonFunctionWrapper& wrapper = *reinterpret_cast<PythonFunctionWrapper* const>(callable_object);
-        return toPyObject<ReturnType, true>(wrapper.callFunc(args, kw, typename argGenerator<sizeof...(Args)>::type()), false);
+        return toPyObject<ReturnType, is_base_return_complete>(wrapper.callFunc(args, kw, typename argGenerator<sizeof...(Args)>::type()), false);
       } catch( const char* const msg){
         PyErr_SetString(PyExc_RuntimeError, msg);
         PyErr_Print();
@@ -176,7 +177,7 @@ namespace __pyllars_internal {
 
     /** specialize for void returns **/
     template< typename ...Args>
-    struct PythonFunctionWrapper<void, Args...> {
+    struct PythonFunctionWrapper<true, void, Args...> {
         PyObject_HEAD
 
         typedef void(*func_type)(Args...);
@@ -240,13 +241,14 @@ namespace __pyllars_internal {
               PyErr_Print();
               throw "Illegal arumgnet(s)";
             }
-            _cfunc(*toCObject<Args>(*pyargs)...);
+            _cfunc(*toCObject<Args, false, true>(*pyargs)...);
         }
 
         template<int ...S>
         void callFunc(PyObject* const tuple, PyObject* kw, container<S...> s) {
            (void)s;//only used for unpacking arguments into a list and determine the int... args to this template
            PyObject pyobjs[sizeof...(S)];
+	   (void)pyobjs;
            callFuncBase(tuple, kw, &pyobjs[S]...);
         }
 
@@ -257,7 +259,7 @@ namespace __pyllars_internal {
 
     //Python definition of Type for this function wrapper
     template<  typename... Args >
-    PyTypeObject PythonFunctionWrapper<void, Args...>::Type = {
+    PyTypeObject PythonFunctionWrapper<true, void, Args...>::Type = {
         PyObject_HEAD_INIT(nullptr)
         0,                               /*ob_size*/
         nullptr,                         /*tp_name*/
@@ -309,7 +311,7 @@ namespace __pyllars_internal {
     };
 
     template<typename... Args>
-    int PythonFunctionWrapper< void, Args...>::_init(PyObject* self, PyObject* args, PyObject*kwds){
+    int PythonFunctionWrapper< true, void, Args...>::_init(PyObject* self, PyObject* args, PyObject*kwds){
          //avoid compiler warnings (including reinterpret cast to avoid type-punned warning)
          (void) self;
          (void) args;
@@ -324,7 +326,7 @@ namespace __pyllars_internal {
     }
 
     template<typename... Args>
-    PyObject* PythonFunctionWrapper<void, Args...>::_call(PyObject *callable_object, PyObject *args, PyObject *kw){
+    PyObject* PythonFunctionWrapper<true, void, Args...>::_call(PyObject *callable_object, PyObject *args, PyObject *kw){
       try{
         PythonFunctionWrapper& wrapper = *reinterpret_cast<PythonFunctionWrapper* const>(callable_object);
         wrapper.callFunc(args, kw, typename argGenerator<sizeof...(Args)>::type());

@@ -1,29 +1,12 @@
 #ifndef __PYLLARS_INTERNAL__METHODCALLSEMANTICS_H
 #define __PYLLARS_INTERNAL__METHODCALLSEMANTICS_H
 #include "pyllars_utils.h"
+#include "pyllars_defns.h"
 
 /**
 * This unit defines template classes needed to contain method pointers and
 * define Python-to-C call semantics for invoking class instance methods
 **/
-
-namespace __pyllars_internal{
-
-    ///////////
-    // Helper conversion functions
-    //////////
-  template< typename T, bool is_complete, const ssize_t max = -1,  typename E = void>
-    PyObject* toPyObject( T &var, const bool asArgument);
-
-  template< typename T, bool is_complete, const ssize_t max = -1,  typename E = void>
-    PyObject* toPyObject( const T &var, const bool asArgument);
-
-    template< typename T>
-    smart_ptr<T> toCObject( PyObject& pyobj );
-
-    struct PythonBase;
-
-}
 
 namespace __pyllars_internal{
 
@@ -70,7 +53,7 @@ namespace __pyllars_internal{
                 PyErr_Print();
                 throw "Invalid arguments to method call";
             }
-            T retval =  (self.*method)(*toCObject<Args>(*pyargs)...);
+            T retval =  (self.*method)(*toCObject<Args, false, true>(*pyargs)...);
             return retval;
         }
 
@@ -126,7 +109,7 @@ namespace __pyllars_internal{
             if(!PyArg_ParseTupleAndKeywords(args, kwds, format, (char**)kwlist, &pyargs...)){
                 PyErr_SetString( PyExc_RuntimeError, "Failed to parse argument on method call");
             } else {
-                (self.*method)(*toCObject<Args>(*pyargs)...);
+                (self.*method)(*toCObject<Args, false, true>(*pyargs)...);
             }
         }
 
@@ -206,7 +189,12 @@ namespace __pyllars_internal{
             }
 
         };
+
     };
+    template <typename CClass>
+    template <const char* const name, typename ReturnType, typename ...Args>
+      typename MethodContainer<CClass, typename std::enable_if< std::is_class<CClass>::value && !std::is_const<CClass>::value >::type>::template Container<name, ReturnType, Args...>::method_t
+      MethodContainer<CClass, typename std::enable_if< std::is_class<CClass>::value && !std::is_const<CClass>::value >::type>:: Container<name, ReturnType, Args...>::method;
 
 
     /**
@@ -244,12 +232,6 @@ namespace __pyllars_internal{
 
     template< class CClass>
     template< const char* const name, typename ReturnType, typename ...Args>
-    typename MethodContainer<CClass, typename std::enable_if< std::is_class<CClass>::value && !std::is_const<CClass>::value >::type>::template Container<name, ReturnType, Args...>::method_t
-     MethodContainer< CClass, typename std::enable_if< std::is_class<CClass>::value && !std::is_const<CClass>::value >::type>::Container<name, ReturnType, Args...>::method;
-
-
-    template< class CClass>
-    template< const char* const name, typename ReturnType, typename ...Args>
     typename MethodContainer<CClass, typename std::enable_if< std::is_class<CClass>::value && std::is_const<CClass>::value >::type>::template Container<name, ReturnType, Args...>::method_t
      MethodContainer< CClass, typename std::enable_if< std::is_class<CClass>::value && std::is_const<CClass>::value >::type>::Container<name, ReturnType, Args...>::method;
 
@@ -275,14 +257,38 @@ namespace __pyllars_internal{
                 if(!self) return nullptr;
                 PythonClassWrapper<CClass, true>* _this = (PythonClassWrapper<CClass, true>*)self;
                 if(_this->get_CObject()){
-		  return toPyObject<T, true>(_this->get_CObject()->*member, false);
+                    return toPyObject<T, true>(_this->get_CObject()->*member, false);
                 }
                 PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
                 return nullptr;
             }
 
             static void setFromPyObject( typename std::remove_reference<CClass>::type * self, PyObject* pyobj){
-                self->*member = *toCObject<T>(*pyobj);
+                self->*member = *toCObject<T, false, true>(*pyobj);
+            }
+        };
+
+
+        template<const char* const name, typename T>
+        class Container<name, const T>{
+        public:
+            typedef typename std::remove_reference<CClass>::type CClass_NoRef;
+            typedef const T CClass_NoRef::* member_t;
+
+            static member_t member;
+
+            static PyObject* call(PyObject* self, PyObject* args, PyObject* kwds){
+                if(!self) return nullptr;
+                PythonClassWrapper<CClass, true>* _this = (PythonClassWrapper<CClass, true>*)self;
+                if(_this->get_CObject()){
+                    return toPyObject<const T, true>(_this->get_CObject()->*member, false);
+                }
+                PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
+                return nullptr;
+            }
+
+            static void setFromPyObject( typename std::remove_reference<CClass>::type * self, PyObject* pyobj){
+                PyErr_SetString(PyExc_RuntimeError, "Attempt to set constant field");
             }
         };
 
@@ -299,14 +305,14 @@ namespace __pyllars_internal{
                 if(!self) return nullptr;
                 PythonClassWrapper<CClass, true>* _this = (PythonClassWrapper<CClass, true>*)self;
                 if(_this->get_CObject()){
-		  return toPyObject<T, true>(_this->get_CObject()->*member, false);
+                    return toPyObject<T[size], true>(_this->get_CObject()->*member, false);
                 }
                 PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
                 return nullptr;
             }
 
             static void setFromPyObject( typename std::remove_reference<CClass>::type * self, PyObject* pyobj){
-                T *val = *toCObject<T[size]>(*pyobj);
+            T *val = *toCObject<T[size], false, true>(*pyobj);
                 for(size_t i = 0; i < size; ++i){
                   (self->*member)[i] = val[i];
                 }
@@ -321,11 +327,14 @@ namespace __pyllars_internal{
     MemberContainer<CClass>::Container< name, T>::member;
 
     template< class CClass>
-      template< const char* const name, const size_t size, typename T>
+    template< const char* const name, const size_t size, typename T>
     typename MemberContainer<CClass>::template Container< name, T[size]>::member_t
     MemberContainer<CClass>::Container< name, T[size]>::member;
 
-
+    template< class CClass>
+    template< const char* const name, typename T>
+    typename MemberContainer<CClass>::template Container< name, const T>::member_t
+    MemberContainer<CClass>::Container< name, const T>::member;
 
 
 }

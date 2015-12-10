@@ -103,6 +103,8 @@ initmod() {
 
     //PythonClassWrapper< int>::initialize("int", m );
     PythonClassWrapper< callback_t>::initialize("cb_t",m);
+    PythonCPointerWrapper< void>::initialize("void_ptr_t",m);
+    PythonCPointerWrapper< void*>::initialize("void_ptr_t",m);
     PythonClassWrapper< int&>::initialize("int_ref", m );
     PythonClassWrapper< TestClassAbstract >::initialize("TestClassAbstract",m);
     PythonClassWrapper< TestClass&>::initialize("TestClass_ref", m );
@@ -118,7 +120,7 @@ initmod() {
     PythonCPointerWrapper< Incomplete, false>::initialize("Incomplete_ptr", m,"Incomplete_Ptr");
     PythonCPointerWrapper< int>::initialize("int_ptr", m,"init_ptr");
     PythonCPointerWrapper< const char>::initialize("const_char_ptr", m);
-    wrapper = (PyObject*)PythonFunctionWrapper< int16_t, int, double, int&, TestClass&, TestClass*, callback_t>::create( funcname,  testFunction, names);
+    wrapper = (PyObject*)PythonFunctionWrapper< true, int16_t, int, double, int&, TestClass&, TestClass*, callback_t>::create( funcname,  testFunction, names);
     PyModule_AddObject(m, "testFunction", (PyObject*)wrapper);
 }
 #ifndef MAIN
@@ -181,7 +183,7 @@ int main()
         printf("nullptr O\n");
     }
     TestClass dumm1, dumm2;
-     auto message_me_py = PythonFunctionWrapper<const char*, double>::create(funcname2, &message_me, names2);
+     auto message_me_py = PythonFunctionWrapper<true, const char*, double>::create(funcname2, &message_me, names2);
     PyObject *arg = PyTuple_New(1);
     PyTuple_SetItem(arg, 0, (PyObject*)message_me_py);
     PyObject_CallObject((PyObject*)&PythonClassWrapper<TestClass>::Type, arg);
@@ -203,7 +205,7 @@ int main()
             //PyObject_Print( PyTuple_GetItem(args, i), stderr, 0);
             assert( PyTuple_GetItem(args,i) != Py_None);
         }
-        int16_t val = *toCObject<int16_t>(*PyObject_CallObject( (PyObject*)wrapper, args));
+        int16_t val = *toCObject<int16_t, false, true >(*PyObject_CallObject( (PyObject*)wrapper, args));
         fprintf(stderr, "VALUE IS %d\n", val);
         fprintf(stderr, "NEW INTEGRAL VALUE IS %d\n", intval);
         fprintf(stderr, "NEW DUMMY VALUE IS %f\n", dumm1.value);
@@ -216,7 +218,7 @@ int main()
         PyObject* pyobj = toPyObject<TestClass, true>(obj, true);
         PyObject* ret = PyObject_CallMethod(pyobj, (char*)print_name,nullptr);
         ret = PyObject_CallMethod(pyobj, (char*)(std::string("get_")+member_name).c_str(),nullptr);
-        double val = *toCObject<double>(*ret);
+        double val = *toCObject<double, false, true>(*ret);
         fprintf(stderr, ".value is: %f\n" , val);
     }
     fprintf(stderr, "SUCCESS!\n");

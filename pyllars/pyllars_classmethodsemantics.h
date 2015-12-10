@@ -1,29 +1,12 @@
 #ifndef __PYLLARS_INTERNAL__CLASSMETHODCALLSEMANTICS_H
 #define __PYLLARS_INTERNAL__CLASSMETHODCALLSEMANTICS_H
 #include "pyllars_utils.h"
-
+#include "pyllars_defns.h"
 /**
 * This unit defines template classes needed to contain method pointers and
 * define Python-to-C call semantics for invoking class instance methods
 **/
 
-namespace __pyllars_internal{
-
-    ///////////
-    // Helper conversion functions
-    //////////
-    template< typename T, bool is_complete, const ssize_t max = -1,  typename E = void>
-    PyObject* toPyObject( T &var, const bool asArgument);
-
-    template< typename T, bool is_complete, const ssize_t max = -1,  typename E = void>
-    PyObject* toPyObject( const T &var, const bool asArgument);
-
-    template< typename T>
-    smart_ptr<T> toCObject( PyObject& pyobj );
-
-    struct PythonBase;
-
-}
 
 namespace __pyllars_internal{
 
@@ -67,7 +50,7 @@ namespace __pyllars_internal{
                 PyErr_Print();
                 throw "Invalid arguments to method call";
             }
-            T retval =  method(*toCObject<Args>(*pyargs)...);
+            T retval =  method(*toCObject<Args, false, true>(*pyargs)...);
             return retval;
         }
 
@@ -259,7 +242,7 @@ namespace __pyllars_internal{
             }
 
             static void setFromPyObject(PyObject* pyobj){
-                 member = *toCObject<T>(*pyobj);
+	      member = *toCObject<T, false, true>(*pyobj);
             }
         };
 
@@ -277,7 +260,7 @@ namespace __pyllars_internal{
             }
 
             static void setFromPyObject(PyObject* pyobj){
-                 T val[] = *toCObject<T[size]>(*pyobj);
+	      T val[] = *toCObject<T[size], false, true>(*pyobj);
                  for(size_t i = 0; i < size; ++i)member[i] = val[i];
             }
         };
