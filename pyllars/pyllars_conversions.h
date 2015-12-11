@@ -35,13 +35,12 @@ namespace __pyllars_internal{
             }
             typedef typename std::remove_reference<C_type>::type C_bare;
             typedef typename std::remove_reference<typename std::remove_pointer<C_type>::type>::type C_base;
-            static constexpr ssize_t depth = ptr_depth<C_base>::value;
-             if (PyObject_TypeCheck(&pyobj, &PythonCPointerWrapper<C_base>::Type[depth])){
-              return smart_ptr<C_type>((C_bare*)reinterpret_cast<PythonCPointerWrapper<C_base> *>(&pyobj)->ptr(), false);
+            if (PyObject_TypeCheck(&pyobj, (&PythonCPointerWrapper<C_base, is_complete>::Type))){
+              return smart_ptr<C_type>((C_bare*)reinterpret_cast<PythonCPointerWrapper<C_base, is_complete> *>(&pyobj)->get_CObject(), false);
             }
 
             if (PyObject_TypeCheck(&pyobj, (&PythonClassWrapper<typename std::remove_const<C_bare>::type , true>::Type))){
-              return smart_ptr<C_type>((typename std::remove_const<C_bare>::type*)reinterpret_cast<PythonCPointerWrapper<C_bare, true> *>(&pyobj)->ptr(), false);
+              return smart_ptr<C_type>((typename std::remove_const<C_bare>::type*)reinterpret_cast<PythonCPointerWrapper<C_bare, true> *>(&pyobj)->get_CObject(), false);
             }
             if (!PyObject_TypeCheck(&pyobj, (&PythonClassWrapper< C_bare, true >::Type)) && !PyObject_TypeCheck(&pyobj, (&PythonClassWrapper< C_type, true >::Type))){
                 fprintf(stderr, "\n");
@@ -51,9 +50,9 @@ namespace __pyllars_internal{
                 fprintf(stderr, "\n");
                 throw "Invalid type converting to C object";
             } else {
-                return smart_ptr<C_type>((typename std::remove_reference<C_type>::type*)reinterpret_cast<PythonClassWrapper< C_bare, true >* >(&pyobj)->get_CObject(), false);
+                return smart_ptr<C_type>((typename std::remove_reference<C_type>::type*)reinterpret_cast<PythonClassWrapper< C_bare, is_complete>* >(&pyobj)->get_CObject(), false);
             }
-            return smart_ptr<C_type>((typename std::remove_reference<C_type>::type*)reinterpret_cast<PythonClassWrapper< C_type, true >* >(&pyobj)->get_CObject(), false);
+            return smart_ptr<C_type>((typename std::remove_reference<C_type>::type*)reinterpret_cast<PythonClassWrapper< C_type, is_complete >* >(&pyobj)->get_CObject(), false);
         }
     };
 
@@ -132,14 +131,14 @@ namespace __pyllars_internal{
             if (PyObject_Type(&pyobj)== (PyObject*)&PythonClassWrapper<const char*, true>::Type){
                 PythonClassWrapper<char* const, true>* const self_ = ((PythonClassWrapper<char* const, true>* const)&pyobj);
                 name = (const char*)self_->get_CObject();
-            } else if (PyObject_Type(&pyobj)== (PyObject*)&PythonCPointerWrapper<const char>::Type[0]){
+            } else if (PyObject_Type(&pyobj)== (PyObject*)&PythonCPointerWrapper<const char, true>::Type){
                 PythonCPointerWrapper<const char, true>* const self_ = ((PythonCPointerWrapper<const char, true>* const)&pyobj);
-                name = (const char*)self_->ptr();
+                name = (const char*)self_->get_CObject();
             }else if (PyString_Check(&pyobj)){
               name =  (const char*)PyString_AS_STRING( &pyobj);
             } else {
                 PyObject_Print(&pyobj, stderr, 0);
-                throw "Conversiont o C stgring from non-string Python object!";
+                throw "Conversion to C stgring from non-string Python object!";
             }
             if (!name){ throw "Error converting string: null pointer encountered";}
 
@@ -158,9 +157,9 @@ namespace __pyllars_internal{
             if (PyObject_Type(&pyobj)== (PyObject*)&PythonClassWrapper<const char*, true>::Type){
                 PythonClassWrapper<char* const, true>* const self_ = ((PythonClassWrapper<char* const, true>* const)&pyobj);
                 name = (const char*)self_->get_CObject();
-            } else if (PyObject_Type(&pyobj)== (PyObject*)&PythonCPointerWrapper<const char, true>::Type[0]){
+            } else if (PyObject_Type(&pyobj)== (PyObject*)&PythonCPointerWrapper<const char, true>::Type){
                 PythonCPointerWrapper<const char, true>* const self_ = ((PythonCPointerWrapper<const char, true>* const)&pyobj);
-                name = (const char*)self_->ptr();
+                name = (const char*)self_->get_CObject();
             }else if (PyString_Check(&pyobj)){
               name =  (const char*)PyString_AS_STRING( &pyobj);
             } else {

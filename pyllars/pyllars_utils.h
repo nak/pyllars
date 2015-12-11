@@ -24,7 +24,7 @@ namespace __pyllars_internal{
 
     template<typename T>
     struct ptr_depth{
-        static constexpr size_t value = 0;
+        static constexpr size_t value = 1;
     };
 
     template<typename T>
