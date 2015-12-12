@@ -40,7 +40,7 @@ namespace __pyllars_internal{
             }
 
             if (PyObject_TypeCheck(&pyobj, (&PythonClassWrapper<typename std::remove_const<C_bare>::type , true>::Type))){
-              return smart_ptr<C_type>((typename std::remove_const<C_bare>::type*)reinterpret_cast<PythonCPointerWrapper<C_bare, true> *>(&pyobj)->get_CObject(), false);
+              return smart_ptr<C_type>((typename std::remove_const<C_bare>::type*)reinterpret_cast<PythonClassWrapper<typename std::remove_const<C_bare>::type, true> *>(&pyobj)->get_CObject(), false);
             }
             if (!PyObject_TypeCheck(&pyobj, (&PythonClassWrapper< C_bare, true >::Type)) && !PyObject_TypeCheck(&pyobj, (&PythonClassWrapper< C_type, true >::Type))){
                 fprintf(stderr, "\n");
@@ -217,42 +217,45 @@ namespace __pyllars_internal{
     /**
      * Specialization for char*
      **/
-     template<typename T, const size_t size, const bool is_base_complete>
-     class CObjectConversionHelper< T[size] , false, is_base_complete>{
+     template<typename T, const size_t size, const bool is_array>
+     class CObjectConversionHelper< T[size] , is_array, true>{
      public:
 
-       typedef T T_array[size];
+        typedef T T_array[size];
 
-       static smart_ptr< T_array, false> toCObject( PyObject& pyobj){
+        static smart_ptr< T[size], is_array> toCObject( PyObject& pyobj){
 
-	 if (PyObject_TypeCheck(&pyobj, &(PythonCPointerWrapper<T, is_base_complete, size>::Type[ptr_depth<T>::value]))){
-               T_array *val = reinterpret_cast<PythonCPointerWrapper<T, is_base_complete, size>* >(&pyobj)->get_contents();
-
-               return smart_ptr< T_array, false>(val, true);
-            } else if(PyObject_TypeCheck(&pyobj, (&PythonClassWrapper<T_array, is_base_complete>(&pyobj)))){
-                return smart_ptr<T, false>(reinterpret_cast<PythonClassWrapper<T_array, is_base_complete>* >(&pyobj)->get_CObject(), false);
-            } else if (PyList_Check(&pyobj)){
+             if (PyObject_TypeCheck(&pyobj, &(PythonCPointerWrapper<T, true, size>::Type))){
+                T* val_ = reinterpret_cast<PythonCPointerWrapper<T, true, size>* >(&pyobj)->get_CObject();
+                T_array * val = (T_array*)&val_;
+                return smart_ptr< T[size], is_array>(val, true);
+             } else if(PyObject_TypeCheck(&pyobj, (&PythonClassWrapper<T_array, true>::Type))){
+                return smart_ptr<T_array, is_array>(reinterpret_cast<PythonClassWrapper<T_array, true>* >(&pyobj)->get_CObject(), false);
+             } else if (PyList_Check(&pyobj)){
                 if (PyList_Size(&pyobj) != size){
                     throw "Inconsistent sizes in array assignment";
                 }
-                T_array *val = new T_array;
+                if (!is_array){
+                    throw "Invalid attempt on non-array allocation of fixed-size array";
+                }
+                T_array *val = new T_array[1];
                 for(size_t i = 0; i < size; ++i){
                     PyObject* listitem = PyList_GetItem(&pyobj, i);
-                    if (PyObject_TypeCheck(&pyobj, (&PythonClassWrapper<T ,is_base_complete>::Type))){
-                        (*val)[i] = *reinterpret_cast< PythonClassWrapper<T, is_base_complete>* >(&pyobj)->get_CObject();
-                    } else if ( std::is_pointer<T>::value && PyObject_TypeCheck(&pyobj, (&PythonCPointerWrapper<typename std::remove_pointer<T>::type, is_base_complete>::Type[ptr_depth<typename std::remove_pointer<T>::type>::value]))){
-                        (*val)[i] = *reinterpret_cast< PythonCPointerWrapper<typename std::remove_pointer<T>::type, is_base_complete>* >(&pyobj)->get_contents();
-                    } else {
-                        delete val;
+                    if (PyObject_TypeCheck(listitem, (&PythonClassWrapper<T ,true>::Type))){
+                        (*val)[i] = *reinterpret_cast< PythonClassWrapper<T, true>* >(listitem)->get_CObject();
+                    }else {
+                        delete [] val;
                         throw "Invalid type in array element assignment";
                     }
                 }
-                return smart_ptr<T_array, false>(val, true);
-            }else {
-                throw "Conversiont o C stgring from non-string Python object!";
+
+                return smart_ptr<T_array, is_array>(val, true);
+             } else {
+                        throw "Conversiont o C stgring from non-string Python object!";
             }
-            return smart_ptr<T_array, false>(nullptr, false);
+            return smart_ptr<T_array, is_array>(nullptr, false);
         }
+
      };
 
    /**
@@ -266,8 +269,8 @@ namespace __pyllars_internal{
 
        static smart_ptr< T_array, false> toCObject( PyObject& pyobj){
 
-	 if (PyObject_TypeCheck(&pyobj, &(PythonCPointerWrapper<T, is_base_complete, size>::Type[ptr_depth<T>::value]))){
-               T_array * const val = reinterpret_cast<PythonCPointerWrapper<T, is_base_complete, size>* >(&pyobj)->get_contents();
+         if (PyObject_TypeCheck(&pyobj, &(PythonCPointerWrapper<T, is_base_complete, size>::Type))){
+               T_array * const val = reinterpret_cast<PythonCPointerWrapper<T, is_base_complete, size>* >(&pyobj)->get_CObject();
 
                return smart_ptr< T_array, false>(val, true);
             } else if(PyObject_TypeCheck(&pyobj, (&PythonClassWrapper<T_array, is_base_complete>(&pyobj)))){
@@ -286,6 +289,14 @@ namespace __pyllars_internal{
      template< typename T, bool is_array, bool is_complete>
      smart_ptr<T, is_array> toCObject( PyObject& pyobj){
         return CObjectConversionHelper<T, is_array, is_complete>::toCObject(pyobj);
+    }
+
+    /**
+     * function to convert python object to underlying C type using a class helper
+     **/
+     template< typename T, const size_t size,  bool is_array, bool is_complete>
+     smart_ptr<T[size], is_array> toCObject( PyObject& pyobj){
+        return CObjectConversionHelper<T[size], is_array, is_complete>::toCObject(pyobj);
     }
 
 }

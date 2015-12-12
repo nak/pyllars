@@ -40,7 +40,7 @@ namespace __pyllars_internal{
     struct PythonClassWrapper;
 
 
-    template< typename CClass, bool is_complete, const ssize_t max = -1, typename depth = ptr_depth<CClass> >
+    template< typename CClass, bool is_complete=true, const ssize_t max = -1, typename depth = ptr_depth<CClass> >
     struct PythonCPointerWrapper;
 }
 #endif

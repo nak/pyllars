@@ -118,6 +118,7 @@ initmod() {
     PythonClassWrapper< TestClassB&>::initialize( "TestClassB_ref", m );
     PythonClassWrapper< TestClassCopiable>::initialize( "TestClassCopiable", m );
     PythonCPointerWrapper< Incomplete, false>::initialize("Incomplete_ptr", m,"Incomplete_Ptr");
+    PythonCPointerWrapper< int, true>::initialize("int_ptr", m,"int_Ptr");
 
     PythonCPointerWrapper< int, true>::initialize("int_ptr", m,"init_ptr");
     PythonCPointerWrapper< const char, true>::initialize("const_char_ptr", m);

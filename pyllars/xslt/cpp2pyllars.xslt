@@ -162,7 +162,7 @@ extern const char name__<xsl:value-of select="@id"/>[] = &quot;<xsl:value-of sel
 <!-- ################################
     Templates for generating code to wrap various classes of types/functions
     ################################ -->  
-  <xsl:template match="//Function">
+  <xsl:template match="//Function[@name!='_IO_cookie_init']">
      <xsl:param name="nsname"/>
 
      <xsl:message terminate="no">
@@ -444,7 +444,7 @@ static int init_</xsl:text><xsl:value-of select="@id"/>( PyObject* moduleparent)
 			    //Class[@context=$nsid and  (not(@access) or @access='public')]|
                             //Struct[@context=$nsid and  (not(@access) or @access='public') and  @name!='__va_list_tag' and @name!='']|
                             //Union[@context=$nsid and  (not(@access) or @access='public')]|
-		       	    //Function[@context = $nsid and (not(@access) or @access='public') and count(./Ellipsis)=0]|
+		       	    //Function[@context = $nsid and (not(@access) or @access='public') and name!='_IO_cookie_init' and count(./Ellipsis)=0]|
                             //Namespace[@context= $nsid]">
      status |= init_<xsl:value-of select="@id"/>( module );
      </xsl:for-each><xsl:text>

@@ -7,7 +7,8 @@ module1 = Extension('testbasic_C',
                                          
                                          "-Wall",
                                          ],
-                    extra_link_args = ["-Wl,--no-undefined"],
+                    extra_link_args = ["-Wl,--no-undefined",
+                                       "-lpython2.7"],
                     sources = ['build/gen/testbasic_C.cpp'],
                  )
 

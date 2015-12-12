@@ -1243,7 +1243,7 @@ namespace __pyllars_internal{
 
                             return nullptr;
                         }
-                        obj->set_contents(values, ptr_depth<Class>::value + 1);
+                        obj->set_contents(values);
                     }
                 }
 
@@ -1266,7 +1266,7 @@ namespace __pyllars_internal{
                     (PythonCPointerWrapper<Class, is_complete, 0>*)PyObject_Call((PyObject*)&PythonCPointerWrapper<Class, is_complete, 0>::Type,
                                                                                   args, alloc_kwds);
                 Py_DECREF(alloc_kwds);
-                obj->set_contents(cobj, ptr_depth<Class>::value+1);
+                obj->set_contents(cobj);
                 return (PyObject*)obj;
             }
         };
