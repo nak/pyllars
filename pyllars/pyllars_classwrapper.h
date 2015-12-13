@@ -724,7 +724,7 @@ namespace __pyllars_internal{
         static TypePtr_t constexpr TypePtr = &Type;
 
         static int initialize(const char* const name, PyObject* module, const char* const fullname = nullptr){
-            if(!_name.empty()) return -1;
+	  if(!name || strlen(name)==0) return -1;
             int status = 0;
             _name = name;
             if(Type.tp_name){/*already initialize*/ return status;}
@@ -804,6 +804,7 @@ namespace __pyllars_internal{
                 return _createBase( args, kwds, kwlist, typename argGenerator<sizeof...(Args)>::type(),(typename std::remove_reference<Args>::type*)nullptr...);
             } catch (const char* const msg){
                 PyErr_SetString(PyExc_RuntimeError, msg);
+		PyErr_Print();
                 return nullptr;
             }
         }
@@ -1423,7 +1424,7 @@ namespace __pyllars_internal{
             (void)pyobjs;
             if (!_parsePyArgs(kwlist, args, kwds, pyobjs[S]...)){
                 PyErr_SetString(PyExc_TypeError, "Invalid constgructor arguments");
-                PyErr_Print();
+                PyErr_Print();//TODO: REMOVE:  only for debugging;  other constructors may work;  they are try/catched and may not be a real error here (error string is cleared on finding a good constructor!)
                 return nullptr;
             }
 

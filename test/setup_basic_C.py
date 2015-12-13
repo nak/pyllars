@@ -4,7 +4,7 @@ module1 = Extension('testbasic_C',
                     include_dirs = ['.','../../pyllars'],
                     language='c++',
                     extra_compile_args=["-std=c++11",
-                                         
+                                        "-O0", 
                                          "-Wall",
                                          ],
                     extra_link_args = ["-Wl,--no-undefined",
@@ -18,7 +18,7 @@ def generate_code():
     import sys
     
     filename = os.path.join("to_convert",module1.name+".hpp")
-    target_namespace = '::'
+    #target_namespace = '::'
     module_name = module1.name
 
     outdir = os.path.join("build", "gen")
@@ -42,6 +42,7 @@ def generate_code():
           "-in", output_path,
           "-xsl", xslt_path,
           "-out", os.path.join(outdir, module1.name+'.cpp')]
+    print("Executing: '%s'"% " ".join(args))
     p = subprocess.Popen(args)
     if p.wait() != 0:
         sys.exit(1)

@@ -186,7 +186,7 @@ static int init_<xsl:value-of select="@id"/>( PyObject* module){
         </xsl:text>&lt; <xsl:value-of select="$is_base_complete"/>, <xsl:value-of select="$return_type"/><xsl:if test="count(./Argument)>0">, </xsl:if><xsl:apply-templates select="." mode="template_arg_type_list"/><xsl:text> &gt;::create
         </xsl:text>(  &quot;<xsl:value-of select="@name"/>&quot;, <xsl:apply-templates select="." mode="generate_scoped_name"/> , kwlist);
 	status = wrapper?0:-1;
-        if (wrapper &amp;&amp; module) PyModule_AddObject( wrapper, &quot;<xsl:value-of select="@name"/>&quot;, module);
+        if (wrapper &amp;&amp; module) PyModule_AddObject( module, &quot;<xsl:value-of select="@name"/>&quot;, wrapper);
      }
      return status;
 }
@@ -321,9 +321,10 @@ static int init_<xsl:value-of select="@id"/>( PyObject* module ){
          status = -1;
      }
   </xsl:text>
-      <xsl:apply-templates select="//Constructor[//*[@id=$classid]/@abstract!='1' and @context=$classid and  (not(@access) or @access='public')]"><xsl:with-param name="classname"><xsl:if test="$nsname!='::' and $nsname!=''"><xsl:value-of select="$nsname"/>::</xsl:if><xsl:value-of select="$classname"/></xsl:with-param><xsl:with-param name="bareclassname" select="$classname"/></xsl:apply-templates>
-
-      <xsl:apply-templates select="//Method[@context=$classid and  (not(@access) or @access='public')]"><xsl:with-param name="classname"><xsl:if test="$nsname!='::' and $nsname!=''"><xsl:value-of select="$nsname"/>::</xsl:if><xsl:value-of select="$classname"/></xsl:with-param><xsl:with-param name="bareclassname" select="$classname"/></xsl:apply-templates>
+<xsl:if test="not(//*[@id=$classid]/@abstract)">	
+      <xsl:apply-templates select="//Constructor[@context=$classid and  (not(@access) or @access='public')]"><xsl:with-param name="classname"><xsl:if test="$nsname!='::' and $nsname!=''"><xsl:value-of select="$nsname"/>::</xsl:if><xsl:value-of select="$classname"/></xsl:with-param><xsl:with-param name="bareclassname" select="$classname"/></xsl:apply-templates>
+</xsl:if>
+      <xsl:apply-templates select="//Method[@context=$classid and  (@access='' or @access='public')]"><xsl:with-param name="classname"><xsl:if test="$nsname!='::' and $nsname!=''"><xsl:value-of select="$nsname"/>::</xsl:if><xsl:value-of select="$classname"/></xsl:with-param><xsl:with-param name="bareclassname" select="$classname"/></xsl:apply-templates>
   
       <xsl:apply-templates select="//Field[@context=$classid and  (not(@access) or @access='public')]"><xsl:with-param name="classname"><xsl:if test="$nsname!='::' and $nsname!=''"><xsl:value-of select="$nsname"/>::</xsl:if><xsl:value-of select="$classname"/></xsl:with-param></xsl:apply-templates>
 </xsl:if>
@@ -400,12 +401,12 @@ static int init_<xsl:value-of select="@id"/>( PyObject* module ){
    <xsl:template match="//Namespace">
      <xsl:param name="parentname"></xsl:param>
      <xsl:param name="init_name"><xsl:choose><xsl:when test="not(@context)"></xsl:when><xsl:otherwise><xsl:if test="$parentname!='' and $parentname!='::'"><xsl:value-of select="$parentname"/>::</xsl:if><xsl:value-of select="@name"/></xsl:otherwise></xsl:choose></xsl:param>
-     <xsl:variable name="nsname"><xsl:choose><xsl:when test="not(@context)"></xsl:when><xsl:otherwise><xsl:if test="$parentname!='' and $parentname!='::'"><xsl:value-of select="$parentname"/>::</xsl:if><xsl:value-of select="@name"/></xsl:otherwise></xsl:choose></xsl:variable>
+     <xsl:variable name="nsname"><xsl:choose><xsl:when test="not(@context) or @name='::'"><xsl:value-of select="$target_namespace"/></xsl:when><xsl:otherwise><xsl:if test="$parentname!='' and $parentname!='::'"><xsl:value-of select="$parentname"/>::</xsl:if><xsl:value-of select="@name"/></xsl:otherwise></xsl:choose></xsl:variable>
      <xsl:variable name="nsid"><xsl:value-of select="@id"/></xsl:variable>
      <xsl:variable name="mod_name">mod_<xsl:value-of  select="translate($nsname,':','_')"/></xsl:variable><xsl:text>
 
-///////////////// BEGIN sub-namespaces </xsl:text><xsl:value-of select="@name"/>
-//namespace defns for sub-namespaces to <xsl:value-of select="@name"/><xsl:text>
+///////////////// BEGIN sub-namespaces </xsl:text><xsl:value-of select="$nsname"/>
+//namespace defns for sub-namespaces to <xsl:value-of select="$nsname"/><xsl:text>
      </xsl:text><xsl:apply-templates select="//Namespace[@context=$nsid]">
        <xsl:with-param name="parentname"><xsl:if test="$parentname!='' or $parentname!='::'"><xsl:value-of select="$parentname"/>::</xsl:if><xsl:if test="$nsname!='::'"><xsl:value-of select="$nsname"/></xsl:if></xsl:with-param>
      </xsl:apply-templates>
@@ -429,9 +430,9 @@ static int init_<xsl:value-of select="@id"/>( PyObject* module ){
 static int init_</xsl:text><xsl:value-of select="@id"/>( PyObject* moduleparent){
      int status = 0;
 
-     PyObject* module = Py_InitModule3(&quot;<xsl:value-of select="$nsname"/>&quot;, 
+     PyObject* module = Py_InitModule3(&quot;<xsl:value-of select="$module_name"/>&quot;, 
                                nullptr,
-			       &quot;pyllars for  namespace <xsl:value-of select="$nsname"/>&quot;);<xsl:text>
+			       &quot;pyllars for  namespace <xsl:value-of select="$module_name"/>&quot;);<xsl:text>
      </xsl:text><xsl:choose><xsl:when test="$parentname!='' and $parentname!='::'">
      if(moduleparent){
          PyModule_AddObject( moduleparent, &quot;<xsl:value-of select="@name"/>&quot;, module);
@@ -440,11 +441,12 @@ static int init_</xsl:text><xsl:value-of select="@id"/>( PyObject* moduleparent)
      <xsl:otherwise>
      </xsl:otherwise></xsl:choose><xsl:text>
      </xsl:text>//initialize sub-element initialization
+
      <xsl:for-each select="//Typedef[@context=$nsid and  (not(@access) or @access='public') and  @name!='__va_list_tag']|
 			    //Class[@context=$nsid and  (not(@access) or @access='public')]|
                             //Struct[@context=$nsid and  (not(@access) or @access='public') and  @name!='__va_list_tag' and @name!='']|
                             //Union[@context=$nsid and  (not(@access) or @access='public')]|
-		       	    //Function[@context = $nsid and (not(@access) or @access='public') and name!='_IO_cookie_init' and count(./Ellipsis)=0]|
+		       	    //Function[@context=$nsid and (not(@access) or @access='public') and @name!='_IO_cookie_init' and count(./Ellipsis)=0]|
                             //Namespace[@context= $nsid]">
      status |= init_<xsl:value-of select="@id"/>( module );
      </xsl:for-each><xsl:text>
@@ -456,7 +458,7 @@ static int init_</xsl:text><xsl:value-of select="@id"/>( PyObject* moduleparent)
 PyMODINIT_FUNC
 </xsl:text>init<xsl:value-of select="$init_name"/>(){
     int status = 0;
-
+    initpyllars();
     <xsl:for-each select="//Namespace[@id=$nsid]"> 
     status |= init_<xsl:value-of select="@id"/>(nullptr);//no module to add to, as this it the top
     </xsl:for-each>
@@ -519,11 +521,12 @@ initpyllars(){
 
 namespace pyllars{
 }
-   //Pyllars structs/classes for namespace  </xsl:text><xsl:value-of select="$targe_namespace"/>
+   //Pyllars structs/classes for namespace  </xsl:text><xsl:value-of select="$target_namespace"/>
    <xsl:apply-templates select="//Namespace[@name=$target_namespace]" mode="generate_externs"/> 
    <xsl:variable name="targetns"><xsl:choose><xsl:when test="$target_namespace=''">::</xsl:when><xsl:otherwise><xsl:value-of select="$target_namespace"/></xsl:otherwise></xsl:choose></xsl:variable>
    <xsl:apply-templates select="//Namespace[@name=$targetns]">
       <xsl:with-param name="parentname" select="''"/>
+      <xsl:with-param name="nsname" select="$target_namespace"/>
       <xsl:with-param name="init_name" select="$module_name"/>
    </xsl:apply-templates>
 
