@@ -240,6 +240,7 @@ namespace __pyllars_internal{
 
     /**
      * Class member container
+     * TODO!!!!!!!! ADD A "IS_COMPLETE" TEMPL PARAM!!!!!!!!!!!!!!!!1
      **/
     template<class CClass>
     class MemberContainer{
@@ -256,11 +257,25 @@ namespace __pyllars_internal{
             static PyObject* call(PyObject* self, PyObject* args, PyObject* kwds){
                 if(!self) return nullptr;
                 PythonClassWrapper<CClass, true>* _this = (PythonClassWrapper<CClass, true>*)self;
-                if(_this->get_CObject()){
-                    return toPyObject<T, true>(_this->get_CObject()->*member, false);
+
+                if( (!args || PyTuple_Size(args)==0) && (!kwds || PyDict_Size(kwds)==0)){
+                    if(_this->get_CObject()){
+                        return toPyObject<T, true>(_this->get_CObject()->*member, false);
+                    }
+                    PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
+                    return nullptr;
+                } else if (kwds &&  PyDict_Size(kwds)==1 && PyDict_GetItemString(kwds, "set_to")){
+                    PyObject* pyVal = PyDict_GetItemString(kwds, "set_to");
+                    if (pyVal == Py_None){
+                        PyErr_SetString(PyExc_SyntaxError, "Unexpcted None value in member setter");
+                        return nullptr;
+                    }
+                     (_this->template get_CObject<CClass_NoRef>()->*member) = *toCObject<T, false, true>(*pyVal);
+                } else{
+                    PyErr_SetString(PyExc_SyntaxError, "Invalid argsuments to set class instance member variable in C");
+                    return nullptr;
                 }
-                PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
-                return nullptr;
+		return Py_None;
             }
 
             static void setFromPyObject( typename std::remove_reference<CClass>::type * self, PyObject* pyobj){
@@ -280,11 +295,19 @@ namespace __pyllars_internal{
             static PyObject* call(PyObject* self, PyObject* args, PyObject* kwds){
                 if(!self) return nullptr;
                 PythonClassWrapper<CClass, true>* _this = (PythonClassWrapper<CClass, true>*)self;
-                if(_this->get_CObject()){
-                    return toPyObject<const T, true>(_this->get_CObject()->*member, false);
+               if( (!args || PyTuple_Size(args)==0) && (!kwds || PyDict_Size(kwds)==0)){
+                    if(_this->template get_CObject<CClass_NoRef>()){
+                        return toPyObject<T, true>(_this->template get_CObject<CClass_NoRef>()->*member, false);
+                    }
+                    PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
+                    return nullptr;
+                } else if (kwds &&  PyDict_Size(kwds)==1 && PyDict_GetItemString(kwds, "set_to")){
+                    PyErr_SetString(PyExc_RuntimeError, "Attempt to set constant attribute!");
+                    return nullptr;
+                } else{
+                    PyErr_SetString(PyExc_SyntaxError, "Invalid argsuments to set class instance member variable in C");
+                    return nullptr;
                 }
-                PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
-                return nullptr;
             }
 
             static void setFromPyObject( typename std::remove_reference<CClass>::type * self, PyObject* pyobj){
@@ -304,17 +327,47 @@ namespace __pyllars_internal{
             static PyObject* call(PyObject* self, PyObject* args, PyObject* kwds){
                 if(!self) return nullptr;
                 PythonClassWrapper<CClass, true>* _this = (PythonClassWrapper<CClass, true>*)self;
-                if(_this->get_CObject()){
-                    return toPyObject<T[size], true>(_this->get_CObject()->*member, false);
+
+                if( (!args || PyTuple_Size(args)==0) && (!kwds || PyDict_Size(kwds)==0)){
+                    if(_this->get_CObject()){
+                        return toPyObject<T, true>(*(_this->get_CObject()->*member), false);
+                    }
+                    PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
+                    return nullptr;
+                } else if (kwds &&  PyDict_Size(kwds)==1 && PyDict_GetItemString(kwds, "set_to")){
+                    PyObject* pyVal = PyDict_GetItemString(kwds, "set_to");
+                    if (pyVal == Py_None){
+                        PyErr_SetString(PyExc_SyntaxError, "Unexpcted None value in member setter");
+                        return nullptr;
+                    }
+                    if( PyTuple_Check(pyVal)){
+                        if(PyTuple_Size(pyVal) == size){
+                           for(size_t i = 0; i < size; ++i)
+                            (_this->template get_CObject<CClass_NoRef>()->*member)[i] = *toCObject<T, false, true>(*PyTuple_GetItem(pyVal, i));
+                        } else{
+                            PyErr_SetString(PyExc_IndexError, "Mismatched array sizes");
+                            return nullptr;
+                        }
+                    } else if ( PyObject_TypeCheck( pyVal, (&PythonClassWrapper< T_array, true>::Type)) ){
+                         T_array *val = ((PythonClassWrapper<T_array, true>*) pyVal)->template get_CObject<T_array>();
+                         for(size_t i = 0; i < size; ++i)
+                            (_this->get_CObject()->*member)[i] = (*val)[i];
+
+                    } else {
+                        PyErr_SetString(PyExc_TypeError, "Invalid argument type when setting array attribute");
+                        return nullptr;
+                    }
+                } else{
+                    PyErr_SetString(PyExc_SyntaxError, "Invalid argsuments to set class instance member variable in C");
+                    return nullptr;
                 }
-                PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
-                return nullptr;
+                return Py_None;
             }
 
             static void setFromPyObject( typename std::remove_reference<CClass>::type * self, PyObject* pyobj){
-            T *val = *toCObject<T[size], false, true>(*pyobj);
+                smart_ptr<T[size], false> val = toCObject<T[size], false, true>(*pyobj);
                 for(size_t i = 0; i < size; ++i){
-                  (self->*member)[i] = val[i];
+                  (self->*member)[i] = (*val)[i];
                 }
             }
         };

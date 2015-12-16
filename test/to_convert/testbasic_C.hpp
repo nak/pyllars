@@ -6,12 +6,13 @@ constexpr int data1 = 1;
 const int data2 = 2;
 int data3 = 3;
 
+typedef const char* const ctype;
+
 //basic struct declaration
 struct TestStruct{
-
-  static constexpr char* const msg = "Default constructed  message for TestCalss";
-  TestStruct( ):str_member(msg){}
-  TestStruct( const char* const  msg):str_member(msg){}
+  static constexpr ctype msg = "Default constructed  message for TestCalss";
+  TestStruct( ):str_member(msg), double_member(1.23456789){}
+  TestStruct( const char* const  msg):str_member(msg),double_member(2.34567890){}
 
   const char* const method_string_return( double double_val, const int* int_ptr_val, const float& float_ref_val, 
 					  const char* const c_string_val){

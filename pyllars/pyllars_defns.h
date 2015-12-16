@@ -36,11 +36,38 @@ namespace __pyllars_internal{
     /**
      * Class to define Python wrapper to C class/type
      **/
-    template<typename CClass, bool is_complete=true, typename Base=PythonBase, typename Z = void>
+    template<typename CClass, bool is_complete=true, const ssize_t last = -1, typename Base=PythonBase, typename Z = void>
     struct PythonClassWrapper;
 
 
-    template< typename CClass, bool is_complete=true, const ssize_t max = -1, typename depth = ptr_depth<CClass> >
-    struct PythonCPointerWrapper;
+    /**
+     * Base class for all Pyllars C-wrapper objects
+     **/
+    struct PythonBase{
+      PyObject_HEAD /*Per Python API docs*/
+      typedef PyTypeObject * TypePtr_t;
+      
+      static TypePtr_t constexpr TypePtr =  &PyBaseObject_Type;
+      
+    };
+
+    struct CommonBaseWrapper{
+
+      PythonBase baseClass;
+
+      CommonBaseWrapper():_referenced(nullptr){
+      }
+    
+      void make_reference( PyObject *obj){
+        if(_referenced){ Py_DECREF(_referenced); }
+        if (obj) {Py_INCREF(obj);}
+        _referenced = obj;
+        
+      }
+
+    protected:
+      PyObject* _referenced;
+    };
+
 }
 #endif

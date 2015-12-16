@@ -17,10 +17,19 @@ namespace __pyllars_internal{
        static constexpr bool value = false;
     };
 
+
+
+
     template< typename T, typename...Args>
     struct is_function_ptr< T(*)(Args...)>{
         static constexpr bool value = true;
     };
+    template< typename T, typename...Args>
+    struct is_function_ptr< T(*const)(Args...)>{
+        static constexpr bool value = true;
+    };
+
+
 
     template<typename T>
     struct ptr_depth{
@@ -32,9 +41,31 @@ namespace __pyllars_internal{
         static constexpr size_t value = ptr_depth<T>::value + 1;
     };
 
+    template<typename T, size_t size>
+    struct ptr_depth<T[size]>{
+        static constexpr size_t value = ptr_depth<T>::value+1;
+    };
+
     template<typename T>
     struct extent_as_pointer{
       typedef T type;
+    };
+
+
+
+    template <typename T, size_t depth >
+    struct ptr_of_depth{
+        typedef typename ptr_of_depth<T, depth-1>::type* type;
+    };
+
+    template <typename T>
+    struct ptr_of_depth<T, 0>{
+        typedef T type;
+    };
+
+    template <typename T, size_t depth,  size_t size>
+    struct ptr_of_depth< T[size], depth>{
+        typedef typename ptr_of_depth<T, depth-1>::type type[size];
     };
 
     template<typename T>

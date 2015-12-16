@@ -3,7 +3,7 @@ import lxml.etree as et
 module1 = Extension('testbasic_C',
                     include_dirs = ['.','../../pyllars'],
                     language='c++',
-                    extra_compile_args=["-std=c++11",
+                    extra_compile_args=["-std=c++14",
                                         "-O0", 
                                          "-Wall",
                                          ],
