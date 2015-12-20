@@ -146,10 +146,10 @@ namespace __pyllars_internal{
             static PyObject* call(PyObject* self, PyObject* args, PyObject* kwds){
                 if(!self) return nullptr;
                 PythonClassWrapper<CClass, true>* _this = (PythonClassWrapper<CClass, true>*)self;
-                if(_this->get_CObject()){
+                if(_this->template get_CObject<CClass>()){
 
                     try{
-                        return ConstMethodCallSemantics<CClass, ReturnType, Args...>::call(method, *_this->get_CObject(),args, kwds);
+                        return ConstMethodCallSemantics<CClass, ReturnType, Args...>::call(method, *_this->template get_CObject<CClass>(),args, kwds);
                     } catch(...){
                         PyErr_SetString(PyExc_RuntimeError,"Exception calling class instance method");
                         return nullptr;
@@ -196,8 +196,8 @@ namespace __pyllars_internal{
                 }
                 if(!self) return nullptr;
                 PythonClassWrapper<CClass, true>* _this = (PythonClassWrapper<CClass, true>*)self;
-                if(_this->get_CObject()){
-                    return toPyObject<T, true>((_this->get_CObject()->*member), false);
+                if(_this->template get_CObject<CClass>()){
+                    return toPyObject<T, true>((_this->template get_CObject<CClass>()->*member), false);
                 }
                 PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
                 return nullptr;

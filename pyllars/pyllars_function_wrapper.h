@@ -168,7 +168,7 @@ namespace __pyllars_internal {
         return toPyObject<ReturnType, is_base_return_complete>(wrapper.callFunc(args, kw, typename argGenerator<sizeof...(Args)>::type()), false);
       } catch( const char* const msg){
         PyErr_SetString(PyExc_RuntimeError, msg);
-        PyErr_Print();
+       
         return nullptr;
       }
     }
