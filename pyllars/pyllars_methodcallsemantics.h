@@ -53,7 +53,7 @@ namespace __pyllars_internal{
                 PyErr_Print();
                 throw "Invalid arguments to method call";
             }
-            T retval =  (self.*method)(*toCObject<Args, false, true>(*pyargs)...);
+            T retval =  (self.*method)(*toCObject<Args, false, true, PythonClassWrapper<Args,true> >(*pyargs)...);
             return retval;
         }
 
@@ -109,7 +109,7 @@ namespace __pyllars_internal{
             if(!PyArg_ParseTupleAndKeywords(args, kwds, format, (char**)kwlist, &pyargs...)){
                 PyErr_SetString( PyExc_RuntimeError, "Failed to parse argument on method call");
             } else {
-                (self.*method)(*toCObject<Args, false, true>(*pyargs)...);
+                (self.*method)(*toCObject<Args, false, true, PythonClassWrapper<Args,true> >(*pyargs)...);
             }
         }
 
@@ -270,7 +270,7 @@ namespace __pyllars_internal{
                         PyErr_SetString(PyExc_SyntaxError, "Unexpcted None value in member setter");
                         return nullptr;
                     }
-                     (_this->template get_CObject<CClass_NoRef>()->*member) = *toCObject<T, false, true>(*pyVal);
+                     (_this->template get_CObject<CClass_NoRef>()->*member) = *toCObject<T, false, true, PythonClassWrapper<T, true> >(*pyVal);
                 } else{
                     PyErr_SetString(PyExc_SyntaxError, "Invalid argsuments to set class instance member variable in C");
                     return nullptr;
@@ -279,7 +279,7 @@ namespace __pyllars_internal{
             }
 
             static void setFromPyObject( typename std::remove_reference<CClass>::type * self, PyObject* pyobj){
-                self->*member = *toCObject<T, false, true>(*pyobj);
+                self->*member = *toCObject<T, false, true, PythonClassWrapper<T, true> >(*pyobj);
             }
         };
 
@@ -343,7 +343,7 @@ namespace __pyllars_internal{
                     if( PyTuple_Check(pyVal)){
                         if(PyTuple_Size(pyVal) == size){
                            for(size_t i = 0; i < size; ++i)
-                            (_this->template get_CObject<CClass_NoRef>()->*member)[i] = *toCObject<T, false, true>(*PyTuple_GetItem(pyVal, i));
+                            (_this->template get_CObject<CClass_NoRef>()->*member)[i] = *toCObject<T, false, true, PythonClassWrapper<T, true> >(*PyTuple_GetItem(pyVal, i));
                         } else{
                             PyErr_SetString(PyExc_IndexError, "Mismatched array sizes");
                             return nullptr;
@@ -365,7 +365,7 @@ namespace __pyllars_internal{
             }
 
             static void setFromPyObject( typename std::remove_reference<CClass>::type * self, PyObject* pyobj){
-                smart_ptr<T[size], false> val = toCObject<T[size], false, true>(*pyobj);
+                smart_ptr<T[size], false> val = toCObject<T[size], false, true, PythonClassWrapper<T[size], true, size-1> >(*pyobj);
                 for(size_t i = 0; i < size; ++i){
                   (self->*member)[i] = (*val)[i];
                 }

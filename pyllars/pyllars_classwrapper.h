@@ -1,9 +1,10 @@
 //  PREDECLARATIONS
+
+#include "pyllars_utils.h"
+#include "pyllars_defns.h"
 #include "pyllars_classmethodsemantics.h"
 #include "pyllars_constmethodcallsemantics.h"
 #include "pyllars_methodcallsemantics.h"
-#include "pyllars_utils.h"
-#include "pyllars_defns.h"
 
 #ifndef __PYLLARS__INTERNAL__CLASS_WRAPPER_H
 #define __PYLLARS__INTERNAL__CLASS_WRAPPER_H
@@ -18,471 +19,42 @@
 
 #include "pyllars_utils.h"
 #include "pyllars_defns.h"
-#undef NULL
-#define NULL nullptr
+#include "pyllars_object_lifecycle.h"
+#include "pyllars_conversions.h"
 namespace __pyllars_internal{
 
-  namespace{
-    //basic constants (names and such)
-    extern const char address_name[] = "PYL_addr";
-    extern const char alloc_name[] = "PYL_alloc";
-  }
-
-
-  template<typename T>
-    class ConstructorContainerTmpl{
-  public:
-      typedef bool(*constructor)( const char* const kwlist[], PyObject *args, PyObject *kwds, T* & cobj);
-      ConstructorContainerTmpl( const char* const kwlist[],
-                                constructor c):_kwlist(kwlist),
-      _constructor(c){
+    namespace{
+        //basic constants (names and such)
+        extern const char address_name[] = "PYL_addr";
+        extern const char alloc_name[] = "PYL_alloc";
     }
 
-      bool operator()(PyObject* args, PyObject*kwds, T* & cobj){
-        return _constructor(_kwlist, args, kwds, cobj);
-      }
-
-  private:
-      const char* const * const _kwlist;
-      const constructor _constructor;
-  };
 
 
-  template< typename T>
-  class Setter{
-    static void set_at(T const to, const T& from, const size_t index ){
-      throw "Invalid call to dereference non-pointer type";
-    }
-  };
 
-  template <typename T>
-  class Setter<T*>{
-  public:
-    static void set_at( T* const to,  const T& from, const size_t index){
-      to[index] = from;
-    }
-  };
-  template <typename T>
-  class Setter<T* const>{
-  public:
-    static void set_at( T* const to,  const T& from, const size_t index){
-      to[index] = from;
-    }
-  };
-
-  ///////////
-    // Helper conversion functions
-    //////////
-
-    /**
-     * Define conversion helper class, which allows easier mechanism
-     * for necessary specializations
-     **/
-    template< typename T, bool is_complete,  const ssize_t max, typename E = void>
-      class PyObjectConversionHelper;
-
-    /**
-     * specialize for non-copiable types
-     **/
-    template< typename T, bool is_complete, const ssize_t max>
-    class PyObjectConversionHelper<T, is_complete, max,
-                                   typename  std::enable_if<!std::is_array<T>::value &&
-                                                            !std::is_copy_constructible<T>::value >::type >{
-    public:
-
-
-      static PyObject* toPyObject( T & var, const bool asArgument ){
-        //must pass in keyword to inform Python it is ok to create a Python C Wrapper object
-        //with a null content, which will be set here
-        PyObject* kw = PyDict_New();
-        PyDict_SetItemString(kw, "__internal_allow_null", PyBool_FromLong(asArgument));
-        //create the object of the desired type and do some checks
-        PyObject* emptyTuple = PyTuple_New(0);
-        PyObject* pyobj = PyObject_Call(  (PyObject*)&PythonClassWrapper<T, is_complete>::Type,
-                                          emptyTuple, kw);
-        Py_DECREF(kw);
-        Py_DECREF(emptyTuple);
-        if ( !pyobj || !PyObject_TypeCheck(pyobj,(&PythonClassWrapper<T, is_complete>::Type))){
-          PyErr_SetString(PyExc_TypeError, "Unable to convert C type object to Python object");
-          goto onerror;
+    template< typename T>
+    class Setter{
+        static void set_at(T const to, const T& from, const size_t index ){
+          throw "Invalid call to dereference non-pointer type";
         }
-        //here is where the pointer content is set:
-        reinterpret_cast<PythonClassWrapper<T, is_complete>*>(pyobj)->set_contents(&var, false);
-        return pyobj;
-      onerror:
-        return Py_None;
-      }
-
     };
 
-
-    /**
-     * specialize for non-trivial copiable types (non-pointer too)
-     **/
-    template<typename T, bool is_complete, const ssize_t max>
-      class PyObjectConversionHelper<T, is_complete, max,
-                                     typename  std::enable_if< std::is_copy_constructible<T>::value &&
-                                                              !std::is_integral<T>::value &&
-                                                              !std::is_enum<T>::value &&
-                                                              !std::is_floating_point<T>::value &&
-                                                              !std::is_pointer<T>::value >::type >{
+    template <typename T>
+    class Setter<T*>{
     public:
-      typedef typename std::remove_reference<T>::type T_NoRef;
-
-      static PyObject* toPyObject(  T & var, const bool asArgument ){
-        PyObject* kw = PyDict_New();
-        PyDict_SetItemString(kw, "__internal_allow_null", PyBool_FromLong(asArgument));
-        //create the object of the desired type and do some checks
-        PyObject* emptyTuple = PyTuple_New(0);
-        PyObject* pyobj = PyObject_Call(  (PyObject*)&PythonClassWrapper<T, is_complete>::Type, emptyTuple, kw);
-        Py_DECREF(kw);
-        Py_DECREF(emptyTuple);
-        if ( !pyobj || !PyObject_TypeCheck(pyobj, (&PythonClassWrapper<T, is_complete>::Type))){
-          PyErr_SetString(PyExc_TypeError, "Unable to convert C type object to Python object");
-          goto onerror;
+        static void set_at( T* const to,  const T& from, const size_t index){
+          to[index] = from;
         }
-
-        reinterpret_cast<PythonClassWrapper<T, is_complete>*>(pyobj)->set_contents( asArgument?&var:new T_NoRef(var), !asArgument);
-        return pyobj;
-      onerror:
-        PyErr_Print();
-        return Py_None;
-
-      }
     };
 
-
-
-
-
-   /**
-     * specialize for non-extent array types (non-pointer too and non-const-char too)
-     **/
-    template<typename T, bool is_complete, const ssize_t max>
-      class PyObjectConversionHelper<T[], is_complete, max,void>{
+    template <typename T>
+    class Setter<T* const>{
     public:
-      typedef typename std::remove_reference<T>::type T_NoRef;
-      typedef T T_array[];
-      static PyObject* toPyObject(  T* const & var, const bool asArgument ){
-        if(!asArgument){
-            PyErr_SetString(PyExc_RuntimeError, "Attempt to copy array of unknown extent");
-            return nullptr;
+        static void set_at( T* const to,  const T& from, const size_t index){
+          to[index] = from;
         }
-        //create the object of the desired type and do some checks
-        PyObject* emptyTuple = PyTuple_New(0);
-        PyObject* pyobj = PyObject_Call(  (PyObject*)&PythonClassWrapper<T[], is_complete>::Type, emptyTuple, nullptr);
-        Py_DECREF(emptyTuple);
-
-        if ( !pyobj || !PyObject_TypeCheck(pyobj, (&PythonClassWrapper<T[], is_complete>::Type))){
-          PyErr_SetString(PyExc_TypeError, "Unable to convert C type object to Python object");
-          goto onerror;
-        }
-        {
-          reinterpret_cast<PythonClassWrapper<T[], is_complete>*>(pyobj)->set_contents( (void**)(&var), false);
-        }
-        return pyobj;
-      onerror:
-        PyErr_Print();
-        return Py_None;
-
-      }
     };
 
-        /**
-     * specialize for const non-extent array types (non-pointer too and non-const-char too)
-     **/
-    template<typename T, bool is_complete, const ssize_t max>
-      class PyObjectConversionHelper<T const[], is_complete, max,void>{
-    public:
-      typedef typename std::remove_reference<T>::type T_NoRef;
-      typedef T T_array[];
-      static PyObject* toPyObject(  T const * const & var, const bool asArgument ){
-        if(!asArgument){
-            PyErr_SetString(PyExc_RuntimeError, "Attempt to copy array of unknown extent");
-            return nullptr;
-        }
-
-        //create the object of the desired type and do some checks
-        PyObject* emptyTuple = PyTuple_New(0);
-	PythonClassWrapper<T const[], is_complete, max>::initialize
-          ( (PythonClassWrapper<T, is_complete, max>::get_name() +"_array").c_str(),
-            (PythonClassWrapper<T, is_complete, max>::get_module_entry_name() +"[]").c_str(),
-            PythonClassWrapper<T, is_complete, max>::parent_module,
-            (std::string(PythonClassWrapper<T , is_complete, max>::Type.tp_name)+"[]").c_str());
-        PyObject* pyobj = PyObject_Call(  (PyObject*)&PythonClassWrapper<T const[], is_complete, max>::Type,
-                                          emptyTuple, nullptr);
-        Py_DECREF(emptyTuple);
-
-        if ( !pyobj || !PyObject_TypeCheck(pyobj, (&PythonClassWrapper<T const[], is_complete, max>::Type))){
-          PyErr_SetString(PyExc_TypeError, "Unable to convert C type object to Python object");
-          goto onerror;
-        }
-        {
-          reinterpret_cast<PythonClassWrapper<T const[], is_complete>*>(pyobj)->set_contents( (void**)(&var), false);
-        }
-        return pyobj;
-      onerror:
-        PyErr_Print();
-        return Py_None;
-
-      }
-    };
-
-    /**
-     * specialize for c string
-     **/
-    template<bool is_complete, const size_t size, const ssize_t max>
-      class PyObjectConversionHelper<const char[size], is_complete, max,void>{
-    public:
-      typedef const char T;
-      typedef typename std::remove_reference<T>::type T_NoRef;
-      typedef T T_array[size];
-
-      static PyObject* toPyObject(  T_array& var, const bool asArgument ){
-        if (!asArgument){
-          return PyString_FromStringAndSize(var, var[size-1]==0? strlen(var):size);
-        }
-        //create the object of the desired type and do some checks
-        PyObject* emptyTuple = PyTuple_New(0);
-        PyObject* pyobj = PyObject_Call(  (PyObject*)&PythonClassWrapper<T[size], is_complete>::Type, emptyTuple, nullptr);
-        Py_DECREF(emptyTuple);
-
-        if ( !pyobj || !PyObject_TypeCheck(pyobj, (&PythonClassWrapper<T[size], is_complete>::Type))){
-          PyErr_SetString(PyExc_TypeError, "Unable to convert C type object to Python object");
-          goto onerror;
-        }
-        {
-          T_array * var_ = new T_array[1];
-          for( size_t i = 0; i < size; ++i){
-            (*var_)[i] = var[i];
-          }
-          reinterpret_cast<PythonClassWrapper<T[size], is_complete>*>(pyobj)->set_contents( (void**)(asArgument?&var:var_), !asArgument);
-        }
-        return pyobj;
-      onerror:
-        PyErr_Print();
-        return Py_None;
-
-      }
-    };
-    /**
-     * specialize for integer types
-     **/
-    template<typename T, bool is_complete, const ssize_t max>
-      class PyObjectConversionHelper<T, is_complete, max, typename  std::enable_if< std::is_integral<T>::value || std::is_enum<T>::value >::type >{
-    public:
-      static PyObject* toPyObject( const T & var, const bool asArgument ){
-        (void)asArgument;
-        return PyInt_FromLong( (long)var);
-      }
-    };
-
-    /**
-     * specialize for floating point types
-     **/
-    template<typename T, bool is_complete, const ssize_t max>
-      class PyObjectConversionHelper<T, is_complete, max,  typename  std::enable_if< std::is_floating_point<T>::value >::type >{
-    public:
-      static PyObject* toPyObject( const T & var, const bool asArgument ){
-        (void)asArgument;
-        return PyFloat_FromDouble( var);
-      }
-    };
-
-    /**
-     * specialize for cosnt integer reference types
-     **/
-    template<typename T, bool is_complete, const ssize_t max>
-      class PyObjectConversionHelper<T, is_complete, max, typename  std::enable_if< std::is_const<T>::value && std::is_reference<T>::value &&
-      ( std::is_integral<typename std::remove_reference<T>::type>::value ||
-        std::is_enum<typename std::remove_reference<T>::type>::value
-         )>::type >{
-    public:
-      static PyObject* toPyObject( const T & var, const bool asArgument ){
-        if(!asArgument){
-          PyErr_SetString( PyExc_RuntimeError, "cannot create const reference variable from basic type");
-          return Py_None;
-        }
-        PyObject* args = PyTuple_New(1);
-        PyTuple_SET_ITEM(args, 0, PyLong_FromLong(var));
-        PyObject* retval =  PyObject_CallObject(&PythonClassWrapper<T, is_complete>::Type, args);
-        Py_DECREF( PyTuple_GetItem(args,0));
-        Py_DECREF( args );
-        return retval;
-      }
-    };
-
-    /**
-     * specialize for const non-basic reference types
-     **/
-    template<typename T, bool is_complete, const ssize_t max>
-      class PyObjectConversionHelper<T, is_complete, max,
-                                     typename  std::enable_if< std::is_const<T>::value &&
-                                                               std::is_reference<T>::value &&
-                                                              !std::is_integral<typename std::remove_reference<T>::type>::value &&
-                                                               std::is_floating_point<typename std::remove_reference<T>::type>::value >::type >{
-    public:
-      static PyObject* toPyObject( const T & var, const bool asArgument ){
-        if(!asArgument){
-          PyErr_SetString( PyExc_RuntimeError, "cannot create const reference variable from basic type");
-          return Py_None;
-        }
-        PyObject* args = PyTuple_New(1);
-        PyTuple_SET_ITEM(args, 0, toPyObject(var));
-        PyObject* retval = PyObject_CallObject(&PythonClassWrapper<T, is_complete>::Type, args);
-        Py_DECREF( PyTuple_GetItem(args,0));
-        Py_DECREF( args );
-        return retval;
-      }
-    };
-
-    /**
-     * specialize for const floating point reference types
-     **/
-    template<typename T, bool is_complete, const ssize_t max>
-      class PyObjectConversionHelper<T, is_complete, max,
-                                     typename  std::enable_if< std::is_const<T>::value &&
-                                                               std::is_reference<T>::value &&
-                                                              !std::is_floating_point<typename std::remove_reference<T>::type>::value >::type >{
-    public:
-      static PyObject* toPyObject( const T & var, const bool asArgument ){
-        if(!asArgument){
-          PyErr_SetString( PyExc_RuntimeError, "cannot create const reference variable from basic type");
-          return Py_None;
-        }
-        PyObject* args = PyTuple_New(1);
-        PyTuple_SET_ITEM(args, 0, PyFloat_FromDouble(var));
-        PyObject* retval = PyObject_CallObject(&PythonClassWrapper<T, is_complete>::Type, args);
-        Py_DECREF( PyTuple_GetItem(args,0));
-        Py_DECREF( args );
-        return retval;
-      }
-    };
-
-    /**
-     * Specialized for non-const pointers:
-     **/
-    template< typename T,  bool is_complete, const ssize_t max >
-      class PyObjectConversionHelper<T*, is_complete, max, void/*typename  std::enable_if< !is_function_ptr<typename std::remove_pointer<T>::type >::value >::type*/>{
-    public:
-      static PyObject* toPyObject( T*  const& var, const bool asArgument ){
-        (void)asArgument;
-        PyObject* pyobj =nullptr;
-
-        typedef PythonClassWrapper<T*, is_complete, max> PtrWrapper;
-        if (!PtrWrapper::Type.tp_name){
-          PtrWrapper::initialize((PythonClassWrapper<T, is_complete>::get_name()+'*').c_str(),
-                                 (PythonClassWrapper<T, is_complete>::get_name()+"_ptr").c_str(),
-                                 PythonClassWrapper<T, is_complete>::parent_module,
-                                 (std::string(PythonClassWrapper<T, is_complete>::Type.tp_name)+'*').c_str());
-
-
-          if (PtrWrapper::parent_module){
-            PyModule_AddObject( PtrWrapper::parent_module,
-                                PtrWrapper::Type.tp_name,
-                                (PyObject*) &PtrWrapper::Type );
-          }
-        }
-        {
-          PyObject* emptyTuple = PyTuple_New(0);
-          pyobj = PyObject_CallObject( (PyObject*)&PtrWrapper::Type, emptyTuple);
-          Py_DECREF(emptyTuple);
-        }
-        if ( !pyobj || !PyObject_TypeCheck(pyobj, &PtrWrapper::Type)){
-          PyErr_SetString(PyExc_TypeError, "Unable to convert C type object to Python object");
-          goto onerror;
-        }
-        reinterpret_cast<PtrWrapper*>(pyobj)->set_contents ( (void**)var, false);
-        return pyobj;
-
-      onerror:
-        return Py_None;
-      }
-    };
-
-    /**
-     * Specialized for  pointers:
-     **/
-    template< typename T,  bool is_complete, const ssize_t max >
-      class PyObjectConversionHelper<T* const, is_complete, max, void/*typename  std::enable_if< !is_function_ptr<typename std::remove_pointer<T>::type >::value>::type*/>{
-    public:
-      static PyObject* toPyObject( T* const& var, const bool asArgument ){
-        (void)asArgument;
-        PyObject* pyobj =nullptr;
-
-        typedef PythonClassWrapper<T*, is_complete, max> PtrWrapper;
-        if (!PtrWrapper::Type.tp_name){
-          PtrWrapper::initialize((PythonClassWrapper<T, is_complete>::get_name()+'*').c_str(),
-                                 (PythonClassWrapper<T, is_complete>::get_name()+"_ptr").c_str(),
-                                 PythonClassWrapper<T, is_complete>::parent_module,
-                                 (std::string(PythonClassWrapper<T, is_complete>::Type.tp_name)+'*').c_str());
-        }
-        if (PtrWrapper::parent_module){
-          PyModule_AddObject( PtrWrapper::parent_module,
-                              PtrWrapper::Type.tp_name,
-                              (PyObject*) &PtrWrapper::Type );
-        }
-
-        {
-          PyObject* emptyTuple = PyTuple_New(0);
-          pyobj = PyObject_CallObject( (PyObject*)&PtrWrapper::Type, emptyTuple);
-          Py_DECREF(emptyTuple);
-        }
-        if ( !pyobj || !PyObject_TypeCheck(pyobj, &PtrWrapper::Type)){
-          PyErr_SetString(PyExc_TypeError, "Unable to convert C type object to Python object");
-          goto onerror;
-        }
-        reinterpret_cast<PtrWrapper*>(pyobj)->set_contents ( (void**)var, false);
-        return pyobj;
-
-      onerror:
-        return Py_None;
-      }
-    };
-
-    /**
-     * Specialized for char*:
-     **/
-    template< const ssize_t max>
-      class PyObjectConversionHelper<const char*, true, max, void >{
-    public:
-      static PyObject* toPyObject( const char* const & var, const bool asArgument ){
-        (void)asArgument;
-        if (!var){
-          throw "NULL CHAR* encountered";
-        }
-        return PyString_FromString(var);
-
-      }
-    };
-
-    template<const ssize_t max>
-      class PyObjectConversionHelper< char*,  true, max, void >{
-    public:
-      static PyObject* toPyObject( char* const & var, const bool asArgument ){
-        (void)asArgument;
-        if (!var){
-          throw "NULL CHAR* encountered";
-        }
-        return PyString_FromString(var);
-
-      }
-
-    };
-
-    template<const ssize_t max>
-      class PyObjectConversionHelper< const char* const,  true, max, void >{
-    public:
-      static PyObject* toPyObject( const char* const & var, const bool asArgument ){
-        (void)asArgument;
-        if (!var){
-          throw "NULL CHAR* encountered";
-        }
-        return PyString_FromString(var);
-
-      }
-
-    };
 
 
 
@@ -491,21 +63,21 @@ namespace __pyllars_internal{
      * @param var: value to convert
      * @param asArgument: whether to be used as argument or not (can determine if copy is made or reference semantics used)
      **/
-    template< typename T, bool is_complete, const ssize_t max = -1, typename E = void>
+    template< typename T, bool is_complete, const ssize_t max, typename E >
       PyObject* toPyObject(  T & var, const bool asArgument ){
-      return PyObjectConversionHelper<T, is_complete, max>::toPyObject(var, asArgument);
+      return ConversionHelpers::PyObjectConversionHelper<T, is_complete, PythonClassWrapper<T, is_complete, max, PythonBase, E>, max>::toPyObject(var, asArgument);
     }
 
-    template< typename T, bool is_complete,  const ssize_t max = -1, typename E = void>
+    template< typename T, bool is_complete,  const ssize_t max, typename E>
       PyObject* toPyObject(  const T & var, const bool asArgument ){
-      return PyObjectConversionHelper<const T, is_complete, max>::toPyObject(var, asArgument);
+      return ConversionHelpers::PyObjectConversionHelper<const T, is_complete, PythonClassWrapper<T, is_complete, max, PythonBase, E>,max>::toPyObject(var, asArgument);
     }
 
 
     static PyMethodDef emptyMethods[] = {{nullptr, nullptr, 0, nullptr}};
 
     template< typename T, bool is_complete, typename E=void>
-      class InitHelper{
+    class InitHelper{
       public:
       static int init(PythonClassWrapper<T, is_complete> *self, PyObject* args, PyObject*kwds);
     };
@@ -514,7 +86,7 @@ namespace __pyllars_internal{
      * Specialization for integers
      **/
     template<typename T, bool is_complete>
-      class InitHelper<T, is_complete, typename std::enable_if<std::is_integral<T>::value>::type >{
+    class InitHelper<T, is_complete, typename std::enable_if<std::is_integral<T>::value>::type >{
     public:
       static int init(PythonClassWrapper<T, is_complete> *self, PyObject* args, PyObject*kwds){
         if (!self) {
@@ -551,7 +123,7 @@ namespace __pyllars_internal{
      * Specialization for floating point
      **/
     template<typename T, bool is_complete>
-      class InitHelper<T, is_complete, typename std::enable_if<std::is_floating_point<T>::value >::type>{
+    class InitHelper<T, is_complete, typename std::enable_if<std::is_floating_point<T>::value >::type>{
     public:
       static int init(PythonClassWrapper<T, is_complete> *self, PyObject* args, PyObject*kwds){
         static const char* kwlist[] = {"value",nullptr};
@@ -576,7 +148,7 @@ namespace __pyllars_internal{
 
     //specialize for non-numeric fundamental types:
     template<typename T, bool is_complete>
-      class InitHelper<T, is_complete, typename std::enable_if<!std::is_void<T>::value && !std::is_arithmetic<T>::value && std::is_fundamental<T>::value >::type>{
+    class InitHelper<T, is_complete, typename std::enable_if<!std::is_void<T>::value && !std::is_arithmetic<T>::value && std::is_fundamental<T>::value >::type>{
     public:
       static int init(PythonClassWrapper<T, is_complete> *self, PyObject* args, PyObject*kwds){
         if (!self) {
@@ -624,7 +196,7 @@ namespace __pyllars_internal{
 
     //specialize for non-numeric fundamental types:
     template<typename T, bool is_complete>
-      class InitHelper<T, is_complete, typename std::enable_if<std::is_void<T>::value >::type>{
+    class InitHelper<T, is_complete, typename std::enable_if<std::is_void<T>::value >::type>{
     public:
       static int init(PythonClassWrapper<T, is_complete> *self, PyObject* args, PyObject*kwds){
         if (!self) {
@@ -673,8 +245,8 @@ namespace __pyllars_internal{
 
     //specialize for pointer types:
     template<typename T, bool is_complete>
-      class InitHelper<T, is_complete, typename std::enable_if<!std::is_void<T>::value && !std::is_arithmetic<T>::value &&
-      std::is_pointer<T>::value >::type>{
+    class InitHelper<T, is_complete, typename std::enable_if<!std::is_void<T>::value && !std::is_arithmetic<T>::value &&
+                                                        std::is_pointer<T>::value >::type>{
     public:
       static int init(PythonClassWrapper<T, is_complete> *self, PyObject* args, PyObject*kwds){
         if (!self) {
@@ -721,11 +293,11 @@ namespace __pyllars_internal{
 
     //specialize for copiable non-fundamental reference types:
     template<typename T, bool is_complete>
-      class InitHelper<T , is_complete, typename std::enable_if<!std::is_void<T>::value &&
-      !std::is_integral< typename std::remove_reference<T>::type >::value &&
-      !std::is_floating_point< typename std::remove_reference<T>::type >::value &&
-      std::is_copy_constructible<typename std::remove_reference<T>::type >::value &&
-      std::is_reference<T>::value >::type>{
+    class InitHelper<T , is_complete, typename std::enable_if<!std::is_void<T>::value &&
+                                                          !std::is_integral< typename std::remove_reference<T>::type >::value &&
+                                                          !std::is_floating_point< typename std::remove_reference<T>::type >::value &&
+                                                          std::is_copy_constructible<typename std::remove_reference<T>::type >::value &&
+                                                          std::is_reference<T>::value >::type>{
     public:
       static int init(PythonClassWrapper<T, is_complete> * self, PyObject *args, PyObject *kwds){
         if (!self) {
@@ -744,19 +316,6 @@ namespace __pyllars_internal{
         }
 
         if (self->_CObject == nullptr) {
-          //static const char * kwdlist[] = {"value", nullptr};
-          // PyObject *pyobj = nullptr;
-
-          /*Iif (PyArg_ParseTupleAndKeywords(args, kwds, "O", (char**)kwdlist, &pyobj)) {
-            PythonCPointerWrapper<T_NoRef, is_complete> *pyptr = reinterpret_cast<PythonCPointerWrapper<T_NoRef, is_complete> *>(pyobj);
-            if(PyObject_TypeCheck(&pyobj, (&PythonCPointerWrapper<T_NoRef, is_complete>::Type))){
-            self->_CObject = (T_NoRef*) pyptr->ptr();
-            }  else {
-            PyObject_Print(pyobj, stderr, 0);
-            PyErr_SetString(PyExc_TypeError, "Invalid type to construct from");
-            return -1;
-            }
-            }else*/
           if((!args || PyTuple_Size(args)==0) && kwds && PyDict_Size(kwds)==1 ){
             if( PyDict_GetItemString(kwds, "__internal_allow_null") == Py_True){
               PyErr_Clear();
@@ -774,12 +333,12 @@ namespace __pyllars_internal{
       }
     };
 
-    //specialize for non-copiable non-fundamental reference types:
+    //  specialize for non-copiable non-fundamental reference types:
     template<typename T, bool is_complete>
-      class InitHelper<T, is_complete, typename std::enable_if<!std::is_integral< typename std::remove_reference<T>::type >::value &&
-      !std::is_floating_point< typename std::remove_reference<T>::type >::value &&
-      !std::is_copy_constructible<typename std::remove_reference<T>::type >::value &&
-      std::is_reference<T>::value >::type>{
+    class InitHelper<T, is_complete, typename std::enable_if<!std::is_integral< typename std::remove_reference<T>::type >::value &&
+                                                          !std::is_floating_point< typename std::remove_reference<T>::type >::value &&
+                                                          !std::is_copy_constructible<typename std::remove_reference<T>::type >::value &&
+                                                          std::is_reference<T>::value >::type>{
     public:
       static int init(PythonClassWrapper<T, is_complete> * self, PyObject *args, PyObject *kwds){
         if (!self) {
@@ -798,18 +357,7 @@ namespace __pyllars_internal{
         }
 
         if (self->_CObject == nullptr) {
-          //static const char * kwdlist[] = {"value", nullptr};
-          // PyObject *pyobj = nullptr;
 
-          /*if (PyArg_ParseTupleAndKeywords(args, kwds, "O", (char**)kwdlist, &pyobj)) {
-            PythonCPointerWrapper<T_NoRef, is_complete> *pyptr = reinterpret_cast<PythonCPointerWrapper<T_NoRef, is_complete> *>(pyobj);
-            if(PyObject_TypeCheck(&pyobj, (&PythonCPointerWrapper<T_NoRef, is_complete>::Type[ptr_depth<T>::value]))){
-            self->_CObject = (T_NoRef*) pyptr->ptr();
-            } else {
-            PyErr_SetString(PyExc_TypeError, "Invalid type to construct from;  NOTE: type is not copy constructible");
-            return -1;
-            }
-            }else */
           if((!args || PyTuple_Size(args)==0) && kwds && PyDict_Size(kwds)==1 ){
             if( PyDict_GetItemString(kwds, "__internal_allow_null") == Py_True){
               PyErr_Clear();
@@ -827,11 +375,10 @@ namespace __pyllars_internal{
       }
     };
 
-
     //specialize for integral reference types:
     template<typename T, bool is_complete>
-      class InitHelper<T, is_complete, typename std::enable_if<std::is_integral< typename std::remove_reference<T>::type >::value &&
-      std::is_reference<T>::value >::type>{
+    class InitHelper<T, is_complete, typename std::enable_if<std::is_integral< typename std::remove_reference<T>::type >::value &&
+                                                             std::is_reference<T>::value >::type>{
     public:
       static int init(PythonClassWrapper<T, is_complete> * self, PyObject *args, PyObject *kwds){
         typedef typename std::remove_reference<T>::type T_NoRef;
@@ -891,7 +438,7 @@ namespace __pyllars_internal{
 
     //specialize for floating point reference types:
     template<typename T, bool is_complete>
-      class InitHelper<T, is_complete, typename std::enable_if<std::is_floating_point< typename std::remove_reference<T>::type >::value && std::is_reference<T>::value >::type>{
+    class InitHelper<T, is_complete, typename std::enable_if<std::is_floating_point< typename std::remove_reference<T>::type >::value && std::is_reference<T>::value >::type>{
     public:
       static int init(PythonClassWrapper<T, is_complete> * self, PyObject *args, PyObject *kwds){
         typedef typename std::remove_reference<T>::type T_NoRef;
@@ -962,6 +509,10 @@ namespace __pyllars_internal{
     template<typename T, bool is_complete, typename Base>
     struct PythonClassWrapper < T, is_complete, -1, Base, typename std::enable_if< !std::is_array<T>::value && !std::is_pointer<T>::value >::type >: public CommonBaseWrapper{
 
+        typedef PythonClassWrapper DereferencedWrapper;
+        typedef PythonClassWrapper<T const, is_complete, -1, PythonBase, void> ConstWrapper;
+        typedef PythonClassWrapper<typename std::remove_reference<T>::type, is_complete, -1, PythonBase, void> NoRefWrapper;
+
         typedef typename std::remove_reference<T>::type T_NoRef;
 
         template< typename Z = T>
@@ -972,6 +523,8 @@ namespace __pyllars_internal{
           static PyTypeObject Type;
         typedef PyTypeObject* TypePtr_t;
         static TypePtr_t constexpr TypePtr = &Type;
+
+        static int initialize(){ return Type.tp_name?0:-1;}
 
         static int initialize(const char* const name, const char* const module_entry_name,
                               PyObject* module, const char* const fullname = nullptr){
@@ -994,7 +547,7 @@ namespace __pyllars_internal{
           _methodCollection.insert(_methodCollection.begin(), pyMeth);
           PyMethodDef pyMethAlloc = {
             alloc_name,
-            (PyCFunction)Alloc<T, is_complete>::alloc,
+            (PyCFunction)alloc,
             METH_KEYWORDS| METH_CLASS,
             "allocate arry of single dynamic instance of this class"
           };
@@ -1033,8 +586,8 @@ namespace __pyllars_internal{
         /**
          * Add a constructor to the list contained
          **/
-        typedef ConstructorContainerTmpl<T_NoRef> ConstructorContainer;
-        typedef typename ConstructorContainerTmpl<T_NoRef>::constructor constructor;
+        typedef typename ObjectLifecycleHelpers::BasicAlloc<T, PythonClassWrapper<T_NoRef*, is_complete> >::ConstructorContainer ConstructorContainer;
+        typedef typename ConstructorContainer::constructor constructor;
 
         static void addConstructor( const char*  const kwlist[], constructor c){
           _constructors.push_back(ConstructorContainer(kwlist, c));
@@ -1171,7 +724,7 @@ namespace __pyllars_internal{
          * add a getter method for the given compile-time-known named public class member
          **/
         template< const char* const name, size_t size, typename Type>
-          static void addAttribute( typename MemberContainer<T_NoRef>::template Container<name, Type[size]>::member_t member){
+        static void addAttribute( typename MemberContainer<T_NoRef>::template Container<name, Type[size]>::member_t member){
 
           static const char* const doc = "Get attribute ";
           char *doc_string = new char[strlen(name) +strlen(doc)+1];
@@ -1193,7 +746,7 @@ namespace __pyllars_internal{
          * add a getter method for the given compile-time-known named public class member
          **/
         template< const char* const name, typename Type>
-          static void addAttribute( typename MemberContainer<T_NoRef>::template Container<name, Type>::member_t member){
+        static void addAttribute( typename MemberContainer<T_NoRef>::template Container<name, Type>::member_t member){
 
           static const char* const doc = "Get attribute ";
           char *doc_string = new char[strlen(name) +strlen(doc)+1];
@@ -1216,7 +769,7 @@ namespace __pyllars_internal{
          * add a getter method for the given compile-time-known named public class member
          **/
         template< const char* const name, typename Type>
-          static void addConstAttribute( typename ConstMemberContainer<T_NoRef>::template Container<name, Type>::member_t member){
+        static void addConstAttribute( typename ConstMemberContainer<T_NoRef>::template Container<name, Type>::member_t member){
 
           static const char* const doc = "Get attribute ";
           char *doc_string = new char[strlen(name) +strlen(doc)+1];
@@ -1238,7 +791,7 @@ namespace __pyllars_internal{
          * add a getter method for the given compile-time-known named public static class member
          **/
         template< const char* const name, typename Type>
-          static void addClassAttribute( Type *member){
+        static void addClassAttribute( Type *member){
 
           static const char* const doc = "Get attribute ";
           char *doc_string = new char[strlen(name) +strlen(doc)+1];
@@ -1262,7 +815,7 @@ namespace __pyllars_internal{
          * add a getter method for the given compile-time-known named public static class member
          **/
         template< const char* const name, typename Type>
-          static void addConstClassAttribute( Type const *member){
+        static void addConstClassAttribute( Type const *member){
 
           static const char* const doc = "Get attribute ";
           char *doc_string = new char[strlen(name) +strlen(doc)+1];
@@ -1287,420 +840,28 @@ namespace __pyllars_internal{
         }
 
         static std::string get_name(){ return _name;}
+
         static std::string get_module_entry_name(){ return _module_entry_name;}
 
         static PyObject * parent_module;
 
         template< typename C, bool is_complete2, const ssize_t size, typename depth>
-          friend class PythonCPointerWrapper;
+        friend class PythonCPointerWrapper;
 
         template<typename C, bool is_complee2, typename E>
-          friend  class InitHelper;
-        friend class PythonClassWrapper<T, is_complete>;
-
-          template<typename Class, bool complete, typename Z>
-        friend struct  Alloc;
-
+        friend  class InitHelper;
 
     protected:
+
+        static PyObject* alloc( PyObject* cls, PyObject *args, PyObject* kwds){
+           return ObjectLifecycleHelpers::Alloc<T, is_complete, PythonClassWrapper<T_NoRef*, is_complete>, PythonClassWrapper>::allocbase
+            (cls, args, kwds, _constructors);
+        }
 
         T_NoRef* _CObject;
 
     private:
 
-        template<typename Class, bool complete = is_complete, typename Z = void>
-          struct  Alloc;
-
-
-       template<typename Class>
-        struct  Alloc<Class, true, typename std::enable_if< !is_function_ptr<Class>::value && !std::is_reference<Class>::value && std::is_constructible<Class>::value && std::is_destructible<Class>::value>::type>{
-
-          static void dealloc( Class* ptr){
-            delete ptr;
-          }
-
-          static PyObject* alloc( PyObject* cls, PyObject *args, PyObject* kwds){
-            (void)cls;
-            static PyObject* emptylist = PyDict_New();
-            //Check if argument is list of tuples, and if so construct
-            //an array of objects to store "behind the pointer"
-
-
-            if( (!kwds || PyDict_Size(kwds) == 0) && args &&  (PyTuple_Size(args) == 1) &&
-                PyList_Check(PyTuple_GetItem(args, 0)) ){
-              PyObject* list = PyTuple_GetItem(args, 0);
-              const Py_ssize_t size = PyList_Size(list);
-              char * raw_storage;
-              Class** values;
-              PyObject* alloc_kwds  = PyDict_New();
-              PyDict_SetItemString(alloc_kwds, "size", PyLong_FromSsize_t(size));
-              PythonClassWrapper<Class*, is_complete, 0>::initialize
-                (              ( PythonClassWrapper<Class, is_complete>::get_name()+"_array").c_str(),
-                                (PythonClassWrapper<Class, is_complete>::get_module_entry_name() +"[]").c_str(),
-                               PythonClassWrapper<Class, is_complete>::parent_module,
-                               (std::string(PythonClassWrapper<Class, is_complete>::Type.tp_name)+"[]").c_str()
-                               );
-              PythonClassWrapper<Class*, is_complete>* obj=
-                (PythonClassWrapper<Class*, is_complete>*)PyObject_Call((PyObject*)&PythonClassWrapper<Class*, is_complete>::Type,
-                                                                        emptylist, alloc_kwds);
-              if( !obj ){
-                PyErr_SetString( PyExc_RuntimeError, "Unable to create object");
-                return nullptr;
-              }
-              raw_storage = (char*)operator new[](size*sizeof(Class));
-              memset(raw_storage, 0, size*sizeof(Class));
-              values = (Class**)&raw_storage;
-              Py_DECREF(alloc_kwds);
-              bool found = false;
-              for(Py_ssize_t i = 0; i < size; ++i){
-                PyObject* constructor_pyargs = PyList_GetItem(list, i);
-                if (!PyTuple_Check(constructor_pyargs) && !PyDict_Check(constructor_pyargs)){
-                  PyErr_SetString(PyExc_TypeError, "Invalid element in list argument, expected tuple");
-                  Py_DECREF(obj);
-                  if(raw_storage){
-                    for (Py_ssize_t j = 0; j < i; ++j){
-                      (*values)[j].~Class();
-                    }
-                    delete[] raw_storage;
-                  }
-                  return nullptr;
-                } else if (PyTuple_Check(constructor_pyargs)){
-                  for (auto it = _constructors.begin(); it != _constructors.end(); ++it){
-                    try{
-                      Class* cobj = &(*values)[i];
-                      if ( (*it)(constructor_pyargs, nullptr, cobj)){ found = true; break;}
-                    } catch(...){
-                    }
-                    PyErr_Clear();
-                  }
-                } else if (PyDict_Check(constructor_pyargs)){
-                  for (auto it = _constructors.begin(); it != _constructors.end(); ++it){
-                    try{
-                      static PyObject* emptyargs = PyTuple_New(0);
-                      Class* cobj = &(*values)[i];
-                      if ((*it)(emptyargs, constructor_pyargs, cobj)){ found = true; break;}
-                    } catch(...){
-                    }
-                    PyErr_Clear();
-                  }
-                }
-                if (!found || !values){
-                  PyErr_SetString(PyExc_RuntimeError, "Invalid constructor arguments on allocation");
-                  Py_DECREF(obj);
-                  if(raw_storage){
-                    for (Py_ssize_t j = 0; j < i; ++j){
-                      (*values)[j].~Class();
-                    }
-                    delete[] raw_storage;
-                  }
-                  return nullptr;
-                }
-              }
-              if(raw_storage){
-                obj->_raw_storage = raw_storage;
-                obj->set_contents( (void**)values, true);
-              } else {
-                obj->_allocated = true;
-              }
-              return (PyObject*)obj;
-            }
-
-            //otherwise, just have regular list of constructor arguments
-            //for single object allocation
-            PyObject* alloc_kwds  = PyDict_New();
-            PyDict_SetItemString(alloc_kwds, "__internal_allow_null", Py_True);
-            Class *cobj = nullptr;
-            for (auto it = _constructors.begin(); it != _constructors.end(); ++it){
-              try{
-                if ( (*it)(args, kwds, cobj)){ break;}
-              } catch(...){
-              }
-              PyErr_Clear();
-            }
-            if (!cobj){
-              Py_DECREF(alloc_kwds);
-              PyErr_SetString(PyExc_RuntimeError, "Invalid constructor arguments on allocation");
-              return nullptr;
-            }
-            PythonClassWrapper<Class*, is_complete, 0>* obj=
-              (PythonClassWrapper<Class*, is_complete, 0>*)PyObject_Call((PyObject*)&PythonClassWrapper<Class*, is_complete, 0>::Type,
-                                                                         args, alloc_kwds);
-            Py_DECREF(alloc_kwds);
-            obj->set_contents((void**)cobj, true);
-            return (PyObject*)obj;
-          }
-        };
-
-        template<typename Class>
-        struct  Alloc<Class, true, typename std::enable_if< !is_function_ptr<Class>::value && !std::is_reference<Class>::value &&std::is_constructible<Class>::value && !std::is_destructible<Class>::value>::type>{
-
-          static void dealloc( Class* ptr){
-            delete ptr;
-          }
-
-          static PyObject* alloc( PyObject* cls, PyObject *args, PyObject* kwds){
-            (void)cls;
-            PyObject* alloc_kwds  = PyDict_New();
-            PyDict_SetItemString(alloc_kwds, "__internal_allow_null", Py_True);
-            //Check if argument is list of tuples, and if so construct
-            //an array of objects to store "behind the pointer"
-            if( (!kwds || PyDict_Size(kwds) == 0) && args && PyTuple_Size(args) == 1 && PyList_Check(args)){
-              PyObject* list = PyTuple_GetItem(args, 0);
-              const Py_ssize_t size = PyList_Size(list);
-              char * raw_storage;
-              Class* values;
-              if(size > 1){
-                raw_storage = (char*)operator new[](size*sizeof(Class));
-                memset(raw_storage, 0, size*sizeof(Class));
-                values = reinterpret_cast<Class*>(raw_storage);
-              } else {
-                raw_storage = nullptr;
-                values = nullptr;
-              }
-              PyDict_SetItemString(alloc_kwds, "size", PyLong_FromSsize_t(size));
-              PythonClassWrapper<Class*, is_complete, 0>* obj=
-                (PythonClassWrapper<Class*, is_complete, 0>*)PyObject_Call((PyObject*)&PythonClassWrapper<Class*, is_complete, 0>::Type,
-                                                                           args, alloc_kwds);
-              Py_DECREF(alloc_kwds);
-              for(Py_ssize_t i = 0; i < PyTuple_Size(args); ++i){
-                PyObject* constructor_pyargs = PyList_GetItem(list, i);
-                if (!PyTuple_Check(constructor_pyargs) && !PyDict_Check(constructor_pyargs)){
-                  PyErr_SetString(PyExc_TypeError, "Invalid element in list argument, expected tuple");
-                  Py_DECREF(obj);
-                  if(raw_storage){
-                    if(raw_storage){
-                      for (Py_ssize_t j = 0; j < i; ++j){
-                        values[j].~Class();
-                      }
-                    }
-                    delete[] raw_storage;
-                  }
-                  PyErr_SetString(PyExc_RuntimeError, "NOTE: Freed memory, but no visible destructor available to call.");
-                  return nullptr;
-                } else if (PyTuple_Check(constructor_pyargs)){
-                  for (auto it = _constructors.begin(); it != _constructors.end(); ++it){
-                    try{
-                      static PyObject* emptylist = PyDict_New();
-                      if ( (*it)(args, emptylist, values[i])){ break;}
-                    } catch(...){
-                    }
-                    PyErr_Clear();
-                  }
-                } else if (PyDict_Check(constructor_pyargs)){
-
-                  for (auto it = _constructors.begin(); it != _constructors.end(); ++it){
-                    try{
-                      static PyObject* emptyargs = PyTuple_New(0);
-                      if ((*it)(emptyargs, constructor_pyargs, values?values[i]:values)){ break;}
-                    } catch(...){
-                    }
-                    PyErr_Clear();
-                  }
-                }
-                if (!values || !values[i]){
-                  PyErr_SetString(PyExc_RuntimeError, "Invalid constructor arguments on allocation.  Objects not destructible by design! ");
-                  Py_DECREF(obj);
-                  if(raw_storage){
-                    for (Py_ssize_t j = 0; j < i; ++j){
-                      values[j].~Class();
-                    }
-
-                    delete[] raw_storage;
-                  }
-
-                  return nullptr;
-
-                }
-              }
-              obj->set_contents(values, true);
-              obj->_raw_storage = raw_storage;
-              return (PyObject*)obj;
-            }
-            //otherwise, just have regular list of constructor arguments
-            //for single object allocation
-            Class *cobj = nullptr;
-            for (auto it = _constructors.begin(); it != _constructors.end(); ++it){
-              try{
-                if ((*it)(args, kwds, cobj)){ break;}
-              } catch(...){
-              }
-              PyErr_Clear();
-            }
-            if (!cobj){
-              Py_DECREF(alloc_kwds);
-              PyErr_SetString(PyExc_RuntimeError, "Invalid constructor arguments on allocation");
-              return nullptr;
-            }
-            PythonClassWrapper<Class*, is_complete, 0>* obj=
-              (PythonClassWrapper<Class*, is_complete, 0>*)PyObject_Call((PyObject*)&PythonClassWrapper<Class*, is_complete, 0>::Type,
-                                                                         args, alloc_kwds);
-            Py_DECREF(alloc_kwds);
-            obj->template set_contents<Class>(cobj);
-            return (PyObject*)obj;
-          }
-        };
-
-      template<typename ReturnType, typename ...Args>
-      struct  Alloc<ReturnType(*)(Args...), true, std::enable_if< std::is_constructible<int>::value>::type >{
-
-        typedef ReturnType(*Class)(Args...);
-
-        static void dealloc( Class* ptr){
-          delete ptr;
-        }
-
-        static PyObject* alloc( PyObject* cls, PyObject *args, PyObject* kwds){
-          (void)cls;
-          PyObject* alloc_kwds  = PyDict_New();
-          PyDict_SetItemString(alloc_kwds, "__internal_allow_null", Py_True);
-          //Check if argument is list of tuples, and if so construct
-          //an array of objects to store "behind the pointer"
-          if( (!kwds || PyDict_Size(kwds) == 0) && args && PyTuple_Size(args) == 1 && PyList_Check(args)){
-            PyObject* list = PyTuple_GetItem(args, 0);
-            const Py_ssize_t size = PyList_Size(list);
-            char * raw_storage;
-            Class* values;
-            if (size > 1){
-              raw_storage = (char*)operator new[](size*sizeof(Class));
-                memset(raw_storage, 0, size*sizeof(Class));
-              values = reinterpret_cast<Class*>(raw_storage);
-            } else {
-              raw_storage = nullptr;
-              values = nullptr;
-            }
-            PyDict_SetItemString(alloc_kwds, "size", PyLong_FromSsize_t(size));
-            PythonClassWrapper<Class*, is_complete>* obj=
-              (PythonClassWrapper<Class*, is_complete>*)PyObject_Call((PyObject*)&PythonClassWrapper<Class*, is_complete>::Type,
-                                                                      args, alloc_kwds);
-            Py_DECREF(alloc_kwds);
-            for(Py_ssize_t i = 0; i < PyTuple_Size(args); ++i){
-              PyObject* constructor_pyargs = PyList_GetItem(list, i);
-              if (!PyTuple_Check(constructor_pyargs) && !PyDict_Check(constructor_pyargs)){
-                PyErr_SetString(PyExc_TypeError, "Invalid element in list argument, expected tuple");
-                Py_DECREF(obj);
-                if (raw_storage){
-                  for (Py_ssize_t j = 0; j < i; ++j){
-                    values[j].~Class();
-                  }
-                  delete[] raw_storage;
-                }
-                return nullptr;
-              } else if (PyTuple_Check(constructor_pyargs)){
-                for (auto it = _constructors.begin(); it != _constructors.end(); ++it){
-                  try{
-                    Class* cobj = &(*values)[i];
-                    if ((*it)(constructor_pyargs, nullptr,cobj)){ break;}
-                  } catch(...){
-                  }
-                  PyErr_Clear();
-                }
-              } else if (PyDict_Check(constructor_pyargs)){
-                for (auto it = _constructors.begin(); it != _constructors.end(); ++it){
-                  try{
-                    static PyObject* emptyargs = PyTuple_New(0);
-                    Class* cobj = &(*values)[i];
-                    if ((*it)(emptyargs, constructor_pyargs, cobj )){ break;}
-                  } catch(...){
-                  }
-                  PyErr_Clear();
-                }
-
-                if (!values || !values[i]){
-                  PyErr_SetString(PyExc_RuntimeError, "Invalid constructor arguments on allocation");
-                  Py_DECREF(obj);
-                  if(raw_storage){
-                    for (Py_ssize_t j = 0; j < i; ++j){
-                      values[j].~Class();
-                    }
-                    delete[] raw_storage;
-                  }
-                  return nullptr;
-                }
-
-              }
-            }
-            if(!raw_storage){
-              PyErr_SetString( PyExc_RuntimeError, "Invalid object creation");
-              return nullptr;
-            }
-            obj->_raw_storage = raw_storage;
-            obj->set_contents((void**)&obj->_raw_storage, true);
-            obj->_raw_storage = raw_storage;
-            return (PyObject*)obj;
-          }
-
-          //otherwise, just have regular list of constructor arguments
-          //for single object allocation
-          Class *cobj = nullptr;
-          for (auto it = _constructors.begin(); it != _constructors.end(); ++it){
-            try{
-              if ((cobj = (*it)(args, kwds ))){ break;}
-            } catch(...){
-            }
-            PyErr_Clear();
-          }
-          if (!cobj){
-            Py_DECREF(alloc_kwds);
-            PyErr_SetString(PyExc_RuntimeError, "Invalid constructor arguments on allocation");
-            return nullptr;
-          }
-          PythonClassWrapper<Class*, is_complete>* obj=
-            (PythonClassWrapper<Class*, is_complete>*)PyObject_Call((PyObject*)&PythonClassWrapper<Class*, is_complete>::Type,
-                                                                    args, alloc_kwds);
-          Py_DECREF(alloc_kwds);
-          obj->set_contents((void**)cobj);
-          return (PyObject*)obj;
-        }
-      };
-
-     template<typename Class>
-      struct  Alloc<Class, is_complete, typename std::enable_if< std::is_void<Class>::value>::type>{
-
-        typedef typename std::remove_reference<Class>::type C_NoRef;
-
-        static void dealloc( C_NoRef* ptr){
-          (void) ptr;
-        }
-
-        static PyObject* alloc( PyObject* cls, PyObject *args, PyObject* kwds){
-          (void) args; (void) kwds; (void)cls;
-          PyErr_SetString(PyExc_RuntimeError, "Type is not directly constructible");
-          return nullptr;
-        }
-      };
-
-      template<typename Class>
-      struct  Alloc<Class, is_complete, typename std::enable_if< !std::is_void<Class>::value && !std::is_function<Class>::value &&
-                     (std::is_reference<Class>::value || !std::is_constructible<Class>::value)>::type>{
-
-        typedef typename std::remove_reference<Class>::type C_NoRef;
-
-        static void dealloc( C_NoRef* ptr){
-          (void)ptr;
-        }
-
-        static PyObject* alloc( PyObject* cls, PyObject *args, PyObject* kwds){
-          (void) args; (void) kwds; (void)cls;
-          PyErr_SetString(PyExc_RuntimeError, "Type is not directly constructible");
-          return nullptr;
-        }
-      };
-
-      template<typename Class>
-      struct  Alloc<Class, is_complete, typename std::enable_if<std::is_function<Class>::value>::type>{
-
-        typedef typename std::remove_reference<Class>::type C_NoRef;
-
-        static void dealloc( C_NoRef* ptr){
-          (void)ptr;
-        }
-
-        static PyObject* alloc( PyObject* cls, PyObject *args, PyObject* kwds){
-          (void) args; (void) kwds; (void)cls;
-          PyErr_SetString(PyExc_RuntimeError, "Type is not directly constructible");
-          return nullptr;
-        }
-      };
       static int
       _init( PythonClassWrapper *self, PyObject *args, PyObject *kwds){
         if( Type.tp_base && Base::TypePtr->tp_init){
@@ -1713,7 +874,6 @@ namespace __pyllars_internal{
         self->_raw_storage = nullptr;
         return InitHelper<T, is_complete>::init(self, args, kwds);
       }
-
 
       static PyObject* _new( PyTypeObject* type, PyObject* args, PyObject*kwds) {
         (void)args;
@@ -1737,7 +897,7 @@ namespace __pyllars_internal{
         if(self->_raw_storage){
           delete self->_raw_storage;
          } else if( self->_allocated){
-          Alloc<T_NoRef>::dealloc( ptr );
+            ObjectLifecycleHelpers::Alloc<T_NoRef, is_complete, PythonClassWrapper<T_NoRef*, is_complete, -1, PythonBase, void>, PythonClassWrapper>::dealloc( ptr );
         }
         self->_raw_storage = nullptr;
         self->_CObject = nullptr;
@@ -1784,7 +944,13 @@ namespace __pyllars_internal{
           return false;
         }
 
-        return _createBaseBase<Args...>( cobj,  *toCObject<Args, false, is_complete>(*pyobjs[S])...);
+        return _createBaseBase<Args...>( cobj,  *toCObject<Args, false, is_complete, PythonClassWrapper<Args, is_complete> >(*pyobjs[S])...);
+      }
+
+      static void _addMethod( PyMethodDef method){
+        //insert at beginning to keep null sentinel at end of list:
+        _methodCollection.insert(_methodCollection.begin(), method);
+        Type.tp_methods = _methodCollection.data();
       }
 
       static std::string _name;
@@ -1794,13 +960,7 @@ namespace __pyllars_internal{
       static std::vector<PyMethodDef> _methodCollection;
       static std::vector<PyTypeObject*> _baseClasses;
 
-      static void _addMethod( PyMethodDef method){
-        //insert at beginning to keep null sentinel at end of list:
-        _methodCollection.insert(_methodCollection.begin(), method);
-        Type.tp_methods = _methodCollection.data();
-      }
-
-      char * _raw_storage;
+       char * _raw_storage;
       bool _allocated;
 
     };
@@ -1808,92 +968,87 @@ namespace __pyllars_internal{
 
     template< typename T, bool is_complete, typename Base>
     PyObject* PythonClassWrapper<T, is_complete, -1, Base,
-           typename std::enable_if< !std::is_array<T>::value && !std::is_pointer<T>::value >::type>::
-      parent_module = nullptr;
-
+        typename std::enable_if< !std::is_array<T>::value && !std::is_pointer<T>::value >::type>::
+        parent_module = nullptr;
     template< typename T, bool is_complete, typename Base>
-      std::vector<PyMethodDef> PythonClassWrapper<T, is_complete, -1, Base,
-           typename std::enable_if< !std::is_array<T>::value && !std::is_pointer<T>::value >::type>::
-      _methodCollection = std::vector<PyMethodDef>(emptyMethods, emptyMethods+1);
-
+    std::vector<PyMethodDef> PythonClassWrapper<T, is_complete, -1, Base,
+        typename std::enable_if< !std::is_array<T>::value && !std::is_pointer<T>::value >::type>::
+        _methodCollection = std::vector<PyMethodDef>(emptyMethods, emptyMethods+1);
     template< typename T, bool is_complete, typename Base>
-      std::vector< PyTypeObject* > PythonClassWrapper<T, is_complete, -1, Base,
-           typename std::enable_if< !std::is_array<T>::value && !std::is_pointer<T>::value >::type>::
-      _baseClasses = std::vector<PyTypeObject * >();
-
+    std::vector< PyTypeObject* > PythonClassWrapper<T, is_complete, -1, Base,
+        typename std::enable_if< !std::is_array<T>::value && !std::is_pointer<T>::value >::type>::
+        _baseClasses = std::vector<PyTypeObject * >();
     template< typename T, bool is_complete, typename Base>
-      std::map<std::string, typename MethodContainer<T>::setter_t>
+    std::map<std::string, typename MethodContainer<T>::setter_t>
       PythonClassWrapper<T, is_complete, -1, Base,
-                         typename std::enable_if< !std::is_array<T>::value && !std::is_pointer<T>::value >::type>::
-      _memberSettersDict =std::map< std::string, typename MethodContainer<T>::setter_t>();
-
+        typename std::enable_if< !std::is_array<T>::value && !std::is_pointer<T>::value >::type>::
+        _memberSettersDict =std::map< std::string, typename MethodContainer<T>::setter_t>();
     template<typename T, bool is_complete, typename Base>
-      std::vector<typename PythonClassWrapper<T, is_complete, -1, Base, typename std::enable_if< !std::is_array<T>::value && !std::is_pointer<T>::value >::type>::ConstructorContainer >
+    std::vector<typename PythonClassWrapper<T, is_complete, -1, Base, typename std::enable_if< !std::is_array<T>::value && !std::is_pointer<T>::value >::type>::ConstructorContainer >
       PythonClassWrapper<T, is_complete, -1, Base,
         typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value >::type>::
-       _constructors;
-
+        _constructors;
 
 
     template< typename T, bool is_complete, typename Base>
-      std::string PythonClassWrapper<T, is_complete, -1, Base,
+    std::string PythonClassWrapper<T, is_complete, -1, Base,
          typename std::enable_if< !std::is_array<T>::value &&  !std::is_pointer<T>::value >::type>::_name;
     template< typename T, bool is_complete, typename Base>
-      std::string PythonClassWrapper<T, is_complete, -1, Base,
+    std::string PythonClassWrapper<T, is_complete, -1, Base,
          typename std::enable_if< !std::is_array<T>::value &&  !std::is_pointer<T>::value >::type>::_module_entry_name;
-
     template< typename T, bool is_complete, typename Base>
-      PyTypeObject PythonClassWrapper<T, is_complete, -1, Base,
-         typename std::enable_if< !std::is_array<T>::value &&  !std::is_pointer<T>::value >::type>::Type = {
+    PyTypeObject PythonClassWrapper<T, is_complete, -1, Base,
+        typename std::enable_if< !std::is_array<T>::value &&  !std::is_pointer<T>::value >::type>::
+        Type = {
 
-      PyObject_HEAD_INIT(nullptr)
-      0,                         /*ob_size*/
-      nullptr,             /*tp_name*/ /*filled on init*/
-      sizeof(PythonClassWrapper),             /*tp_basicsize*/
-      0,                         /*tp_itemsize*/
-      (destructor)PythonClassWrapper::_dealloc, /*tp_dealloc*/
-      nullptr,                         /*tp_print*/
-      nullptr,                         /*tp_getattr*/
-      nullptr,                         /*tp_setattr*/
-      nullptr,                         /*tp_compare*/
-      nullptr,                         /*tp_repr*/
-      nullptr,                         /*tp_as_number*/
-      nullptr,                         /*tp_as_sequence*/
-      nullptr,                         /*tp_as_mapping*/
-      nullptr,                         /*tp_hash */
-      nullptr,                         /*tp_call*/
-      nullptr,                         /*tp_str*/
-      nullptr,                         /*tp_getattro*/
-      nullptr,                         /*tp_setattro*/
-      nullptr,                         /*tp_as_buffer*/
-      Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /*tp_flags*/
-      "PythonClassWrapper object",           /* tp_doc */
-      nullptr,		               /* tp_traverse */
-      nullptr,		               /* tp_clear */
-      nullptr,		               /* tp_richcompare */
-      0,		                       /* tp_weaklistoffset */
-      nullptr,		               /* tp_iter */
-      nullptr,		               /* tp_iternext */
-      PythonClassWrapper::_methodCollection.data(),             /* tp_methods */
-      nullptr,             /* tp_members */
-      nullptr,                         /* tp_getset */
-      Base::TypePtr,                         /* tp_base */
-      nullptr,                         /* tp_dict */
-      nullptr,                         /* tp_descr_get */
-      nullptr,                         /* tp_descr_set */
-      0,                         /* tp_dictoffset */
-      (initproc)PythonClassWrapper::_init,  /* tp_init */
-      nullptr,                         /* tp_alloc */
-      PythonClassWrapper::_new,             /* tp_new */
-      _free,                         /*tp_free*/ 
-      nullptr,                         /*tp_is_gc*/
-      nullptr,                         /*tp_bases*/
-      nullptr,                         /*tp_mro*/
-      nullptr,                         /*tp_cache*/
-      nullptr,                         /*tp_subclasses*/
-      nullptr,                          /*tp_weaklist*/
-      nullptr,                          /*tp_del*/
-      0,                          /*tp_version_tag*/
+        PyObject_HEAD_INIT(nullptr)
+        0,                         /*ob_size*/
+        nullptr,             /*tp_name*/ /*filled on init*/
+        sizeof(PythonClassWrapper),             /*tp_basicsize*/
+        0,                         /*tp_itemsize*/
+        (destructor)PythonClassWrapper::_dealloc, /*tp_dealloc*/
+        nullptr,                         /*tp_print*/
+        nullptr,                         /*tp_getattr*/
+        nullptr,                         /*tp_setattr*/
+        nullptr,                         /*tp_compare*/
+        nullptr,                         /*tp_repr*/
+        nullptr,                         /*tp_as_number*/
+        nullptr,                         /*tp_as_sequence*/
+        nullptr,                         /*tp_as_mapping*/
+        nullptr,                         /*tp_hash */
+        nullptr,                         /*tp_call*/
+        nullptr,                         /*tp_str*/
+        nullptr,                         /*tp_getattro*/
+        nullptr,                         /*tp_setattro*/
+        nullptr,                         /*tp_as_buffer*/
+        Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /*tp_flags*/
+        "PythonClassWrapper object",           /* tp_doc */
+        nullptr,		               /* tp_traverse */
+        nullptr,		               /* tp_clear */
+        nullptr,		               /* tp_richcompare */
+        0,		                       /* tp_weaklistoffset */
+        nullptr,		               /* tp_iter */
+        nullptr,		               /* tp_iternext */
+        PythonClassWrapper::_methodCollection.data(),             /* tp_methods */
+        nullptr,             /* tp_members */
+        nullptr,                         /* tp_getset */
+        Base::TypePtr,                         /* tp_base */
+        nullptr,                         /* tp_dict */
+        nullptr,                         /* tp_descr_get */
+        nullptr,                         /* tp_descr_set */
+        0,                         /* tp_dictoffset */
+        (initproc)PythonClassWrapper::_init,  /* tp_init */
+        nullptr,                         /* tp_alloc */
+        PythonClassWrapper::_new,             /* tp_new */
+        _free,                         /*tp_free*/
+        nullptr,                         /*tp_is_gc*/
+        nullptr,                         /*tp_bases*/
+        nullptr,                         /*tp_mro*/
+        nullptr,                         /*tp_cache*/
+        nullptr,                         /*tp_subclasses*/
+        nullptr,                          /*tp_weaklist*/
+        nullptr,                          /*tp_del*/
+        0,                          /*tp_version_tag*/
     };
 
 

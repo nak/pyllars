@@ -80,7 +80,7 @@ namespace __pyllars_internal{
             } else if( result == Py_None){
               throw "Invalid return type from callback";
             }
-             return *toCObject<ReturnType, false, true>(*result);
+             return *toCObject<ReturnType, false, true, PythonClassWrapper<ReturnType, true> >(*result);
         }
      };
 

@@ -77,7 +77,7 @@ namespace __pyllars_internal {
               PyErr_Print();
               throw "Illegal arumgnet(s)";
             }
-            return _cfunc(*toCObject<Args, false, true>(*pyargs)...);
+            return _cfunc(*toCObject<Args, false, true, PythonClassWrapper<Args, true> >(*pyargs)...);
         }
 
         template<int ...S>
@@ -168,7 +168,7 @@ namespace __pyllars_internal {
         return toPyObject<ReturnType, is_base_return_complete>(wrapper.callFunc(args, kw, typename argGenerator<sizeof...(Args)>::type()), false);
       } catch( const char* const msg){
         PyErr_SetString(PyExc_RuntimeError, msg);
-       
+
         return nullptr;
       }
     }
@@ -241,7 +241,7 @@ namespace __pyllars_internal {
               PyErr_Print();
               throw "Illegal arumgnet(s)";
             }
-            _cfunc(*toCObject<Args, false, true>(*pyargs)...);
+            _cfunc(*toCObject<Args, false, true, PythonClassWrapper<Args,true> >(*pyargs)...);
         }
 
         template<int ...S>

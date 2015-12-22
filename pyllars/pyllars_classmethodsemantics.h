@@ -1,7 +1,8 @@
 #ifndef __PYLLARS_INTERNAL__CLASSMETHODCALLSEMANTICS_H
 #define __PYLLARS_INTERNAL__CLASSMETHODCALLSEMANTICS_H
-#include "pyllars_utils.h"
-#include "pyllars_defns.h"
+#include "pyllars/pyllars_utils.h"
+#include "pyllars/pyllars_defns.h"
+
 /**
 * This unit defines template classes needed to contain method pointers and
 * define Python-to-C call semantics for invoking class instance methods

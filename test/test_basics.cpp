@@ -104,7 +104,7 @@ initmod() {
 
     //PythonClassWrapper< int>::initialize("int", m );
     PythonClassWrapper< callback_t>::initialize("cb_t","cb_t",m);
-    PythonClassWrapper< void*, false>::initialize("void_ptr_t","void_ptr_t",m);
+    PythonClassWrapper< void*, true>::initialize("void_ptr_t","void_ptr_t",m);
     PythonClassWrapper< void**, true>::initialize("void_ptr_t","void_ptr_t",m);
     PythonClassWrapper< int&>::initialize("int_ref","int_ref", m );
     PythonClassWrapper< TestClassAbstract >::initialize("TestClassAbstract","TestClassAbstract",m);
@@ -211,7 +211,7 @@ int main()
             //PyObject_Print( PyTuple_GetItem(args, i), stderr, 0);
             assert( PyTuple_GetItem(args,i) != Py_None);
         }
-        int16_t val = *toCObject<int16_t, false, true >(*PyObject_CallObject( (PyObject*)wrapper, args));
+        int16_t val = *toCObject<int16_t, false, true, PythonClassWrapper<int16_t, true> >(*PyObject_CallObject( (PyObject*)wrapper, args));
         fprintf(stderr, "VALUE IS %d\n", val);
         fprintf(stderr, "NEW INTEGRAL VALUE IS %d\n", intval);
         fprintf(stderr, "NEW DUMMY VALUE IS %f\n", dumm1.value);
@@ -224,7 +224,7 @@ int main()
         PyObject* pyobj = toPyObject<TestClass, true>(obj, true);
         PyObject* ret = PyObject_CallMethod(pyobj, (char*)print_name,nullptr);
         ret = PyObject_CallMethod(pyobj, (char*)member_name,nullptr);
-        double val = *toCObject<double, false, true>(*ret);
+        double val = *toCObject<double, false, true, PythonClassWrapper<double, true> >(*ret);
         fprintf(stderr, ".value is: %f\n" , val);
     }
     fprintf(stderr, "SUCCESS!\n");

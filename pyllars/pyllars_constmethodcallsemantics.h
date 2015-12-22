@@ -1,7 +1,7 @@
 #ifndef __PYLLARS_INTERNAL__CONSTMETHODCALLSEMANTICS_H
 #define __PYLLARS_INTERNAL__CONSTMETHODCALLSEMANTICS_H
-#include "pyllars_defns.h"
-#include "pyllars_utils.h"
+#include "pyllars/pyllars_defns.h"
+#include "pyllars/pyllars_utils.h"
 /**
 * This unit defines template classes needed to contain CONSTANT method  and member pointers and
 * define Python-to-C call semantics for invoking class instance methods
