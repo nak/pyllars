@@ -173,8 +173,6 @@ namespace __pyllars_internal {
       }
     }
 
-
-
     /** specialize for void returns **/
     template< typename ...Args>
     struct PythonFunctionWrapper<true, void, Args...> {

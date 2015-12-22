@@ -517,14 +517,15 @@ static int init_</xsl:text><xsl:value-of select="@id"/>( PyObject* moduleparent)
                             //Namespace[@context= $nsid]">
      status |= init_<xsl:value-of select="@id"/>( module );
       </xsl:for-each>
-     PyObject* obj = nullptr;
       <xsl:for-each select="//Variable[@context=$nsid]">
       <xsl:variable name="typeid" select="@type"/>
       <xsl:variable name="is_incomplete"><xsl:apply-templates select="." mode="is_incomplete"/></xsl:variable>
       <xsl:if test="$is_incomplete!='1'">
       <xsl:variable name="typename"><xsl:apply-templates select="//*[@id=$typeid]" mode="generate_scoped_name"/></xsl:variable>
-     obj = toPyObject&lt; <xsl:value-of select="$typename"/>, true &gt;( <xsl:value-of select="$nsname"/><xsl:if test="$nsname!='::'">::</xsl:if><xsl:value-of select="@name"/>, true);
-     PyModule_AddObject( module, &quot;<xsl:value-of select="@name"/>&quot;, obj); 
+      GlobalVariable::createGlobalVariable&lt; <xsl:value-of select="$typename"/> &gt;
+                 ( &quot;<xsl:value-of select="@name"/>&quot;, &quot;<xsl:value-of select="$nsname"/><xsl:if test="$nsname!='::'">::</xsl:if><xsl:value-of select="@name"/>&quot;,
+                   &amp;<xsl:value-of select="@name"/>,  module);
+
      </xsl:if>
      </xsl:for-each><xsl:text>
   
@@ -557,6 +558,7 @@ PyMODINIT_FUNC
 #include &lt;pyllars/pyllars_function_wrapper.h&gt;
 #include &lt;pyllars/pyllars_classwrapper.h&gt;
 #include &lt;pyllars/pyllars_conversions.h&gt;
+#include &lt;pyllars/pyllars_globalmembersemantics.h&gt;
 #include &lt;Python.h&gt;
 
 #include &lt;stdarg.h&gt;

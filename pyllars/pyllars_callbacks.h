@@ -28,9 +28,6 @@ namespace __pyllars_internal{
 
       };
 
-
-
-
       template < typename ReturnType,
                  typename... Args>
       PyObject* CallbackPool< ReturnType, Args...>::pycallbacks[MAX_CB_POOL_DEPTH+1];
@@ -92,9 +89,6 @@ namespace __pyllars_internal{
             __pycb( pycallback, pyargs, sizeof...(args));
         }
      };
-
-
-
 
    template <  const size_t index,
                typename ReturnType,

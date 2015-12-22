@@ -29,35 +29,6 @@ namespace __pyllars_internal{
         extern const char alloc_name[] = "PYL_alloc";
     }
 
-
-
-
-    template< typename T>
-    class Setter{
-        static void set_at(T const to, const T& from, const size_t index ){
-          throw "Invalid call to dereference non-pointer type";
-        }
-    };
-
-    template <typename T>
-    class Setter<T*>{
-    public:
-        static void set_at( T* const to,  const T& from, const size_t index){
-          to[index] = from;
-        }
-    };
-
-    template <typename T>
-    class Setter<T* const>{
-    public:
-        static void set_at( T* const to,  const T& from, const size_t index){
-          to[index] = from;
-        }
-    };
-
-
-
-
     /**
      * convert C Object to python object
      * @param var: value to convert
@@ -596,17 +567,15 @@ namespace __pyllars_internal{
 
         template <  typename ...Args >
         static bool create( const char* const kwlist[], PyObject* args, PyObject* kwds, T_NoRef*& cobj ){
-          try{
-            return  _createBase( cobj, args, kwds, kwlist, typename argGenerator<sizeof...(Args)>::type(),(typename std::remove_reference<Args>::type*)nullptr...);
+            try{
+                return  _createBase( cobj, args, kwds, kwlist, typename argGenerator<sizeof...(Args)>::type(),(typename std::remove_reference<Args>::type*)nullptr...);
 
-          } catch (const char* const msg){
-            PyErr_SetString(PyExc_RuntimeError, msg);
-            PyErr_Print();
-            return false;
-          }
+            } catch (const char* const msg){
+                PyErr_SetString(PyExc_RuntimeError, msg);
+                PyErr_Print();
+                return false;
+            }
         }
-
-
 
         static PyObject* addr(PyObject* self, PyObject *args){
           if( (args&&PyTuple_Size(args)>0)){
