@@ -57,7 +57,7 @@ namespace __pyllars_internal {
                 PyErr_Print();
                 throw "Invalid arguments to method call";
             }
-            T retval = (self.*method)(*toCObject<Args, false, true, PythonClassWrapper<Args, true> >(*pyargs)...);
+            T retval = (self.*method)(*toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)...);
             return retval;
         }
 
@@ -117,7 +117,7 @@ namespace __pyllars_internal {
             if (!PyArg_ParseTupleAndKeywords(args, kwds, format, (char **) kwlist, &pyargs...)) {
                 PyErr_SetString(PyExc_RuntimeError, "Failed to parse argument on method call");
             } else {
-                (self.*method)(*toCObject<Args, false, true, PythonClassWrapper<Args, true> >(*pyargs)...);
+                (self.*method)(*toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)...);
             }
         }
 
@@ -185,7 +185,7 @@ namespace __pyllars_internal {
 
             static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds) {
                 if (!self) return nullptr;
-                typedef PythonClassWrapper<CClass, true> Wrapper;
+                typedef PythonClassWrapper<CClass> Wrapper;
                 Wrapper *_this = (Wrapper*) self;
                 if (_this->template get_CObject<CClass>()) {
                     try {
@@ -231,7 +231,7 @@ namespace __pyllars_internal {
 
             static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds) {
                 if (!self) return nullptr;
-                PythonClassWrapper<CClass, true> *_this = (PythonClassWrapper<CClass, true> *) self;
+                PythonClassWrapper<CClass> *_this = (PythonClassWrapper<CClass> *) self;
                 if (_this->template get_CObject<CClass>()) {
                     try {
                         return MethodCallSemantics<CClass, ReturnType, Args...>::call(method,
@@ -294,7 +294,7 @@ namespace __pyllars_internal {
 
             static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds) {
                 if (!self) return nullptr;
-                typedef  PythonClassWrapper<CClass, true> Wrapper;
+                typedef  PythonClassWrapper<CClass> Wrapper;
                 Wrapper *_this = (Wrapper *) self;
 
                 if ((!args || PyTuple_Size(args) == 0) && (!kwds || PyDict_Size(kwds) == 0)) {
@@ -312,7 +312,7 @@ namespace __pyllars_internal {
                         return nullptr;
                     }
                     (_this->template get_CObject<CClass_NoRef>()->*
-                     member) = *toCObject<T, false, true, PythonClassWrapper<T, true> >(*pyVal);
+                     member) = *toCObject<T, false, PythonClassWrapper<T> >(*pyVal);
                 } else {
                     PyErr_SetString(PyExc_SyntaxError, "Invalid argsuments to set class instance member variable in C");
                     return nullptr;
@@ -321,7 +321,7 @@ namespace __pyllars_internal {
             }
 
             static void setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj) {
-                self->*member = *toCObject<T, false, true, PythonClassWrapper<T, true> >(*pyobj);
+                self->*member = *toCObject<T, false, PythonClassWrapper<T> >(*pyobj);
             }
         };
 
@@ -337,7 +337,7 @@ namespace __pyllars_internal {
 
             static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds) {
                 if (!self) return nullptr;
-                typedef PythonClassWrapper<CClass, true> Wrapper;
+                typedef PythonClassWrapper<CClass> Wrapper;
                 Wrapper *_this = (Wrapper *) self;
                 if ((!args || PyTuple_Size(args) == 0) && (!kwds || PyDict_Size(kwds) == 0)) {
                     if (_this->template get_CObject<CClass_NoRef>()) {
@@ -373,7 +373,7 @@ namespace __pyllars_internal {
 
             static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds) {
                 if (!self) return nullptr;
-                PythonClassWrapper<CClass, true> *_this = (PythonClassWrapper<CClass, true> *) self;
+                PythonClassWrapper<CClass> *_this = (PythonClassWrapper<CClass> *) self;
 
                 if ((!args || PyTuple_Size(args) == 0) && (!kwds || PyDict_Size(kwds) == 0)) {
                      if( array_size != size ) {
@@ -397,14 +397,14 @@ namespace __pyllars_internal {
                         if (PyTuple_Size(pyVal) == size) {
                             for (size_t i = 0; i < size; ++i)
                                 (_this->template get_CObject<CClass_NoRef>()->*
-                                 member)[i] = *toCObject<T, false, true, PythonClassWrapper<T, true> >(
+                                 member)[i] = *toCObject<T, false, PythonClassWrapper<T> >(
                                         *PyTuple_GetItem(pyVal, i));
                         } else {
                             PyErr_SetString(PyExc_IndexError, "Mismatched array sizes");
                             return nullptr;
                         }
-                    } else if (PyObject_TypeCheck(pyVal, (&PythonClassWrapper<T_array, true>::Type))) {
-                        T_array *val = ((PythonClassWrapper<T_array, true> *) pyVal)->template get_CObject<T_array>();
+                    } else if (PyObject_TypeCheck(pyVal, (&PythonClassWrapper<T_array>::Type))) {
+                        T_array *val = ((PythonClassWrapper<T_array> *) pyVal)->template get_CObject<T_array>();
                         for (size_t i = 0; i < size; ++i)
                             (_this->template get_CObject<T_array>()->*member)[i] = (*val)[i];
 
@@ -420,8 +420,7 @@ namespace __pyllars_internal {
             }
 
             static void setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj) {
-                smart_ptr<T[size], false> val = toCObject<T[size], false, true, PythonClassWrapper<T[size], true,
-                        size - 1> >(*pyobj);
+                smart_ptr<T[size], false> val = toCObject<T[size], false, PythonClassWrapper<T[size], size - 1> >(*pyobj);
                 for (size_t i = 0; i < size; ++i) {
                     (self->*member)[i] = (*val)[i];
                 }
@@ -440,7 +439,7 @@ namespace __pyllars_internal {
 
             static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds) {
                 if (!self) return nullptr;
-                PythonClassWrapper<CClass, true> *_this = (PythonClassWrapper<CClass, true> *) self;
+                PythonClassWrapper<CClass> *_this = (PythonClassWrapper<CClass> *) self;
 
                 if ((!args || PyTuple_Size(args) == 0) && (!kwds || PyDict_Size(kwds) == 0)) {
                     const ssize_t base_size = ArrayHelper<T_array>::base_sizeof();
@@ -462,8 +461,7 @@ namespace __pyllars_internal {
             }
 
             static void setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj) {
-                smart_ptr<T[size], false> val = toCObject<T[size], false, true, PythonClassWrapper<T[size], true,
-                        size - 1> >(*pyobj);
+                smart_ptr<T[size], false> val = toCObject<T[size], false, PythonClassWrapper<T[size], size - 1> >(*pyobj);
                 for (size_t i = 0; i < size; ++i) {
                     (self->*member)[i] = (*val)[i];
                 }
@@ -483,7 +481,7 @@ namespace __pyllars_internal {
 
             static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds) {
                 if (!self) return nullptr;
-                PythonClassWrapper<CClass, true> *_this = (PythonClassWrapper<CClass, true> *) self;
+                PythonClassWrapper<CClass> *_this = (PythonClassWrapper<CClass> *) self;
 
                 if ((!args || PyTuple_Size(args) == 0) && (!kwds || PyDict_Size(kwds) == 0)) {
                     if (_this->template get_CObject<CClass>()) {
@@ -507,14 +505,14 @@ namespace __pyllars_internal {
                         if (PyTuple_Size(pyVal) == array_size) {
                             for (size_t i = 0; i < array_size; ++i)
                                 (_this->template get_CObject<CClass_NoRef>()->*
-                                 member)[i] = *toCObject<T, false, true, PythonClassWrapper<T, true> >(
+                                 member)[i] = *toCObject<T, false, PythonClassWrapper<T> >(
                                         *PyTuple_GetItem(pyVal, i));
                         } else {
                             PyErr_SetString(PyExc_IndexError, "Mismatched array sizes");
                             return nullptr;
                         }
-                    } else if (PyObject_TypeCheck(pyVal, (&PythonClassWrapper<T_array, true>::Type))) {
-                        T_array *val = ((PythonClassWrapper<T_array, true> *) pyVal)->template get_CObject<T_array>();
+                    } else if (PyObject_TypeCheck(pyVal, (&PythonClassWrapper<T_array>::Type))) {
+                        T_array *val = ((PythonClassWrapper<T_array> *) pyVal)->template get_CObject<T_array>();
                         //TODO: check size????
                         for (size_t i = 0; i < array_size; ++i)
                             (_this->template get_CObject<T_array>()->*member)[i] = (*val)[i];
@@ -531,7 +529,7 @@ namespace __pyllars_internal {
             }
 
             static void setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj) {
-                smart_ptr<T[], false> val = toCObject<T[], false, true, PythonClassWrapper<T[], true, -1> >(*pyobj);
+                smart_ptr<T[], false> val = toCObject<T[], false, PythonClassWrapper<T[], -1> >(*pyobj);
                 for (size_t i = 0; i < array_size; ++i) {
                     (self->*member)[i] = (*val)[i];
                 }
@@ -550,7 +548,7 @@ namespace __pyllars_internal {
 
             static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds) {
                 if (!self) return nullptr;
-                PythonClassWrapper<CClass, true> *_this = (PythonClassWrapper<CClass, true> *) self;
+                PythonClassWrapper<CClass> *_this = (PythonClassWrapper<CClass> *) self;
 
                 if ((!args || PyTuple_Size(args) == 0) && (!kwds || PyDict_Size(kwds) == 0)) {
                     if (_this->template get_CObject<CClass>()) {

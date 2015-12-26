@@ -154,7 +154,7 @@ namespace __pyllars_internal {
 
             static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds) {
                 if (!self) return nullptr;
-                typedef PythonClassWrapper<CClass, true> ClassWrapper;
+                typedef PythonClassWrapper<CClass> ClassWrapper;
                 auto  _this = reinterpret_cast<ClassWrapper *>(self);
                 if (_this->template get_CObject<CClass>()) {
 
@@ -204,7 +204,7 @@ namespace __pyllars_internal {
                     return nullptr;
                 }
                 if (!self) return nullptr;
-                typedef  PythonClassWrapper<CClass, true> ClassWrapper;
+                typedef  PythonClassWrapper<CClass> ClassWrapper;
                 auto _this = reinterpret_cast<ClassWrapper *>(self);
                 typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
                 const ssize_t  array_size = sizeof(_this->template get_CObject<CClass>()->*member)/sizeof(T_base);

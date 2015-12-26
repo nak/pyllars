@@ -79,7 +79,7 @@ namespace __pyllars_internal {
                 typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
                 const ssize_t array_size = sizeof(*(callable->member)) / sizeof(T_base);
                 if (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "value")) {
-                    *(callable->member) = *toCObject<T, false, true, PythonClassWrapper<T, true> >(
+                    *(callable->member) = *toCObject<T, false, PythonClassWrapper<T> >(
                             *PyDict_GetItemString(kwds, "value"));
                 } else if (kwds) {
                     PyErr_SetString(PyExc_RuntimeError, "Invalid parameters when getting/setting global variable");
@@ -123,7 +123,7 @@ namespace __pyllars_internal {
             static PyObject *call(Container *callable, PyObject *args, PyObject *kwds) {
                 (void) callable;
                 if (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "value")) {
-                    T val[size] = *toCObject<T[size], true, true>(*PyDict_GetItemString(kwds, "value"));
+                    T val[size] = *toCObject<T[size], true>(*PyDict_GetItemString(kwds, "value"));
                     for (size_t i = 0; i < size; ++i) (*callable->member)[i] = val[i];
                 } else if (kwds) {
                     PyErr_SetString(PyExc_RuntimeError, "Invalid parameters when getting/setting global variable");
@@ -174,13 +174,13 @@ namespace __pyllars_internal {
                         PyErr_SetString(PyExc_RuntimeError, "Attempt to set whole array of unknown size");
                         return nullptr;
                     }
-                    T val[] = *toCObject<T[], true, true>(*PyDict_GetItemString(kwds, "value"));
+                    T val[] = *toCObject<T[], true>(*PyDict_GetItemString(kwds, "value"));
                     for (size_t i = 0; i < callable->array_size; ++i) (*callable->member)[i] = val[i];
                 } else if (kwds && PyDict_Size(kwds) == 2 && PyDict_GetItemString(kwds, "value") &&
                            PyDict_GetItemString(kwds, "index") &&
                            PyLong_Check(PyDict_GetItemString(kwds, "index"))) {
                     long i = PyLong_AsLong(PyDict_GetItemString(kwds, "index"));
-                    T val[] = *toCObject<T[], true, true>(*PyDict_GetItemString(kwds, "value"));
+                    T val[] = *toCObject<T[], true>(*PyDict_GetItemString(kwds, "value"));
                     (*callable->member)[i] = val[i];
                 } else if (kwds && PyDict_Size(kwds) != 0) {
                     PyErr_SetString(PyExc_RuntimeError, "Invalid parameters when getting/setting global variable");

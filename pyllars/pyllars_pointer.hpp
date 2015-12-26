@@ -19,15 +19,15 @@
 
 namespace __pyllars_internal {
 
-        template <bool is_complete, const ssize_t max>
+        template < const ssize_t max>
         struct RecursiveWrapper;
 
         struct PtrWrapperBase: public PtrWrapperBaseBase{
 
-            template<typename T, const bool is_complete, typename Z = void >
-            using ObjectContent = ObjectLifecycleHelpers::template ObjectContent < T, is_complete,  Z >;
+            template<typename T, typename Z = void >
+            using ObjectContent = ObjectLifecycleHelpers::template ObjectContent < T,  Z >;
 
-            template<typename Tptrtype, const bool is_complete>
+            template<typename Tptrtype>
             static PyObject* _at( PyObject* self_, PyObject* args, PyObject* kwargs) {
                 if (!self_ || !((PtrWrapperBase*)self_)->_all_content._untyped_content){
                     PyErr_SetString(PyExc_RuntimeError, "Null pointer dereference");
@@ -50,7 +50,7 @@ namespace __pyllars_internal {
                             array_size = item?item->_arraySize:array_size;
                     }
                     CommonBaseWrapper* result = (CommonBaseWrapper*)
-                       (PtrWrapperBase::ObjectContent<Tptr, is_complete >::
+                       (PtrWrapperBase::ObjectContent<Tptr >::
                         getObjectAt( (Tptr*) &self->_all_content._untyped_content, index, array_size));
                     result->make_reference( (PyObject*)self );
                     return (PyObject*) result;
@@ -66,7 +66,7 @@ namespace __pyllars_internal {
                 _max = size<0?-1:size-1;
             }
 
-            template< typename T, bool is_complete>
+            template< typename T>
             static PtrWrapperBase* createPy(const ssize_t arraySize, T *cobj, const bool isAllocated,
                                             PyObject *referencing = nullptr);
 
@@ -78,12 +78,12 @@ namespace __pyllars_internal {
         private:
         };
 
-        template <bool is_complete, const ssize_t max>
+        template < const ssize_t max>
         struct RecursiveWrapper: public PtrWrapperBase{
 
 
-            template<typename T, const bool is_complete3, typename Z = void >
-            using ObjectContent = ObjectLifecycleHelpers::template ObjectContent < T, is_complete3,  Z >;
+            template<typename T, typename Z = void >
+            using ObjectContent = ObjectLifecycleHelpers::template ObjectContent < T,  Z >;
 
             static int initialize(const char* const name,
                       const char* const module_entry_name,
@@ -108,7 +108,7 @@ namespace __pyllars_internal {
 
             void set_contents_at(  const size_t index, void**contents ){
               assert(_all_content._untyped_content);
-              ObjectContent<void*, is_complete>::set(index, (void*)&_all_content._untyped_content, contents);
+              ObjectContent<void*>::set(index, (void**)&_all_content._untyped_content, contents);
             }
 
 
@@ -117,7 +117,7 @@ namespace __pyllars_internal {
                 _all_content._untyped_content = *ptr;
             }
 
-            template<class T, bool is_complete2, const ssize_t max2, typename  Z>
+            template<class T, const ssize_t max2, typename  Z>
             friend struct PythonCPointerWrapper;
 
         protected:
@@ -129,15 +129,14 @@ namespace __pyllars_internal {
         /**
          * specialize for regular pointer type
          **/
-        template <typename T, bool is_complete, const ssize_t last>
-        struct PythonClassWrapper< T*, is_complete, last, PythonBase, void > :
-            public RecursiveWrapper<is_complete, last>{
+        template <typename T, const ssize_t last>
+        struct PythonClassWrapper< T*, last, void > : public RecursiveWrapper< last>{
 
-            typedef PythonClassWrapper<T, is_complete, -1, PythonBase, void> DereferencedWrapper;
-            typedef PythonClassWrapper<T* const, is_complete, -1, PythonBase, void> ConstWrapper;
-            typedef PythonClassWrapper<T*, is_complete, -1, PythonBase, void> NonConstWrapper;
-            typedef PythonClassWrapper<T*, is_complete, -1, PythonBase, void> NoRefWrapper;
-            typedef PythonClassWrapper<T*, is_complete, -1, PythonBase, void> AsPtrWrapper;
+            typedef PythonClassWrapper<T> DereferencedWrapper;
+            typedef PythonClassWrapper<T* const> ConstWrapper;
+            typedef PythonClassWrapper<T*> NonConstWrapper;
+            typedef PythonClassWrapper<T*> NoRefWrapper;
+            typedef PythonClassWrapper<T*> AsPtrWrapper;
 
             static std::string get_name(){
                 return PythonClassWrapper<T>::get_name() + '*';
@@ -164,10 +163,10 @@ namespace __pyllars_internal {
               static bool initialized = false;
               if (initialized) return 0;
               Type.tp_init = (initproc)_init;
-              int retval =  RecursiveWrapper<is_complete, last >::initialize(name, module_entry_name,
+              int retval =  RecursiveWrapper< last >::initialize(name, module_entry_name,
 									     module, fullname, Type,
-									     PtrWrapperBase::addr<T*, is_complete>,
-									     PtrWrapperBase::_at<T*, is_complete>);
+									     PtrWrapperBase::addr<T*>,
+									     PtrWrapperBase::_at<T*>);
               initialized = true;
               return retval;
             }
@@ -180,15 +179,15 @@ namespace __pyllars_internal {
         /**
          * Specialize for const-pointer types
          **/
-        template <typename T, bool is_complete, const ssize_t last>
-        struct PythonClassWrapper< T* const, is_complete, last, PythonBase, void > :
-           public RecursiveWrapper<is_complete, last >{
+        template <typename T, const ssize_t last>
+        struct PythonClassWrapper< T* const, last, void > :
+           public RecursiveWrapper< last >{
 
-            typedef PythonClassWrapper<const T, is_complete, -1, PythonBase, void> DereferencedWrapper;
-            typedef PythonClassWrapper<T* const, is_complete, -1, PythonBase, void> ConstWrapper;
-            typedef PythonClassWrapper<T*, is_complete, -1, PythonBase, void> NonConstWrapper;
-            typedef PythonClassWrapper<T* const, is_complete, -1, PythonBase, void> NoRefWrapper;
-            typedef PythonClassWrapper<T* const, is_complete, -1, PythonBase, void> AsPtrWrapper;
+            typedef PythonClassWrapper<const T> DereferencedWrapper;
+            typedef PythonClassWrapper<T* const> ConstWrapper;
+            typedef PythonClassWrapper<T*> NonConstWrapper;
+            typedef PythonClassWrapper<T* const> NoRefWrapper;
+            typedef PythonClassWrapper<T* const> AsPtrWrapper;
 
             static std::string get_name(){
                 return PythonClassWrapper<T>::get_name() + '*';
@@ -221,15 +220,15 @@ namespace __pyllars_internal {
         /**
          * specialize for fixed-size array types
          **/
-        template <typename T, bool is_complete, const size_t size, const ssize_t last>
-        struct PythonClassWrapper< T[size], is_complete, last, PythonBase, void > :
-            public RecursiveWrapper<is_complete, last >{
+        template <typename T, const size_t size, const ssize_t last>
+        struct PythonClassWrapper< T[size], last, void > :
+            public RecursiveWrapper< last >{
 
-            typedef PythonClassWrapper<T, is_complete, -1, PythonBase, void> DereferencedWrapper;
-            typedef PythonClassWrapper<T* const, is_complete, -1, PythonBase, void> ConstWrapper;
-            typedef PythonClassWrapper<T*, is_complete, -1, PythonBase, void>  NonConstWrapper;
-            typedef PythonClassWrapper<T[size], is_complete, -1, PythonBase, void> NoRefWrapper;
-            typedef PythonClassWrapper<T*, is_complete, -1, PythonBase, void> AsPtrWrapper;
+            typedef PythonClassWrapper<T> DereferencedWrapper;
+            typedef PythonClassWrapper<T* const> ConstWrapper;
+            typedef PythonClassWrapper<T*>  NonConstWrapper;
+            typedef PythonClassWrapper<T[size]> NoRefWrapper;
+            typedef PythonClassWrapper<T*> AsPtrWrapper;
 
             static PyTypeObject Type;
 
@@ -259,19 +258,19 @@ namespace __pyllars_internal {
                 static bool initialized = false;
                 if (initialized) return 0;
                 Type.tp_init = (initproc)_init;
-                int retval =  RecursiveWrapper<is_complete, last >::initialize(name, module_entry_name,
+                int retval =  RecursiveWrapper< last >::initialize(name, module_entry_name,
 									       module, fullname, Type,
-									       PtrWrapperBase::addr<T[size], is_complete>,
-									       PtrWrapperBase::_at<T[size], is_complete>);
+									       PtrWrapperBase::addr<T[size]>,
+									       PtrWrapperBase::_at<T[size]>);
                 initialized = true;
                 return retval;
             }
 
             static int _init( PythonClassWrapper *self, PyObject *args, PyObject *kwds) {
-                self->_arraySize = -1;
+                self->_arraySize = UNKNOWN_SIZE;
                 self->_referenced_elements = nullptr;
                 self->_referenced = nullptr;
-                int retval = RecursiveWrapper<is_complete, last >::_init(self, args, kwds, Type);
+                int retval = RecursiveWrapper< last >::_init(self, args, kwds, Type);
                 return retval;
             }
 
@@ -282,15 +281,15 @@ namespace __pyllars_internal {
         /**
          * specialize for fixed-size array types of const element
          **/
-        template <typename T, bool is_complete, const size_t size, const ssize_t last>
-        struct PythonClassWrapper< const T[size], is_complete, last, PythonBase, void > :
-            public RecursiveWrapper<is_complete, last>{
+        template <typename T, const size_t size, const ssize_t last>
+        struct PythonClassWrapper< const T[size], last, void > :
+            public RecursiveWrapper< last>{
 
-            typedef PythonClassWrapper<const T, is_complete, -1, PythonBase, void> DereferencedWrapper;
-            typedef PythonClassWrapper<const T* const, is_complete, -1, PythonBase, void> ConstWrapper;
-            typedef PythonClassWrapper<const T*, is_complete, -1, PythonBase, void>  NonConstWrapper;
-            typedef PythonClassWrapper<const T[size], is_complete, -1, PythonBase, void> NoRefWrapper;
-            typedef PythonClassWrapper<const T*, is_complete, -1, PythonBase, void> AsPtrWrapper;
+            typedef PythonClassWrapper<const T> DereferencedWrapper;
+            typedef PythonClassWrapper<const T* const> ConstWrapper;
+            typedef PythonClassWrapper<const T*>  NonConstWrapper;
+            typedef PythonClassWrapper<const T[size]> NoRefWrapper;
+            typedef PythonClassWrapper<const T*> AsPtrWrapper;
 
             static PyTypeObject Type;
 
@@ -320,17 +319,17 @@ namespace __pyllars_internal {
                 static bool initialized = false;
                 if (initialized) return 0;
                 Type.tp_init = (initproc)_init;
-                int retval =  RecursiveWrapper<is_complete, last >::initialize(name, module_entry_name,
+                int retval =  RecursiveWrapper< last >::initialize(name, module_entry_name,
 									       module, fullname, Type,
-									       PtrWrapperBase::addr<const T[size], is_complete>,
-									       PtrWrapperBase::_at<const T[size], is_complete>);
+									       PtrWrapperBase::addr<const T[size]>,
+									       PtrWrapperBase::_at<const T[size]>);
                 initialized = true;
                 return retval;
             }
 
             static int _init( PythonClassWrapper *self, PyObject *args, PyObject *kwds) {
                 //self->_all_content._untyped_content= (void**)self->_all_content._untyped_content;
-                int retval = RecursiveWrapper<is_complete, last >::_init(self, args, kwds, Type);
+                int retval = RecursiveWrapper<last >::_init(self, args, kwds, Type);
                 return retval;
             }
 
@@ -341,15 +340,15 @@ namespace __pyllars_internal {
         /**
          * Specialize for array types of unknown size
          **/
-        template <typename T, bool is_complete, const ssize_t last>
-        struct PythonClassWrapper< T[], is_complete, last, PythonBase, void > :
-            public RecursiveWrapper<is_complete, last >{
+        template <typename T, const ssize_t last>
+        struct PythonClassWrapper< T[], last, void > :
+            public RecursiveWrapper< last >{
 
-            typedef PythonClassWrapper<T, is_complete, -1, PythonBase, void> DereferencedWrapper;
-            typedef PythonClassWrapper<T* const, is_complete, -1, PythonBase, void> ConstWrapper;
-            typedef PythonClassWrapper<T*, is_complete, -1, PythonBase, void> NonConstWrapper;
-            typedef PythonClassWrapper<T[], is_complete, -1, PythonBase, void> NoRefWrapper;
-            typedef PythonClassWrapper<T*, is_complete, -1, PythonBase, void> AsPtrWrapper;
+            typedef PythonClassWrapper<T> DereferencedWrapper;
+            typedef PythonClassWrapper<T* const> ConstWrapper;
+            typedef PythonClassWrapper<T*> NonConstWrapper;
+            typedef PythonClassWrapper<T[]> NoRefWrapper;
+            typedef PythonClassWrapper<T*> AsPtrWrapper;
 
             static std::string get_name(){
               return PythonClassWrapper<T>::get_name() + "[]";
@@ -376,17 +375,17 @@ namespace __pyllars_internal {
                 static bool initialized = false;
                 if (initialized) return 0;
                 Type.tp_init = (initproc)_init;
-                int retval =  RecursiveWrapper<is_complete, last >::initialize(name, module_entry_name,
+                int retval =  RecursiveWrapper< last >::initialize(name, module_entry_name,
 									       module, fullname, Type,
-									       PtrWrapperBase::addr<T[], is_complete>,
-									       PtrWrapperBase::_at<T[], is_complete>);
+									       PtrWrapperBase::addr<T[]>,
+									       PtrWrapperBase::_at<T[]>);
                 initialized = true;
                 return retval;
             }
 
             static int _init( PythonClassWrapper *self, PyObject *args, PyObject *kwds) {
                 //self->_all_content._untyped_content= (void**)self->_all_content._untyped_content;
-                int retval = RecursiveWrapper<is_complete, last >::_init(self, args, kwds, Type);
+                int retval = RecursiveWrapper< last >::_init(self, args, kwds, Type);
                 return retval;
             }
 
@@ -397,15 +396,15 @@ namespace __pyllars_internal {
         /**
          * Specialize for array types of const elements of unknown size
          **/
-        template <typename T, bool is_complete, const ssize_t last>
-        struct PythonClassWrapper< T const [], is_complete, last, PythonBase, void > :
-            public RecursiveWrapper<is_complete, last >{
+        template <typename T, const ssize_t last>
+        struct PythonClassWrapper< T const [], last, void > :
+            public RecursiveWrapper< last >{
 
-            typedef PythonClassWrapper<T const, is_complete, -1, PythonBase, void> DereferencedWrapper;
-            typedef PythonClassWrapper<T const * const , is_complete, -1, PythonBase, void> ConstWrapper;
-            typedef PythonClassWrapper<T const *  , is_complete, -1, PythonBase, void> NontConstWrapper;
-            typedef PythonClassWrapper<T const [] , is_complete, -1, PythonBase, void> NoRefWrapper;
-            typedef PythonClassWrapper<T const *, is_complete, -1, PythonBase, void> AsPtrWrapper;
+            typedef PythonClassWrapper<T const> DereferencedWrapper;
+            typedef PythonClassWrapper<T const * const> ConstWrapper;
+            typedef PythonClassWrapper<T const *> NontConstWrapper;
+            typedef PythonClassWrapper<T const []> NoRefWrapper;
+            typedef PythonClassWrapper<T const *> AsPtrWrapper;
 
             static std::string get_name(){
                 return PythonClassWrapper<T const>::get_name() + "[]";
@@ -432,17 +431,17 @@ namespace __pyllars_internal {
                 static bool initialized = false;
                 if (initialized) return 0;
                 Type.tp_init = (initproc)_init;
-                int retval =  RecursiveWrapper<is_complete, last >::initialize(name, module_entry_name,
+                int retval =  RecursiveWrapper<last >::initialize(name, module_entry_name,
 									       module, fullname, Type,
-									       PtrWrapperBase::addr<T const [], is_complete>,
-									       PtrWrapperBase::_at<T const[], is_complete>);
+									       PtrWrapperBase::addr<T const []>,
+									       PtrWrapperBase::_at<T const[]>);
                 initialized = true;
                 return retval;
             }
 
             static int _init( PythonClassWrapper *self, PyObject *args, PyObject *kwds) {
                 //      self->_all_content._untyped_content= (void**)self->_all_content._untyped_content;
-                int retval = RecursiveWrapper<is_complete, last >::_init(self, args, kwds, Type);
+                int retval = RecursiveWrapper<last >::_init(self, args, kwds, Type);
                 return retval;
             }
 
@@ -455,12 +454,12 @@ namespace __pyllars_internal {
         // Template definitions of static elements of template specializations
         /////////////////////////////////
 
-        template <typename T, bool is_complete, const ssize_t last>
-        int PythonClassWrapper< T*, is_complete, last, PythonBase, void >::_init( PythonClassWrapper *self, PyObject *args, PyObject *kwds) {
-            self->_arraySize = -1;
+        template <typename T, const ssize_t last>
+        int PythonClassWrapper< T*, last, void >::_init( PythonClassWrapper *self, PyObject *args, PyObject *kwds) {
+            self->_arraySize = UNKNOWN_SIZE;
             self->_referenced_elements = nullptr;
             self->_referenced = nullptr;
-            int retval = RecursiveWrapper<is_complete, last >::_init(self, args, kwds, Type);
+            int retval = RecursiveWrapper<last >::_init(self, args, kwds, Type);
             if (retval == ERROR_TYPE_MISMATCH){
               try{
                 PyObject* arg = PyTuple_GetItem( args, 0);
@@ -486,10 +485,10 @@ namespace __pyllars_internal {
             return retval;
         }
 
-        template <typename T, bool is_complete, const ssize_t last>
-        int PythonClassWrapper< T* const, is_complete, last, PythonBase, void >::_init( PythonClassWrapper *self, PyObject *args, PyObject *kwds) {
+        template <typename T, const ssize_t last>
+        int PythonClassWrapper< T* const, last, void >::_init( PythonClassWrapper *self, PyObject *args, PyObject *kwds) {
             //self->_all_content._untyped_content= (void**)self->_all_content._untyped_content;
-            int retval = RecursiveWrapper<is_complete, last >::_init(self, args, kwds, Type);
+            int retval = RecursiveWrapper< last >::_init(self, args, kwds, Type);
             if (retval == ERROR_TYPE_MISMATCH){
               try{
                 PyObject* arg = PyTuple_GetItem( args, 0);
@@ -514,28 +513,28 @@ namespace __pyllars_internal {
             return retval;
         }
 
-        template <typename T, bool is_complete, const ssize_t last>
-        int PythonClassWrapper< T* const, is_complete, last, PythonBase, void >::initialize(const char* const name, const char* const module_entry_name,
+        template <typename T, const ssize_t last>
+        int PythonClassWrapper< T* const, last, void >::initialize(const char* const name, const char* const module_entry_name,
                                                                                           PyObject* module, const char* const fullname ){
             static bool initialized = false;
             if (initialized) return 0;
             Type.tp_init = (initproc)_init;
-            int retval =  RecursiveWrapper<is_complete, last >::initialize(name, module_entry_name,
+            int retval =  RecursiveWrapper<last >::initialize(name, module_entry_name,
 									   module, fullname, Type,
-									   PtrWrapperBase::addr<T* const, is_complete>,
-									   PtrWrapperBase::_at<T* const, is_complete>);
+									   PtrWrapperBase::addr<T* const>,
+									   PtrWrapperBase::_at<T* const>);
             initialized = true;
             return retval;
         }
 
-        template< typename T, bool is_complete, const size_t size, const ssize_t last>
-        PyMethodDef PythonClassWrapper< T[size], is_complete, last, PythonBase, void >::_methods[] = {   {address_name, nullptr, METH_KEYWORDS, nullptr},
+        template< typename T, const size_t size, const ssize_t last>
+        PyMethodDef PythonClassWrapper< T[size], last >::_methods[] = {   {address_name, nullptr, METH_KEYWORDS, nullptr},
                                                                                                        {"at", nullptr, METH_VARARGS, nullptr},
                                                                                                        {nullptr, nullptr, 0, nullptr} /*sentinel*/
         };
 
-        template< typename T, bool is_complete, const size_t size, const ssize_t last>
-        PyTypeObject PythonClassWrapper< T[size], is_complete, last, PythonBase, void >::Type= {
+        template< typename T, const size_t size, const ssize_t last>
+        PyTypeObject PythonClassWrapper< T[size], last, void >::Type= {
             PyObject_HEAD_INIT(nullptr)
             0,                         /*ob_size*/
             nullptr,             /*tp_name*/  //set on call to initialize
@@ -586,14 +585,14 @@ namespace __pyllars_internal {
             0,                          /*tp_version_tag*/
         };
 
-        template< typename T, bool is_complete, const size_t size, const ssize_t last>
-        PyMethodDef PythonClassWrapper< const T[size], is_complete, last, PythonBase, void >::_methods[] = {   {address_name, nullptr, METH_KEYWORDS, nullptr},
+        template< typename T, const size_t size, const ssize_t last>
+        PyMethodDef PythonClassWrapper< const T[size], last, void >::_methods[] = {   {address_name, nullptr, METH_KEYWORDS, nullptr},
                                                                                                        {"at", nullptr, METH_VARARGS, nullptr},
                                                                                                        {nullptr, nullptr, 0, nullptr} /*sentinel*/
         };
 
-        template< typename T, bool is_complete, const size_t size, const ssize_t last>
-        PyTypeObject PythonClassWrapper< const T[size], is_complete, last, PythonBase, void >::Type= {
+        template< typename T, const size_t size, const ssize_t last>
+        PyTypeObject PythonClassWrapper< const T[size], last, void >::Type= {
             PyObject_HEAD_INIT(nullptr)
             0,                         /*ob_size*/
             nullptr,             /*tp_name*/  //set on call to initialize
@@ -644,14 +643,14 @@ namespace __pyllars_internal {
             0,                          /*tp_version_tag*/
         };
 
-        template <typename T, bool is_complete, const ssize_t last>
-        PyMethodDef PythonClassWrapper< T* const, is_complete, last, PythonBase, void >::_methods[] = {   {address_name, nullptr, METH_KEYWORDS, nullptr},
+        template <typename T, const ssize_t last>
+        PyMethodDef PythonClassWrapper< T* const, last, void >::_methods[] = {   {address_name, nullptr, METH_KEYWORDS, nullptr},
                                                                                                         {"at", nullptr, METH_VARARGS, nullptr},
                                                                                                         {nullptr, nullptr, 0, nullptr} /*sentinel*/
         };
 
-        template <typename T, bool is_complete, const ssize_t last>
-        PyTypeObject PythonClassWrapper< T* const, is_complete, last, PythonBase, void >::Type= {
+        template <typename T, const ssize_t last>
+        PyTypeObject PythonClassWrapper< T* const, last, void >::Type= {
             PyObject_HEAD_INIT(nullptr)
             0,                         /*ob_size*/
             nullptr,             /*tp_name*/  //set on call to initialize
@@ -702,14 +701,14 @@ namespace __pyllars_internal {
             0,                          /*tp_version_tag*/
         };
 
-        template <typename T, bool is_complete, const ssize_t last>
-        PyMethodDef PythonClassWrapper< T*, is_complete, last, PythonBase, void >::_methods[] = {   {address_name, nullptr, METH_KEYWORDS, nullptr},
+        template <typename T, const ssize_t last>
+        PyMethodDef PythonClassWrapper< T*, last, void >::_methods[] = {   {address_name, nullptr, METH_KEYWORDS, nullptr},
                                                                                                   {"at", nullptr, METH_VARARGS, nullptr},
                                                                                                   {nullptr, nullptr, 0, nullptr} /*sentinel*/
         };
 
-        template <typename T, bool is_complete, const ssize_t last>
-        PyTypeObject PythonClassWrapper< T*, is_complete, last, PythonBase, void >::Type= {
+        template <typename T, const ssize_t last>
+        PyTypeObject PythonClassWrapper< T*, last, void >::Type= {
             PyObject_HEAD_INIT(nullptr)
             0,                         /*ob_size*/
             nullptr,             /*tp_name*/  //set on call to initialize
@@ -760,8 +759,8 @@ namespace __pyllars_internal {
             0,                          /*tp_version_tag*/
         };
 
-        template <typename T, bool is_complete, const ssize_t last>
-        PyTypeObject PythonClassWrapper<T[], is_complete, last, PythonBase, void>::Type = {
+        template <typename T, const ssize_t last>
+        PyTypeObject PythonClassWrapper<T[], last, void>::Type = {
 
             PyObject_HEAD_INIT(nullptr)
             0,                         /*ob_size*/
@@ -794,7 +793,7 @@ namespace __pyllars_internal {
             _methods,             /* tp_methods */
             nullptr,             /* tp_members */
             nullptr,                         /* tp_getset */
-            PythonBase::TypePtr,                         /* tp_base */
+            CommonBaseWrapper::Base::TypePtr,                         /* tp_base */
             nullptr,                         /* tp_dict */
             nullptr,                         /* tp_descr_get */
             nullptr,                         /* tp_descr_set */
@@ -813,14 +812,14 @@ namespace __pyllars_internal {
             0,                          /*tp_version_tag*/
         };
 
-        template< typename T, bool is_complete, const ssize_t last>
-        PyMethodDef PythonClassWrapper< T[], is_complete, last, PythonBase, void >::_methods[] = {   {address_name, nullptr, METH_KEYWORDS, nullptr},
+        template< typename T, const ssize_t last>
+        PyMethodDef PythonClassWrapper< T[], last, void >::_methods[] = {   {address_name, nullptr, METH_KEYWORDS, nullptr},
                                                                                                        {"at", nullptr, METH_VARARGS, nullptr},
                                                                                                        {nullptr, nullptr, 0, nullptr} /*sentinel*/
         };
 
-        template <typename T, bool is_complete, const ssize_t last>
-        PyTypeObject PythonClassWrapper<T const[], is_complete, last, PythonBase, void>::Type = {
+        template <typename T, const ssize_t last>
+        PyTypeObject PythonClassWrapper<T const[], last, void>::Type = {
 
             PyObject_HEAD_INIT(nullptr)
             0,                         /*ob_size*/
@@ -853,7 +852,7 @@ namespace __pyllars_internal {
             _methods,             /* tp_methods */
             nullptr,             /* tp_members */
             nullptr,                         /* tp_getset */
-            PythonBase::TypePtr,                         /* tp_base */
+            CommonBaseWrapper::Base::TypePtr,                         /* tp_base */
             nullptr,                         /* tp_dict */
             nullptr,                         /* tp_descr_get */
             nullptr,                         /* tp_descr_set */
@@ -872,20 +871,20 @@ namespace __pyllars_internal {
             0,                          /*tp_version_tag*/
         };
 
-        template< typename T, bool is_complete, const ssize_t last>
-        PyMethodDef PythonClassWrapper< T const[], is_complete, last, PythonBase, void >::_methods[] = {   {address_name, nullptr, METH_KEYWORDS, nullptr},
+        template< typename T, const ssize_t last>
+        PyMethodDef PythonClassWrapper< T const[], last, void >::_methods[] = {   {address_name, nullptr, METH_KEYWORDS, nullptr},
                                                                                                        {"at", nullptr, METH_VARARGS, nullptr},
                                                                                                        {nullptr, nullptr, 0, nullptr} /*sentinel*/
         };
 
-	  template< typename T, bool is_complete>
+	  template< typename T>
 	   PtrWrapperBase* PtrWrapperBase::createPy(const ssize_t arraySize, T *const cobj, const bool isAllocated,
                                                 PyObject *referencing){
 	    assert( std::is_pointer<T>::value || std::is_array<T>::value );
         static PyObject* kwds = PyDict_New();
 	    static PyObject* emptyargs = PyTuple_New(0);
 	    PyDict_SetItemString( kwds, "__internal__null_allowed", Py_True);
-	    typedef PythonClassWrapper< T*, is_complete, -1> PyPtrWrapper;
+	    typedef PythonClassWrapper< T*> PyPtrWrapper;
 	    PyPtrWrapper* pyobj = (PyPtrWrapper*)PyObject_Call((PyObject*)&PyPtrWrapper::Type, emptyargs, kwds);
 	    pyobj->set_contents( (void**)cobj, isAllocated);
 	    pyobj->setArraySize( arraySize);

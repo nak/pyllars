@@ -217,7 +217,7 @@ static int init_<xsl:value-of select="@id"/>( PyObject* module){
         <xsl:variable name="typealias" select="//*[@id=$typeid]/@name"/>
         <xsl:variable name="basetypeid" select="//*[@id=$typeid]/@type"/>
         <xsl:variable name="is_complete"><xsl:choose><xsl:when test="@incomplete='1'">false</xsl:when><xsl:otherwise>true</xsl:otherwise></xsl:choose></xsl:variable><xsl:text>
-    </xsl:text><xsl:if test="@incomplete!='1' or not(@incomplete)">if (PythonClassWrapper&lt; <xsl:value-of select="$nsnamebare"/><xsl:if test="$nsnamebare!=''">::</xsl:if><xsl:value-of select="$typealias"/>, <xsl:value-of select="$is_complete"/> &gt;::initialize<xsl:text>
+    </xsl:text><xsl:if test="@incomplete!='1' or not(@incomplete)">if (PythonClassWrapper&lt; <xsl:value-of select="$nsnamebare"/><xsl:if test="$nsnamebare!=''">::</xsl:if><xsl:value-of select="$typealias"/> &gt;::initialize<xsl:text>
        </xsl:text>(&quot;<xsl:value-of select="@name"/>&quot;, 
                    &quot;<xsl:value-of select="translate(@name,'&lt;&gt;:','___')"/>&quot;,
                    module,
@@ -226,7 +226,7 @@ static int init_<xsl:value-of select="@id"/>( PyObject* module){
          status = -1;
     }
 
-    </xsl:text></xsl:if><xsl:if test="//*[@id=$basetypeid]/@name!='void'">if (PythonClassWrapper&lt; <xsl:value-of select="$nsnamebare"/>::<xsl:value-of select="$typealias"/>&amp;, <xsl:value-of select="$is_complete"/> &gt;::initialize<xsl:text>
+    </xsl:text></xsl:if><xsl:if test="//*[@id=$basetypeid]/@name!='void'">if (PythonClassWrapper&lt; <xsl:value-of select="$nsnamebare"/>::<xsl:value-of select="$typealias"/>&amp; &gt;::initialize<xsl:text>
                   </xsl:text>(&quot;<xsl:value-of select="@name"/>&amp;&quot;, 
 				&quot;<xsl:value-of select="translate(@name,'&lt;&gt;:','___')"/>_ref&quot;, 
 				module,
@@ -236,7 +236,7 @@ static int init_<xsl:value-of select="@id"/>( PyObject* module){
          status = -1;
     }
 
-    </xsl:text></xsl:if>if (PythonClassWrapper&lt; <xsl:value-of select="$nsnamebare"/>::<xsl:value-of select="$typealias"/>*, <xsl:value-of select="$is_complete"/> &gt;::initialize(&quot;<xsl:value-of select="@name"/>*&quot;,  
+    </xsl:text></xsl:if>if (PythonClassWrapper&lt; <xsl:value-of select="$nsnamebare"/>::<xsl:value-of select="$typealias"/>* &gt;::initialize(&quot;<xsl:value-of select="@name"/>*&quot;,
 						 &quot;<xsl:value-of select="translate(@name,'&lt;&gt;:','___')"/>_ptr&quot;,  
 						 module,
 						 &quot;<xsl:apply-templates select="." mode="generate_scoped_name"/>*&quot;  ) &lt; 0)<xsl:text>{
@@ -269,7 +269,7 @@ static int init_<xsl:value-of select="@id"/>( PyObject* module){
          <xsl:variable name="is_complete"><xsl:choose><xsl:when test="@incomplete='1'">false</xsl:when><xsl:otherwise>true</xsl:otherwise></xsl:choose></xsl:variable>
          <xsl:variable name="typeid" select="@id"/>
          <xsl:variable name="typealias" select="//*[@id=$typeid]/@name"/><xsl:text>
-    </xsl:text>if (PythonClassWrapper&lt; <xsl:value-of select="$nsnamebare"/>::<xsl:value-of select="$typealias"/>*, <xsl:value-of select="$is_complete"/>, <xsl:value-of select="@max"/>&gt;::initialize<xsl:text>
+    </xsl:text>if (PythonClassWrapper&lt; <xsl:value-of select="$nsnamebare"/>::<xsl:value-of select="$typealias"/>*, <xsl:value-of select="@max"/>&gt;::initialize<xsl:text>
       </xsl:text>(&quot;<xsl:value-of select="$typealias"/>&quot;,
 		&quot;<xsl:value-of select="translate($typealias,'&lt;&gt;:','___')"/>&quot;,
 		 module,
@@ -371,7 +371,7 @@ static int init_<xsl:value-of select="@id"/>( PyObject* module ){
       <xsl:apply-templates select="//Field[@context=$classid and  (not(@access) or @access='public')]"><xsl:with-param name="classname"><xsl:if test="$nsname!='::' and $nsname!=''"><xsl:value-of select="$nsname"/>::</xsl:if><xsl:value-of select="$classname"/></xsl:with-param></xsl:apply-templates>
 <xsl:text>
 
-     </xsl:text><xsl:if test="$classname!=''"><xsl:if test="not(@incomplete) or @incomplete!='1'">if (PythonClassWrapper&lt; <xsl:value-of select="$nsnamebare"/><xsl:if test="$nsnamebare!=''">::</xsl:if><xsl:value-of select="$classname"/>, <xsl:value-of select="$is_complete"/> &gt;::initialize<xsl:text>
+     </xsl:text><xsl:if test="$classname!=''"><xsl:if test="not(@incomplete) or @incomplete!='1'">if (PythonClassWrapper&lt; <xsl:value-of select="$nsnamebare"/><xsl:if test="$nsnamebare!=''">::</xsl:if><xsl:value-of select="$classname"/> &gt;::initialize<xsl:text>
         </xsl:text>(&quot;<xsl:value-of select="$classname"/>&quot;,
 			&quot;<xsl:value-of select="translate($classname,'&lt;&gt;:','___')"/>&quot;,
 			 module,
@@ -379,7 +379,7 @@ static int init_<xsl:value-of select="@id"/>( PyObject* module ){
          PyErr_SetString( PyExc_RuntimeError, "Failed to initialize Python-wrapper-to-class/type for '</xsl:text><xsl:value-of select="$classname"/><xsl:text>'&quot;);
          status = -1;
      }
-     </xsl:text></xsl:if>if (PythonClassWrapper&lt; <xsl:value-of select="$nsnamebare"/><xsl:if test="$nsnamebare!=''">::</xsl:if><xsl:value-of select="$classname"/>&amp; , <xsl:value-of select="$is_complete"/> &gt;::initialize<xsl:text>
+     </xsl:text></xsl:if>if (PythonClassWrapper&lt; <xsl:value-of select="$nsnamebare"/><xsl:if test="$nsnamebare!=''">::</xsl:if><xsl:value-of select="$classname"/>&amp; &gt;::initialize<xsl:text>
        </xsl:text>(&quot;<xsl:value-of select="$classname"/>&amp;&quot;,
 			&quot;<xsl:value-of select="translate($classname,'&lt;&gt;:','___')"/>_ref&quot;,
 			  module,
@@ -387,7 +387,7 @@ static int init_<xsl:value-of select="@id"/>( PyObject* module ){
          PyErr_SetString( PyExc_RuntimeError, "Failed to initialize Python-wrapper-to-reference for '</xsl:text><xsl:value-of select="$classname"/><xsl:text>'&quot;);
          status = -1;
      }
-     </xsl:text>if (PythonClassWrapper&lt; <xsl:value-of select="$nsnamebare"/><xsl:if test="$nsnamebare!=''">::</xsl:if><xsl:value-of select="$classname"/>*, <xsl:value-of select="$is_complete"/> &gt;::initialize<xsl:text>
+     </xsl:text>if (PythonClassWrapper&lt; <xsl:value-of select="$nsnamebare"/><xsl:if test="$nsnamebare!=''">::</xsl:if><xsl:value-of select="$classname"/>* &gt;::initialize<xsl:text>
        </xsl:text>(&quot;<xsl:value-of select="$classname"/>_ptr&quot;, 
 			&quot;<xsl:value-of select="translate($classname,'&lt;&gt;:','___')"/>_ptr&quot;, 
 			module,

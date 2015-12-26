@@ -16,15 +16,15 @@ namespace __pyllars_internal {
     /**
      * template fnction to convert python to C object
      **/
-    template<typename C_type, bool is_array, bool is_complete, typename ClassWrapper, typename E = void>
+    template<typename C_type, bool is_array, typename ClassWrapper, typename E = void>
     class CObjectConversionHelper;
 
 
     /**
      * Specialization for classes, references and pointer types (except function ptr typedefs)
      **/
-    template<typename C_type, bool is_array, bool is_complete, typename PtrWrapper>
-    class CObjectConversionHelper<C_type, is_array, is_complete, PtrWrapper,
+    template<typename C_type, bool is_array, typename PtrWrapper>
+    class CObjectConversionHelper<C_type, is_array, PtrWrapper,
             typename std::enable_if<std::is_class<C_type>::value ||
                                     (std::is_reference<C_type>::value &&
                                      !std::is_const<typename std::remove_reference<C_type>::type>::value) ||
@@ -71,8 +71,8 @@ namespace __pyllars_internal {
     /**
      * Specialization for integer types
      **/
-    template<typename T, bool is_array, bool is_complete, typename ClassWrapper>
-    class CObjectConversionHelper<T, is_array, is_complete, ClassWrapper, typename std::enable_if<
+    template<typename T, bool is_array, typename ClassWrapper>
+    class CObjectConversionHelper<T, is_array, ClassWrapper, typename std::enable_if<
             std::is_integral<T>::value || std::is_enum<T>::value ||
             (std::is_integral<typename std::remove_reference<T>::type>::value &&
              std::is_reference<T>::value &&
@@ -99,8 +99,8 @@ namespace __pyllars_internal {
     /**
      * Specialization for floating point types
      **/
-    template<typename T, bool is_array, bool is_complete, typename ClassWrapper>
-    class CObjectConversionHelper<T, is_array, is_complete, ClassWrapper, typename std::enable_if<
+    template<typename T, bool is_array, typename ClassWrapper>
+    class CObjectConversionHelper<T, is_array, ClassWrapper, typename std::enable_if<
             std::is_floating_point<T>::value ||
             (std::is_floating_point<typename std::remove_reference<T>::type>::value &&
              std::is_reference<T>::value &&
@@ -124,7 +124,7 @@ namespace __pyllars_internal {
      **/
     template<typename ClassWrapper, typename ReturnType,
             typename ...Args>
-    class CObjectConversionHelper<ReturnType(*)(Args...), false, true, ClassWrapper, void> {
+    class CObjectConversionHelper<ReturnType(*)(Args...), false, ClassWrapper, void> {
     public:
         typedef ReturnType(*callback_t)(Args...);
 
@@ -141,7 +141,7 @@ namespace __pyllars_internal {
     * Specialization for char*
     **/
     template<typename ClassWrapper>
-    class CObjectConversionHelper<const char *, false, true, ClassWrapper> {
+    class CObjectConversionHelper<const char *, false, ClassWrapper> {
     public:
         typedef typename ClassWrapper::ConstWrapper ConstClassWrapper;
 
@@ -169,7 +169,7 @@ namespace __pyllars_internal {
      * Specialization for char*
      **/
     template<typename ClassWrapper>
-    class CObjectConversionHelper<const char *const, false, true, ClassWrapper> {
+    class CObjectConversionHelper<const char *const, false, ClassWrapper> {
     public:
 
         typedef typename ClassWrapper::NonConstWrapper NonConstClassWrapper;
@@ -200,7 +200,7 @@ namespace __pyllars_internal {
      * Specialization for char*
      **/
     template<typename ClassWrapper>
-    class CObjectConversionHelper<char *const, false, true, ClassWrapper> {
+    class CObjectConversionHelper<char *const, false, ClassWrapper> {
     public:
         static smart_ptr<char *const> toCObject(PyObject &pyobj) {
             const char *name = nullptr;
@@ -219,7 +219,7 @@ namespace __pyllars_internal {
      * Specialization for char*
      **/
     template<typename ClassWrapper>
-    class CObjectConversionHelper<char *, true, true, ClassWrapper> {
+    class CObjectConversionHelper<char *, true, ClassWrapper> {
     public:
         static smart_ptr<char *, true> toCObject(PyObject &pyobj) {
             const char *name = nullptr;
@@ -240,7 +240,7 @@ namespace __pyllars_internal {
      * Specialization for char*
      **/
     template<typename T, const size_t size, const bool is_array, typename ClassWrapper>
-    class CObjectConversionHelper<T[size], is_array, true, ClassWrapper> {
+    class CObjectConversionHelper<T[size], is_array, ClassWrapper> {
     public:
 
         typedef T T_array[size];
@@ -286,8 +286,8 @@ namespace __pyllars_internal {
     /**
       * Specialization for const array
       **/
-    template<typename T, const size_t size, const bool is_base_complete, typename ClassWrapper>
-    class CObjectConversionHelper<const T[size], false, is_base_complete, ClassWrapper> {
+    template<typename T, const size_t size, typename ClassWrapper>
+    class CObjectConversionHelper<const T[size], false, ClassWrapper> {
     public:
 
         typedef const T T_array[size];
@@ -315,23 +315,23 @@ namespace __pyllars_internal {
     /**
      * function to convert python object to underlying C type using a class helper
      **/
-    template<typename T, bool is_array, bool is_complete, typename ClassWrapper>
+    template<typename T, bool is_array, typename ClassWrapper>
     smart_ptr<T, is_array> toCObject(PyObject &pyobj) {
-        return CObjectConversionHelper<T, is_array, is_complete, ClassWrapper>::toCObject(pyobj);
+        return CObjectConversionHelper<T, is_array, ClassWrapper>::toCObject(pyobj);
     }
 
     /**
      * function to convert python object to underlying C type using a class helper
      **/
-    template<typename T, const size_t size, bool is_array, bool is_complete, typename ClassWrapper>
+    template<typename T, const size_t size, bool is_array, typename ClassWrapper>
     smart_ptr<T[size], is_array> toCObject(PyObject &pyobj) {
-        return CObjectConversionHelper<T[size], is_array, is_complete, ClassWrapper>::toCObject(pyobj);
+        return CObjectConversionHelper<T[size], is_array, ClassWrapper>::toCObject(pyobj);
     }
 
     class ConversionHelpers {
     public:
 
-        template<typename T, bool is_complete, const ssize_t max, typename E>
+        template<typename T, const ssize_t max, typename E>
         friend PyObject *toPyObject(T &var, const bool asReference);
 
     private:
@@ -344,14 +344,14 @@ namespace __pyllars_internal {
          * Define conversion helper class, which allows easier mechanism
          * for necessary specializations
          **/
-        template<typename T, bool is_complete, typename PtrWrapper, const ssize_t max, typename E = void>
+        template<typename T, typename PtrWrapper, const ssize_t max, typename E = void>
         class PyObjectConversionHelper;
 
         /**
          * specialize for non-copiable types
          **/
-        template<typename T, bool is_complete, typename ClassWrapper, const ssize_t max>
-        class PyObjectConversionHelper<T, is_complete, ClassWrapper, max,
+        template<typename T, typename ClassWrapper, const ssize_t max>
+        class PyObjectConversionHelper<T, ClassWrapper, max,
                 typename std::enable_if<!std::is_array<T>::value &&
                                         !std::is_copy_constructible<T>::value>::type> {
         public:
@@ -385,8 +385,8 @@ namespace __pyllars_internal {
         /**
          * specialize for non-trivial copiable types (non-pointer too)
          **/
-        template<typename T, bool is_complete, typename ClassWrapper, const ssize_t max>
-        class PyObjectConversionHelper<T, is_complete, ClassWrapper, max,
+        template<typename T, typename ClassWrapper, const ssize_t max>
+        class PyObjectConversionHelper<T, ClassWrapper, max,
                 typename std::enable_if<std::is_copy_constructible<T>::value &&
                                         !std::is_integral<T>::value &&
                                         !std::is_enum<T>::value &&
@@ -421,8 +421,8 @@ namespace __pyllars_internal {
         /**
           * specialize for non-extent array types (non-pointer too and non-const-char too)
           **/
-        template<typename T, const size_t size, bool is_complete, typename ClassWrapper, const ssize_t max>
-        class PyObjectConversionHelper<T[size], is_complete, ClassWrapper, max, void> {
+        template<typename T, const size_t size,typename ClassWrapper, const ssize_t max>
+        class PyObjectConversionHelper<T[size], ClassWrapper, max, void> {
         public:
             typedef typename std::remove_reference<T>::type T_NoRef;
             typedef T T_array[size];
@@ -430,7 +430,7 @@ namespace __pyllars_internal {
             static PyObject *toPyObject(T_array &var, const bool asReference, const ssize_t array_size) {
 
                 //create the object of the desired type and do some checks
-                PyObject *pyobj = (PyObject*) ClassWrapper::template createPy<T_array, is_complete>(array_size, &var, !asReference,
+                PyObject *pyobj = (PyObject*) ClassWrapper::template createPy<T_array>(array_size, &var, !asReference,
                                                                                   nullptr);//
                 if (!pyobj || !PyObject_TypeCheck(pyobj, (&ClassWrapper::Type))) {
                     PyErr_SetString(PyExc_TypeError, "Unable to convert C type object to Python object");
@@ -444,8 +444,8 @@ namespace __pyllars_internal {
         /**
          * specialize for fixed-size array types (non-pointer too and non-const-char too)
          **/
-        template<typename T, const size_t size, bool is_complete, typename ClassWrapper, const ssize_t max>
-        class PyObjectConversionHelper<const T[size], is_complete, ClassWrapper, max, void> {
+        template<typename T, const size_t size, typename ClassWrapper, const ssize_t max>
+        class PyObjectConversionHelper<const T[size], ClassWrapper, max, void> {
         public:
             typedef typename std::remove_reference<T>::type T_NoRef;
             typedef const T T_array[];
@@ -456,7 +456,7 @@ namespace __pyllars_internal {
                     return nullptr;
                 }
                 //create the object of the desired type and do some checks
-                PyObject *pyobj = ClassWrapper::template createPy<T_array, is_complete>(array_size, &var, false, nullptr);//
+                PyObject *pyobj = ClassWrapper::template createPy<T_array>(array_size, &var, false, nullptr);//
 
                 if (!pyobj || !PyObject_TypeCheck(pyobj, (&ClassWrapper::Type))) {
                     PyErr_SetString(PyExc_TypeError, "Unable to convert C type object to Python object");
@@ -472,8 +472,8 @@ namespace __pyllars_internal {
         /**
          * specialize for const non-extent array types (non-pointer too and non-const-char too)
          **/
-        template<typename T, bool is_complete, typename ClassWrapper, const ssize_t max>
-        class PyObjectConversionHelper<T const[], is_complete, ClassWrapper, max, void> {
+        template<typename T, typename ClassWrapper, const ssize_t max>
+        class PyObjectConversionHelper<T const[], ClassWrapper, max, void> {
         public:
             typedef typename std::remove_reference<T>::type T_NoRef;
             typedef const T T_array[];
@@ -486,9 +486,9 @@ namespace __pyllars_internal {
 
                 //create the object of the desired type and do some checks
                 // PyObject* emptyTuple = PyTuple_New(0);
-                PythonClassWrapper<T const[], is_complete, max>::initialize();
+                PythonClassWrapper<T const[], max>::initialize();
 
-                PyObject *pyobj = ClassWrapper::template createPy<const T[], is_complete>(array_size, &var, false,
+                PyObject *pyobj = ClassWrapper::template createPy<const T[]>(array_size, &var, false,
                                                                                         nullptr);//PyObject_Call(  (PyObject*)&ClassWrapper::Type,
                 //emptyTuple, nullptr);
                 // Py_DECREF(emptyTuple);
@@ -509,8 +509,8 @@ namespace __pyllars_internal {
         /**
          * specialize for integer types
          **/
-        template<typename T, bool is_complete, typename ClassWrapper, const ssize_t max>
-        class PyObjectConversionHelper<T, is_complete, ClassWrapper, max, typename std::enable_if<
+        template<typename T, typename ClassWrapper, const ssize_t max>
+        class PyObjectConversionHelper<T, ClassWrapper, max, typename std::enable_if<
                 std::is_integral<T>::value || std::is_enum<T>::value>::type> {
         public:
             static PyObject *toPyObject(const T &var, const bool asReference, const ssize_t array_size = -1) {
@@ -522,8 +522,8 @@ namespace __pyllars_internal {
         /**
          * specialize for floating point types
          **/
-        template<typename T, bool is_complete, typename ClassWrapper, const ssize_t max>
-        class PyObjectConversionHelper<T, is_complete, ClassWrapper, max, typename std::enable_if<std::is_floating_point<T>::value>::type> {
+        template<typename T, typename ClassWrapper, const ssize_t max>
+        class PyObjectConversionHelper<T, ClassWrapper, max, typename std::enable_if<std::is_floating_point<T>::value>::type> {
         public:
             static PyObject *toPyObject(const T &var, const bool asReference, const ssize_t array_size = -1) {
                 (void) asReference;
@@ -534,8 +534,8 @@ namespace __pyllars_internal {
         /**
          * specialize for cosnt integer reference types
          **/
-        template<typename T, bool is_complete, typename ClassWrapper, const ssize_t max>
-        class PyObjectConversionHelper<T, is_complete, ClassWrapper, max, typename std::enable_if<
+        template<typename T, typename ClassWrapper, const ssize_t max>
+        class PyObjectConversionHelper<T, ClassWrapper, max, typename std::enable_if<
                 std::is_const<T>::value && std::is_reference<T>::value &&
                 (std::is_integral<typename std::remove_reference<T>::type>::value ||
                  std::is_enum<typename std::remove_reference<T>::type>::value
@@ -558,8 +558,8 @@ namespace __pyllars_internal {
         /**
          * specialize for const non-basic reference types
          **/
-        template<typename T, bool is_complete, typename ClassWrapper, const ssize_t max>
-        class PyObjectConversionHelper<T, is_complete, ClassWrapper, max,
+        template<typename T, typename ClassWrapper, const ssize_t max>
+        class PyObjectConversionHelper<T, ClassWrapper, max,
                 typename std::enable_if<std::is_const<T>::value &&
                                         std::is_reference<T>::value &&
                                         !std::is_integral<typename std::remove_reference<T>::type>::value &&
@@ -582,8 +582,8 @@ namespace __pyllars_internal {
         /**
          * specialize for const floating point reference types
          **/
-        template<typename T, bool is_complete, typename ClassWrapper, const ssize_t max>
-        class PyObjectConversionHelper<T, is_complete, ClassWrapper, max,
+        template<typename T, typename ClassWrapper, const ssize_t max>
+        class PyObjectConversionHelper<T, ClassWrapper, max,
                 typename std::enable_if<std::is_const<T>::value &&
                                         std::is_reference<T>::value &&
                                         !std::is_floating_point<typename std::remove_reference<T>::type>::value>::type> {
@@ -605,8 +605,8 @@ namespace __pyllars_internal {
         /**
          * Specialized for non-const pointers:
          **/
-        template<typename T, bool is_complete, typename ClassWrapper, const ssize_t max>
-        class PyObjectConversionHelper<T *, is_complete, ClassWrapper, max, void/*typename  std::enable_if< !is_function_ptr<typename std::remove_pointer<T>::type >::value >::type*/> {
+        template<typename T, typename ClassWrapper, const ssize_t max>
+        class PyObjectConversionHelper<T *, ClassWrapper, max, void/*typename  std::enable_if< !is_function_ptr<typename std::remove_pointer<T>::type >::value >::type*/> {
         public:
             static PyObject *toPyObject(T *const &var, const bool asReference, const ssize_t array_size) {
                 (void) asReference;
@@ -644,14 +644,14 @@ namespace __pyllars_internal {
         /**
          * Specialized for  pointers:
          **/
-        template<typename T, bool is_complete, typename PtrWrapper, const ssize_t max>
-        class PyObjectConversionHelper<T *const, is_complete, PtrWrapper, max, void/*typename  std::enable_if< !is_function_ptr<typename std::remove_pointer<T>::type >::value>::type*/> {
+        template<typename T, typename PtrWrapper, const ssize_t max>
+        class PyObjectConversionHelper<T *const, PtrWrapper, max, void/*typename  std::enable_if< !is_function_ptr<typename std::remove_pointer<T>::type >::value>::type*/> {
         public:
             static PyObject *toPyObject(T *const &var, const bool asReference, const ssize_t array_size) {
                 (void) asReference;
                 PyObject *pyobj = nullptr;
 
-                //typedef PythonClassWrapper<T, is_complete, max> ClassWrapper;
+                //typedef PythonClassWrapper<T, max> ClassWrapper;
                 if (!PtrWrapper::Type.tp_name) {
                     PtrWrapper::initialize();
                 }
@@ -682,7 +682,7 @@ namespace __pyllars_internal {
          * Specialized for char*:
          **/
         template<const ssize_t max, typename ClassWrapper>
-        class PyObjectConversionHelper<const char *, true, ClassWrapper, max, void> {
+        class PyObjectConversionHelper<const char *, ClassWrapper, max, void> {
         public:
             static PyObject *toPyObject(const char *const &var, const bool asReference, const ssize_t array_size = -1) {
                 (void) asReference;
@@ -695,7 +695,7 @@ namespace __pyllars_internal {
         };
 
         template<const ssize_t max, typename ClassWrapper>
-        class PyObjectConversionHelper<char *, true, ClassWrapper, max, void> {
+        class PyObjectConversionHelper<char *, ClassWrapper, max, void> {
         public:
             static PyObject *toPyObject(char *const &var, const bool asReference, const ssize_t array_size = -1) {
                 (void) asReference;
@@ -709,7 +709,7 @@ namespace __pyllars_internal {
         };
 
         template<const ssize_t max, typename ClassWrapper>
-        class PyObjectConversionHelper<const char *const, true, ClassWrapper, max, void> {
+        class PyObjectConversionHelper<const char *const, ClassWrapper, max, void> {
         public:
             static PyObject *toPyObject(const char *const &var, const bool asReference, const ssize_t array_size = -1) {
                 (void) asReference;
@@ -731,15 +731,15 @@ namespace __pyllars_internal {
   * @param var: value to convert
   * @param asArgument: whether to be used as argument or not (can determine if copy is made or reference semantics used)
   **/
-    template<typename T, bool is_complete, const ssize_t max, typename E>
+    template<typename T, const ssize_t max, typename E>
     PyObject *toPyObject(T &var, const bool asArgument, const ssize_t array_size) {
-        return ConversionHelpers::PyObjectConversionHelper<T, is_complete, PythonClassWrapper<T, is_complete, max, PythonBase, E>, max>::toPyObject(
+        return ConversionHelpers::PyObjectConversionHelper<T, PythonClassWrapper<T, max, E>, max>::toPyObject(
                 var, asArgument, array_size);
     }
 
-    template<typename T, bool is_complete, const ssize_t max, typename E>
+    template<typename T, const ssize_t max, typename E>
     PyObject *toPyObject(const T &var, const bool asArgument, const ssize_t array_size) {
-        return ConversionHelpers::PyObjectConversionHelper<const T, is_complete, PythonClassWrapper<T, is_complete, max, PythonBase, E>, max>::toPyObject(
+        return ConversionHelpers::PyObjectConversionHelper<const T, PythonClassWrapper<T, max, E>, max>::toPyObject(
                 var, asArgument, array_size);
     }
 

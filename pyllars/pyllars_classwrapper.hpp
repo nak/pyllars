@@ -33,19 +33,19 @@ namespace __pyllars_internal {
 
     static PyMethodDef emptyMethods[] = {{nullptr, nullptr, 0, nullptr}};
 
-    template<typename T, bool is_complete, typename E=void>
+    template<typename T, typename E=void>
     class InitHelper {
     public:
-        static int init(PythonClassWrapper<T, is_complete> *self, PyObject *args, PyObject *kwds);
+        static int init(PythonClassWrapper<T> *self, PyObject *args, PyObject *kwds);
     };
 
     /**
      * Specialization for integers
      **/
-    template<typename T, bool is_complete>
-    class InitHelper<T, is_complete, typename std::enable_if<std::is_integral<T>::value>::type> {
+    template<typename T>
+    class InitHelper<T, typename std::enable_if<std::is_integral<T>::value>::type> {
     public:
-        static int init(PythonClassWrapper<T, is_complete> *self, PyObject *args, PyObject *kwds) {
+        static int init(PythonClassWrapper<T> *self, PyObject *args, PyObject *kwds) {
             if (!self) {
                 return -1;
             }
@@ -81,10 +81,10 @@ namespace __pyllars_internal {
     /**
      * Specialization for floating point
      **/
-    template<typename T, bool is_complete>
-    class InitHelper<T, is_complete, typename std::enable_if<std::is_floating_point<T>::value>::type> {
+    template<typename T>
+    class InitHelper<T, typename std::enable_if<std::is_floating_point<T>::value>::type> {
     public:
-        static int init(PythonClassWrapper<T, is_complete> *self, PyObject *args, PyObject *kwds) {
+        static int init(PythonClassWrapper<T> *self, PyObject *args, PyObject *kwds) {
             static const char *kwlist[] = {"value", nullptr};
             if (!self) {
                 return -1;
@@ -106,16 +106,16 @@ namespace __pyllars_internal {
     };
 
     //specialize for non-numeric fundamental types:
-    template<typename T, bool is_complete>
-    class InitHelper<T, is_complete, typename std::enable_if<
+    template<typename T>
+    class InitHelper<T, typename std::enable_if<
             !std::is_void<T>::value && !std::is_arithmetic<T>::value && std::is_fundamental<T>::value>::type> {
     public:
-        static int init(PythonClassWrapper<T, is_complete> *self, PyObject *args, PyObject *kwds) {
+        static int init(PythonClassWrapper<T> *self, PyObject *args, PyObject *kwds) {
             if (!self) {
                 return -1;
             }
-            for (auto it = PythonClassWrapper<T, is_complete>::_constructors.begin();
-                 it != PythonClassWrapper<T, is_complete>::_constructors.end(); ++it) {
+            for (auto it = PythonClassWrapper<T>::_constructors.begin();
+                 it != PythonClassWrapper<T>::_constructors.end(); ++it) {
                 try {
                     if ((*it)(args, kwds, self->_CObject)) {
                         break;
@@ -128,13 +128,13 @@ namespace __pyllars_internal {
                 static const char *kwdlist[] = {"value", nullptr};
                 PyObject *pyobj;
                 if (PyArg_ParseTupleAndKeywords(args, kwds, "O", (char **) kwdlist, pyobj)) {
-                    if (!PyObject_TypeCheck(pyobj, (&PythonClassWrapper<T, is_complete>::Type))) {
+                    if (!PyObject_TypeCheck(pyobj, (&PythonClassWrapper<T>::Type))) {
                         PyErr_Print();
                         PyErr_SetString(PyExc_TypeError, "Invalid type to construct from");
                         return -1;
                     }
                     self->_CObject = new typename std::remove_reference<T>::type >
-                                     (*(reinterpret_cast<PythonClassWrapper<T, is_complete> *>(pyobj)->template get_CObject<T>()));
+                                     (*(reinterpret_cast<PythonClassWrapper<T> *>(pyobj)->template get_CObject<T>()));
                 } else if ((!kwds || PyDict_Size(kwds) == 0) && (!args || PyTuple_Size(args) == 0)) {
                     self->_CObject = new typename std::remove_reference<T>::type();
                     memset(self->_CObject, 0, sizeof(typename std::remove_reference<T>::type));
@@ -156,15 +156,15 @@ namespace __pyllars_internal {
     };
 
     //specialize for non-numeric fundamental types:
-    template<typename T, bool is_complete>
-    class InitHelper<T, is_complete, typename std::enable_if<std::is_void<T>::value>::type> {
+    template<typename T>
+    class InitHelper<T, typename std::enable_if<std::is_void<T>::value>::type> {
     public:
-        static int init(PythonClassWrapper<T, is_complete> *self, PyObject *args, PyObject *kwds) {
+        static int init(PythonClassWrapper<T> *self, PyObject *args, PyObject *kwds) {
             if (!self) {
                 return -1;
             }
-            for (auto it = PythonClassWrapper<T, is_complete>::_constructors.begin();
-                 it != PythonClassWrapper<T, is_complete>::_constructors.end(); ++it) {
+            for (auto it = PythonClassWrapper<T>::_constructors.begin();
+                 it != PythonClassWrapper<T>::_constructors.end(); ++it) {
                 try {
                     if ((*it)(args, kwds, self->_CObject)) {
                         break;
@@ -177,7 +177,7 @@ namespace __pyllars_internal {
                 static const char *kwdlist[] = {"value", nullptr};
                 PyObject *pyobj = Py_None;
                 if (PyArg_ParseTupleAndKeywords(args, kwds, "O", (char **) kwdlist, pyobj)) {
-                    if (!PyObject_TypeCheck(pyobj, (&PythonClassWrapper<T, is_complete>::Type))) {
+                    if (!PyObject_TypeCheck(pyobj, (&PythonClassWrapper<T>::Type))) {
                         PyErr_Print();
                         PyErr_SetString(PyExc_TypeError, "Invalid type to construct from");
                         return -1;
@@ -205,17 +205,17 @@ namespace __pyllars_internal {
 
 
     //specialize for pointer types:
-    template<typename T, bool is_complete>
-    class InitHelper<T, is_complete, typename std::enable_if<!std::is_void<T>::value && !std::is_arithmetic<T>::value &&
+    template<typename T>
+    class InitHelper<T, typename std::enable_if<!std::is_void<T>::value && !std::is_arithmetic<T>::value &&
                                                              std::is_pointer<T>::value>::type> {
     public:
-        static int init(PythonClassWrapper<T, is_complete> *self, PyObject *args, PyObject *kwds) {
+        static int init(PythonClassWrapper<T> *self, PyObject *args, PyObject *kwds) {
             if (!self) {
                 return -1;
             }
             self->_CObject = nullptr;
-            for (auto it = PythonClassWrapper<T, is_complete>::_constructors.begin();
-                 it != PythonClassWrapper<T, is_complete>::_constructors.end(); ++it) {
+            for (auto it = PythonClassWrapper<T>::_constructors.begin();
+                 it != PythonClassWrapper<T>::_constructors.end(); ++it) {
                 try {
                     if ((*it)(args, kwds, self->_CObject)) {
                         break;
@@ -228,9 +228,9 @@ namespace __pyllars_internal {
             if (self->_CObject == nullptr) {
                 static const char *kwdlist[] = {"value", nullptr};
                 PyObject pyobj;
-                PythonClassWrapper<T, is_complete> *pyclass = reinterpret_cast<PythonClassWrapper<T, is_complete> *>(&pyobj);
+                PythonClassWrapper<T> *pyclass = reinterpret_cast<PythonClassWrapper<T> *>(&pyobj);
                 if (PyArg_ParseTupleAndKeywords(args, kwds, "O", (char **) kwdlist, &pyobj)) {
-                    if (!PyObject_TypeCheck(&pyobj, (&PythonClassWrapper<T, is_complete>::Type))) {
+                    if (!PyObject_TypeCheck(&pyobj, (&PythonClassWrapper<T>::Type))) {
                         PyErr_SetString(PyExc_TypeError, "Invalid type to construct from");
                         return -1;
                     }
@@ -253,20 +253,20 @@ namespace __pyllars_internal {
     };
 
     //specialize for copiable non-fundamental reference types:
-    template<typename T, bool is_complete>
-    class InitHelper<T, is_complete, typename std::enable_if<!std::is_void<T>::value &&
+    template<typename T>
+    class InitHelper<T, typename std::enable_if<!std::is_void<T>::value &&
                                                              !std::is_integral<typename std::remove_reference<T>::type>::value &&
                                                              !std::is_floating_point<typename std::remove_reference<T>::type>::value &&
                                                              std::is_copy_constructible<typename std::remove_reference<T>::type>::value &&
                                                              std::is_reference<T>::value>::type> {
     public:
-        static int init(PythonClassWrapper<T, is_complete> *self, PyObject *args, PyObject *kwds) {
+        static int init(PythonClassWrapper<T> *self, PyObject *args, PyObject *kwds) {
             if (!self) {
                 return -1;
             }
             self->_CObject = nullptr;
-            for (auto it = PythonClassWrapper<T, is_complete>::_constructors.begin();
-                 it != PythonClassWrapper<T, is_complete>::_constructors.end(); ++it) {
+            for (auto it = PythonClassWrapper<T>::_constructors.begin();
+                 it != PythonClassWrapper<T>::_constructors.end(); ++it) {
                 try {
                     if ((*it)(args, kwds, self->_CObject)) {
                         break;
@@ -295,20 +295,20 @@ namespace __pyllars_internal {
     };
 
     //  specialize for non-copiable non-fundamental reference types:
-    template<typename T, bool is_complete>
-    class InitHelper<T, is_complete, typename std::enable_if<
+    template<typename T>
+    class InitHelper<T, typename std::enable_if<
             !std::is_integral<typename std::remove_reference<T>::type>::value &&
             !std::is_floating_point<typename std::remove_reference<T>::type>::value &&
             !std::is_copy_constructible<typename std::remove_reference<T>::type>::value &&
             std::is_reference<T>::value>::type> {
     public:
-        static int init(PythonClassWrapper<T, is_complete> *self, PyObject *args, PyObject *kwds) {
+        static int init(PythonClassWrapper<T> *self, PyObject *args, PyObject *kwds) {
             if (!self) {
                 return -1;
             }
             self->_CObject = nullptr;
-            for (auto it = PythonClassWrapper<T, is_complete>::_constructors.begin();
-                 it != PythonClassWrapper<T, is_complete>::_constructors.end(); ++it) {
+            for (auto it = PythonClassWrapper<T>::_constructors.begin();
+                 it != PythonClassWrapper<T>::_constructors.end(); ++it) {
                 try {
                     if ((*it)(args, kwds, self->_CObject)) {
                         break;
@@ -338,12 +338,12 @@ namespace __pyllars_internal {
     };
 
     //specialize for integral reference types:
-    template<typename T, bool is_complete>
-    class InitHelper<T, is_complete, typename std::enable_if<
+    template<typename T>
+    class InitHelper<T, typename std::enable_if<
             std::is_integral<typename std::remove_reference<T>::type>::value &&
             std::is_reference<T>::value>::type> {
     public:
-        static int init(PythonClassWrapper<T, is_complete> *self, PyObject *args, PyObject *kwds) {
+        static int init(PythonClassWrapper<T> *self, PyObject *args, PyObject *kwds) {
             typedef typename std::remove_reference<T>::type T_NoRef;
             if (!self) {
                 return -1;
@@ -402,12 +402,12 @@ namespace __pyllars_internal {
     };
 
     //specialize for floating point reference types:
-    template<typename T, bool is_complete>
-    class InitHelper<T, is_complete, typename std::enable_if<
+    template<typename T>
+    class InitHelper<T, typename std::enable_if<
             std::is_floating_point<typename std::remove_reference<T>::type>::value &&
             std::is_reference<T>::value>::type> {
     public:
-        static int init(PythonClassWrapper<T, is_complete> *self, PyObject *args, PyObject *kwds) {
+        static int init(PythonClassWrapper<T> *self, PyObject *args, PyObject *kwds) {
             typedef typename std::remove_reference<T>::type T_NoRef;
             if (!self) {
                 return -1;
@@ -435,18 +435,18 @@ namespace __pyllars_internal {
     };
 
     //specialize for other complex types:
-    template<typename T, bool is_complete>
-    class InitHelper<T, is_complete, typename std::enable_if<
+    template<typename T>
+    class InitHelper<T, typename std::enable_if<
             !std::is_arithmetic<T>::value && !std::is_reference<T>::value &&
             !std::is_pointer<T>::value && !std::is_fundamental<T>::value>::type> {
     public:
-        static int init(PythonClassWrapper<T, is_complete> *self, PyObject *args, PyObject *kwds) {
+        static int init(PythonClassWrapper<T> *self, PyObject *args, PyObject *kwds) {
             if (!self) {
                 return -1;
             }
             self->_CObject = nullptr;
-            for (auto it = PythonClassWrapper<T, is_complete>::_constructors.begin();
-                 it != PythonClassWrapper<T, is_complete>::_constructors.end(); ++it) {
+            for (auto it = PythonClassWrapper<T>::_constructors.begin();
+                 it != PythonClassWrapper<T>::_constructors.end(); ++it) {
                 try {
                     if ((*it)(args, kwds, self->_CObject)) {
                         return 0;
@@ -475,13 +475,13 @@ namespace __pyllars_internal {
     /**
      * Class to define Python wrapper to C class/type
      **/
-    template<typename T, bool is_complete, typename Base>
-    struct PythonClassWrapper<T, is_complete, -1, Base,
+    template<typename T>
+    struct PythonClassWrapper<T, UNKNOWN_SIZE,
             typename std::enable_if< !std::is_array<T>::value && !std::is_pointer<T>::value>::type> : public CommonBaseWrapper {
-
+        typedef CommonBaseWrapper::Base Base;
         typedef PythonClassWrapper DereferencedWrapper;
-        typedef PythonClassWrapper<T const, is_complete, -1, PythonBase, void> ConstWrapper;
-        typedef PythonClassWrapper<typename std::remove_reference<T>::type, is_complete, -1, PythonBase, void> NoRefWrapper;
+        typedef PythonClassWrapper<T const, UNKNOWN_SIZE,void> ConstWrapper;
+        typedef PythonClassWrapper<typename std::remove_reference<T>::type, UNKNOWN_SIZE,void> NoRefWrapper;
 
         typedef typename std::remove_reference<T>::type T_NoRef;
 
@@ -557,7 +557,7 @@ namespace __pyllars_internal {
             static PyObject* kwds = PyDict_New();
             static PyObject* emptyargs = PyTuple_New(0);
             PyDict_SetItemString( kwds, "__internal__null_allowed", Py_True);
-            typedef PythonClassWrapper< T, is_complete, -1> PyWrapper;
+            typedef PythonClassWrapper< T, -1> PyWrapper;
             PyWrapper* pyobj = (PyWrapper*)PyObject_Call((PyObject*)&Type, emptyargs, kwds);
             pyobj->_CObject = cobj;
             pyobj->_allocated = isAllocated;
@@ -567,7 +567,7 @@ namespace __pyllars_internal {
         /**
          * Add a constructor to the list contained
          **/
-        typedef typename ObjectLifecycleHelpers::BasicAlloc<T, PythonClassWrapper<T_NoRef *, is_complete> >::ConstructorContainer ConstructorContainer;
+        typedef typename ObjectLifecycleHelpers::BasicAlloc<T, PythonClassWrapper<T_NoRef *> >::ConstructorContainer ConstructorContainer;
         typedef typename ConstructorContainer::constructor constructor;
 
         static void addConstructor(const char *const kwlist[], constructor c) {
@@ -595,14 +595,14 @@ namespace __pyllars_internal {
             }
             std::string ptr_name = std::string(Type.tp_name) + "*";
             std::string module_ptr_name = std::string(Type.tp_name) + "_ptr";
-            PythonClassWrapper<T_NoRef *, is_complete>::initialize(ptr_name.c_str(),
+            PythonClassWrapper<T_NoRef *>::initialize(ptr_name.c_str(),
                                                                    module_ptr_name.c_str(),
                                                                    parent_module,
                                                                    (_name + "*").c_str());
-            PyObject *obj = toPyObject<T_NoRef *, is_complete>(reinterpret_cast<PythonClassWrapper *>(self)->_CObject,
+            PyObject *obj = toPyObject<T_NoRef *>(reinterpret_cast<PythonClassWrapper *>(self)->_CObject,
                                                                false, 1);
             PyErr_Clear();
-            ((PythonClassWrapper<T_NoRef *, is_complete> *) obj)->make_reference(self);
+            ((PythonClassWrapper<T_NoRef *> *) obj)->make_reference(self);
             return obj;
         }
 
@@ -707,7 +707,7 @@ namespace __pyllars_internal {
         /**
          * add a getter method for the given compile-time-known named public class member
          **/
-        template<const char *const name, size_t size, typename Type>
+        template<const char *const name, ssize_t size, typename Type>
         static void addAttribute(
                 typename MemberContainer<T_NoRef>::template Container<name, Type[size]>::member_t member,
                 const ssize_t array_size) {
@@ -828,18 +828,18 @@ namespace __pyllars_internal {
 
         static PyObject *parent_module;
 
-        template<typename C, bool is_complete2, const ssize_t size, typename depth>
+        template<typename C, const ssize_t size, typename depth>
         friend
         class PythonCPointerWrapper;
 
-        template<typename C, bool is_complee2, typename E>
+        template<typename C, typename E>
         friend
         class InitHelper;
 
     protected:
 
         static PyObject *alloc(PyObject *cls, PyObject *args, PyObject *kwds) {
-            return ObjectLifecycleHelpers::Alloc<T, is_complete, PythonClassWrapper<T_NoRef *, is_complete>, PythonClassWrapper>::allocbase
+            return ObjectLifecycleHelpers::Alloc<T, PythonClassWrapper<T_NoRef *>, PythonClassWrapper>::allocbase
                     (cls, args, kwds, _constructors);
         }
 
@@ -857,7 +857,7 @@ namespace __pyllars_internal {
             }
             self->_allocated = false;
             self->_raw_storage = nullptr;
-            return InitHelper<T, is_complete>::init(self, args, kwds);
+            return InitHelper<T>::init(self, args, kwds);
         }
 
         static PyObject *_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
@@ -882,7 +882,7 @@ namespace __pyllars_internal {
             if (self->_raw_storage) {
                 delete self->_raw_storage;
             } else if (self->_allocated) {
-                ObjectLifecycleHelpers::Alloc<T_NoRef, is_complete, PythonClassWrapper<T_NoRef *, is_complete, -1, PythonBase, void>, PythonClassWrapper>::dealloc(
+                ObjectLifecycleHelpers::Alloc<T_NoRef, PythonClassWrapper<T_NoRef *>, PythonClassWrapper>::dealloc(
                         ptr);
             }
             self->_raw_storage = nullptr;
@@ -935,7 +935,7 @@ namespace __pyllars_internal {
             }
 
             return _createBaseBase<Args...>(cobj,
-                                            *toCObject<Args, false, is_complete, PythonClassWrapper<Args, is_complete> >(
+                                            *toCObject<Args, false, PythonClassWrapper<Args> >(
                                                     *pyobjs[S])...);
         }
 
@@ -958,39 +958,39 @@ namespace __pyllars_internal {
     };
 
 
-    template<typename T, bool is_complete, typename Base>
-    PyObject *PythonClassWrapper<T, is_complete, -1, Base,
+    template<typename T>
+    PyObject *PythonClassWrapper<T, UNKNOWN_SIZE,
             typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
             parent_module = nullptr;
-    template<typename T, bool is_complete, typename Base>
-    std::vector <PyMethodDef> PythonClassWrapper<T, is_complete, -1, Base,
+    template<typename T>
+    std::vector <PyMethodDef> PythonClassWrapper<T, UNKNOWN_SIZE,
             typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
             _methodCollection = std::vector<PyMethodDef>(emptyMethods, emptyMethods + 1);
-    template<typename T, bool is_complete, typename Base>
-    std::vector<PyTypeObject *> PythonClassWrapper<T, is_complete, -1, Base,
+    template<typename T>
+    std::vector<PyTypeObject *> PythonClassWrapper<T, UNKNOWN_SIZE,
             typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
             _baseClasses = std::vector<PyTypeObject *>();
-    template<typename T, bool is_complete, typename Base>
+    template<typename T>
     std::map<std::string, typename MethodContainer<T>::setter_t>
-            PythonClassWrapper<T, is_complete, -1, Base,
+            PythonClassWrapper<T, UNKNOWN_SIZE,
                     typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
             _memberSettersDict = std::map<std::string, typename MethodContainer<T>::setter_t>();
-    template<typename T, bool is_complete, typename Base>
-    std::vector<typename PythonClassWrapper<T, is_complete, -1, Base, typename std::enable_if<
-            !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::ConstructorContainer>
-            PythonClassWrapper<T, is_complete, -1, Base,
+    template<typename T>
+    std::vector< typename PythonClassWrapper<T, UNKNOWN_SIZE, typename std::enable_if< !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+                          ConstructorContainer>
+            PythonClassWrapper<T, UNKNOWN_SIZE,
                     typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
             _constructors;
 
 
-    template<typename T, bool is_complete, typename Base>
-    std::string PythonClassWrapper<T, is_complete, -1, Base,
+    template<typename T>
+    std::string PythonClassWrapper<T, UNKNOWN_SIZE,
             typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::_name;
-    template<typename T, bool is_complete, typename Base>
-    std::string PythonClassWrapper<T, is_complete, -1, Base,
+    template<typename T>
+    std::string PythonClassWrapper<T, UNKNOWN_SIZE,
             typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::_module_entry_name;
-    template<typename T, bool is_complete, typename Base>
-    PyTypeObject PythonClassWrapper<T, is_complete, -1, Base,
+    template<typename T>
+    PyTypeObject PythonClassWrapper<T, UNKNOWN_SIZE,
             typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
             Type = {
 

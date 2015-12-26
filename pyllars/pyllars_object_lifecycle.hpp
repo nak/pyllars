@@ -23,14 +23,16 @@ namespace __pyllars_internal{
 
     class PtrWrapperBaseBase;
 
-    template <bool is_complete, const ssize_t max>
+    template <const ssize_t max>
     struct RecursiveWrapper;
 
-    template<typename CT, bool is_complete, const ssize_t last, typename Base, typename Z>
+    template<typename C, const ssize_t last, typename Z>
     struct PythonTWrapper;
 
-    //template <bool is_complete, const ssize_t max,  const size_t depth>
+    //template <const ssize_t max,  const size_t depth>
     //class RecusriveWrapper;
+
+
 
     class ObjectLifecycleHelpers
     {
@@ -40,10 +42,10 @@ namespace __pyllars_internal{
 
         friend class PtrWrapperBase;
 
-        template <bool is_complete, const ssize_t max>
+        template <const ssize_t max>
         friend struct RecursiveWrapper;
 
-        template<typename CClass, bool is_complete, const ssize_t last , typename Base, typename Z >
+        template<typename CClass, const ssize_t last , typename Z >
         friend struct PythonClassWrapper;
 
     private:
@@ -65,14 +67,14 @@ namespace __pyllars_internal{
          * Helper for Setting and Getting T values in dereferencing
          * pointer-to-class objects
          **/
-        template <typename T, const bool is_complete, typename Z = void >
+        template <typename T, typename Z = void >
         class ObjectContent;
 
         /**
          * Specialization for non-pointer copiable and assignable class (instances)
          **/
-        template< typename T, const bool is_complete>
-        class ObjectContent<T, is_complete,
+        template< typename T>
+        class ObjectContent<T,
                     typename std::enable_if< !std::is_pointer<T>::value &&
                                              std::is_copy_constructible<T>::value &&
                                              std::is_assignable<T, T>::value>::type >{
@@ -82,7 +84,7 @@ namespace __pyllars_internal{
                 to[index] = *from;
             }
 
-            static T* getObjectPtr(PythonTWrapper<T, is_complete, -1, PythonBase, void> * const self){
+            static T* getObjectPtr(PythonTWrapper<T, -1, void> * const self){
                 return (T*)self->_CObject;
             }
 
@@ -92,8 +94,8 @@ namespace __pyllars_internal{
          * Specialization for non-pointer non-array copiable but not assignable
          * class (instances)
          **/
-        template< typename T, const bool is_complete>
-        class ObjectContent<T, is_complete,
+        template< typename T>
+        class ObjectContent<T,
                      typename std::enable_if< !std::is_pointer<T>::value &&
                                         !std::is_array<T>::value &&
                                         std::is_copy_constructible<T>::value &&
@@ -104,7 +106,7 @@ namespace __pyllars_internal{
                 throw "Object is not assignable";
             }
 
-            static T* getObjectPtr(PythonTWrapper<T, is_complete, -1, PythonBase, void> * const self){
+            static T* getObjectPtr(PythonTWrapper<T,  -1,  void> * const self){
                 return (T*)&self->_CObject;
             }
 
@@ -114,8 +116,8 @@ namespace __pyllars_internal{
          * Specialization for non-pointer non-array non-vois non-copiable
          * class (instances)
          **/
-        template< typename T, const bool is_complete>
-        class ObjectContent<T, is_complete,
+        template< typename T>
+        class ObjectContent<T,
                             typename std::enable_if< !std::is_pointer<T>::value &&
                                                 !std::is_array<T>::value &&
                                                 !std::is_void<T>::value &&
@@ -126,7 +128,7 @@ namespace __pyllars_internal{
                 throw "setting void type";
             }
 
-            static T* getObjectPtr(PythonTWrapper<T, is_complete, -1, PythonBase, void> * const self){
+            static T* getObjectPtr(PythonTWrapper<T, -1,  void> * const self){
                 return (T*)&self->_CObject;
             }
         };
@@ -135,8 +137,8 @@ namespace __pyllars_internal{
          * Specialization for non-array non-void non-copieable
          * class (instances)
          **/
-        template< typename T, const bool is_complete>
-        class ObjectContent<T, is_complete,
+        template< typename T>
+        class ObjectContent<T,
                            typename std::enable_if< !std::is_array<T>::value &&
                                                 !std::is_void<T>::value &&
                                                 !std::is_copy_constructible<T>::value>::type >{
@@ -150,7 +152,7 @@ namespace __pyllars_internal{
                 throw "setting void type";
             }
 
-            static T* getObjectPtr(PythonTWrapper<T, is_complete, -1, PythonBase, void> * const self){
+            static T* getObjectPtr(PythonTWrapper<T,  -1,  void> * const self){
                 return (T*)&self->_CObject;
             }
 
@@ -159,8 +161,8 @@ namespace __pyllars_internal{
         /**
          * Specialization for void type
          **/
-        template< typename T, bool is_complete>
-        class ObjectContent<T, is_complete, typename std::enable_if< std::is_void<T>::value >::type >{
+        template< typename T>
+        class ObjectContent<T,  typename std::enable_if< std::is_void<T>::value >::type >{
         public:
 
             static PyObject* getObjectAt( T** const from, const size_t index){
@@ -171,7 +173,7 @@ namespace __pyllars_internal{
                 throw "setting void type";
             }
 
-            static T* getObjectPtr(PythonTWrapper<T, is_complete, -1, PythonBase, void> * const self){
+            static T* getObjectPtr(PythonTWrapper<T,  -1,  void> * const self){
                 return (T*)&self->_CObject;
             }
 
@@ -180,8 +182,8 @@ namespace __pyllars_internal{
         /**
          * Specialization for non-const copy-constructible non-ptr-to-void non-const pointer types
          **/
-        template< typename T, const bool is_complete>
-        class ObjectContent<T*, is_complete,
+        template< typename T>
+        class ObjectContent<T*, 
                            typename std::enable_if< !std::is_const<T>::value &&
                                                 std::is_copy_constructible<T>::value &&
                                                 !std::is_void< T >::value>::type >{
@@ -190,7 +192,7 @@ namespace __pyllars_internal{
             static PyObject* getObjectAt( T** const from, const size_t index, const ssize_t elements_array_size){
                 //TODO add reference to owning element to this object to not have go out of scope
                 //until parent does!!!!
-                return toPyObject<T, is_complete>((*from)[index], true, elements_array_size);
+                return toPyObject<T>((*from)[index], true, elements_array_size);
             }
 
             static void set( const size_t index, T** const to, T** const from){
@@ -206,8 +208,8 @@ namespace __pyllars_internal{
         /**
          * Specialization for non-const copy-constrible non-ptr-to-voie const pointer types
          **/
-        template< typename T, const bool is_complete>
-        class ObjectContent<T* const, is_complete,
+        template< typename T>
+        class ObjectContent<T* const, 
                            typename std::enable_if< !std::is_const<T>::value &&
                                                 std::is_copy_constructible<T>::value &&
                                                 !std::is_void< T >::value>::type >{
@@ -216,7 +218,7 @@ namespace __pyllars_internal{
             static PyObject* getObjectAt( T* const * const from, const size_t index, const ssize_t elements_array_size){
                 //TODO add reference to owning element to this object to not have go out of scope
                 //until parent does!!!!
-                return toPyObject<T, is_complete>((*from)[index], false, elements_array_size);
+                return toPyObject<T>((*from)[index], false, elements_array_size);
             }
 
             static void set( const size_t index, T* const * const to, T* const * const from){
@@ -232,8 +234,8 @@ namespace __pyllars_internal{
         /**
          * Speicalization for non-const-pointer-to-const type that is copyh cosntructibe and non-void
          **/
-        template< typename T, const bool is_complete>
-        class ObjectContent<const T*, is_complete,
+        template< typename T>
+        class ObjectContent<const T*, 
                            typename std::enable_if< std::is_copy_constructible<T>::value &&
                                                     !std::is_void< T >::value>::type >{
         public:
@@ -241,7 +243,7 @@ namespace __pyllars_internal{
             static PyObject* getObjectAt( const T** const from, const size_t index, const ssize_t elements_array_size){
                 //TODO add reference to owning element to this object to not have go out of scope
                 //until parent does!!!!
-                return toPyObject<T, is_complete>((*from)[index], false, elements_array_size);
+                return toPyObject<T>((*from)[index], false, elements_array_size);
             }
 
             static void set( const size_t index, const T** const to, const T** const from){
@@ -257,8 +259,8 @@ namespace __pyllars_internal{
         /**
          * Speicalization for const-pointer-to-const type that is copyh cosntructibe and non-void
          **/
-        template< typename T, const bool is_complete>
-        class ObjectContent<const T* const, is_complete,
+        template< typename T>
+        class ObjectContent<const T* const, 
                            typename std::enable_if< std::is_copy_constructible<T>::value &&
                                                     !std::is_void< T >::value>::type >{
         public:
@@ -266,7 +268,7 @@ namespace __pyllars_internal{
             static PyObject* getObjectAt( const T* const* const from, const size_t index, const ssize_t elements_array_size){
                 //TODO add reference to owning element to this object to not have go out of scope
                 //until parent does!!!!
-                return toPyObject<T, is_complete>((*from)[index], false, elements_array_size);
+                return toPyObject<T>((*from)[index], false, elements_array_size);
             }
 
             static void set( const size_t index, const T* const* const to,  const T* const* const from){
@@ -282,8 +284,8 @@ namespace __pyllars_internal{
         /**
          * Specialization for non-const-pointer to types that are not constructible
          **/
-        template< typename T, const bool is_complete>
-        class ObjectContent<T*, is_complete, typename std::enable_if< !std::is_copy_constructible<T>::value >::type >{
+        template< typename T>
+        class ObjectContent<T*,  typename std::enable_if< !std::is_copy_constructible<T>::value >::type >{
         public:
 
             static PyObject* getObjectAt( T** const from, const size_t index, const ssize_t elements_array_size){
@@ -304,14 +306,14 @@ namespace __pyllars_internal{
         /**
          * Specialization for fixed-size arrays of copy-construtible types
          **/
-        template< typename T, const size_t size, const bool is_complete>
-        class ObjectContent<T[size], is_complete, typename std::enable_if< std::is_copy_constructible<T>::value >::type >{
+        template< typename T, const size_t size>
+        class ObjectContent<T[size],  typename std::enable_if< std::is_copy_constructible<T>::value >::type >{
         public:
             typedef T T_array[size];
             static PyObject* getObjectAt( T_array* const from, const size_t index, const ssize_t elements_array_size){
                 //TODO add reference to owning element to this object to not have go out of scope
                 //until parent does!!!!
-                return toPyObject<T, is_complete>((*from)[index], true, elements_array_size);
+                return toPyObject<T>((*from)[index], true, elements_array_size);
             }
 
             static void set( const size_t index, T_array* const to, const T_array* const from){
@@ -328,8 +330,8 @@ namespace __pyllars_internal{
         /**
          * Specialization for fixed-size arrays of NON-copy-construtible types
          **/
-        template< typename T, const size_t size, const bool is_complete>
-        class ObjectContent<T[size], is_complete, typename std::enable_if< !std::is_copy_constructible<T>::value >::type >{
+        template< typename T, const size_t size>
+        class ObjectContent<T[size],  typename std::enable_if< !std::is_copy_constructible<T>::value >::type >{
         public:
             typedef T T_array[size];
             static PyObject* getObjectAt( T_array* const from, const size_t index, const ssize_t elements_array_size){
@@ -352,14 +354,14 @@ namespace __pyllars_internal{
         /**
          * Specialization for variable-sized array-of-const  of NON-copy-construtible types
          **/
-        template< typename T, const bool is_complete>
-        class ObjectContent<T const[], is_complete, typename std::enable_if< !std::is_copy_constructible<T>::value >::type >{
+        template< typename T>
+        class ObjectContent<T const[],  typename std::enable_if< !std::is_copy_constructible<T>::value >::type >{
         public:
             typedef const T T_array[];
             static PyObject* getObjectAt( T const ** const from, const size_t index, const ssize_t elements_array_size){
                 //TODO add reference to owning element to this object to not have go out of scope
                 //until parent does!!!!
-                return toPyObject<T, is_complete>((*from)[index], true, elements_array_size);
+                return toPyObject<T>((*from)[index], true, elements_array_size);
             }
 
             static void set( const size_t index, T const ** const to, const T* const * const from){
@@ -375,8 +377,8 @@ namespace __pyllars_internal{
         /**
          * Specialization for variable-sized array-of-const  of copy-construtible types
          **/
-        template< typename T, const bool is_complete>
-        class ObjectContent<T const[], is_complete, typename std::enable_if< std::is_copy_constructible<T>::value >::type >{
+        template< typename T>
+        class ObjectContent<T const[],  typename std::enable_if< std::is_copy_constructible<T>::value >::type >{
         public:
             typedef const T T_array[];
             static PyObject* getObjectAt( T const ** from, const size_t index, const ssize_t elements_array_size){
@@ -396,27 +398,7 @@ namespace __pyllars_internal{
 
         };
 
-        /**
-         * Specialization for void-pointer type
-         **/
-        template<  const bool is_complete>
-        class ObjectContent<void*, is_complete, void >{
-        public:
 
-            static void set( const size_t index, void** const to,  void** const from){
-                to[index] = *from;
-            }
-
-            static PyObject* getObjectAt( void** const from, const size_t index, const ssize_t elements_array_size){
-                (void)from;(void)index;(void)elements_array_size;
-                throw "Attempt to get void value";
-            }
-
-            static void** getObjectPtr(PtrWrapperBaseBase* const self){
-                return (void**)&self->_all_content._untyped_content;
-            }
-
-        };
 
 
         ///////////////////////////////
@@ -713,7 +695,7 @@ namespace __pyllars_internal{
         };
 
 
-        template<typename T, bool complete,
+        template<typename T,
                   typename PtrWrapper,
                   typename ClassWrapper,
                   typename Z = void>
@@ -722,7 +704,7 @@ namespace __pyllars_internal{
         template< typename T ,
                   typename PtrWrapper,
                   typename ClassWrapper>
-        struct  Alloc<T, true, PtrWrapper, ClassWrapper,
+        struct  Alloc<T, PtrWrapper, ClassWrapper,
                   typename std::enable_if< !is_function_ptr<T>::value && !std::is_reference<T>::value &&
                                                 std::is_constructible<T>::value &&
                                                 std::is_destructible<T>::value>::type>:
@@ -847,7 +829,7 @@ namespace __pyllars_internal{
         };
 
         template<typename T, typename PtrWrapper, typename ClassWrapper>
-        struct  Alloc<T, true, PtrWrapper,
+        struct  Alloc<T, PtrWrapper,
                    ClassWrapper,
                    typename std::enable_if< !is_function_ptr<T>::value && !std::is_reference<T>::value &&
                                      std::is_constructible<T>::value &&
@@ -953,8 +935,8 @@ namespace __pyllars_internal{
               PyErr_SetString(PyExc_RuntimeError, "Invalid constructor arguments on allocation");
               return nullptr;
             }
-            PythonTWrapper<T_NoRef*, true, -1, PythonBase, void>* obj=
-              (PythonTWrapper<T_NoRef*, true, -1, PythonBase, void>*)PyObject_Call((PyObject*)&PythonTWrapper<T_NoRef*, true, -1, PythonBase, void>::Type,
+            PythonTWrapper<T_NoRef*, -1,  void>* obj=
+              (PythonTWrapper<T_NoRef*, -1,  void>*)PyObject_Call((PyObject*)&PythonTWrapper<T_NoRef*, -1,  void>::Type,
                                                                          args, alloc_kwds);
             Py_DECREF(alloc_kwds);
             obj->template set_contents<T>(cobj);
@@ -964,12 +946,12 @@ namespace __pyllars_internal{
         };
 
         template<typename ReturnType, typename ...Args>
-        struct  Alloc<ReturnType(*)(Args...), true, PythonClassWrapper<ReturnType(**)(Args...), true, -1, PythonBase, void>,
-                  PythonClassWrapper<ReturnType(*)(Args...), true, -1, PythonBase, void>,
+        struct  Alloc<ReturnType(*)(Args...), PythonClassWrapper<ReturnType(**)(Args...), -1,  void>,
+                  PythonClassWrapper<ReturnType(*)(Args...), -1,  void>,
                    void >:
-            public BasicAlloc<ReturnType(*)(Args...),  PythonClassWrapper< ReturnType(**)(Args...), true, -1, PythonBase, void> >{
+            public BasicAlloc<ReturnType(*)(Args...),  PythonClassWrapper< ReturnType(**)(Args...), -1,  void> >{
 
-            typedef PythonClassWrapper< ReturnType(**)(Args...), true, -1, PythonBase, void> PtrWrapper;
+            typedef PythonClassWrapper< ReturnType(**)(Args...), -1,  void> PtrWrapper;
             typedef ReturnType(*T)(Args...);
             typedef typename std::remove_reference<T>::type T_NoRef;
 
@@ -1070,8 +1052,8 @@ namespace __pyllars_internal{
                 PyErr_SetString(PyExc_RuntimeError, "Invalid constructor arguments on allocation");
                 return nullptr;
               }
-              PythonTWrapper<T_NoRef*, true, -1, PythonBase, void>* obj=
-                (PythonTWrapper<T_NoRef*, true, -1, PythonBase, void>*)PyObject_Call((PyObject*)&PythonTWrapper<T_NoRef*, true, -1, PythonBase, void>::Type,
+              PythonTWrapper<T_NoRef*, -1,  void>* obj=
+                (PythonTWrapper<T_NoRef*, -1,  void>*)PyObject_Call((PyObject*)&PythonTWrapper<T_NoRef*, -1,  void>::Type,
                                                                         args, alloc_kwds);
               Py_DECREF(alloc_kwds);
               obj->set_contents((void**)cobj);
@@ -1079,14 +1061,14 @@ namespace __pyllars_internal{
             }
         };
 
-        template<typename T, bool is_complete>
-        struct  Alloc<T, is_complete,
-                       PythonClassWrapper< void*, is_complete, -1, PythonBase, void>,
-                       PythonClassWrapper< void, is_complete, -1, PythonBase, void>,
+        template<typename T>
+        struct  Alloc<T, 
+                       PythonClassWrapper< void*,  -1,  void>,
+                       PythonClassWrapper< void,  -1,  void>,
                        typename std::enable_if< std::is_void<T>::value>::type>:
-            public BasicAlloc<T,  PythonClassWrapper< void*, false, -1, PythonBase, void> >{
+            public BasicAlloc<T,  PythonClassWrapper< void*, -1,  void> >{
 
-            typedef  PythonClassWrapper< void*, is_complete, -1, PythonBase, void> PtrWrapper;
+            typedef  PythonClassWrapper< void*,  -1,  void> PtrWrapper;
             typedef typename std::remove_reference<T>::type C_NoRef;
 
             static void dealloc( C_NoRef* ptr){
@@ -1100,12 +1082,12 @@ namespace __pyllars_internal{
             }
         };
 
-       template<typename T, bool is_complete>
-        struct  Alloc<const T, is_complete,
-                       PythonClassWrapper< const void*, is_complete, -1, PythonBase, void>,
-                       PythonClassWrapper< const void, is_complete, -1, PythonBase, void>,
+       template<typename T>
+        struct  Alloc<const T, 
+                       PythonClassWrapper< const void*,  -1,  void>,
+                       PythonClassWrapper< const void,  -1,  void>,
                        typename std::enable_if< std::is_void<T>::value>::type>:
-            public BasicAlloc<T,  PythonClassWrapper< void*, false, -1, PythonBase, void> >{
+            public BasicAlloc<T,  PythonClassWrapper< void*, -1,  void> >{
 
             typedef typename std::remove_reference<const T>::type C_NoRef;
 
@@ -1120,8 +1102,8 @@ namespace __pyllars_internal{
             }
         };
 
-        template<typename T, bool is_complete, typename PtrWrapper, typename ClassWrapper>
-        struct  Alloc<T, is_complete, PtrWrapper,
+        template<typename T, typename PtrWrapper, typename ClassWrapper>
+        struct  Alloc<T,  PtrWrapper,
                    ClassWrapper,
                    typename std::enable_if< !std::is_void<T>::value && !std::is_function<T>::value &&
                          (std::is_reference<T>::value || !std::is_constructible<T>::value)>::type>:
@@ -1140,8 +1122,8 @@ namespace __pyllars_internal{
             }
         };
 
-        template<typename T, bool is_complete, typename PtrWrapper, typename ClassWrapper>
-        struct  Alloc<T, is_complete,  PtrWrapper,
+        template<typename T, typename PtrWrapper, typename ClassWrapper>
+        struct  Alloc<T,   PtrWrapper,
                   ClassWrapper,
                   typename std::enable_if<std::is_function<T>::value>::type>:
             public BasicAlloc<T, PtrWrapper>{
@@ -1161,5 +1143,26 @@ namespace __pyllars_internal{
 
     };
 
+    /**
+  * Specialization for void-pointer type
+  **/
+    template<>
+    class ObjectLifecycleHelpers::ObjectContent<void*,  void >{
+    public:
+
+        static void set( const size_t index, void** const to,  void** const from){
+            to[index] = *from;
+        }
+
+        static PyObject* getObjectAt( void** const from, const size_t index, const ssize_t elements_array_size){
+            (void)from;(void)index;(void)elements_array_size;
+            throw "Attempt to get void value";
+        }
+
+        static void** getObjectPtr(PtrWrapperBaseBase* const self){
+            return (void**)&self->_all_content._untyped_content;
+        }
+
+    };
 }
 #endif // PYLLARS_INTERNAL__OBJECTLIFECYCLEHELPERS_H

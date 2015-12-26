@@ -171,7 +171,7 @@ int main()
         PyTuple_SetItem(args, 0, PyInt_FromLong(123));
 
         PyObject_CallObject((PyObject*)&PythonClassWrapper< int&>::Type, args) ;
-        PyTuple_SetItem(args, 0, toPyObject<TestClassCopiable, true>(testObj, false, -1));
+        PyTuple_SetItem(args, 0, toPyObject<TestClassCopiable>(testObj, false, -1));
         PyObject_CallObject((PyObject*)&PythonClassWrapper< TestClassCopiable&>::Type, args) ;
     }
     auto tyobj = &PythonClassWrapper<int&>::Type;
@@ -200,10 +200,10 @@ int main()
         PyObject* args = PyTuple_New(6);
         PyTuple_SetItem(args, 0, PyInt_FromLong(123));
         PyTuple_SetItem(args, 1, PyFloat_FromDouble(3.21));
-        PyTuple_SetItem(args, 2, toPyObject<int&, true>(intval, true, -1));
-        PyTuple_SetItem(args, 3, toPyObject<TestClass, true>(dumm1, true, -1));
-        PyObject* dumm2_ptr = toPyObject<TestClass*, true>(&dumm2, true, -1);
-        assert( PyObject_TypeCheck(dumm2_ptr, (&PythonClassWrapper<TestClass*, true>::Type)));
+        PyTuple_SetItem(args, 2, toPyObject<int&>(intval, true, -1));
+        PyTuple_SetItem(args, 3, toPyObject<TestClass>(dumm1, true, -1));
+        PyObject* dumm2_ptr = toPyObject<TestClass*>(&dumm2, true, -1);
+        assert( PyObject_TypeCheck(dumm2_ptr, (&PythonClassWrapper<TestClass*>::Type)));
         assert( dumm2_ptr != Py_None);
         PyTuple_SetItem(args, 4, dumm2_ptr);
         PyTuple_SetItem(args, 5, (PyObject*)message_me_py);
@@ -212,7 +212,7 @@ int main()
             //PyObject_Print( PyTuple_GetItem(args, i), stderr, 0);
             assert( PyTuple_GetItem(args,i) != Py_None);
         }
-        int16_t val = *toCObject<int16_t, false, true, PythonClassWrapper<int16_t, true> >(*PyObject_CallObject( (PyObject*)wrapper, args));
+        int16_t val = *toCObject<int16_t, false, PythonClassWrapper<int16_t> >(*PyObject_CallObject( (PyObject*)wrapper, args));
         fprintf(stderr, "VALUE IS %d\n", val);
         fprintf(stderr, "NEW INTEGRAL VALUE IS %d\n", intval);
         fprintf(stderr, "NEW DUMMY VALUE IS %f\n", dumm1.value);
@@ -222,10 +222,10 @@ int main()
     }
     {
         TestClass obj;
-        PyObject* pyobj = toPyObject<TestClass, true>(obj, true, -1);
+        PyObject* pyobj = toPyObject<TestClass>(obj, true, -1);
         PyObject* ret = PyObject_CallMethod(pyobj, (char*)print_name,nullptr);
         ret = PyObject_CallMethod(pyobj, (char*)member_name,nullptr);
-        double val = *toCObject<double, false, true, PythonClassWrapper<double, true> >(*ret);
+        double val = *toCObject<double, false, PythonClassWrapper<double> >(*ret);
         fprintf(stderr, ".value is: %f\n" , val);
     }
     fprintf(stderr, "SUCCESS!\n");

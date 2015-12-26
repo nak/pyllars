@@ -59,7 +59,7 @@ namespace __pyllars_internal {
                 PyErr_Print();
                 throw "Invalid arguments to method call";
             }
-            T retval = method(*toCObject<Args, false, true>(*pyargs)...);
+            T retval = method(*toCObject<Args, false>(*pyargs)...);
             return retval;
         }
 
@@ -255,7 +255,7 @@ namespace __pyllars_internal {
             }
 
             static void setFromPyObject(PyObject *pyobj) {
-                member = *toCObject<T, false, true>(*pyobj);
+                member = *toCObject<T, false>(*pyobj);
             }
         };
 
@@ -273,7 +273,7 @@ namespace __pyllars_internal {
             }
 
             static void setFromPyObject(PyObject *pyobj) {
-                T val[] = *toCObject<T[size], false, true>(*pyobj);
+                T val[] = *toCObject<T[size], false>(*pyobj);
                 for (size_t i = 0; i < size; ++i)member[i] = val[i];
             }
         };
