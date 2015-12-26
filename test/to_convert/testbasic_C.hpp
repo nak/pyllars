@@ -12,6 +12,7 @@
 extern constexpr int data1 = 1;
 extern const int data2 = 2;
 extern int data3 = 3;
+extern const char* const string_array[] = {"one", "two", "three"};
 
 typedef const char* const cstringtype;
 
@@ -34,7 +35,7 @@ typedef enum { FIRST=1, SECOND=2, FOURTH=4} Enum_T;
  * Basic struct declaration
  **/
 struct TestStruct{
-  
+
   // Inner enum typedef
   typedef enum { INNER_THIRD=3, INNER_FIFTH=5, INNER_SIXTH=10} InnerEnum_T;
 
@@ -64,7 +65,7 @@ struct TestStruct{
               double_val, int_ptr_val, int_ptr_val?*int_ptr_val:-1,
               float_ref_val, c_string_val,
               (int)enum_val,
-              (int)outer_enum_val, 
+              (int)outer_enum_val,
               t.str_member );
     return str;
   }

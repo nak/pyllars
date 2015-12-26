@@ -141,9 +141,14 @@
      <xsl:variable name="fieldname"><xsl:value-of select="@name"/></xsl:variable>
      <xsl:variable name="dim" select="string(number(//*[@id=$typeid]/@max)+1)"/>
      <xsl:if test="$fieldname!='' and $classname!='__va_list_tag'">
-     PythonClassWrapper&lt;<xsl:value-of select="$classname"/>&gt;::add<xsl:value-of select="$const_modifier"/>Attribute<xsl:text>
-     </xsl:text>&lt;name__<xsl:value-of select="@id"/>, <xsl:apply-templates select="//*[@id=$typeid]" mode="generate_scoped_name"><xsl:with-param name="attrname"><xsl:value-of select="$classname"/>::<xsl:value-of select="$fieldname"/></xsl:with-param><xsl:with-param name="as_return" select="$dim"/></xsl:apply-templates> &gt;<xsl:text>
-     </xsl:text>(&amp;<xsl:value-of select="$classname"/>::<xsl:value-of select="@name"/>);
+     {
+        const size_t member_size =  sizeof(<xsl:value-of select="$classname"/>::<xsl:value-of select="@name"/>);
+        const size_t type_size = sizeof(<xsl:apply-templates select="//*[@id=$typeid]" mode="generate_scoped_name"><xsl:with-param name="attrname"><xsl:value-of select="$classname"/>::<xsl:value-of select="$fieldname"/></xsl:with-param><xsl:with-param name="as_return" select="$dim"/></xsl:apply-templates>);
+        const size_t array_size = member_size/type_size;
+        PythonClassWrapper&lt;<xsl:value-of select="$classname"/>&gt;::add<xsl:value-of select="$const_modifier"/>Attribute<xsl:text>
+        </xsl:text>&lt;name__<xsl:value-of select="@id"/>, <xsl:apply-templates select="//*[@id=$typeid]" mode="generate_scoped_name"><xsl:with-param name="attrname"><xsl:value-of select="$classname"/>::<xsl:value-of select="$fieldname"/></xsl:with-param><xsl:with-param name="as_return" select="$dim"/></xsl:apply-templates> &gt;<xsl:text>
+        </xsl:text>(&amp;<xsl:value-of select="$classname"/>::<xsl:value-of select="@name"/>, array_size);
+     }
      </xsl:if>
    </xsl:template>
 
@@ -522,9 +527,22 @@ static int init_</xsl:text><xsl:value-of select="@id"/>( PyObject* moduleparent)
       <xsl:variable name="is_incomplete"><xsl:apply-templates select="." mode="is_incomplete"/></xsl:variable>
       <xsl:if test="$is_incomplete!='1'">
       <xsl:variable name="typename"><xsl:apply-templates select="//*[@id=$typeid]" mode="generate_scoped_name"/></xsl:variable>
-      GlobalVariable::createGlobalVariable&lt; <xsl:value-of select="$typename"/> &gt;
+      {  
+<xsl:choose>
+   <xsl:when test="@init">
+         typedef typename std::remove_pointer&lt;typename extent_as_pointer&lt;<xsl:value-of select="$typename"/> &gt;::type&gt;::type basic_type;
+         const size_t type_size = sizeof(basic_type);
+         const size_t array_size =  sizeof(<xsl:value-of select="@name"/>)/type_size;
+   </xsl:when>
+   <xsl:otherwise>
+         const size_t array_size = -1;/* unknown since extern and/or no init*/
+   </xsl:otherwise>
+</xsl:choose>
+         GlobalVariable::createGlobalVariable&lt; <xsl:value-of select="$typename"/> &gt;
                  ( &quot;<xsl:value-of select="@name"/>&quot;, &quot;<xsl:value-of select="$nsname"/><xsl:if test="$nsname!='::'">::</xsl:if><xsl:value-of select="@name"/>&quot;,
-                   &amp;<xsl:value-of select="@name"/>,  module);
+                  (typename extent_as_pointer&lt;<xsl:value-of select="$typename"/>&gt;::type*) &amp;<xsl:value-of select="@name"/>,  module,
+                   array_size );
+      }
 
      </xsl:if>
      </xsl:for-each><xsl:text>
@@ -554,11 +572,11 @@ PyMODINIT_FUNC
 
 <xsl:text>
 #include &lt;</xsl:text><xsl:value-of select="$filename"/><xsl:text>&gt;
-#include &lt;pyllars/pyllars_pointer.h&gt;
-#include &lt;pyllars/pyllars_function_wrapper.h&gt;
-#include &lt;pyllars/pyllars_classwrapper.h&gt;
-#include &lt;pyllars/pyllars_conversions.h&gt;
-#include &lt;pyllars/pyllars_globalmembersemantics.h&gt;
+#include &lt;pyllars/pyllars_pointer.hpp&gt;
+#include &lt;pyllars/pyllars_function_wrapper.hpp&gt;
+#include &lt;pyllars/pyllars_classwrapper.hpp&gt;
+#include &lt;pyllars/pyllars_conversions.hpp&gt;
+#include &lt;pyllars/pyllars_globalmembersemantics.hpp&gt;
 #include &lt;Python.h&gt;
 
 #include &lt;stdarg.h&gt;
