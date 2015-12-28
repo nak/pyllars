@@ -45,6 +45,11 @@ namespace __pyllars_internal {
         static constexpr size_t value = ptr_depth<T>::value + 1;
     };
 
+    template<typename T>
+    struct ptr_depth<T * const> {
+        static constexpr size_t value = ptr_depth<T>::value + 1;
+    };
+
     template<typename T, size_t size>
     struct ptr_depth<T[size]> {
         static constexpr size_t value = ptr_depth<T>::value + 1;

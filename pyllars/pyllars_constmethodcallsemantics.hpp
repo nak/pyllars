@@ -35,9 +35,9 @@ namespace __pyllars_internal {
         static PyObject *call(method_t method, CClass &self, PyObject *args, PyObject *kwds) {
             try {
                 typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
-                T& result = call_methodBase(method, self, args, kwds, typename argGenerator<sizeof...(Args)>::type());
-                const ssize_t array_size = sizeof(result)/sizeof(T_base);
-                return toPyObject<T, true>( result, false, array_size);
+                T &result = call_methodBase(method, self, args, kwds, typename argGenerator<sizeof...(Args)>::type());
+                const ssize_t array_size = sizeof(result) / sizeof(T_base);
+                return toPyObject<T, true>(result, false, array_size);
             } catch (const char *const msg) {
                 PyErr_SetString(PyExc_RuntimeError, msg);
                 return nullptr;
@@ -78,7 +78,7 @@ namespace __pyllars_internal {
             PyObject pyobjs[sizeof...(Args) + 1];
             (void) pyobjs;
             return call_methodC(method, self, args, kwds, &pyobjs[S]...);
-         }
+        }
 
     };
 
@@ -155,7 +155,7 @@ namespace __pyllars_internal {
             static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds) {
                 if (!self) return nullptr;
                 typedef PythonClassWrapper<CClass> ClassWrapper;
-                auto  _this = reinterpret_cast<ClassWrapper *>(self);
+                auto _this = reinterpret_cast<ClassWrapper *>(self);
                 if (_this->template get_CObject<CClass>()) {
 
                     try {
@@ -204,10 +204,10 @@ namespace __pyllars_internal {
                     return nullptr;
                 }
                 if (!self) return nullptr;
-                typedef  PythonClassWrapper<CClass> ClassWrapper;
+                typedef PythonClassWrapper<CClass> ClassWrapper;
                 auto _this = reinterpret_cast<ClassWrapper *>(self);
                 typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
-                const ssize_t  array_size = sizeof(_this->template get_CObject<CClass>()->*member)/sizeof(T_base);
+                const ssize_t array_size = sizeof(_this->template get_CObject<CClass>()->*member) / sizeof(T_base);
                 if (_this->template get_CObject<CClass>()) {
                     return toPyObject<T, true>((_this->template get_CObject<CClass>()->*member), false, array_size);
                 }

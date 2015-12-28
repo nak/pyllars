@@ -10,7 +10,7 @@
 namespace __pyllars_internal {
 
     namespace {
-        constexpr size_t MAX_PTR_DEPTH = 20;
+        constexpr size_t MAX_PTR_DEPTH = 5;
         constexpr int ERROR_TYPE_MISMATCH = -2;
         constexpr ssize_t UNKNOWN_SIZE = -1;
     }
@@ -223,7 +223,7 @@ namespace __pyllars_internal {
                         goto onerror;
                     }
                 } else {
-                    PyErr_SetString(PyExc_TypeError, "Unexpected keword argument in Pointer constructor");
+                    PyErr_SetString(PyExc_TypeError, "Unexpected keyword argument in Pointer constructor");
                     status = -1;
                     goto onerror;
                 }
@@ -280,11 +280,11 @@ namespace __pyllars_internal {
     protected:
 
         template<typename T, typename E = void>
-        class PtrTo;
+        struct PtrTo;
 
         //limit pointer depth:
         template<typename T>
-        class PtrTo<T, typename std::enable_if<
+        struct PtrTo<T, typename std::enable_if<
                 (!std::is_function<T>::value) && (ptr_depth<T>::value < MAX_PTR_DEPTH)>::type> {
         public:
             typedef T *type;
@@ -293,7 +293,7 @@ namespace __pyllars_internal {
         };
 
         template<typename T>
-        class PtrTo<T, typename std::enable_if<(ptr_depth<T>::value >= MAX_PTR_DEPTH)>::type> {
+        struct PtrTo<T, typename std::enable_if<(ptr_depth<T>::value >= MAX_PTR_DEPTH)>::type> {
         public:
             typedef void **type;
 
@@ -350,20 +350,20 @@ namespace __pyllars_internal {
             for (int i = 0; i < size; ++i) {
                 values[i] = *toCObject<T, is_array, true>(PyList_GetItem(from, i));
             }
-        } else if (PyObject_TypeCheck(from, (&PythonClassWrapper<T *>::Type))) {
+        } else if (PythonClassWrapper<T *>::checkType(from)) {
             //TODO: check array size on from????
             for (int i = 0; i < size; ++i) {
                 values[i] = ((T *) ((PythonClassWrapper < T * > *)
                 from)->_all_content._untyped_content)[i];
             }
-        } else if (PyObject_TypeCheck(from, (&PythonClassWrapper<T[]>::Type))) {
+        } else if (PythonClassWrapper<T[]>::checkType(from)) {
             //TODO: check array size on from????
             for (int i = 0; i < size; ++i) {
                 values[i] = ((T *) ((PythonClassWrapper < T[] > *)
                 from)->_all_content._untyped_content)[i];
             }
         } else if (array_size > 0 && size > 0 &&
-                   PyObject_TypeCheck(from, (&PythonClassWrapper<T[array_size]>::Type))) {
+                PythonClassWrapper<T[array_size]>::checkType(from)) {
             if (array_size != size) {
                 PyErr_SetString(PyExc_RuntimeError, "Mistmached array lengths");
                 return nullptr;

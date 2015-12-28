@@ -128,7 +128,7 @@ namespace __pyllars_internal {
                 static const char *kwdlist[] = {"value", nullptr};
                 PyObject *pyobj;
                 if (PyArg_ParseTupleAndKeywords(args, kwds, "O", (char **) kwdlist, pyobj)) {
-                    if (!PyObject_TypeCheck(pyobj, (&PythonClassWrapper<T>::Type))) {
+                    if (!PythonClassWrapper<T>::checkType(pyobj)) {
                         PyErr_Print();
                         PyErr_SetString(PyExc_TypeError, "Invalid type to construct from");
                         return -1;
@@ -177,7 +177,7 @@ namespace __pyllars_internal {
                 static const char *kwdlist[] = {"value", nullptr};
                 PyObject *pyobj = Py_None;
                 if (PyArg_ParseTupleAndKeywords(args, kwds, "O", (char **) kwdlist, pyobj)) {
-                    if (!PyObject_TypeCheck(pyobj, (&PythonClassWrapper<T>::Type))) {
+                    if (!PythonClassWrapper<T>::checkType(pyobj)) {
                         PyErr_Print();
                         PyErr_SetString(PyExc_TypeError, "Invalid type to construct from");
                         return -1;
@@ -230,7 +230,7 @@ namespace __pyllars_internal {
                 PyObject pyobj;
                 PythonClassWrapper<T> *pyclass = reinterpret_cast<PythonClassWrapper<T> *>(&pyobj);
                 if (PyArg_ParseTupleAndKeywords(args, kwds, "O", (char **) kwdlist, &pyobj)) {
-                    if (!PyObject_TypeCheck(&pyobj, (&PythonClassWrapper<T>::Type))) {
+                    if (!PythonClassWrapper<T>::checkType(&pyobj)) {
                         PyErr_SetString(PyExc_TypeError, "Invalid type to construct from");
                         return -1;
                     }
@@ -481,7 +481,8 @@ namespace __pyllars_internal {
         typedef CommonBaseWrapper::Base Base;
         typedef PythonClassWrapper DereferencedWrapper;
         typedef PythonClassWrapper<T const, UNKNOWN_SIZE,void> ConstWrapper;
-        typedef PythonClassWrapper<typename std::remove_reference<T>::type, UNKNOWN_SIZE,void> NoRefWrapper;
+        typedef PythonClassWrapper<typename std::remove_const<T>::type> NonConstWrapper;
+        typedef PythonClassWrapper<typename std::remove_reference<T>::type> NoRefWrapper;
 
         typedef typename std::remove_reference<T>::type T_NoRef;
 
@@ -556,7 +557,7 @@ namespace __pyllars_internal {
         static PythonClassWrapper* createPy(const ssize_t arraySize, T_NoRef * const cobj, const bool isAllocated, PyObject* referencing){
             static PyObject* kwds = PyDict_New();
             static PyObject* emptyargs = PyTuple_New(0);
-            PyDict_SetItemString( kwds, "__internal__null_allowed", Py_True);
+            PyDict_SetItemString(kwds, "__internal_allow_null", Py_True);
             typedef PythonClassWrapper< T, -1> PyWrapper;
             PyWrapper* pyobj = (PyWrapper*)PyObject_Call((PyObject*)&Type, emptyargs, kwds);
             pyobj->_CObject = cobj;
@@ -599,8 +600,8 @@ namespace __pyllars_internal {
                                                                    module_ptr_name.c_str(),
                                                                    parent_module,
                                                                    (_name + "*").c_str());
-            PyObject *obj = toPyObject<T_NoRef *>(reinterpret_cast<PythonClassWrapper *>(self)->_CObject,
-                                                               false, 1);
+	    PythonClassWrapper* self_ = reinterpret_cast<PythonClassWrapper *>(self);
+            PyObject *obj = toPyObject<T_NoRef *>(self_->_CObject, true, 1);
             PyErr_Clear();
             ((PythonClassWrapper<T_NoRef *> *) obj)->make_reference(self);
             return obj;
@@ -820,6 +821,14 @@ namespace __pyllars_internal {
         void set_contents(typename std::remove_reference<T>::type *ptr, bool allocated) {
             _allocated = allocated;
             _CObject = ptr;
+        }
+
+        static bool checkType( PyObject* const obj){
+            return PyObject_TypeCheck(obj, &Type);
+        }
+
+        static PyTypeObject* getType(){
+            return &Type;
         }
 
         static std::string get_name() { return _name; }

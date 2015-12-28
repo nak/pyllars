@@ -264,10 +264,16 @@ namespace __pyllars_internal {
     struct ArrayHelper;
 
     template< typename T >
-    struct ArrayHelper<T, typename std::enable_if< is_complete<typename std::remove_pointer< typename extent_as_pointer<T>::type>::type>::value >::type>{
+    struct ArrayHelper<T, typename std::enable_if< std::is_array<T>::value && is_complete<typename std::remove_pointer< typename extent_as_pointer<T>::type>::type>::value >::type>{
         static ssize_t base_sizeof(){
             typedef typename std::remove_pointer< typename extent_as_pointer<T>::type>::type T_base;
             return sizeof(T_base);
+        }
+    };
+    template< typename T >
+    struct ArrayHelper<T, typename std::enable_if< !std::is_array<T>::value && is_complete<typename std::remove_pointer< typename extent_as_pointer<T>::type>::type>::value >::type>{
+        static ssize_t base_sizeof(){
+            return sizeof(T);
         }
     };
 
@@ -403,7 +409,7 @@ namespace __pyllars_internal {
                             PyErr_SetString(PyExc_IndexError, "Mismatched array sizes");
                             return nullptr;
                         }
-                    } else if (PyObject_TypeCheck(pyVal, (&PythonClassWrapper<T_array>::Type))) {
+                    } else if (PythonClassWrapper<T_array>::checkType(pyVal)) {
                         T_array *val = ((PythonClassWrapper<T_array> *) pyVal)->template get_CObject<T_array>();
                         for (size_t i = 0; i < size; ++i)
                             (_this->template get_CObject<T_array>()->*member)[i] = (*val)[i];
@@ -511,7 +517,7 @@ namespace __pyllars_internal {
                             PyErr_SetString(PyExc_IndexError, "Mismatched array sizes");
                             return nullptr;
                         }
-                    } else if (PyObject_TypeCheck(pyVal, (&PythonClassWrapper<T_array>::Type))) {
+                    } else if (PythonClassWrapper<T_array>::checkType(pyVal)) {
                         T_array *val = ((PythonClassWrapper<T_array> *) pyVal)->template get_CObject<T_array>();
                         //TODO: check size????
                         for (size_t i = 0; i < array_size; ++i)
