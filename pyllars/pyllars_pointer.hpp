@@ -104,7 +104,27 @@ namespace __pyllars_internal {
             return -1;
         }
 
-        static PyObject *_at(PyObject *self, Py_ssize_t index) {
+        static PyObject *_at(PyObject *self, PyObject* args, PyObject* kwds) {
+            if(( kwds && PyDict_Size(kwds)!=0) || !args || PyTuple_Size(args)!=1 || !(PyLong_Check(PyTuple_GetItem(args,0)) || PyInt_Check(PyTuple_GetItem(args,0)))){
+                PyErr_BadArgument();
+                return nullptr;
+            }
+            PyObject* pyindex = PyTuple_GetItem(args,0);
+            Py_ssize_t index =-1;
+            if (PyLong_Check(pyindex)) {
+                index = PyLong_AsLong(PyTuple_GetItem(args, 0));
+            } else {
+                index = PyInt_AsLong(PyTuple_GetItem(args, 0));
+            }
+
+            return _get_item2( self, index, true);
+        }
+
+        static PyObject *_get_item(PyObject *self, Py_ssize_t index) {
+            return _get_item2(self, index, false);
+        }
+
+        static PyObject *_get_item2(PyObject *self, Py_ssize_t index, const bool make_copy) {
             PythonClassWrapper *self_ = (PythonClassWrapper *) self;
             if (!self_ || !self_->_CObject) {
                 PyErr_SetString(PyExc_RuntimeError, "Null pointer dereference");
@@ -125,12 +145,22 @@ namespace __pyllars_internal {
                                                                                      index);
                     element_array_size = item ? item->_arraySize : element_array_size;
                 }
-                PythonClassWrapper<T, last> *result = (PythonClassWrapper<T, last> *)
-                        (ObjectContent<T>::getObjectAt(*self_->_CObject, index, element_array_size, self_->_depth));
-                if (self_->_depth != 1) {
-                    result->_depth = self_->_depth - 1;
+
+                PyObject *result;
+                if (make_copy) {
+                    T_base* new_copy = ObjectLifecycleHelpers::Copy<T_base>::new_copy(ObjectLifecycleHelpers::Array<T>::at(*self_->_CObject, index));
+                    PythonClassWrapper<T_base>* res =  PythonClassWrapper<T_base>::createPy(element_array_size,new_copy, true, nullptr);
+                    result = (PyObject*)res;
+                } else {
+                    PythonClassWrapper<T, last>* res = (PythonClassWrapper<T, last> *)
+                            (ObjectContent<T>::getObjectAt(*self_->_CObject, index, element_array_size, self_->_depth));
+
+                    if (self_->_depth != 1) {
+                         res->_depth = self_->_depth - 1;
+                    }
+                    res->make_reference(self);
+                    result = (PyObject*)res;
                 }
-                result->make_reference(self);
                 return (PyObject *) result;
             } catch (const char *const msg) {
                 PyErr_SetString(PyExc_RuntimeError, msg);
@@ -167,7 +197,7 @@ namespace __pyllars_internal {
             return status != 0 ? status : initialize(nullptr,
                                                      nullptr,
                                                      PythonClassWrapper<T_base>::parent_module,
-						     get_name(depth).c_str(),
+                                                     get_name(depth).c_str(),
                                                      depth);
         }
 
@@ -185,17 +215,17 @@ namespace __pyllars_internal {
                 status.push_back(-2);
             }
             PyTypeObject *type = getType(depth, fullname);
-	    if (!type){
-	      return -1;
-	    }
+            if (!type) {
+                return -1;
+            }
             type->tp_init = (initproc) _init;
             type->tp_methods[0].ml_meth = (PyCFunction) _addr;
-            //type->tp_methods[1].ml_meth = (PyCFunction) _at;
+            type->tp_methods[1].ml_meth = (PyCFunction) _at;
 
             _seqmethods.sq_length = _size;
             _seqmethods.sq_concat = _concat;
             _seqmethods.sq_repeat = _repeat;
-            _seqmethods.sq_item = _at;
+            _seqmethods.sq_item = _get_item;
             _seqmethods.sq_ass_item = _set_item;
             _seqmethods.sq_contains = _contains;
             _seqmethods.sq_inplace_concat = _inplace_concat;
@@ -208,7 +238,7 @@ namespace __pyllars_internal {
             if (module == nullptr)
                 return 0;
             PyModule_AddObject(module, module_entry_name ? module_entry_name : get_module_entry_name(depth).c_str(),
-                               (PyObject *)type);
+                               (PyObject *) type);
             parent_module = module;
 
             status[depth] = 0;
@@ -221,21 +251,22 @@ namespace __pyllars_internal {
                 PyErr_SetString(PyExc_RuntimeError, "Invalid null pointer on object creation!");
                 return nullptr;
             }
-	    if (depth > 1000){
-	      PyErr_SetString( PyExc_RuntimeError, "Pointer depth requested greater than 1000 -- possible run time error");
-	      return nullptr;
-	    }
-	    initialize(depth);
+            if (depth > 1000) {
+                PyErr_SetString(PyExc_RuntimeError,
+                                "Pointer depth requested greater than 1000 -- possible run time error");
+                return nullptr;
+            }
+            initialize(depth);
             static PyObject *args = PyTuple_New(0);
             static PyObject *kwds = PyDict_New();
             PyDict_SetItemString(kwds, "__internal_depth", PyLong_FromLong(depth));
             PythonClassWrapper::initialize(depth);
-	    PyTypeObject* type = getType(depth);
-	    if (!type){
-	      PyErr_SetString(PyExc_RuntimeError, "Cannot get type for pointer wrapper object");
-	      return nullptr;	      
-	    }
-	    
+            PyTypeObject *type = getType(depth);
+            if (!type) {
+                PyErr_SetString(PyExc_RuntimeError, "Cannot get type for pointer wrapper object");
+                return nullptr;
+            }
+
             PythonClassWrapper *pyobj = (PythonClassWrapper *) PyObject_Call((PyObject *) type, args, kwds);
             if (!pyobj) {
                 PyErr_SetString(PyExc_RuntimeError, "Unable to create Python Object");
@@ -255,16 +286,16 @@ namespace __pyllars_internal {
                 PyErr_SetString(PyExc_RuntimeError, "Invalid arguments on pointer-wrapper creation");
                 return -1;
             }
-	    if (!self) {return -1;}
+            if (!self) { return -1; }
 
             self->_arraySize = UNKNOWN_SIZE;
             self->_referenced_elements = nullptr;
             self->_referenced = nullptr;
-	    PyObject* pydepth = PyDict_GetItemString(kwds, "__internal_depth");
-	    if(!PyLong_Check( pydepth)){
+            PyObject *pydepth = PyDict_GetItemString(kwds, "__internal_depth");
+            if (!PyLong_Check(pydepth)) {
                 PyErr_SetString(PyExc_TypeError, "Invalid argument type for depth on pointer-wrapper creation");
-		return -1;
-	    }
+                return -1;
+            }
             self->_depth = PyLong_AsLong(pydepth);
             PyDict_DelItemString(kwds, "__internal_depth");
 
@@ -371,15 +402,15 @@ namespace __pyllars_internal {
         }
 
         static PyObject *_addr(PythonClassWrapper *self, PyObject *args) {
-	     if (!self->_CObject || !*self->_CObject){
-	       PyErr_SetString(PyExc_RuntimeError, "Found null object when taking address!");
-	       return nullptr;
-	     }
-             try {
+            if (!self->_CObject || !*self->_CObject) {
+                PyErr_SetString(PyExc_RuntimeError, "Found null object when taking address!");
+                return nullptr;
+            }
+            try {
                 T **obj = &self->_CObject;
                 PythonClassWrapper *pyobj = createPy(1, (T *) obj, false, (PyObject *) self, self->_depth + 1);
                 return (PyObject *) pyobj;
-             } catch (const char *const msg) {
+            } catch (const char *const msg) {
                 PyErr_SetString(PyExc_RuntimeError, msg);
                 return nullptr;
             }
@@ -389,7 +420,7 @@ namespace __pyllars_internal {
             PythonClassWrapper *self = (PythonClassWrapper *) self_;
             //TODO: track dynamically allocated content and free if so
             if (self != nullptr) {
-	        ObjectLifecycleHelpers::Deallocation<T, PythonClassWrapper>::_free(self);
+                ObjectLifecycleHelpers::Deallocation<T, PythonClassWrapper>::_free(self);
                 if (self->_allocated) self->_CObject = nullptr;
                 self->baseClass.ob_type->tp_free((PyObject *) self);
                 if (self->_referenced) {
@@ -424,8 +455,8 @@ namespace __pyllars_internal {
             return PyObject_TypeCheck(obj, getType(obj_->_depth - 1));
         }
 
-        static PyTypeObject *getType(const size_t depth , 
-				     const char *const fullname = nullptr) {
+        static PyTypeObject *getType(const size_t depth,
+                                     const char *const fullname = nullptr) {
             static std::vector<PyTypeObject *> typeList;
             static PyTypeObject Type = {
                     PyObject_HEAD_INIT(nullptr)
@@ -492,10 +523,10 @@ namespace __pyllars_internal {
                     strcpy(new_name, fullname);
                 }
                 typeList[depth]->tp_name = new_name;
-		if (PyType_Ready(typeList[depth]) < 0) {
-		  PyErr_SetString(PyExc_RuntimeError, "Error initializing type");
-		  return nullptr;
-		}
+                if (PyType_Ready(typeList[depth]) < 0) {
+                    PyErr_SetString(PyExc_RuntimeError, "Error initializing type");
+                    return nullptr;
+                }
             }
 
             return typeList.at(depth);
@@ -511,11 +542,11 @@ namespace __pyllars_internal {
 
         void delete_raw_storage() {
             if (_raw_storage) {
-	      
+
                 delete[] _raw_storage;
                 _raw_storage = nullptr;
                 _allocated = false;
-		_arraySize = UNKNOWN_SIZE;
+                _arraySize = UNKNOWN_SIZE;
             }
         }
 
@@ -569,6 +600,7 @@ namespace __pyllars_internal {
             // !std::is_function<typename std::remove_pointer<T>::type>::value &&
             (std::is_pointer<T>::value || std::is_array<T>::value)>::type>::_methods[] =
             {{address_name, nullptr, METH_KEYWORDS, nullptr},
+             {"at", nullptr, METH_KEYWORDS, nullptr},
              {nullptr,      nullptr, 0,             nullptr} /*sentinel*/
             };
 
