@@ -49,7 +49,7 @@ struct TestStruct{
   TestStruct( const char* const  msg2):
     str_member(copy_string(msg2)),double_member(2.34567890){}
 
-  ~TestStruct(){ fprintf(stderr, "Deleted %s\n", str_member);}
+  ~TestStruct(){ fprintf(stderr, "\n\n============>Deleted %s\n\n", str_member);}
   /**
    * Method that takes a number of parmaeters and prints them
    **/

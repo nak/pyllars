@@ -449,6 +449,7 @@ namespace __pyllars_internal {
                  it != PythonClassWrapper<T>::_constructors.end(); ++it) {
                 try {
                     if ((*it)(args, kwds, self->_CObject)) {
+		        self->_allocated = (self->_CObject != nullptr);
                         return 0;
                     }
                 } catch (...) {
@@ -554,7 +555,7 @@ namespace __pyllars_internal {
         }
 
 
-        static PythonClassWrapper* createPy(const ssize_t arraySize, T_NoRef * const cobj, const bool isAllocated, PyObject* referencing){
+        static PythonClassWrapper* createPy(const ssize_t arraySize, T_NoRef * const cobj, const bool isAllocated, PyObject* referencing, const size_t depth = 0){
             static PyObject* kwds = PyDict_New();
             static PyObject* emptyargs = PyTuple_New(0);
             PyDict_SetItemString(kwds, "__internal_allow_null", Py_True);
@@ -596,10 +597,7 @@ namespace __pyllars_internal {
             }
             std::string ptr_name = std::string(Type.tp_name) + "*";
             std::string module_ptr_name = std::string(Type.tp_name) + "_ptr";
-            PythonClassWrapper<T_NoRef *>::initialize(ptr_name.c_str(),
-                                                                   module_ptr_name.c_str(),
-                                                                   parent_module,
-                                                                   (_name + "*").c_str());
+            PythonClassWrapper<T_NoRef *>::initialize();
 	    PythonClassWrapper* self_ = reinterpret_cast<PythonClassWrapper *>(self);
             PyObject *obj = toPyObject<T_NoRef *>(self_->_CObject, true, 1);
             PyErr_Clear();
@@ -895,7 +893,7 @@ namespace __pyllars_internal {
                         ptr);
             }
             self->_raw_storage = nullptr;
-            self->_CObject = nullptr;
+            if(self->_allocated) self->_CObject = nullptr;
         }
 
         static void _dealloc(PythonClassWrapper *self) {
@@ -939,7 +937,7 @@ namespace __pyllars_internal {
             PyObject *pyobjs[sizeof...(Args) + 1];
             (void) pyobjs;
             if (!_parsePyArgs(kwlist, args, kwds, pyobjs[S]...)) {
-                PyErr_SetString(PyExc_TypeError, "Invalid constgructor arguments");
+                PyErr_SetString(PyExc_TypeError, "Invalid constructor arguments");
                 return false;
             }
 

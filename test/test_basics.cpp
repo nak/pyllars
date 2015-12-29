@@ -159,8 +159,10 @@ int main()
 #ifdef MAIN
     Py_Initialize();
 #endif
-
-     * toPyObject<int, true>(1, false, -1);
+    {
+        PyObject *obj = toPyObject<int, true>(1, false, -1);
+        (void) obj;
+    }
     static const char *const emptykwlist[] = {nullptr};
     static const char *const cb_name[] = {"cb", nullptr};
     PythonClassWrapper<TestClass>::addConstructor(emptykwlist, PythonClassWrapper<TestClass>::create<>);
@@ -208,7 +210,7 @@ int main()
     PyTuple_SetItem(pArgs, 0, obj);
     //PythonClassWrapper<int>::addType("Pointer", &PythonCPointerWrapper<int>::Type);
     int *intval = new int(99);
-    PyObject *o = (PyObject*) PythonClassWrapper<int*>::template createPy<int*>(1, &intval, false);
+    PyObject *o = (PyObject*) PythonClassWrapper<int*>:: createPy(1, &intval, false);
 //            PyObject_CallObject((PyObject *) &PythonClassWrapper<int *, true>::Type, nullptr);
     if (o == nullptr) {
         printf("nullptr O\n");
@@ -231,7 +233,7 @@ int main()
             PyErr_Print();
             return -1;
         }
-        assert(PyObject_TypeCheck(dumm2_ptr, (&PythonClassWrapper<TestClass * const>::Type)));
+        assert(PyObject_TypeCheck(dumm2_ptr, PythonClassWrapper<TestClass * const>::getType(1)));
         assert(dumm2_ptr != Py_None);
         PyTuple_SetItem(args, 4, dumm2_ptr);
         PyTuple_SetItem(args, 5, (PyObject *) message_me_py);

@@ -46,7 +46,7 @@ namespace __pyllars_internal {
     };
 
     template<typename T>
-    struct ptr_depth<T * const> {
+    struct ptr_depth<T *const> {
         static constexpr size_t value = ptr_depth<T>::value + 1;
     };
 
@@ -80,26 +80,31 @@ namespace __pyllars_internal {
 
     template<typename T>
     struct extent_as_pointer<T *> {
-        typedef typename extent_as_pointer<T>::type *type;
+        //typedef typename extent_as_pointer<T>::type *type;
+        typedef T *type;
     };
 
     template<typename T>
     struct extent_as_pointer<T[]> {
-        typedef typename extent_as_pointer<T>::type *type;
+        // typedef typename extent_as_pointer<T>::type *type;
+        typedef T *type;
     };
     template<typename T>
     struct extent_as_pointer<const T[]> {
-        typedef const typename extent_as_pointer<T>::type *type;
+        // typedef const typename extent_as_pointer<T>::type *type;
+        typedef const T *type;
     };
 
     template<typename T, const size_t max>
     struct extent_as_pointer<T[max]> {
-        typedef typename extent_as_pointer<T>::type *type;
+        // typedef typename extent_as_pointer<T>::type *type;
+        typedef T *type;
     };
 
     template<typename T, const size_t max>
     struct extent_as_pointer<const T[max]> {
-        typedef const typename extent_as_pointer<T>::type *type;
+        //  typedef const typename extent_as_pointer<T>::type *type;
+        typedef const T *type;
     };
 
     /**
@@ -195,6 +200,22 @@ namespace __pyllars_internal {
             value = sizeof(is_complete_helper<T>(0)) != 1
         };
     };
+
+    template<typename T, typename Z = void>
+    struct Sizeof ;
+
+    template< typename T>
+    struct Sizeof<T, typename std::enable_if< is_complete<T>::value >::type> {
+        static constexpr size_t value = sizeof(T);
+    };
+
+    template< typename T>
+    struct Sizeof<T, typename std::enable_if< !is_complete<T>::value >::type> {
+        static constexpr size_t value = 0;
+    };
+
 }
+
+
 
 #endif

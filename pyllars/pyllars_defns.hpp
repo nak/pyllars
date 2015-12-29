@@ -13,16 +13,17 @@ namespace __pyllars_internal {
         constexpr size_t MAX_PTR_DEPTH = 5;
         constexpr int ERROR_TYPE_MISMATCH = -2;
         constexpr ssize_t UNKNOWN_SIZE = -1;
+         static constexpr Py_ssize_t INVALID_INDEX = LONG_LONG_MIN;
     }
 
     ///////////
     // Helper conversion functions
     //////////
     template<typename T, const ssize_t max = -1, typename E = void>
-    PyObject *toPyObject(T &var, const bool asArgument, const ssize_t array_size);
+    PyObject *toPyObject(T &var, const bool asArgument, const ssize_t array_size, const size_t depth = ptr_depth<T>::value);
 
     template<typename T, const ssize_t max = -1, typename E = void>
-    PyObject *toPyObject(const T &var, const bool asArgument, const ssize_t array_size);
+    PyObject *toPyObject(const T &var, const bool asArgument, const ssize_t array_size, const size_t depth = ptr_depth<T>::value);
 
     template<typename T, bool is_array, typename ClassWrapper>
     smart_ptr<T, is_array> toCObject(PyObject &pyobj);
@@ -259,7 +260,6 @@ namespace __pyllars_internal {
 
         static Py_ssize_t get_array_index(PtrWrapperBaseBase *self, PyObject *args, PyObject *kwargs) {
             static const char *kwlist[] = {"index", nullptr};
-            static constexpr Py_ssize_t INVALID_INDEX = -1;
             long index = -1;
 
             if (!PyArg_ParseTupleAndKeywords(args, kwargs, "l", (char **) kwlist, &index)) {

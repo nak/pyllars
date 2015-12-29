@@ -266,10 +266,10 @@ namespace __pyllars_internal {
     /**
      * Specialization for char*
      **/
-    template<typename ClassWrapper>
-    class CObjectConversionHelper<char *const, false, ClassWrapper> {
+    template<  typename ClassWrapper>
+    class CObjectConversionHelper<char *const,  true, ClassWrapper> {
     public:
-        static smart_ptr<char *const> toCObject(PyObject &pyobj) {
+        static smart_ptr<char *const, true> toCObject(PyObject &pyobj) {
             const char *name = nullptr;
             if (PyString_Check(&pyobj)) {
                 name = (const char *) PyString_AS_STRING(&pyobj);
@@ -281,7 +281,7 @@ namespace __pyllars_internal {
             //on return
             char *new_name = new char[strlen(name) + 1];
             strcpy(new_name, name);
-            return smart_ptr<char *, true>(&new_name, PTR_IS_ALLOCATED);
+            return smart_ptr<char * const, true>(&new_name, PTR_IS_ALLOCATED);
         }
     };
 
@@ -320,13 +320,13 @@ namespace __pyllars_internal {
         typedef typename std::remove_const<T>::type NonConst_T_array[size];
 
         typedef typename ClassWrapper::AsPtrWrapper PtrWrapper;
-        typedef typename ClassWrapper::DereferencedWrapper NonPtrWrapper;
+       // typedef typename ClassWrapper::DereferencedWrapper NonPtrWrapper;
         typedef typename ClassWrapper::NonConstWrapper NonConstArrayWrapper;
         typedef typename ClassWrapper::ConstWrapper ConstArrayWrapper;
 
         static smart_ptr<T[size], is_array> toCObject(PyObject &pyobj) {
 
-            if (PtrWrapper(&pyobj)) {
+            if (PtrWrapper::checkType(&pyobj)) {
                 PtrWrapper* self = reinterpret_cast<PtrWrapper * >(&pyobj);
                 if (self->_arraySize != size){
                     throw "Attempt to convert between arrays of differing sizes";
@@ -361,8 +361,8 @@ namespace __pyllars_internal {
                 NonConst_T_array *val = new NonConst_T_array[1];
                 for (size_t i = 0; i < size; ++i) {
                     PyObject *listitem = PyList_GetItem(&pyobj, i);
-                    if (NonPtrWrapper::checkType(listitem)) {
-                        (*val)[i] = *reinterpret_cast< NonPtrWrapper * >(listitem)->template get_CObject<T>();
+                    if (ClassWrapper::checkTypeDereferenced(listitem)) {
+                        (*val)[i] = *(reinterpret_cast< ClassWrapper * >(listitem)->template get_CObject<T>());
                     } else {
                         delete[] val;
                         throw "Invalid type in array element assignment";
@@ -423,8 +423,8 @@ namespace __pyllars_internal {
         public:
             typedef typename std::remove_reference<T>::type T_NoRef;
 
-            static PyObject *toPyObject(T_NoRef &var, const bool asReference, const ssize_t array_size = -1) {
-                PyObject* pyobj = (PyObject *) ClassWrapper::createPy(array_size, (asReference?&var:ObjectLifecycleHelpers::Copy<T>::new_copy(var)), !asReference, nullptr);
+	  static PyObject *toPyObject(T_NoRef &var, const bool asReference, const ssize_t array_size = -1, const size_t depth = ptr_depth<T>::value) {
+	    PyObject* pyobj = (PyObject *) ClassWrapper::createPy(array_size, (asReference?&var:ObjectLifecycleHelpers::Copy<T>::new_copy(var)), !asReference, nullptr, depth);
                 if (!pyobj || !ClassWrapper::checkType(pyobj)) {
                     PyErr_Format(PyExc_TypeError, "Unable to convert C type object to Python object %s: %s", pyobj->ob_type->tp_name, ClassWrapper::get_name().c_str());
                     pyobj = nullptr;
@@ -443,7 +443,7 @@ namespace __pyllars_internal {
         class PyObjectConversionHelper<T, ClassWrapper, max, typename std::enable_if<
                 std::is_integral<T>::value || std::is_enum<T>::value>::type> {
         public:
-            static PyObject *toPyObject(const T &var, const bool asReference, const ssize_t array_size = -1) {
+            static PyObject *toPyObject(const T &var, const bool asReference, const ssize_t array_size = -1, const size_t depth = 1) {
                 (void) asReference;
                 return PyInt_FromLong((long) var);
             }
@@ -455,7 +455,7 @@ namespace __pyllars_internal {
         template<typename T, typename ClassWrapper, const ssize_t max>
         class PyObjectConversionHelper<T, ClassWrapper, max, typename std::enable_if<std::is_floating_point<T>::value>::type> {
         public:
-            static PyObject *toPyObject(const T &var, const bool asReference, const ssize_t array_size = -1) {
+            static PyObject *toPyObject(const T &var, const bool asReference, const ssize_t array_size = -1, const size_t depth = 1) {
                 (void) asReference;
                 return PyFloat_FromDouble(var);
             }
@@ -467,7 +467,7 @@ namespace __pyllars_internal {
         template<const ssize_t max, typename ClassWrapper>
         class PyObjectConversionHelper<const char *, ClassWrapper, max, void> {
         public:
-            static PyObject *toPyObject(const char *const &var, const bool asReference, const ssize_t array_size = -1) {
+            static PyObject *toPyObject(const char *const &var, const bool asReference, const ssize_t array_size = -1, const size_t depth = 1) {
                 (void) asReference;
                 if (!var) {
                     throw "NULL CHAR* encountered";
@@ -480,7 +480,7 @@ namespace __pyllars_internal {
         template<const ssize_t max, typename ClassWrapper>
         class PyObjectConversionHelper<char *, ClassWrapper, max, void> {
         public:
-            static PyObject *toPyObject(char *const &var, const bool asReference, const ssize_t array_size = -1) {
+            static PyObject *toPyObject(char *const &var, const bool asReference, const ssize_t array_size = -1, const size_t depth = 1) {
                 (void) asReference;
                 if (!var) {
                     throw "NULL CHAR* encountered";
@@ -494,7 +494,7 @@ namespace __pyllars_internal {
         template<const ssize_t max, typename ClassWrapper>
         class PyObjectConversionHelper<const char *const, ClassWrapper, max, void> {
         public:
-            static PyObject *toPyObject(const char *const &var, const bool asReference, const ssize_t array_size = -1) {
+            static PyObject *toPyObject(const char *const &var, const bool asReference, const ssize_t array_size = -1, const size_t depth = 1) {
                 (void) asReference;
                 if (!var) {
                     throw "NULL CHAR* encountered";
@@ -515,13 +515,13 @@ namespace __pyllars_internal {
      * @param asArgument: whether to be used as argument or not (can determine if copy is made or reference semantics used)
      **/
     template<typename T, const ssize_t max, typename E>
-    PyObject *toPyObject(T &var, const bool asArgument, const ssize_t array_size) {
+    PyObject *toPyObject(T &var, const bool asArgument, const ssize_t array_size, const size_t depth ) {
         return ConversionHelpers::PyObjectConversionHelper<T, PythonClassWrapper<T, max, E>, max>::toPyObject(
-                var, asArgument, array_size);
+													      var, asArgument, array_size, depth);
     }
 
     template<typename T, const ssize_t max, typename E>
-    PyObject *toPyObject(const T &var, const bool asArgument, const ssize_t array_size) {
+    PyObject *toPyObject(const T &var, const bool asArgument, const ssize_t array_size, const size_t depth) {
         return ConversionHelpers::PyObjectConversionHelper<const T, PythonClassWrapper<T, max, E>, max>::toPyObject(
                 var, asArgument, array_size);
     }
