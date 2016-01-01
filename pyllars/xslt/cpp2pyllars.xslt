@@ -79,7 +79,7 @@
 
    <xsl:template match="//ArrayType" mode="generate_name"><xsl:param name="as_return" select="'-11'"/><xsl:variable name="typeid" select="@type"/><xsl:apply-templates select="//*[@id=$typeid]" mode="generate_name"/><xsl:choose><xsl:when test="number($as_return)&lt;0 or string($as_return)='NaN'">[]</xsl:when><xsl:otherwise>[<xsl:value-of select="$as_return"/>]</xsl:otherwise></xsl:choose></xsl:template>
 
-   <xsl:template match="//Enumeration[@name!='']|//FundamentalType|//Typedef|//Class|//Struct[@name!='']|Union[@name!='']" mode="generate_name"><xsl:variable name="id" select="@id"/><xsl:variable name="name"><xsl:choose><xsl:when test="@name=''"><xsl:value-of select="//Typedef[@type=$id]/@name"/></xsl:when><xsl:otherwise><xsl:value-of select="@name"/></xsl:otherwise></xsl:choose></xsl:variable><xsl:if test="(//Function[@name=$name] or number(@incomplete)=1) and local-name()='Struct'">struct<xsl:text> </xsl:text></xsl:if><xsl:value-of select="$name"/></xsl:template>
+   <xsl:template match="//Enumeration[@name!='']|//FundamentalType|//Typedef|//Class|//Struct[@name!='']|Union[@name!='']" mode="generate_name"><xsl:variable name="id" select="@id"/><xsl:variable name="name"><xsl:choose><xsl:when test="@name=''"><xsl:value-of select="//Typedef[@type=$id]/@name"/></xsl:when><xsl:otherwise><xsl:value-of select="@name"/></xsl:otherwise></xsl:choose></xsl:variable><xsl:if test="(//Function[@name=$name] or number(@incomplete)=1) and local-name()='Struct'"><xsl:text> </xsl:text>struct<xsl:text> </xsl:text></xsl:if><xsl:value-of select="$name"/></xsl:template>
 
 <!--#########################
    Templates for generating argument lists
@@ -140,7 +140,7 @@
      <xsl:param name="classname"></xsl:param>
      <xsl:param name="parentfieldname"></xsl:param>
 
-	<xsl:variable name="classnamebarepre"><xsl:value-of select="substring-after($classname, 'struct')"/></xsl:variable>
+	<xsl:variable name="classnamebarepre"><xsl:value-of select="substring-after($classname, ' struct ')"/></xsl:variable>
 	<xsl:variable name="classnamebare"><xsl:choose><xsl:when test="$classnamebarepre=''"><xsl:value-of select="$classname"/></xsl:when><xsl:otherwise><xsl:value-of select="$classnamebarepre"/></xsl:otherwise></xsl:choose></xsl:variable>
      <xsl:message terminate="no">
 ###
@@ -179,7 +179,7 @@
       	    </xsl:when>
             <xsl:otherwise>
         const size_t member_size =  sizeof(<xsl:if test="$classnamebare!=''"><xsl:value-of select="$classnamebare"/>::</xsl:if><xsl:value-of select="@name"/>);
-        const size_t type_size = Sizeof&lt; <xsl:apply-templates select="//*[@id=$typeid]" mode="generate_scoped_name"><xsl:with-param name="attrname"><xsl:value-of select="$classname"/>::<xsl:value-of select="$fieldname"/></xsl:with-param><xsl:with-param name="as_return" select="$dim"/></xsl:apply-templates> &gt;::value;
+        const size_t type_size = Sizeof&lt; <xsl:apply-templates select="//*[@id=$typeid]" mode="generate_scoped_name"><xsl:with-param name="attrname"><xsl:value-of select="$classnamebare"/>::<xsl:value-of select="$fieldname"/></xsl:with-param><xsl:with-param name="as_return" select="$dim"/></xsl:apply-templates> &gt;::value;
         const size_t array_size = type_size > 0?member_size/type_size:1;
          PythonClassWrapper&lt;<xsl:value-of select="$classname"/>&gt;::add<xsl:value-of select="$const_modifier"/>Attribute<xsl:text>
         </xsl:text>&lt;name__<xsl:value-of select="@id"/>, <xsl:apply-templates select="//*[@id=$typeid]" mode="generate_scoped_name"><xsl:with-param name="attrname"><xsl:value-of select="$classname"/>::<xsl:value-of select="$fieldname"/></xsl:with-param><xsl:with-param name="as_return" select="$dim"/></xsl:apply-templates> &gt;<xsl:text>
@@ -455,7 +455,7 @@ static int init_<xsl:value-of select="@id"/>( PyObject* module ){
 
       // Add to this class/struct/union/enum definition  <xsl:text>
       </xsl:text><xsl:if test="$name!=''">PythonClassWrapper&lt;<xsl:if test="$nsnamebare!='::'"> <xsl:value-of select="$nsnamebare"/>::</xsl:if><xsl:value-of select="$classname"/> &gt;::addClassMember<xsl:text>
-           </xsl:text>(&quot;<xsl:value-of select="$name"/>&quot;, (PyObject*)PythonClassWrapper&lt; <xsl:value-of select="$nsnamebare"/>::<xsl:value-of select="$classname"/>::<xsl:value-of select="$name"/> &gt;::getType(ptr_depth&lt;;<xsl:if test="$nsnamebare!='::'"> <xsl:value-of select="$nsnamebare"/>::</xsl:if><xsl:value-of select="$classname"/>&gt;::value));</xsl:if>
+           </xsl:text>(&quot;<xsl:value-of select="$name"/>&quot;, (PyObject*)PythonClassWrapper&lt; <xsl:value-of select="$nsnamebare"/>::<xsl:value-of select="$classname"/>::<xsl:value-of select="$name"/> &gt;::getType(ptr_depth&lt;<xsl:if test="$nsnamebare!='::'"> <xsl:value-of select="$nsnamebare"/>::</xsl:if><xsl:value-of select="$classname"/>&gt;::value));</xsl:if>
       </xsl:for-each>
    </xsl:when>
    <xsl:otherwise>

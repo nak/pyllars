@@ -84,7 +84,6 @@ def addproc( proc, filenamebase):
                     include_dirs = ['.','../../pyllars'],
                     language='c++',
                     extra_compile_args=["-std=c++14",
-                                        "-O0", 
                                          "-Wall",
                                          ],
                     extra_link_args = ["-Wl,--no-undefined",
