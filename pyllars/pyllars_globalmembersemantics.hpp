@@ -77,7 +77,8 @@ namespace __pyllars_internal {
             static PyObject *call(Container *callable, PyObject *args, PyObject *kwds) {
                 (void) callable;
                 typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
-                const ssize_t array_size = sizeof(*(callable->member)) / sizeof(T_base);
+		const ssize_t type_size = Sizeof<T_base>::value;
+                const ssize_t array_size = type_size> 0?sizeof(*(callable->member)) / type_size:1;
                 if (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "value")) {
                     *(callable->member) = *toCObject<T, false, PythonClassWrapper<T> >(
                             *PyDict_GetItemString(kwds, "value"));
@@ -85,7 +86,7 @@ namespace __pyllars_internal {
                     PyErr_SetString(PyExc_RuntimeError, "Invalid parameters when getting/setting global variable");
                     return nullptr;
                 }
-                return toPyObject<T, true>(*callable->member, false, array_size);
+                return toPyObject<T>(*callable->member, false, array_size);
             }
 
 
@@ -130,8 +131,9 @@ namespace __pyllars_internal {
                     return nullptr;
                 }
                 typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
-                const ssize_t array_size = sizeof(*(callable->member)) / sizeof(T_base);
-                return toPyObject<T, true>(callable->member, false, array_size);
+		const ssize_t type_size = Sizeof<T_base>::value;
+                const ssize_t array_size = type_size > 0?sizeof(*(callable->member)) / type_size:1;
+                return toPyObject<T[size], size>(callable->member, false, array_size);
             }
 
             static void setFromPyObject(Container *callable, PyObject *pyobj) {
@@ -174,21 +176,22 @@ namespace __pyllars_internal {
                         PyErr_SetString(PyExc_RuntimeError, "Attempt to set whole array of unknown size");
                         return nullptr;
                     }
-                    T val[] = *toCObject<T[], true>(*PyDict_GetItemString(kwds, "value"));
+                    T *val = *toCObject<T*, true, PythonClassWrapper<T*> >(*PyDict_GetItemString(kwds, "value"));
                     for (size_t i = 0; i < callable->array_size; ++i) (*callable->member)[i] = val[i];
                 } else if (kwds && PyDict_Size(kwds) == 2 && PyDict_GetItemString(kwds, "value") &&
                            PyDict_GetItemString(kwds, "index") &&
                            PyLong_Check(PyDict_GetItemString(kwds, "index"))) {
                     long i = PyLong_AsLong(PyDict_GetItemString(kwds, "index"));
-                    T val[] = *toCObject<T[], true>(*PyDict_GetItemString(kwds, "value"));
+                    T *val = *toCObject<T*, false, PythonClassWrapper<T*> >(*PyDict_GetItemString(kwds, "value"));
                     (*callable->member)[i] = val[i];
                 } else if (kwds && PyDict_Size(kwds) != 0) {
                     PyErr_SetString(PyExc_RuntimeError, "Invalid parameters when getting/setting global variable");
                     return nullptr;
                 }
                 typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
-                const ssize_t array_size = sizeof(*(callable->member)) / sizeof(T_base);
-                return toPyObject<T, true>(callable->member, false, array_size);
+		const ssize_t type_size = Sizeof<T_base>::value;
+                const ssize_t array_size = type_size > 0?sizeof(*(callable->member)) / type_size:1;
+                return toPyObject<T*>(*callable->member, false, array_size);
             }
 
         };
@@ -232,8 +235,9 @@ namespace __pyllars_internal {
                     return nullptr;
                 }
                 typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
-                const ssize_t array_size = sizeof(*(callable->member)) / sizeof(T_base);
-                return toPyObject<T, true>(*callable->member, false, array_size);
+		const ssize_t type_size = Sizeof<T_base>::value;
+                const ssize_t array_size = type_size > 0?sizeof(*(callable->member)) / type_size:1;
+                return toPyObject<T>(*callable->member, false, array_size);
             }
 
 
@@ -278,8 +282,9 @@ namespace __pyllars_internal {
                     return nullptr;
                 }
                 typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
-                const ssize_t array_size = sizeof(*(callable->member)) / sizeof(T_base);
-                return toPyObject<T, true>(callable->member, false, array_size);
+		const ssize_t type_size = Sizeof<T_base>::value;
+                const ssize_t array_size = type_size > 0?sizeof(*(callable->member)) / type_size : 1;
+                return toPyObject<T>(callable->member, false, array_size);
             }
 
 
@@ -324,8 +329,9 @@ namespace __pyllars_internal {
                     return nullptr;
                 }
                 typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
-                const ssize_t  array_size = sizeof(*(callable->member))/sizeof(T_base);
-                return toPyObject<const T *, true>(*callable->member, false, array_size);
+		const ssize_t type_size = Sizeof<T_base>::value;
+                const ssize_t  array_size = type_size>0?sizeof(*(callable->member))/type_size:1;
+                return toPyObject<const T *>(*callable->member, false, array_size);
             }
 
         };

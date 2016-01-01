@@ -32,10 +32,10 @@ namespace __pyllars_internal {
          */
         static PyObject *call(method_t method, PyObject *args, PyObject *kwds) {
             try {
-                T & result = call_methodBase(method, args, kwds, typename argGenerator<sizeof...(Args)>::type());
+	        const T & result = call_methodBase(method, args, kwds, typename argGenerator<sizeof...(Args)>::type());
                 typedef typename std::remove_pointer< typename extent_as_pointer<T>::type>::type T_base;
                 const ssize_t array_size = sizeof(result)/sizeof(T_base);
-                return toPyObject<T, true>(result, false, array_size);
+                return toPyObject<T>(result, false, array_size);
             } catch (const char *const msg) {
                 PyErr_SetString(PyExc_RuntimeError, msg);
                 return nullptr;
@@ -59,7 +59,7 @@ namespace __pyllars_internal {
                 PyErr_Print();
                 throw "Invalid arguments to method call";
             }
-            T retval = method(*toCObject<Args, false>(*pyargs)...);
+            T retval = method(*toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)...);
             return retval;
         }
 
@@ -111,7 +111,7 @@ namespace __pyllars_internal {
             if (!PyArg_ParseTupleAndKeywords(args, kwds, format, (char **) kwlist, &pyargs...)) {
                 PyErr_SetString(PyExc_RuntimeError, "Failed to parse argument on method call");
             } else {
-                method(*toCObject<Args>(*pyargs)...);
+	      method(*toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)...);
             }
         }
 
@@ -251,11 +251,11 @@ namespace __pyllars_internal {
 
             static PyObject *call(PyObject *cls, PyObject *args, PyObject *kwds) {
                 (void) cls;
-                return toPyObject<T, true>(member, false);
+                return toPyObject<T>(member, false);
             }
 
             static void setFromPyObject(PyObject *pyobj) {
-                member = *toCObject<T, false>(*pyobj);
+	      member = *toCObject<T, false, PythonClassWrapper<T>>(*pyobj);
             }
         };
 
@@ -269,11 +269,11 @@ namespace __pyllars_internal {
 
             static PyObject *call(PyObject *cls, PyObject *args, PyObject *kwds) {
                 (void) cls;
-                return toPyObject<T, true>(member, false);
+                return toPyObject<T>(member, false);
             }
 
             static void setFromPyObject(PyObject *pyobj) {
-                T val[] = *toCObject<T[size], false>(*pyobj);
+	      T val[] = *toCObject<T[size], false, PythonClassWrapper<T[size]>>(*pyobj);
                 for (size_t i = 0; i < size; ++i)member[i] = val[i];
             }
         };
@@ -302,7 +302,7 @@ namespace __pyllars_internal {
 
             static PyObject *call(PyObject *cls, PyObject *args, PyObject *kwds) {
                 (void) cls;
-                return toPyObject<T, true>(member, false);
+                return toPyObject<T>(member, false);
             }
 
         };

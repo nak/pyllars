@@ -41,25 +41,25 @@ namespace __pyllars_internal {
 
         typedef typename std::remove_reference<T>::type T_bare;
 
-        static smart_ptr<T> toCObject(PyObject &pyobj) {
+      static smart_ptr<T_bare, is_array> toCObject(PyObject &pyobj) {
             if (&pyobj == nullptr) {
                 throw "Invalid argument for conversion";
             }
             // Check different pointer type matches
             if (ClassWrapper::checkType(&pyobj)) {
-                return smart_ptr<T>((T_bare *) reinterpret_cast<ClassWrapper *>
-                (&pyobj)->template get_CObject<T_bare>(), PTR_IS_NOT_ALLOCATED);
+                return smart_ptr<T_bare, is_array>((T_bare *) reinterpret_cast<ClassWrapper *>
+				    (&pyobj)->template get_CObject<T_bare>(), PTR_IS_NOT_ALLOCATED);
             } else if (NoRefClassWrapper::checkType(&pyobj)) {
-                return smart_ptr<T>(reinterpret_cast<NoRefClassWrapper *>(&pyobj)->
+                return smart_ptr<T_bare, is_array>(reinterpret_cast<NoRefClassWrapper *>(&pyobj)->
                         template get_CObject<typename std::remove_const<T_bare>::type>(), PTR_IS_NOT_ALLOCATED);
             } else if (ConstClassWrapper::checkType(&pyobj)) {
                 //Must make copy of this item, since cast from const T to T requested
                 //and cannot cast away const-ness
                 ConstClassWrapper* self =  reinterpret_cast<ConstClassWrapper *>(&pyobj);
                 T_bare* copy = (T_bare*) ObjectLifecycleHelpers::Copy<const T>::new_copy( *self->template get_CObject<const T>());
-                return smart_ptr<T>(copy, PTR_IS_ALLOCATED);
+                return smart_ptr<T_bare, is_array>(copy, PTR_IS_ALLOCATED);
             } else if (NonConstClassWrapper::checkType(&pyobj)) {
-               return smart_ptr<T>(reinterpret_cast<NonConstClassWrapper *>(&pyobj)->
+	      return smart_ptr<T_bare, is_array>(reinterpret_cast<NonConstClassWrapper *>(&pyobj)->
                     template get_CObject<typename std::remove_const<T_bare>::type>(), PTR_IS_NOT_ALLOCATED);
             } else {
                 fprintf(stderr, "\n");
@@ -85,26 +85,26 @@ namespace __pyllars_internal {
         typedef typename ClassWrapper::NonConstWrapper NonConstClassWrapper;
         typedef typename ClassWrapper::ConstWrapper   ConstClassWrapper;
 
-        static smart_ptr<T> toCObject(PyObject &pyobj) {
+      static smart_ptr<T, is_array> toCObject(PyObject &pyobj) {
             typedef typename std::remove_reference<typename std::remove_const<T>::type>::type T_bare;
             if (PyInt_Check(&pyobj)) {
                 T_bare *value = new T_bare((T_bare) PyInt_AsLong(&pyobj));
-                return smart_ptr<T>(value, PTR_IS_ALLOCATED);
+                return smart_ptr<T, is_array>(value, PTR_IS_ALLOCATED);
             } else if (PyLong_Check(&pyobj)) {
                 T_bare *value = new T_bare((T_bare) PyLong_AsLongLong(&pyobj));
-                return smart_ptr<T>(value, PTR_IS_NOT_ALLOCATED);
+                return smart_ptr<T, is_array>(value, PTR_IS_NOT_ALLOCATED);
             } else if (ClassWrapper::checkType(&pyobj)) {
-                return smart_ptr<T>(reinterpret_cast<ClassWrapper * >(&pyobj)->template get_CObject<T_bare>(), PTR_IS_NOT_ALLOCATED);
+                return smart_ptr<T, is_array>(reinterpret_cast<ClassWrapper * >(&pyobj)->template get_CObject<T_bare>(), PTR_IS_NOT_ALLOCATED);
             } else if (NoRefClassWrapper::checkType(&pyobj)){
-                return smart_ptr<T>(reinterpret_cast<NoRefClassWrapper * >(&pyobj)->template get_CObject<T_bare>(), PTR_IS_NOT_ALLOCATED);
+                return smart_ptr<T, is_array>(reinterpret_cast<NoRefClassWrapper * >(&pyobj)->template get_CObject<T_bare>(), PTR_IS_NOT_ALLOCATED);
             }else if (ConstClassWrapper::checkType(&pyobj)){
                 //Attempting to cast const T to T  which requires a copy
                 ConstClassWrapper* self =  reinterpret_cast<ConstClassWrapper *>(&pyobj);
                 T_bare* copy = (T_bare*) ObjectLifecycleHelpers::Copy<const T>::new_copy( *self->template get_CObject<const T>());
-                return smart_ptr<T>(copy, PTR_IS_ALLOCATED);
+                return smart_ptr<T, is_array>(copy, PTR_IS_ALLOCATED);
             } else if (NonConstClassWrapper::checkType(&pyobj)){
                 //casting T to const T:
-                return smart_ptr<T>(reinterpret_cast<NonConstClassWrapper * >(&pyobj)->template get_CObject<std::remove_const<T_bare> >(), PTR_IS_NOT_ALLOCATED);
+                return smart_ptr<T, is_array>(reinterpret_cast<NonConstClassWrapper * >(&pyobj)->template get_CObject<std::remove_const<T_bare> >(), PTR_IS_NOT_ALLOCATED);
             }
             throw "Invalid type converting to C object";
         }
@@ -160,6 +160,24 @@ namespace __pyllars_internal {
                 throw "Python callback is not callable!";
             }
             callback_t *retval = new callback_t(PyCallbackWrapper<ReturnType, Args...>(&pyobj).get_C_callback());
+            return smart_ptr<callback_t, false>(retval, PTR_IS_ALLOCATED);
+        }
+    };
+
+    /**
+     * Specialization for callbacks
+     **/
+    template<typename ClassWrapper, typename ReturnType,
+            typename ...Args>
+    class CObjectConversionHelper<ReturnType(*)(Args..., ...), false, ClassWrapper, void> {
+    public:
+      typedef ReturnType(*callback_t)(Args...,...);
+
+        static smart_ptr<callback_t, false> toCObject(PyObject &pyobj) {
+            if (!PyCallable_Check(&pyobj)) {
+                throw "Python callback is not callable!";
+            }
+            callback_t *retval = new callback_t(PyCallbackWrapperVar<ReturnType, Args...>(&pyobj).get_C_callback());
             return smart_ptr<callback_t, false>(retval, PTR_IS_ALLOCATED);
         }
     };
@@ -381,8 +399,8 @@ namespace __pyllars_internal {
      * function to convert python object to underlying C type using a class helper
      **/
     template<typename T, bool is_array, typename ClassWrapper>
-    smart_ptr<T, is_array> toCObject(PyObject &pyobj) {
-        return CObjectConversionHelper<T, is_array, ClassWrapper>::toCObject(pyobj);
+    smart_ptr<typename std::remove_reference<T>::type, is_array> toCObject(PyObject &pyobj) {
+        return CObjectConversionHelper<typename std::remove_reference<T>::type, is_array, ClassWrapper>::toCObject(pyobj);
     }
 
     /**
@@ -522,7 +540,7 @@ namespace __pyllars_internal {
 
     template<typename T, const ssize_t max, typename E>
     PyObject *toPyObject(const T &var, const bool asArgument, const ssize_t array_size, const size_t depth) {
-        return ConversionHelpers::PyObjectConversionHelper<const T, PythonClassWrapper<T, max, E>, max>::toPyObject(
+        return ConversionHelpers::PyObjectConversionHelper<const T, PythonClassWrapper<const T, max, E>, max>::toPyObject(
                 var, asArgument, array_size);
     }
 

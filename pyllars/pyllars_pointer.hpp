@@ -95,7 +95,7 @@ namespace __pyllars_internal {
             }
             PythonClassWrapper<const T_base> *obj_ = (PythonClassWrapper<const T_base> *) obj;
             ObjectLifecycleHelpers::Copy<T_base>::inplace_copy(*(self_->template get_CObject<T>()), index,
-                                                               obj_->template get_CObject<const T_base>(),
+                                                               obj_->template get_CObject< T_base>(),
                                                                self_->_raw_storage != nullptr);
             return 0;
         }

@@ -24,9 +24,11 @@ namespace __pyllars_internal{
       public:
 
         typedef ReturnType(*callback_t)( Args...);
+	typedef ReturnType(*callbackvar_t)( Args...,...);
 
         static PyObject *pycallbacks[MAX_CB_POOL_DEPTH+1];
         static callback_t c_callbacks[MAX_CB_POOL_DEPTH+1];
+        static callbackvar_t c_callbacksvar[MAX_CB_POOL_DEPTH+1];
 
       };
 
@@ -38,6 +40,11 @@ namespace __pyllars_internal{
                  typename... Args>
       typename CallbackPool< ReturnType, Args...>::callback_t
       CallbackPool< ReturnType, Args...>::c_callbacks[MAX_CB_POOL_DEPTH+1];
+
+      template < typename ReturnType,
+                 typename... Args>
+      typename CallbackPool< ReturnType, Args...>::callbackvar_t
+      CallbackPool< ReturnType, Args...>::c_callbacksvar[MAX_CB_POOL_DEPTH+1];
 
 
       __attribute__((noinline)) static PyObject* __pycb( PyObject *pycallback, PyObject* pyargs[], const Py_ssize_t size) {
@@ -70,7 +77,7 @@ namespace __pyllars_internal{
       class CBHelper{
       public:
           __attribute__((noinline)) static ReturnType __cbBase( PyObject* const  pycallback,  Args...  args) {
-            PyObject *pyargs[] = { toPyObject<Args,true>(args, true, std::extent<Args>::value)...};
+            PyObject *pyargs[] = { toPyObject<Args>(args, true, std::extent<Args>::value)...};
             PyObject* result =__pycb( pycallback, pyargs, sizeof...(args));
             if( std::is_pointer<ReturnType>::value && (result == (PyObject*)Py_None)){
               ReturnType retval;
@@ -87,7 +94,7 @@ namespace __pyllars_internal{
       class CBHelper<void, Args...>{
       public:
            __attribute__((noinline))  static void __cbBase( PyObject* const  pycallback,  Args...  args) {
-            PyObject *pyargs[] = { toPyObject(args, true)...};
+            PyObject *pyargs[] = { toPyObject<Args>(args, true,  std::extent<Args>::value)...};
             __pycb( pycallback, pyargs, sizeof...(args));
         }
      };
@@ -103,6 +110,11 @@ namespace __pyllars_internal{
             //only chain to a lower level class with fewer instanitaions
             return CBHelper<ReturnType, Args...>::__cbBase(CallbackPool<ReturnType, Args...>::pycallbacks[index], args...);
         }
+
+      static ReturnType __cbvar( Args...  args,...){
+            //only chain to a lower level class with fewer instanitaions
+            return CBHelper<ReturnType, Args...>::__cbBase(CallbackPool<ReturnType, Args...>::pycallbacks[index], args...);
+        }
     };
 
     /**
@@ -113,6 +125,9 @@ namespace __pyllars_internal{
     class CBContainer<index, void, Args...>:public CBHelper<void, Args...>{
     public:
         static void __cb( Args...  args){
+            return CBHelper<void, Args...>::__cbBase(CallbackPool< void, Args...>::pycallbacks[index], args...);
+        }
+        static void __cbvar( Args...  args,...){
             return CBHelper<void, Args...>::__cbBase(CallbackPool< void, Args...>::pycallbacks[index], args...);
         }
     };
@@ -130,6 +145,7 @@ namespace __pyllars_internal{
         CBPoolInitializer(){
             typedef CallbackPool<ReturnType, Args...> Pool;
             Pool::c_callbacks[index] = &CBContainer<index, ReturnType, Args...>::__cb;
+            Pool::c_callbacksvar[index] = &CBContainer<index, ReturnType, Args...>::__cbvar;
             CBPoolInitializer<index-1, ReturnType, Args...>();
         }
 
@@ -143,11 +159,10 @@ namespace __pyllars_internal{
         CBPoolInitializer(){
             typedef CallbackPool< ReturnType, Args...> Pool;
             Pool::c_callbacks[0] = &CBContainer< 0, ReturnType, Args...>::__cb;
+            Pool::c_callbacksvar[0] = &CBContainer< 0, ReturnType, Args...>::__cbvar;
         }
 
     };
-
-
 
 
     /***************
@@ -179,6 +194,7 @@ namespace __pyllars_internal{
         }
 
 
+
     private:
         //static volatile CBPoolInitializer<MAX_CB_POOL_DEPTH, ReturnType, Args...> initializer;
         static size_t cb_index ;
@@ -188,8 +204,45 @@ namespace __pyllars_internal{
     template<typename ReturnType, typename... Args>
     size_t PyCallbackWrapper<ReturnType, Args...>::cb_index = 0;
 
-   //template<typename ReturnType, typename... Args>
-   //volatile CBPoolInitializer<MAX_CB_POOL_DEPTH, ReturnType, Args...> PyCallbackWrapper<ReturnType, Args...>::initializer = CBPoolInitializer<MAX_CB_POOL_DEPTH, ReturnType, Args...>();
+
+    /***************
+    * wrapper to python callback, mapping to C-style callback
+    **/
+    template<typename ReturnType, typename... Args>
+    class PyCallbackWrapperVar{
+    public:
+
+        typedef CallbackPool< ReturnType, Args...> Pool;
+
+        PyCallbackWrapperVar( PyObject* const pycb){
+            static CBPoolInitializer<MAX_CB_POOL_DEPTH, ReturnType, Args...> initializer;
+            for (size_t index = 0 ; index < cb_index; ++index){
+                if (pycb == Pool::pycallbacks[index])
+                    _my_cb_index = index;
+            }
+            if (cb_index >= MAX_CB_POOL_DEPTH){
+                throw "Callbaks exhausted";
+            }
+            Pool::pycallbacks[cb_index] = pycb;
+            Py_INCREF(pycb);
+            _my_cb_index = cb_index++;
+        }
+
+
+        typename Pool::callbackvar_t get_C_callback(){
+            return Pool::c_callbacksvar[_my_cb_index];
+        }
+
+
+
+    private:
+        static size_t cb_index ;
+        size_t _my_cb_index;
+
+    };
+    template<typename ReturnType, typename... Args>
+    size_t PyCallbackWrapperVar<ReturnType, Args...>::cb_index = 0;
+
 
 
 }

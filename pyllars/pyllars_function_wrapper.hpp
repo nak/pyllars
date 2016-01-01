@@ -171,7 +171,7 @@ namespace __pyllars_internal {
             typedef typename std::remove_pointer<typename extent_as_pointer<ReturnType>::type>::type BaseType;
             ReturnType result = wrapper.callFunc(args, kw, typename argGenerator<sizeof...(Args)>::type());
             const ssize_t array_size = Sizeof<BaseType>::value?sizeof(result) / Sizeof<BaseType>::value:1;
-            return toPyObject<ReturnType, is_base_return_complete>(result, false, array_size);
+            return toPyObject<ReturnType>(result, false, array_size);
         } catch (const char *const msg) {
             PyErr_SetString(PyExc_RuntimeError, msg);
 

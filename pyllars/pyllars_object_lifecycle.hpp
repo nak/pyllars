@@ -108,24 +108,13 @@ namespace __pyllars_internal {
             }
         };
 
-        template<typename Z>
-        struct Copy<void,Z> {
-            static void *new_copy(const void* value) {
+      template<typename T>
+      struct Copy<T, typename std::enable_if< std::is_void<T>::value >::type > {
+            static void *new_copy( T* const value) {
                throw "Attmpet to copy void object";
             }
 
-            static void inplace_copy(void* const to, const Py_ssize_t index,  const void* const from, const bool in_place){
-                throw "Cannot copy void item";
-            }
-        };
-
-        template<typename Z>
-        struct Copy<const void,Z> {
-            static void *new_copy(const void* value) {
-                throw "Attmpet to copy void object";
-            }
-
-            static void inplace_copy(const void* const to, const Py_ssize_t index,  const void* const from, const bool in_place){
+            static void inplace_copy(T* const to, const Py_ssize_t index,  const T* const from, const bool in_place){
                 throw "Cannot copy void item";
             }
         };
@@ -863,10 +852,10 @@ const bool asArgument = true) {
         };
 
         template<typename ReturnType, typename ...Args>
-        struct Alloc<ReturnType(*)(Args...), PythonClassWrapper<ReturnType(**)(Args...), -1, void>,
-                PythonClassWrapper<ReturnType(*)(Args...), -1, void>,
+        struct Alloc<ReturnType(*)(Args...), PythonClassWrapper<ReturnType(**)(Args...)>,
+                PythonClassWrapper<ReturnType(*)(Args...)>,
                 void> :
-                public BasicAlloc<ReturnType(*)(Args...), PythonClassWrapper<ReturnType(**)(Args...), -1, void> > {
+                public BasicAlloc<ReturnType(*)(Args...), PythonClassWrapper<ReturnType(**)(Args...)> > {
 
             typedef PythonClassWrapper<ReturnType(**)(Args...), -1, void> PtrWrapper;
 
@@ -970,9 +959,9 @@ const bool asArgument = true) {
 
         template<typename T>
         struct Alloc<T,
-                PythonClassWrapper<void *, -1, void>,
-                PythonClassWrapper<void, -1, void>,
-                typename std::enable_if<std::is_void<T>::value>::type> :
+                PythonClassWrapper<T *, -1, void>,
+                PythonClassWrapper<T, -1, void>,
+                typename std::enable_if<std::is_void<typename std::remove_volatile<T>::type>::value>::type> :
                 public BasicAlloc<T, PythonClassWrapper<void *, -1, void> > {
 
             typedef PythonClassWrapper<void *, -1, void> PtrWrapper;
@@ -992,28 +981,7 @@ const bool asArgument = true) {
             }
         };
 
-        template<typename T>
-        struct Alloc<const T,
-                PythonClassWrapper<const void *, -1, void>,
-                PythonClassWrapper<const void, -1, void>,
-                typename std::enable_if<std::is_void<T>::value>::type> :
-                public BasicAlloc<T, PythonClassWrapper<void *, -1, void> > {
-
-            typedef typename std::remove_reference<const T>::type C_NoRef;
-
-            static void dealloc(C_NoRef *ptr) {
-                (void) ptr;
-            }
-
-            static PyObject *allocbase(PyObject *cls, PyObject *args, PyObject *kwds) {
-                (void) args;
-                (void) kwds;
-                (void) cls;
-                PyErr_SetString(PyExc_RuntimeError, "Type is not directly constructible");
-                return nullptr;
-            }
-        };
-
+       
         template<typename T, typename PtrWrapper, typename ClassWrapper>
         struct Alloc<T, PtrWrapper,
                 ClassWrapper,
@@ -1064,55 +1032,33 @@ const bool asArgument = true) {
     };
 
     /**
-  * Specialization for void-pointer type
-  **/
-    template<typename PtrWrapper>
-    class ObjectLifecycleHelpers::ObjectContent<void *, void, PtrWrapper> {
+     * Specialization for void-pointer type
+     **/
+    template<typename T, typename PtrWrapper>
+    class ObjectLifecycleHelpers::ObjectContent<T*, PtrWrapper, typename std::enable_if< std::is_void<T>::value>::type> {
     public:
 
-        static void set(const size_t index, void **const to, void **const from, const size_t depth) {
+        static void set(const size_t index, T **const to, T **const from, const size_t depth) {
             to[index] = *from;
         }
 
-      static PyObject *getObjectAt(void *const from, const size_t index, const ssize_t elements_array_size, const size_t depth, const bool asArgument = true) {
+      static PyObject *getObjectAt(T *const from, const size_t index, const ssize_t elements_array_size, const size_t depth, const bool asArgument = true) {
             (void) from;
             (void) index;
             (void) elements_array_size;
             throw "Attempt to get void value";
         }
 
-        static void **getObjectPtr(PtrWrapper *const self) {
-            return (void **) &self->_CObject;
+        static T **getObjectPtr(PtrWrapper *const self) {
+            return (T **) &self->_CObject;
         }
 
     };
 
-    /**
-* Specialization for void-pointer type
-**/
-    template<typename PtrWrapper>
-    class ObjectLifecycleHelpers::ObjectContent<const void *, void, PtrWrapper> {
-    public:
+ 
 
-        static void set(const size_t index, const void **const to, const void **const from, const size_t depth) {
-            to[index] = *from;
-        }
-
-      static PyObject *getObjectAt(const void *const from, const size_t index, const ssize_t elements_array_size, const size_t depth,  const bool asArgument = true) {
-            (void) from;
-            (void) index;
-            (void) elements_array_size;
-            throw "Attempt to get void value";
-        }
-
-        static void **getObjectPtr(PtrWrapper *const self) {
-            return (void **) &self->_CObject;
-        }
-
-    };
-
-    template<typename PtrWrapper>
-    class ObjectLifecycleHelpers::ObjectContent<void , void, PtrWrapper> {
+  template<typename T, typename PtrWrapper>
+  class ObjectLifecycleHelpers::ObjectContent<T, PtrWrapper, typename std::enable_if<std::is_void<T>::value> > {
     public:
 
         static void set(const size_t index, void *const to, void *const from, const size_t depth) {
@@ -1133,25 +1079,25 @@ const bool asArgument = true) {
     };
 
     /**
-* Specialization for void-pointer type
-**/
-    template<typename PtrWrapper>
-    class ObjectLifecycleHelpers::ObjectContent<void *const, void, PtrWrapper> {
+     * Specialization for void-pointer type
+     **/
+     template<typename T, typename PtrWrapper>
+     class ObjectLifecycleHelpers::ObjectContent<T *const,  PtrWrapper, typename std::enable_if< std::is_void<T>::value>::type > {
     public:
 
-        static void set(const size_t index, void *const *const to, void *const *const from, const size_t depth) {
+        static void set(const size_t index, T *const *const to, T *const *const from, const size_t depth) {
             throw "Attempt to assign to const value";
         }
 
-      static PyObject *getObjectAt(void *const from, const size_t index, const ssize_t elements_array_size, const size_t depth, const bool asArgument = true) {
+      static PyObject *getObjectAt(T *const from, const size_t index, const ssize_t elements_array_size, const size_t depth, const bool asArgument = true) {
             (void) from;
             (void) index;
             (void) elements_array_size;
             throw "Attempt to get void value";
         }
 
-        static void *const *getObjectPtr(PtrWrapper *const self) {
-            return (void *const *) &self->_CObject;
+        static T *const *getObjectPtr(PtrWrapper *const self) {
+            return (T *const *) &self->_CObject;
         }
 
     };

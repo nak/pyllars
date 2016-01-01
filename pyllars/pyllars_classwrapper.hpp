@@ -505,7 +505,7 @@ namespace __pyllars_internal {
             int status = 0;
             _name = name;
             _module_entry_name = module_entry_name;
-            if (Type.tp_name) {/*already initialize*/ return status; }
+            if (Type.tp_name) {/*already initialized*/ return status; }
             char *tp_name = new char[strlen(fullname ? fullname : name) + 1];
             strcpy(tp_name, fullname ? fullname : name);
             Type.tp_name = tp_name;
@@ -727,11 +727,44 @@ namespace __pyllars_internal {
             _memberSettersDict[name] = MemberContainer<T>::template Container<name, Type[size]>::setFromPyObject;
         }
 
+
+        template<const char *const name,  typename Type, const size_t bits>
+        static void addBitField( typename BitFieldContainer<T_NoRef>::template Container<name, Type, bits>::getter_t &getter,
+                                 typename BitFieldContainer<T_NoRef>::template Container<name, Type, bits>::setter_t &setter) {
+            static const char *const doc = "Get bit-field attribute ";
+            char *doc_string = new char[strlen(name) + strlen(doc) + 1];
+            snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
+            BitFieldContainer<T_NoRef>::template Container<name, Type, bits>::_setter = setter;
+            BitFieldContainer<T_NoRef>::template Container<name, Type, bits>::_getter = getter;
+            PyMethodDef pyMeth = {name,
+                                  (PyCFunction) BitFieldContainer<T_NoRef>::template Container<name, Type, bits>::call,
+                                  METH_KEYWORDS,
+                                  doc_string
+            };
+            _addMethod(pyMeth);
+            _memberSettersDict[name] = BitFieldContainer<T>::template Container<name, Type,bits>::setFromPyObject;
+        }
+
+        template<const char *const name,  typename Type, const size_t bits>
+        static void addConstBitFIeld( typename BitFieldContainer<T_NoRef>::template Container<name, Type, bits>::getter_t& getter) {
+            static const char *const doc = "Get bit-field attribute ";
+            char *doc_string = new char[strlen(name) + strlen(doc) + 1];
+            snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
+            BitFieldContainer<T_NoRef>::template ConstContainer<name, Type, bits>::_getter = getter;
+            PyMethodDef pyMeth = {name,
+                                  (PyCFunction) BitFieldContainer<T_NoRef>::template ConstContainer<name, Type, bits>::call,
+                                  METH_KEYWORDS,
+                                  doc_string
+            };
+            _addMethod(pyMeth);
+            _memberSettersDict[name] = BitFieldContainer<T>::template ConstContainer<name, Type, bits>::setFromPyObject;
+        }
+
         /**
          * add a getter method for the given compile-time-known named public class member
          **/
         template<const char *const name, typename Type>
-        static void addAttribute(typename MemberContainer<T_NoRef>::template Container<name, Type>::member_t member,
+        static void addAttribute(typename MemberContainer<T_NoRef>::template Container<name,Type >::member_t member,
                                  const ssize_t array_size) {
 
             static const char *const doc = "Get attribute ";
@@ -889,7 +922,7 @@ namespace __pyllars_internal {
             if (self->_raw_storage) {
                 delete self->_raw_storage;
             } else if (self->_allocated) {
-                ObjectLifecycleHelpers::Alloc<T_NoRef, PythonClassWrapper<T_NoRef *>, PythonClassWrapper>::dealloc(
+                ObjectLifecycleHelpers::Alloc<T_NoRef, PythonClassWrapper<T_NoRef *>, PythonClassWrapper<T_NoRef>>::dealloc(
                         ptr);
             }
             self->_raw_storage = nullptr;
@@ -915,7 +948,7 @@ namespace __pyllars_internal {
         }
 
         template<typename ...Args>
-        static bool _createBaseBase(T_NoRef *&cobj, Args... args) {
+        static bool _createBaseBase(T_NoRef *&cobj, Args&... args) {
             if (!cobj) {
                 cobj = new T_NoRef(args...);
                 return cobj != nullptr;
@@ -942,8 +975,7 @@ namespace __pyllars_internal {
             }
 
             return _createBaseBase<Args...>(cobj,
-                                            *toCObject<Args, false, PythonClassWrapper<Args> >(
-                                                    *pyobjs[S])...);
+                                            *toCObject<Args, false, PythonClassWrapper<Args> >( *pyobjs[S])...);
         }
 
         static void _addMethod(PyMethodDef method) {

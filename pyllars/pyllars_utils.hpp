@@ -137,46 +137,58 @@ namespace __pyllars_internal {
      *  Types used to define a smart pointer that knows if contained
      *  element is dynamically allocated and should be deleted (or not)
      */
-    template<typename T, bool is_array = false>
-    struct smart_delete {
+    template<typename T, bool is_array = false, typename E = void>
+    struct smart_delete ;
+
+    template<typename T, bool is_array>
+    struct smart_delete<T,is_array , typename std::enable_if<!std::is_destructible<T>::value>::type >{
+
+        typedef typename std::remove_reference<T>::type T_base;
 
         smart_delete(const bool deleteable) : _deleteable(deleteable) {
         }
 
-        void operator()(T *ptr) const {
-            if (_deleteable) delete ptr;
+        void operator()(T_base *ptr) const {
+	  // if (_deleteable) delete ptr;
         }
 
         const bool _deleteable;
     };
 
+
+
     template<typename T>
-    struct smart_delete<T &, false> {
+    struct smart_delete<T, false , typename std::enable_if< std::is_destructible<T>::value>::type >{
+
+        typedef typename std::remove_reference<T>::type T_base;
 
         smart_delete(const bool deleteable) : _deleteable(deleteable) {
         }
 
-        void operator()(T *ptr) const {
-            if (_deleteable) delete ptr;
+        void operator()(T_base *ptr) const {
+	   if (_deleteable) delete ptr;
         }
 
         const bool _deleteable;
     };
 
+   
     template<typename T>
-    struct smart_delete<T, true> {
+    struct smart_delete<T, true, typename std::enable_if< std::is_destructible<T>::value>::type > {
+
+      typedef typename std::remove_reference<T>::type T_base;
 
         smart_delete(const bool deleteable) : _deleteable(deleteable) {
         }
 
-        void operator()(T *ptr) const {
+        void operator()(T_base *ptr) const {
             if (_deleteable) delete[] ptr;
         }
 
         const bool _deleteable;
     };
 
-    template<typename T, bool is_array = false>
+  template<typename T, bool is_array = false>
     using smart_ptr = std::unique_ptr<typename std::remove_reference<T>::type, smart_delete<T, is_array> >;
 
 
@@ -214,6 +226,28 @@ namespace __pyllars_internal {
         static constexpr size_t value = 0;
     };
 
+    template< typename T, const size_t bits, typename E = void>
+    struct BitFieldLimits;
+
+    template<typename T, const size_t bits>
+    struct BitFieldLimits<T, bits, typename std::enable_if< std::numeric_limits<T>::is_signed &&  std::is_integral<T>::value>::type>{
+        static constexpr ssize_t lower = -(1<<bits);
+        static constexpr ssize_t upper = -lower+1;
+
+        static bool is_in_bounds( const T &value){ return (value >= lower) && (value <= upper);}
+    };
+
+    template<typename T, const size_t bits>
+    struct BitFieldLimits<T, bits, typename std::enable_if< !std::numeric_limits<T>::is_signed &&  std::is_integral<T>::value>::type>{
+        static constexpr size_t lower = 0;
+        static constexpr ssize_t upper = (1<<bits)-1;
+        static bool is_in_bounds( const T &value){ return (value >= lower) && (value <= upper);}
+    };
+
+    template<typename T, const size_t bits>
+    struct BitFieldLimits<T, bits, typename std::enable_if< ! std::is_integral<T>::value>::type>{
+       static bool is_in_bounds(const T & value){ return true;/*no meaning here, so always return true*/}
+    };
 }
 
 

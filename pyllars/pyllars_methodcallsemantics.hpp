@@ -31,8 +31,9 @@ namespace __pyllars_internal {
             try {
                 typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
                 T result = call_methodBase(method, self, args, kwds, typename argGenerator<sizeof...(Args)>::type());
-                const ssize_t array_size = sizeof(result) / sizeof(T_base);
-                return toPyObject<T, true>(result, false, array_size);
+		const ssize_t type_size = Sizeof<T_base>::value;
+                const ssize_t array_size = type_size>0?sizeof(result) / type_size:1;
+                return toPyObject<T>(result, false, array_size);
             } catch (const char *const msg) {
                 PyErr_SetString(PyExc_RuntimeError, msg);
                 return nullptr;
@@ -54,7 +55,7 @@ namespace __pyllars_internal {
                 memset(format, 'O', sizeof...(Args));
 
             if (!PyArg_ParseTupleAndKeywords(args, kwds, format, (char **) kwlist, &pyargs...)) {
-                PyErr_Print();
+                PyErr_Print(); 
                 throw "Invalid arguments to method call";
             }
             T retval = (self.*method)(*toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)...);
@@ -289,8 +290,12 @@ namespace __pyllars_internal {
     class MemberContainer {
     public:
 
-        template<const char *const name, typename T>
-        class Container {
+      template<const char *const name, typename T, typename E = void>
+      class Container;
+  
+
+      template<const char *const name, typename T >
+      class Container<name, T, typename std::enable_if<!std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value != 0 >::type> {
         public:
             typedef typename std::remove_reference<CClass>::type CClass_NoRef;
             typedef T CClass_NoRef::* member_t;
@@ -307,7 +312,7 @@ namespace __pyllars_internal {
                     const ssize_t base_size = ArrayHelper<T>::base_sizeof();
                     const ssize_t array_size = base_size>0?sizeof(_this->template get_CObject<CClass>()->*member)/base_size:UNKNOWN_SIZE;
                     if (_this->template get_CObject<CClass>()) {
-                        return toPyObject<T, true>(_this->template get_CObject<CClass>()->*member, false, array_size);
+                        return toPyObject<T>(_this->template get_CObject<CClass>()->*member, false, array_size);
                     }
                     PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
                     return nullptr;
@@ -317,8 +322,8 @@ namespace __pyllars_internal {
                         PyErr_SetString(PyExc_SyntaxError, "Unexpcted None value in member setter");
                         return nullptr;
                     }
-                    (_this->template get_CObject<CClass_NoRef>()->*
-                     member) = *toCObject<T, false, PythonClassWrapper<T> >(*pyVal);
+                    (_this->template get_CObject<CClass_NoRef>()->*member) = 
+		        *toCObject<T, false, PythonClassWrapper<T> >(*pyVal);
                 } else {
                     PyErr_SetString(PyExc_SyntaxError, "Invalid argsuments to set class instance member variable in C");
                     return nullptr;
@@ -331,9 +336,51 @@ namespace __pyllars_internal {
             }
         };
 
+      //C++ forces this since T[0] is not an array type 
+      template<const char *const name, typename T >
+      class Container<name, T, typename std::enable_if<!std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value == 0 >::type> {
+        public:
+            typedef typename std::remove_reference<CClass>::type CClass_NoRef;
+	typedef typename std::remove_pointer< typename extent_as_pointer<T>::type>::type CClass_NoRef::* member_t;
+
+            static member_t member;
+            static size_t array_size;
+
+            static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds) {
+                if (!self) return nullptr;
+                typedef  PythonClassWrapper<CClass> Wrapper;
+                Wrapper *_this = (Wrapper *) self;
+
+                if ((!args || PyTuple_Size(args) == 0) && (!kwds || PyDict_Size(kwds) == 0)) {
+                    const ssize_t base_size = ArrayHelper<T>::base_sizeof();
+                    const ssize_t array_size = base_size>0?sizeof(_this->template get_CObject<CClass>()->*member)/base_size:UNKNOWN_SIZE;
+                    if (_this->template get_CObject<CClass>()) {
+                        return toPyObject<T>(_this->template get_CObject<CClass>()->*member, false, array_size);
+                    }
+                    PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
+                    return nullptr;
+                } else if (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "set_to")) {
+                    PyObject * pyVal = PyDict_GetItemString(kwds, "set_to");
+                    if (pyVal == Py_None) {
+                        PyErr_SetString(PyExc_SyntaxError, "Unexpcted None value in member setter");
+                        return nullptr;
+                    }
+                   
+                } else {
+                    PyErr_SetString(PyExc_SyntaxError, "Invalid argsuments to set class instance member variable in C");
+                    return nullptr;
+                }
+                return Py_None;
+            }
+
+            static void setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj) {
+	      (void)self;(void)pyobj;
+            }
+        };
+
 
         template<const char *const name, typename T>
-        class Container<name, const T> {
+        class Container<name, T,  typename std::enable_if<std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value!=0>::type> {
         public:
             typedef typename std::remove_reference<CClass>::type CClass_NoRef;
             typedef const T CClass_NoRef::* member_t;
@@ -349,7 +396,7 @@ namespace __pyllars_internal {
                     if (_this->template get_CObject<CClass_NoRef>()) {
                         const ssize_t base_size = ArrayHelper<T>::base_sizeof();
                         const ssize_t array_size = base_size>0?sizeof(_this->template get_CObject<CClass>()->*member)/base_size:UNKNOWN_SIZE;
-                        return toPyObject<T, true>(_this->template get_CObject<CClass_NoRef>()->*member, false, array_size);
+                        return toPyObject<T>(_this->template get_CObject<CClass_NoRef>()->*member, false, array_size);
                     }
                     PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
                     return nullptr;
@@ -367,8 +414,8 @@ namespace __pyllars_internal {
             }
         };
 
-        template<const char *const name, const size_t size, typename T>
-        class Container<name, T[size]> {
+        template<const char *const name, ssize_t size, typename T>
+        class Container<name, T[size], void> {
         public:
             typedef typename std::remove_reference<CClass>::type CClass_NoRef;
             typedef T T_array[size];
@@ -389,7 +436,7 @@ namespace __pyllars_internal {
                     if (_this->template get_CObject<CClass>()) {
                         const ssize_t base_size = ArrayHelper<T_array>::base_sizeof();
                         const ssize_t array_size = base_size>0?sizeof(_this->template get_CObject<CClass>()->*member)/base_size:UNKNOWN_SIZE;
-                        return toPyObject<T_array, true>(_this->template get_CObject<CClass>()->*member, false, array_size);
+                        return toPyObject<T_array, size>(_this->template get_CObject<CClass>()->*member, false, array_size);
                     }
                     PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
                     return nullptr;
@@ -433,8 +480,8 @@ namespace __pyllars_internal {
             }
         };
 
-        template<const char *const name, const size_t size, typename T>
-        class Container<name, const T[size]> {
+        template<const char *const name, ssize_t size, typename T>
+        class Container<name, const T[size], void> {
         public:
             typedef typename std::remove_reference<CClass>::type CClass_NoRef;
             typedef const T T_array[size];
@@ -455,7 +502,7 @@ namespace __pyllars_internal {
                         return nullptr;
                     }
                     if (_this->template get_CObject<CClass>()) {
-                        return toPyObject<T_array, true>(*(_this->template get_CObject<CClass>()->*member), false, array_size);
+		      return toPyObject<T_array, size>(*(_this->template get_CObject<CClass>()->*member), false, array_size);
                     }
                     PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
                     return nullptr;
@@ -476,7 +523,7 @@ namespace __pyllars_internal {
 
 
         template<const char *const name, typename T>
-        class Container<name, T[]> {
+        class Container<name, T[],  typename std::enable_if<!std::is_const<T>::value  >::type> {
         public:
             typedef typename std::remove_reference<CClass>::type CClass_NoRef;
             typedef T T_array[];
@@ -493,7 +540,7 @@ namespace __pyllars_internal {
                     if (_this->template get_CObject<CClass>()) {
                         const ssize_t base_size = ArrayHelper<T[]>::base_sizeof();
                         const ssize_t array_size = base_size>0?sizeof(_this->template get_CObject<CClass>()->*member)/base_size:UNKNOWN_SIZE;
-                        return toPyObject<T[], true>(*(_this->template get_CObject<CClass>()->*member), false, array_size);
+                        return toPyObject<T[]>(*(_this->template get_CObject<CClass>()->*member), false, array_size);
                     }
                     PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
                     return nullptr;
@@ -543,7 +590,7 @@ namespace __pyllars_internal {
         };
 
         template<const char *const name, typename T>
-        class Container<name, const T[]> {
+        class Container<name, T[],  typename std::enable_if<std::is_const<T>::value  >::type> {
         public:
             typedef typename std::remove_reference<CClass>::type CClass_NoRef;
             typedef const T T_array[];
@@ -560,7 +607,7 @@ namespace __pyllars_internal {
                     if (_this->template get_CObject<CClass>()) {
                         const ssize_t base_size = ArrayHelper<const T[]>::base_sizeof();
                         const ssize_t array_size = base_size>0?sizeof(_this->template get_CObject<CClass>()->*member)/base_size:UNKNOWN_SIZE;
-                        return toPyObject<const T[], true>(*(_this->template get_CObject<CClass>()->*member), false, array_size);
+                        return toPyObject<const T[]>(*(_this->template get_CObject<CClass>()->*member), false, array_size);
                     }
                     PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
                     return nullptr;
@@ -582,64 +629,182 @@ namespace __pyllars_internal {
 
     template<class CClass>
     template<const char *const name, typename T>
-    typename MemberContainer<CClass>::template Container<name, T>::member_t
-            MemberContainer<CClass>::Container<name, T>::member;
-
-    template<class CClass>
-    template<const char *const name, const size_t size, typename T>
-    typename MemberContainer<CClass>::template Container<name, T[size]>::member_t
-            MemberContainer<CClass>::Container<name, T[size]>::member;
+    typename MemberContainer<CClass>::template Container<name, T, typename std::enable_if<!std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value==0>::type>::member_t
+    MemberContainer<CClass>::Container<name, T, typename std::enable_if<!std::is_const<T>::value && !std::is_array<T>::value&& Sizeof<T>::value==0 >::type>::member;
 
     template<class CClass>
     template<const char *const name, typename T>
-    typename MemberContainer<CClass>::template Container<name, const T>::member_t
-            MemberContainer<CClass>::Container<name, const T>::member;
+    typename MemberContainer<CClass>::template Container<name, T, typename std::enable_if<!std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value!=0>::type>::member_t
+    MemberContainer<CClass>::Container<name, T, typename std::enable_if<!std::is_const<T>::value && !std::is_array<T>::value&& Sizeof<T>::value!=0 >::type>::member;
 
     template<class CClass>
-    template<const char *const name, const size_t size, typename T>
-    typename MemberContainer<CClass>::template Container<name, const T[size]>::member_t
-            MemberContainer<CClass>::Container<name, const T[size]>::member;
-
-    template<class CClass>
-    template<const char *const name, typename T>
-    typename MemberContainer<CClass>::template Container<name, T[]>::member_t
-            MemberContainer<CClass>::Container<name, T[]>::member;
+    template<const char *const name, ssize_t size, typename T>
+    typename MemberContainer<CClass>::template Container<name, T[size], void>::member_t
+    MemberContainer<CClass>::Container<name, T[size], void>::member;
 
     template<class CClass>
     template<const char *const name, typename T>
-    typename MemberContainer<CClass>::template Container<name, const T[]>::member_t
-            MemberContainer<CClass>::Container<name, const T[]>::member;
+    typename MemberContainer<CClass>::template Container<name,  T,  typename std::enable_if<std::is_const<T>::value &&! std::is_array<T>::value && Sizeof<T>::value!=0>::type>::member_t
+    MemberContainer<CClass>::Container<name, T,  typename std::enable_if<std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value!=0 >::type>::member;
 
+    template<class CClass>
+    template<const char *const name, ssize_t size, typename T>
+    typename MemberContainer<CClass>::template Container<name, const T[size], void>::member_t
+    MemberContainer<CClass>::Container<name, const T[size], void>::member;
+
+    template<class CClass>
+    template<const char *const name, typename T>
+    typename MemberContainer<CClass>::template Container<name, T[], typename std::enable_if<!std::is_const<T>::value >::type>::member_t
+    MemberContainer<CClass>::Container<name, T[],  typename std::enable_if<!std::is_const<T>::value >::type>::member;
+
+    template<class CClass>
+    template<const char *const name, typename T>
+    typename MemberContainer<CClass>::template Container<name,  T[], typename std::enable_if<std::is_const<T>::value  >::type>::member_t
+    MemberContainer<CClass>::Container<name, T[],  typename std::enable_if<std::is_const<T>::value >::type>::member;
+
+
+    template<class CClass>
+    template<const char *const name, typename T >
+    size_t
+    MemberContainer<CClass>::Container<name, T, typename std::enable_if<!std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value==0 >::type>::array_size = 0;
+
+    template<class CClass>
+    template<const char *const name, typename T >
+    size_t
+    MemberContainer<CClass>::Container<name, T, typename std::enable_if<!std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value!=0 >::type>::array_size = 0;
+
+    template<class CClass>
+    template<const char *const name, ssize_t size, typename T>
+    size_t
+    MemberContainer<CClass>::Container<name, T[size], void>::array_size = 0;
+
+    template<class CClass>
+    template<const char *const name, ssize_t size, typename T>
+    size_t
+    MemberContainer<CClass>::Container<name, const T[size], void>::array_size = 0;
 
     template<class CClass>
     template<const char *const name, typename T>
     size_t
-            MemberContainer<CClass>::Container<name, T>::array_size = 0;
-
-    template<class CClass>
-    template<const char *const name, const size_t size, typename T>
-    size_t
-            MemberContainer<CClass>::Container<name, T[size]>::array_size = 0;
-
-    template<class CClass>
-    template<const char *const name, const size_t size, typename T>
-    size_t
-            MemberContainer<CClass>::Container<name, const T[size]>::array_size = 0;
+    MemberContainer<CClass>::Container<name, T, typename std::enable_if<std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value!=0>::type>::array_size = 0;
 
     template<class CClass>
     template<const char *const name, typename T>
     size_t
-            MemberContainer<CClass>::Container<name, const T>::array_size = 0;
+    MemberContainer<CClass>::Container<name, T[], typename std::enable_if<!std::is_const<T>::value >::type>::array_size = 0;
 
     template<class CClass>
     template<const char *const name, typename T>
     size_t
-            MemberContainer<CClass>::Container<name, T[]>::array_size = 0;
+    MemberContainer<CClass>::Container<name, T[],typename std::enable_if<std::is_const<T>::value >::type>::array_size = 0;
 
-    template<class CClass>
-    template<const char *const name, typename T>
-    size_t
-            MemberContainer<CClass>::Container<name, const T[]>::array_size = 0;
+
+    template<typename CClass>
+    class BitFieldContainer {
+    public:
+
+        template<const char *const name, typename T, const size_t bits>
+        class Container {
+        public:
+            typedef typename std::remove_reference<CClass>::type CClass_NoRef;
+
+            typedef std::function< T (const CClass_NoRef &)> getter_t;
+            typedef std::function< T (CClass_NoRef &, const T&)> setter_t;
+
+            static getter_t _getter;
+            static setter_t _setter;
+
+            static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds) {
+                if (!self) return nullptr;
+                typedef  PythonClassWrapper<CClass> Wrapper;
+                Wrapper *_this = (Wrapper *) self;
+
+                if ((!args || PyTuple_Size(args) == 0) && (!kwds || PyDict_Size(kwds) == 0)) {
+                    if (_this->template get_CObject<CClass>()) {
+                        return toPyObject<T>(_getter(*(_this->template get_CObject<CClass>())), false, 1);
+                    }
+                    PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
+                    return nullptr;
+                } else if (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "set_to")) {
+                    PyObject * pyVal = PyDict_GetItemString(kwds, "set_to");
+                    if (pyVal == Py_None) {
+                        PyErr_SetString(PyExc_SyntaxError, "Unexpected None value in member setter");
+                        return nullptr;
+                    }
+                    T& value =  *toCObject<T, false, PythonClassWrapper<T> >(*pyVal);
+                    if (!BitFieldLimits<T, bits>::is_in_bounds(value)){
+                        PyErr_SetString(PyExc_TypeError, "Value out of bounds");
+                        return nullptr;
+                    }
+                    _setter(*(_this->template get_CObject<CClass_NoRef>()),value);
+                } else {
+                    PyErr_SetString(PyExc_SyntaxError, "Invalid arguments to set class instance member variable in C");
+                    return nullptr;
+                }
+                return Py_None;
+            }
+
+            static void setFromPyObject(CClass_NoRef *self, PyObject *pyobj) {
+                T& value =  *toCObject<T, false, PythonClassWrapper<T> >(*pyobj);
+                if (!BitFieldLimits<T, bits>::is_in_bounds(value)){
+                    throw "Value out of bounds";
+                }
+                _setter(*self, value);
+            }
+
+        };
+
+
+
+        template<const char *const name, typename T, const size_t bits>
+        class ConstContainer {
+        public:
+            typedef typename std::remove_reference<CClass>::type CClass_NoRef;
+
+            typedef std::function< T (const CClass_NoRef &)> getter_t;
+
+            static getter_t _getter;
+
+
+            static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds) {
+                if (!self) return nullptr;
+                typedef  PythonClassWrapper<CClass> Wrapper;
+                Wrapper *_this = (Wrapper *) self;
+
+                if ((!args || PyTuple_Size(args) == 0) && (!kwds || PyDict_Size(kwds) == 0)) {
+                    if (_this->template get_CObject<CClass>()) {
+                        return toPyObject<T>(_getter(*(_this->template get_CObject<CClass>())), false, 1);
+                    }
+                    PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
+                    return nullptr;
+                } else if (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "set_to")) {
+                    PyErr_SetString(PyExc_SyntaxError, "Cannot set const bit field");
+                    return nullptr;
+                }
+                return Py_None;
+            }
+
+            static void setFromPyObject(CClass_NoRef *self, PyObject *pyobj) {
+                (void)self; (void)pyobj;
+                throw "Cannot set const bit field";
+            }
+
+        };
+
+    };
+
+    template<typename CClass>
+    template<const char *const name, typename T, const size_t bits>
+    typename BitFieldContainer<CClass>::template Container<name, T, bits>::getter_t BitFieldContainer<CClass>::Container<name, T, bits>::_getter;
+
+    template<typename CClass>
+    template<const char *const name, typename T, const size_t bits>
+    typename BitFieldContainer<CClass>::template Container<name, T, bits>::setter_t BitFieldContainer<CClass>::Container<name, T, bits>::_setter;
+
+    template<typename CClass>
+    template<const char *const name, typename T, const size_t bits>
+    typename BitFieldContainer<CClass>::template ConstContainer<name, T, bits>::getter_t BitFieldContainer<CClass>::ConstContainer<name, T, bits>::_getter;
+
 }
 
 #endif // __PYLLARS_INTERNAL__METHODCALLSEMANTICS_H2

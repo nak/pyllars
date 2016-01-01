@@ -35,9 +35,9 @@ namespace __pyllars_internal {
         static PyObject *call(method_t method, CClass &self, PyObject *args, PyObject *kwds) {
             try {
                 typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
-                T &result = call_methodBase(method, self, args, kwds, typename argGenerator<sizeof...(Args)>::type());
+                const T &result = call_methodBase(method, self, args, kwds, typename argGenerator<sizeof...(Args)>::type());
                 const ssize_t array_size = sizeof(result) / sizeof(T_base);
-                return toPyObject<T, true>(result, false, array_size);
+                return toPyObject<T>(result, false, array_size);
             } catch (const char *const msg) {
                 PyErr_SetString(PyExc_RuntimeError, msg);
                 return nullptr;
@@ -62,7 +62,7 @@ namespace __pyllars_internal {
                 PyErr_Print();
                 throw "Invalid arguments to method call";
             }
-            T retval = (self.*method)(*toCObject<Args, false, true>(*pyargs)...);
+            T retval = (self.*method)(*toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)...);
             return retval;
         }
 
@@ -121,7 +121,7 @@ namespace __pyllars_internal {
             if (!PyArg_ParseTupleAndKeywords(args, kwds, format, (char **) kwlist, &pyargs...)) {
                 PyErr_SetString(PyExc_RuntimeError, "Failed to parse argument on method call");
             } else {
-                (self.*method)(*toCObject<Args, false, true>(*pyargs)...);
+                (self.*method)(*toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)...);
             }
         }
 
@@ -137,6 +137,9 @@ namespace __pyllars_internal {
         }
 
     };
+    template<class CClass,  typename ...Args>
+    const char *const *
+    ConstMethodCallSemantics<CClass, void, Args...>::kwlist;
 
 
     template<class CClass>
@@ -209,7 +212,7 @@ namespace __pyllars_internal {
                 typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
                 const ssize_t array_size = sizeof(_this->template get_CObject<CClass>()->*member) / sizeof(T_base);
                 if (_this->template get_CObject<CClass>()) {
-                    return toPyObject<T, true>((_this->template get_CObject<CClass>()->*member), false, array_size);
+                    return toPyObject<T>((_this->template get_CObject<CClass>()->*member), false, array_size);
                 }
                 PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
                 return nullptr;

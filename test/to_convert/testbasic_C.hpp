@@ -31,10 +31,30 @@ const char* copy_string( const char* const s){
  **/
 typedef enum { FIRST=1, SECOND=2, FOURTH=4} Enum_T;
 
+typedef struct{
+  double elements[122];
+} TypedefedStruct;
+
+struct BitFields{
+    unsigned int bitfield1_unsigned_size1:1;
+    signed int bitfield2_signed_size3:3;
+    union{
+        unsigned char bitfield3_anon_union_size4:4;
+        union{
+            unsigned char bitfield_inner_union_anonymous4:4;
+        };
+    };
+    union{
+        unsigned short bitfield4_named_field_size7:7;
+        unsigned long bitfield5_named_field_size17:17;
+    } _subfields;
+};
+
 /**
  * Basic struct declaration
  **/
 struct TestStruct{
+
 
   // Inner enum typedef
   typedef enum { INNER_THIRD=3, INNER_FIFTH=5, INNER_SIXTH=10} InnerEnum_T;
@@ -69,6 +89,8 @@ struct TestStruct{
               t.str_member );
     return str;
   }
+    static const  double static_double(){ return 1234596834.034;}
+
 
   //Const and non-const data members
   const char* const str_member;
