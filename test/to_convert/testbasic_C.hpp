@@ -42,6 +42,9 @@ struct BitFields{
         unsigned char bitfield3_anon_union_size4:4;
         union{
             unsigned char bitfield_inner_union_anonymous4:4;
+	  union{
+	    unsigned long long bitfield_deeep_innter_anonymouts:31;
+	  };
         };
     };
     union{

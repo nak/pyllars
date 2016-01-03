@@ -7,7 +7,7 @@ import sys
 FNULL=open(os.devnull, 'w')
 MAX_PROCESSES = 8
 
-BLACK_LIST=['thread_db.h','ltdl.h','curses.h', 'turbojpeg.h', 'cursesw.h','cursesapp.h','kdb.h', 'gettext-po.h','cursesp.h', 'cursslk.h','gmon.h','gconv.h','alloca.h', 'link.h', 'com_err.h', 'argp.h', 'brlapi.h', 'brlapi_protocol.h', 'dialog.h', 'FlexLexer.h','tic.h','argz.h','dlg_keys.h','profile.h', 'gelf.h','gnumake.h'] + [os.path.basename(fname) for fname in glob.glob("/usr/include/wayland*.h")]
+BLACK_LIST=['thread_db.h','ltdl.h','curses.h', 'cursesf.h', 'cursesm.h','turbojpeg.h', 'cursesw.h','cursesapp.h','kdb.h', 'gettext-po.h','cursesp.h', 'cursslk.h','gmon.h','gconv.h','alloca.h', 'link.h', 'com_err.h', 'argp.h', 'brlapi.h', 'brlapi_protocol.h', 'dialog.h', 'FlexLexer.h','tic.h','argz.h','dlg_keys.h','printf.h', 'profile.h', 'gelf.h','gnumake.h'] + [os.path.basename(fname) for fname in glob.glob("/usr/include/wayland*.h")]
 
 def generate_code(filename, filenamebase):
     if os.path.basename(filename) in BLACK_LIST:
@@ -36,7 +36,7 @@ def generate_code(filename, filenamebase):
             return True
         tmp.flush()
         args = ["castxml", "--castxml-gccxml", "--castxml-cc-gnu",
-                "(", "g++", "-DNCURSES_NODEBUG", "-DMALLOC_NDEBUG", "-DBRLAPI_NO_SINGLE_SESSION", "-D_ASSERT_H_DECLS",
+                "(", "g++", "-DNDEBUG","-DNCURSES_NODEBUG", "-DMALLOC_NDEBUG", "-DBRLAPI_NO_SINGLE_SESSION", "-D_ASSERT_H_DECLS",
                 "-std=c++11",  ")",
                 "-o", output_path, 
                 tmp.name]        

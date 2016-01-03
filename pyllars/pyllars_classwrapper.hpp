@@ -858,7 +858,8 @@ namespace __pyllars_internal {
             return PyObject_TypeCheck(obj, &Type);
         }
 
-        static PyTypeObject* getType(){
+        static PyTypeObject* getType(const size_t unused_depth=0){
+	  (void)unused_depth;
             return &Type;
         }
 

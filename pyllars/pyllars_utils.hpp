@@ -231,16 +231,16 @@ namespace __pyllars_internal {
 
     template<typename T, const size_t bits>
     struct BitFieldLimits<T, bits, typename std::enable_if< std::numeric_limits<T>::is_signed &&  std::is_integral<T>::value>::type>{
-        static constexpr ssize_t lower = -(1<<bits);
-        static constexpr ssize_t upper = -lower+1;
+        static constexpr int64_t lower = -(1ull<<bits);
+        static constexpr int64_t upper = -lower+1;
 
         static bool is_in_bounds( const T &value){ return (value >= lower) && (value <= upper);}
     };
 
     template<typename T, const size_t bits>
     struct BitFieldLimits<T, bits, typename std::enable_if< !std::numeric_limits<T>::is_signed &&  std::is_integral<T>::value>::type>{
-        static constexpr size_t lower = 0;
-        static constexpr ssize_t upper = (1<<bits)-1;
+        static constexpr uint64_t lower = 0;
+        static constexpr uint64_t upper = (1ull<<bits)-1;
         static bool is_in_bounds( const T &value){ return (value >= lower) && (value <= upper);}
     };
 
