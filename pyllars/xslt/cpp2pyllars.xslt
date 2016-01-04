@@ -79,7 +79,7 @@
 
    <!-- templates to generat the type name (bare, without scope) -->
 
-   <xsl:template match="//Union[@name='']|//Struct[@name='']|//Enumeration[@name='']" mode="generate_name">
+   <xsl:template match="//Enumeration[@name='']" mode="generate_name">
 	<xsl:variable name="context" select="@context"/>
         <xsl:variable name="typeid" select="@id"/>
         <xsl:choose>
@@ -104,7 +104,7 @@
 
    <xsl:template match="//ArrayType" mode="generate_name"><xsl:param name="attrname" select="''"/><xsl:param name="as_return" select="'-11'"/><xsl:variable name="typeid" select="@type"/><xsl:apply-templates select="//*[@id=$typeid]" mode="generate_name"><xsl:with-param name="attrname" select="$attrname"/></xsl:apply-templates><xsl:choose><xsl:when test="(number($as_return)&lt;0 or string($as_return)='NaN') and ($attrname='' or  //FundamentalType[@id=$typeid] or //PointerType[@id=$typeid])">[]</xsl:when><xsl:when test="($attrname='' or //FundamentalType[@id=$typeid] or //PointerType[@id=$typeid])">[<xsl:value-of select="$as_return"/>]</xsl:when></xsl:choose></xsl:template>
 
-   <xsl:template match="//Enumeration[@name!='']|//FundamentalType|//Typedef|//Class|//Struct[@name!='']|Union[@name!='']" mode="generate_name">
+   <xsl:template match="//Enumeration[@name!='']|//FundamentalType|//Typedef|//Class|//Struct|Union" mode="generate_name">
      <xsl:param name="noclarifier"/>
      <xsl:variable name="id" select="@id"/>
      <xsl:variable name="name" select="@name"/>
@@ -218,10 +218,10 @@
    </xsl:template>
 
    <xsl:template match="//Field">
-     <xsl:param name="classname"></xsl:param>
      <xsl:param name="parentfieldname"></xsl:param>
      <xsl:variable name="context" select="@context"/>
      <xsl:variable name="parenttypeid" select="//*[@id=$context]/@id"/>
+     <xsl:variable name="classname"><xsl:apply-templates select="//*[@id=$context]" mode="generate_scoped_name"/></xsl:variable>
 
      <xsl:variable name="classnamebarepre"><xsl:value-of select="substring-after($classname, ' struct ')"/></xsl:variable>
 	<xsl:variable name="classnamebare"><xsl:choose><xsl:when test="$classnamebarepre=''"><xsl:value-of select="$classname"/></xsl:when><xsl:otherwise><xsl:value-of select="$classnamebarepre"/></xsl:otherwise></xsl:choose></xsl:variable>
@@ -240,8 +240,17 @@
      <xsl:if test="$fieldname!='' and $classname!='__va_list_tag'">
      {
 
-	//ID: <xsl:value-of select="@id"/>
+	//ID: <xsl:value-of select="$context"/>
         <xsl:apply-templates select="." mode="generate_typedefs"/>
+        <xsl:variable name="suffix">
+          <xsl:choose>
+            <xsl:when test="//*[@id=$context]/@name=''">_inner_type_<xsl:value-of select="@id"/></xsl:when>
+          </xsl:choose>
+        </xsl:variable>
+        PythonClassWrapper&lt; attrtype &gt;::initialize( &quot;<xsl:value-of select="$classname"/><xsl:value-of select="$suffix"/>&quot;,
+                      &quot;<xsl:value-of select="$classname"/><xsl:value-of select="$suffix"/>&quot;,
+                      module, 
+                      &quot;<xsl:value-of select="//*[@id=$context]/@name"/><xsl:value-of select="$suffix"/>&quot;);
         <xsl:choose>
             <xsl:when test="@bits">
             <xsl:variable name="attrtype"><xsl:apply-templates select="//*[@id=$typeid]" mode="generate_scoped_name"><xsl:with-param name="attrname"><xsl:value-of select="$classname"/>::<xsl:value-of select="$fieldname"/></xsl:with-param><xsl:with-param name="as_return" select="$dim"/></xsl:apply-templates></xsl:variable>
@@ -268,7 +277,7 @@
            const size_t member_size =  sizeof(<xsl:value-of select="$attrname"/>);
            const size_t type_size = Sizeof&lt; typename std::remove_pointer&lt; typename extent_as_pointer&lt;decltype(<xsl:value-of select="$attrname"/>)&gt;::type&gt;::type  &gt;::value;
            const size_t array_size = type_size > 0?member_size/type_size:1;
-           PythonClassWrapper&lt;<xsl:value-of select="$classname"/>&gt;::add<xsl:value-of select="$const_modifier"/>Attribute<xsl:text>
+           PythonClassWrapper&lt;attrtype&gt;::add<xsl:value-of select="$const_modifier"/>Attribute<xsl:text>
            </xsl:text>&lt;name__<xsl:value-of select="@id"/>, decltype(<xsl:value-of select="$attrname"/>) &gt;<xsl:text>
            </xsl:text>(&amp;<xsl:value-of select="$attrname"/>, array_size);</xsl:otherwise>
         </xsl:choose>

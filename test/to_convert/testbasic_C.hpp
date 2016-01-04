@@ -51,6 +51,11 @@ struct BitFields{
         unsigned short bitfield4_named_field_size7:7;
         unsigned long bitfield5_named_field_size17:17;
     } _subfields;
+
+  struct {
+    unsigned _field;
+    unsigned short _field2;
+  } entry;
 };
 
 /**
