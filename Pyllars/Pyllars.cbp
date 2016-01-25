@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="Pyllars" />
+		<Option pch_mode="2" />
+		<Option compiler="gcc" />
+		<Build>
+			<Target title="Debug">
+				<Option output="bin/Debug/Pyllars" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Debug/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-Wzero-as-null-pointer-constant" />
+					<Add option="-Wall" />
+					<Add option="-g" />
+					<Add option="-std=c++14" />
+					<Add option="-DMAIN=1" />
+					<Add directory="/home/jrusnak/workspace/Pyllars/pyllars/" />
+					<Add directory="/home/jrusnak/workspace/Pyllars/" />
+					<Add directory="pyllars/pyllars" />
+				</Compiler>
+				<Linker>
+					<Add library="/usr/lib/x86_64-linux-gnu/libpython2.7.so" />
+				</Linker>
+			</Target>
+			<Target title="Release">
+				<Option output="bin/Release/Pyllars" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Release/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-O3" />
+					<Add option="-pedantic" />
+					<Add option="-Wzero-as-null-pointer-constant" />
+					<Add option="-std=c++11" />
+					<Add option="-Wextra" />
+					<Add option="-Wall" />
+					<Add option="-DMAIN=1" />
+					<Add directory="/home/jrusnak/workspace/Pyllars/pyllars/" />
+					<Add directory="pyllars/pyllars" />
+				</Compiler>
+				<Linker>
+					<Add library="/usr/lib/x86_64-linux-gnu/libpython2.7.so" />
+				</Linker>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-Wall" />
+			<Add directory="/home/jrusnak/workspace/Pyllars/Pyllars/" />
+			<Add directory="/usr/include/python2.7" />
+		</Compiler>
+		<Unit filename="../pyllars/pyllars/pyllars_callbacks.h" />
+		<Unit filename="../pyllars/pyllars/pyllars_classmethodsemantics.h" />
+		<Unit filename="../pyllars/pyllars/pyllars_classwrapper.h" />
+		<Unit filename="../pyllars/pyllars/pyllars_constmethodcallsemantics.h" />
+		<Unit filename="../pyllars/pyllars/pyllars_conversions.h" />
+		<Unit filename="../pyllars/pyllars/pyllars_defns.h" />
+		<Unit filename="../pyllars/pyllars/pyllars_function_wrapper.h" />
+		<Unit filename="../pyllars/pyllars/pyllars_globalmembersemantics.h" />
+		<Unit filename="../pyllars/pyllars/pyllars_methodcallsemantics.h" />
+		<Unit filename="../pyllars/pyllars/pyllars_object_lifecycle.h" />
+		<Unit filename="../pyllars/pyllars/pyllars_pointer.h" />
+		<Unit filename="../pyllars/pyllars/pyllars_utils.h" />
+		<Unit filename="../pyllars/pyllars/xslt/cpp2pyllars.xslt" />
+		<Unit filename="../pyllars/test/scripts/testbasicC.py" />
+		<Unit filename="../pyllars/test/test_basics.cpp" />
+		<Unit filename="../pyllars/test/to_convert/testbasic_C.hpp" />
+		<Extensions>
+			<code_completion />
+			<debugger />
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>

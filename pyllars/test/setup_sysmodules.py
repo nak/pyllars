@@ -127,7 +127,7 @@ def addproc( proc, filenamebase):
         sys.stderr.write("ERROR: processing %s"%filenamebase)
     return status
 
-for filename in sorted(glob.glob("/usr/include/*.h")):
+for filename in ["/usr/include/pthread.h"] + sorted(glob.glob("/usr/include/*.h")):
     filenamebase=os.path.basename(filename).replace(".h","")
     proc = generate_code(filename, filenamebase)
     if proc:

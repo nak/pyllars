@@ -15,7 +15,7 @@
 <!--## Template to tokenize strings                           ##-->
 <!--############################################################-->
 
- <xsl:template name="substring-after-last">
+    <xsl:template name="substring-after-last">
     <xsl:param name="string"/>
     <xsl:param name="char"/>
 
@@ -32,10 +32,15 @@
     </xsl:choose>
   </xsl:template>
 
-<!--##################
-  Templates to generate  type names for various classes of types
-  ################### -->
-   <xsl:template match="//*" mode="should_process">
+    <xsl:template match="//*" mode="get_classifier">
+    <xsl:if test="local-name()='Struct' and @name!=''">struct<xsl:text> </xsl:text></xsl:if>
+    <xsl:if test="local-name()='Class' and @name!=''">class<xsl:text> </xsl:text></xsl:if>
+    </xsl:template>
+
+    <!--##################
+     Templates to generate  type names for various classes of types
+     ################### -->
+    <xsl:template match="//*" mode="should_process">
      <xsl:choose>
        <xsl:when test="$target_namespace='::'">
          <xsl:variable name="filelocid" select="@file"/>
@@ -47,7 +52,7 @@
        </xsl:when>
        <xsl:otherwise>true</xsl:otherwise>
      </xsl:choose>
-   </xsl:template>
+    </xsl:template>
 
    <xsl:template match="//*" mode="is_incomplete"><xsl:variable name="typeid" select="@id"/><xsl:choose><xsl:when test="//*[@id=$typeid]/@type"><xsl:variable name="subtypeid" select="//*[@id=$typeid]/@type"/><xsl:apply-templates select="//*[@id=$subtypeid]" mode="is_incomplete"/></xsl:when><xsl:otherwise><xsl:value-of select="//*[@id=$typeid]/@incomplete"/></xsl:otherwise></xsl:choose></xsl:template>
 
@@ -59,16 +64,18 @@
 
    <xsl:template match="//*[@context!='']" mode="generate_scoped_name">
      <xsl:param name="attrname"/><xsl:param name="as_return" select="'-1'"/>
-     <xsl:variable name="contextid" select="@context"/>
+     <xsl:param name="withclassifier"/>
+     <xsl:variable name="contextid" select="@context"/><xsl:if test="$withclassifier!=''"><xsl:apply-templates select="." mode="get_classifier"/><xsl:text> </xsl:text></xsl:if>
      <xsl:choose>
        <xsl:when test="local-name()='Field'"><xsl:apply-templates select="//*[@id=$contextid]" mode="generate_scoped_name"/></xsl:when>
-       <xsl:otherwise> <xsl:if test="@name!='' and $attrname=''"><xsl:apply-templates select="//*[@id=$contextid]" mode="generate_nsprefix"/></xsl:if><xsl:apply-templates select="." mode="generate_name"><xsl:with-param name="noclarifier">true</xsl:with-param><xsl:with-param name="as_return" select="$as_return"/></xsl:apply-templates></xsl:otherwise></xsl:choose></xsl:template>
+       <xsl:otherwise><xsl:if test="@name!='' and $attrname=''"><xsl:apply-templates select="//*[@id=$contextid]" mode="generate_nsprefix"/></xsl:if><xsl:apply-templates select="." mode="generate_name"><xsl:with-param name="as_return" select="$as_return"/></xsl:apply-templates></xsl:otherwise></xsl:choose></xsl:template>
 
   <xsl:template match="//*[not(@context)]" mode="generate_scoped_name">
     <xsl:param name="attrname" select="''"/>
     <xsl:param name="as_return" select="'-1'"/>
+    <xsl:param name="withclassifier"/>
     <xsl:variable name="typeid" select="@type"/>
-    <xsl:variable name="contextid" select="//*[@id=$typeid]/@context"/>
+    <xsl:variable name="contextid" select="//*[@id=$typeid]/@context"/><xsl:if test="$withclassifier!=''"><xsl:apply-templates select="." mode="get_classifier"/><xsl:text> </xsl:text></xsl:if>
     <xsl:choose>
       <xsl:when test="//*[@id=$contextid] and $attrname=''"><xsl:apply-templates select="//*[@id=$contextid]" mode="generate_nsprefix"/></xsl:when>
     <xsl:when test="$attrname=''"><xsl:apply-templates select="//*[@id=$typeid]" mode="generate_nsprefix_parent"/></xsl:when>
@@ -87,7 +94,7 @@
           <xsl:otherwise>
      	<xsl:variable name="fieldname" select="//*[@type=$typeid]/@name"/>
 	<xsl:variable name="parentid" select="//*[@id=$context]/@id"/>
-        <xsl:variable name="prefix"><xsl:apply-templates select="//*[@id=$context]" mode="generate_name"><xsl:with-param name="noclarifier">true</xsl:with-param></xsl:apply-templates></xsl:variable>
+        <xsl:variable name="prefix"><xsl:apply-templates select="//*[@id=$context]" mode="generate_name"></xsl:apply-templates></xsl:variable>
         <xsl:value-of select="$prefix"/></xsl:otherwise>
         </xsl:choose>
    </xsl:template>
@@ -108,13 +115,13 @@
      <xsl:param name="noclarifier"/>
      <xsl:variable name="id" select="@id"/>
      <xsl:variable name="name" select="@name"/>
-     <xsl:if test="(//Function[@name=$name] or number(@incomplete)=1) and (local-name()='Struct' or local-name()='Class') and $noclarifier=''"><xsl:text> </xsl:text><xsl:value-of select="translate(local-name(),'SC','sc')"/><xsl:text> </xsl:text></xsl:if><xsl:value-of select="$name"/></xsl:template>
+     <xsl:if test="(//Function[@name=$name] or number(@incomplete)=1) and (local-name()='Struct' or local-name()='Class') and $noclarifier!=''"><xsl:text> </xsl:text><xsl:value-of select="translate(local-name(),'SC','sc')"/><xsl:text> </xsl:text></xsl:if><xsl:value-of select="$name"/></xsl:template>
 
 <!--#########################
    Templates for generating argument lists
    ##########################-->
 
-   <xsl:template match="//Constructor|//Method|//FunctionType|//Function" mode="template_arg_type_list"><xsl:for-each select="./Argument"><xsl:variable name="typeid" select="@type"/><xsl:apply-templates select="//*[@id=$typeid]" mode="generate_scoped_name"/><xsl:if test="position()!=last()">,</xsl:if></xsl:for-each></xsl:template>
+   <xsl:template match="//Constructor|//Method|//FunctionType|//Function" mode="template_arg_type_list"><xsl:for-each select="./Argument"><xsl:variable name="typeid" select="@type"/><xsl:apply-templates select="//*[@id=$typeid]" mode="generate_scoped_name"><xsl:with-param name="withclassifier">true</xsl:with-param></xsl:apply-templates><xsl:if test="position()!=last()">,</xsl:if></xsl:for-each></xsl:template>
 
 <!--##################
     Generate code for a class constructors, members, and methods
@@ -123,7 +130,8 @@
    <xsl:template match="//Constructor">
      <xsl:param name="classname"></xsl:param>
      <xsl:param name="bareclassname"></xsl:param>
-
+     <xsl:variable name="context" select="@context"/>
+     <xsl:variable name="classifier"><xsl:if test="//Struct[@id=$context]">struct </xsl:if><xsl:if test="//Class[@id=$context]">class </xsl:if></xsl:variable>
      <xsl:message terminate="no">
 ###
 # Generate Constructor <xsl:value-of select="$classname"/>::<xsl:value-of select="@name"/>
@@ -132,13 +140,16 @@
 
      {
         static const char* kwlist[] = {<xsl:for-each select="./Argument">&quot;<xsl:value-of select="@name"/>&quot;, </xsl:for-each>nullptr};
-        PythonClassWrapper&lt;<xsl:value-of select="$classname"/>&gt;::addConstructor(kwlist, PythonClassWrapper&lt;<xsl:value-of select="$classname"/>&gt;::create&lt; <xsl:apply-templates select="." mode="template_arg_type_list"/>&gt;);
+        PythonClassWrapper&lt;<xsl:value-of select="$classifier"/><xsl:text> </xsl:text><xsl:value-of select="$classname"/>&gt;::addConstructor(kwlist, PythonClassWrapper&lt;<xsl:value-of select="$classifier"/><xsl:text> </xsl:text><xsl:value-of select="$classname"/>&gt;::create&lt; <xsl:apply-templates select="." mode="template_arg_type_list"/>&gt;);
      }
    </xsl:template>
 
    <xsl:template match="//Method">
      <xsl:param name="classname"></xsl:param>
      <xsl:param name="bareclassname"></xsl:param>
+
+     <xsl:variable name="context" select="@context"/>
+     <xsl:variable name="classifier"><xsl:if test="//Struct[@id=$context]">struct </xsl:if><xsl:if test="//Class[@id=$context]">class </xsl:if></xsl:variable>
 
      <xsl:message terminate="no">
 ###
@@ -155,7 +166,7 @@
 
 	typedef <xsl:apply-templates select="//*[@id=$returntypeid]" mode="generate_scoped_name"/>(<xsl:value-of select="$class_modifier"/>*functype)(<xsl:apply-templates select="." mode="template_arg_type_list"/>) <xsl:value-of select="$const_modifier2"/>;
 	functype func = &amp;<xsl:value-of select="$classname"/>::<xsl:value-of select="@name"/>;
-        PythonClassWrapper&lt;<xsl:value-of select="$classname"/>&gt;::add<xsl:value-of select="$const_modifier"/>Method<xsl:text>
+        PythonClassWrapper&lt;<xsl:value-of select="$classifier"/><xsl:text> </xsl:text><xsl:value-of select="$classname"/>&gt;::add<xsl:value-of select="$const_modifier"/>Method<xsl:text>
         </xsl:text>&lt;<xsl:text> </xsl:text>name__<xsl:value-of select="@id"/>, <xsl:apply-templates select="//*[@id=$returntypeid]" mode="generate_scoped_name"/><xsl:if test="count(//*[@id=$returntypeid])=0">void</xsl:if><xsl:if test="count(./Argument)>0">, </xsl:if><xsl:apply-templates select="." mode="template_arg_type_list"/><xsl:text> </xsl:text> &gt;<xsl:text>
         </xsl:text>( func, kwlist);
      }
@@ -165,124 +176,77 @@
 <!--###############################
     Generate code for public attributes of structs/classes/unions
     ############################### -->
-<xsl:template match="//Struct|//Union|//Class" mode="generate_typedefs">
-  <xsl:param name="typename" select="'attrtype'"/>
-     <xsl:variable name="context" select="@context"/>
-     <xsl:choose>
-       <xsl:when test="@name!=''">
-           // Tyepdefinitions : <xsl:value-of select="@id"/> -- <xsl:value-of select="@context"/>
-           typedef <xsl:apply-templates select="." mode="generate_scoped_name"/><xsl:text> </xsl:text><xsl:value-of select="$typename"/>;</xsl:when>
-       <xsl:otherwise>
-         <xsl:apply-templates select="//*[@id=$context]" mode="generate_typedefs"><xsl:with-param name="typename" select="$typename"/></xsl:apply-templates>;</xsl:otherwise>
-     </xsl:choose>
-</xsl:template>
-
-<xsl:template match="//*[@name='']|//Field" mode="generate_typedefs">
-     <xsl:param name="typename" select="'attrtype'"/>
-     <xsl:variable name="context" select="@context"/>
-     <xsl:variable name="fieldname" select="//Field[@type=$context]/@name"/>
-     <xsl:choose>
-       <xsl:when test="$fieldname!=''">
-           //named parent field <xsl:value-of select="//Field[@type=$context]/@name"/>
-         <xsl:apply-templates select="//Field[@type=$context]" mode="generate_typedefs">
-           <xsl:with-param name="typename"><xsl:value-of select="$typename"/>_</xsl:with-param>
-         </xsl:apply-templates>
-       </xsl:when>
-       <xsl:when test="//*[@id=$context]/@name=''">
-         <xsl:choose>
-           <xsl:when test="//Typedef[@type=$context]">
-           //typedef'ed struct/class/union:
-           typedef <xsl:apply-templates select="//Typedef[@type=$context]" mode="generate_scoped_name"/><xsl:text> </xsl:text><xsl:value-of select="$typename"/>;
-           </xsl:when>
-           <xsl:otherwise>
-           //inner unnamed class or union <xsl:value-of select="$context"/> with parent <xsl:value-of select="$parentcontext"/> 
-             <xsl:apply-templates select="//Field[@type=$parentcontext]" mode="generate_typedefs">
-               <xsl:with-param name="typename"><xsl:value-of select="$typename"/>_</xsl:with-param>
-             </xsl:apply-templates>
-           </xsl:otherwise>
-         </xsl:choose>
-       </xsl:when>
-       <xsl:otherwise>
-           //field with named parent type "<xsl:value-of select="//*[@id=$context]/@name"/>":
-         <xsl:apply-templates select="//*[@id=$context]" mode="generate_typedefs">
-           <xsl:with-param name="typename"><xsl:value-of select="$typename"/></xsl:with-param>
-         </xsl:apply-templates>
-       </xsl:otherwise>
-     </xsl:choose>
-     <xsl:choose>
-       <xsl:when test="$fieldname!=''">
-           //named field <xsl:value-of select="$fieldname"/>:
-           typedef decltype(<xsl:value-of select="$typename"/>_::<xsl:value-of select="$fieldname"/>) <xsl:value-of select="$typename"/>;
-       </xsl:when>
-     </xsl:choose>
-   </xsl:template>
-
    <xsl:template match="//Field">
-     <xsl:param name="parentfieldname"></xsl:param>
-     <xsl:variable name="context" select="@context"/>
-     <xsl:variable name="parenttypeid" select="//*[@id=$context]/@id"/>
-     <xsl:variable name="classname"><xsl:apply-templates select="//*[@id=$context]" mode="generate_scoped_name"/></xsl:variable>
-
-     <xsl:variable name="classnamebarepre"><xsl:value-of select="substring-after($classname, ' struct ')"/></xsl:variable>
-	<xsl:variable name="classnamebare"><xsl:choose><xsl:when test="$classnamebarepre=''"><xsl:value-of select="$classname"/></xsl:when><xsl:otherwise><xsl:value-of select="$classnamebarepre"/></xsl:otherwise></xsl:choose></xsl:variable>
-        <xsl:variable name="attrname">attrtype::<xsl:value-of select="@name"/></xsl:variable>
-
+     <xsl:param name="scopedclassname"></xsl:param>
+     <xsl:param name="classname"></xsl:param>
+     <xsl:param name="typename"></xsl:param>
      <xsl:message terminate="no">
 ###
-# Generate Attribute  <xsl:value-of select="$classname"/>::<xsl:value-of select="@name"/>
+# Generate Attribute  <xsl:value-of select="$scopedclassname"/>::<xsl:value-of select="@name"/>
 ###
      </xsl:message>
 
+     <xsl:variable name="context" select="@context"/>
+     <xsl:variable name="parenttypeid" select="//*[@id=$context]/@id"/>
      <xsl:variable name="typeid" select="@type"/>
      <xsl:variable name="const_modifier"><xsl:if test="number(@const)=1">Const</xsl:if><xsl:if test="number(@static)=1">Class</xsl:if></xsl:variable>
      <xsl:variable name="fieldname" select="@name"/>
      <xsl:variable name="dim"><xsl:choose><xsl:when test="//*[@id=$typeid]/@max=''"><xsl:value-of select="string(number(//*[@id=$typeid]/@min))"/></xsl:when><xsl:otherwise><xsl:value-of  select="string(number(//*[@id=$typeid]/@max)+1)"/></xsl:otherwise></xsl:choose></xsl:variable>
-     <xsl:if test="$fieldname!='' and $classname!='__va_list_tag'">
-     {
+         {
+     typedef typename std::remove_pointer&lt; typename extent_as_pointer&lt; <xsl:value-of select="$typename"/>&gt;::type &gt;::type containertype;
+     <xsl:choose>
+	<!-- NAMED -->
+       <xsl:when test="@name!=''">
+           typedef decltype(containertype::<xsl:value-of select="@name"/>)<xsl:text> </xsl:text>attrtype;
+           <xsl:variable name="attrname">containertype::<xsl:value-of select="@name"/></xsl:variable>
 
-	//ID: <xsl:value-of select="$context"/>
-        <xsl:apply-templates select="." mode="generate_typedefs"/>
-        <xsl:variable name="suffix">
-          <xsl:choose>
-            <xsl:when test="//*[@id=$context]/@name=''">_inner_type_<xsl:value-of select="@id"/></xsl:when>
-          </xsl:choose>
-        </xsl:variable>
-        PythonClassWrapper&lt; attrtype &gt;::initialize( &quot;<xsl:value-of select="$classname"/><xsl:value-of select="$suffix"/>&quot;,
-                      &quot;<xsl:value-of select="$classname"/><xsl:value-of select="$suffix"/>&quot;,
-                      module, 
-                      &quot;<xsl:value-of select="//*[@id=$context]/@name"/><xsl:value-of select="$suffix"/>&quot;);
-        <xsl:choose>
-            <xsl:when test="@bits">
-            <xsl:variable name="attrtype"><xsl:apply-templates select="//*[@id=$typeid]" mode="generate_scoped_name"><xsl:with-param name="attrname"><xsl:value-of select="$classname"/>::<xsl:value-of select="$fieldname"/></xsl:with-param><xsl:with-param name="as_return" select="$dim"/></xsl:apply-templates></xsl:variable>
+           //Field <xsl:value-of select="@name"/> parent ID: <xsl:value-of select="$context"/>
+           status |= init_<xsl:value-of select="$parenttypeid"/>( module );
+         <xsl:choose>
+           <xsl:when test="@bits">
               <xsl:choose>
                 <xsl:when test="$const_modifier=''">
-      	   BitFieldContainer&lt;attrtype&gt;::Container&lt; name__<xsl:value-of select="@id"/>, <xsl:value-of select="$attrtype"/>, <xsl:value-of select="@bits"/> &gt;::getter_t<xsl:text>
-             getter = []( const </xsl:text>attrtype&amp; cobj){return cobj.<xsl:value-of select="$fieldname"/>;};
-	   BitFieldContainer&lt;attrtype&gt;::Container&lt; name__<xsl:value-of select="@id"/>, <xsl:value-of select="$attrtype"/>, <xsl:value-of select="@bits"/>  &gt;::setter_t<xsl:text>
-             setter = []( </xsl:text>attrtype&amp; cobj, const <xsl:value-of select="$attrtype"/>&amp; value){return cobj.<xsl:value-of select="$fieldname"/>=value;};
-           PythonClassWrapper&lt;attrtype&gt;::add<xsl:value-of select="$const_modifier"/>BitField<xsl:text>
-           </xsl:text>&lt;name__<xsl:value-of select="@id"/>, <xsl:apply-templates select="//*[@id=$typeid]" mode="generate_scoped_name"><xsl:with-param name="attrname"><xsl:value-of select="$classname"/>::<xsl:value-of select="$fieldname"/></xsl:with-param><xsl:with-param name="as_return" select="$dim"/></xsl:apply-templates>, <xsl:value-of select="@bits"/> &gt;<xsl:text>
+      	   BitFieldContainer&lt;containertype&gt;::Container&lt; name__<xsl:value-of select="@id"/>,attrtype, <xsl:value-of select="@bits"/> &gt;::getter_t<xsl:text>
+             getter = []( const </xsl:text>containertype&amp; cobj){return cobj.<xsl:value-of select="@name"/>;};
+	   BitFieldContainer&lt;containertype&gt;::Container&lt; name__<xsl:value-of select="@id"/>,attrtype, <xsl:value-of select="@bits"/>  &gt;::setter_t<xsl:text>
+             setter = []( </xsl:text>containertype&amp; cobj, const attrtype&amp; value){return cobj.<xsl:value-of select="@name"/>=value;};
+           PythonClassWrapper&lt;containertype&gt;::add<xsl:value-of select="$const_modifier"/>BitField<xsl:text>
+           </xsl:text>&lt;name__<xsl:value-of select="@id"/>, <xsl:apply-templates select="//*[@id=$typeid]" mode="generate_scoped_name"><xsl:with-param name="attrname"><xsl:value-of select="$classname"/>::<xsl:value-of select="@name"/></xsl:with-param><xsl:with-param name="as_return" select="$dim"/></xsl:apply-templates>, <xsl:value-of select="@bits"/> &gt;<xsl:text>
            </xsl:text>(getter, setter);
 		</xsl:when>
                 <xsl:otherwise>
-      	   BitFieldContainer&lt;attrtype&gt;::ConstContainer&lt; name__<xsl:value-of select="@id"/>,<xsl:value-of select="$attrtype"/>, <xsl:value-of select="@bits"/> &gt;::getter_t<xsl:text>
+      	   BitFieldContainer&lt;attrtype&gt;::ConstContainer&lt; name__<xsl:value-of select="@id"/>, attrtype, <xsl:value-of select="@bits"/> &gt;::getter_t<xsl:text>
                getter = []( const </xsl:text>attrtype&amp; cobj){return cobj.<xsl:value-of select="@name"/>;};
            PythonClassWrapper&lt;attrtype&gt;::add<xsl:value-of select="$const_modifier"/>BitField<xsl:text>
-           </xsl:text>&lt;name__<xsl:value-of select="@id"/>, <xsl:apply-templates select="//*[@id=$typeid]" mode="generate_scoped_name"><xsl:with-param name="attrname"><xsl:value-of select="$classname"/>::<xsl:value-of select="$fieldname"/></xsl:with-param><xsl:with-param name="as_return" select="$dim"/></xsl:apply-templates>, <xsl:value-of select="@bits"/>  &gt;<xsl:text>
+           </xsl:text>&lt;name__<xsl:value-of select="@id"/>, <xsl:apply-templates select="//*[@id=$typeid]" mode="generate_scoped_name"><xsl:with-param name="attrname"><xsl:value-of select="$classname"/>::<xsl:value-of select="@name"/></xsl:with-param><xsl:with-param name="as_return" select="$dim"/></xsl:apply-templates>, <xsl:value-of select="@bits"/>  &gt;<xsl:text>
            </xsl:text>(getter);
 		</xsl:otherwise>
  	      </xsl:choose>
-      	    </xsl:when>
-            <xsl:otherwise>
-           const size_t member_size =  sizeof(<xsl:value-of select="$attrname"/>);
-           const size_t type_size = Sizeof&lt; typename std::remove_pointer&lt; typename extent_as_pointer&lt;decltype(<xsl:value-of select="$attrname"/>)&gt;::type&gt;::type  &gt;::value;
+      	   </xsl:when>
+           <xsl:otherwise>
+           const size_t member_size =  sizeof(attrtype);
+           const size_t type_size = Sizeof&lt; typename std::remove_pointer&lt; typename extent_as_pointer&lt;attrtype&gt;::type&gt;::type  &gt;::value;
            const size_t array_size = type_size > 0?member_size/type_size:1;
-           PythonClassWrapper&lt;attrtype&gt;::add<xsl:value-of select="$const_modifier"/>Attribute<xsl:text>
-           </xsl:text>&lt;name__<xsl:value-of select="@id"/>, decltype(<xsl:value-of select="$attrname"/>) &gt;<xsl:text>
+           PythonClassWrapper&lt;containertype&gt;::add<xsl:value-of select="$const_modifier"/>Attribute<xsl:text>
+           </xsl:text>&lt;name__<xsl:value-of select="@id"/>, attrtype &gt;<xsl:text>
            </xsl:text>(&amp;<xsl:value-of select="$attrname"/>, array_size);</xsl:otherwise>
         </xsl:choose>
-     }
-     </xsl:if>
+     
+       </xsl:when>
+
+         <!-- UNNAMED -->
+       <xsl:otherwise>
+         <xsl:variable name="typecontext" select="@type"/>
+         <xsl:apply-templates select="//Field[@context=$typecontext]">
+           <xsl:with-param name="classname" select="$classname"/>
+           <xsl:with-param name="typename" select="$typename"/>
+         </xsl:apply-templates>
+       </xsl:otherwise>
+     </xsl:choose>
+        }
+
+
+ 
    </xsl:template>
 
 <!-- ##################################
@@ -295,6 +259,7 @@
 extern const char name__<xsl:value-of select="@id"/>[] = &quot;<xsl:value-of select="@name"/>&quot;;
        </xsl:for-each>
        <xsl:apply-templates select="//Struct[@context=$classid and (not(@access) or @access='public')]|//Class[@context=$classid and @access='public']|//Union[@context=$classid and  (not(@access) or @access='public')]" mode="generate_externs"/>
+       static int init_<xsl:value-of select="@id"/>(PyObject* module);
          
     
    </xsl:template>
@@ -323,7 +288,7 @@ static int init_<xsl:value-of select="@id"/>( PyObject* module){
 	static const char* kwlist[] = {<xsl:for-each select="./Argument">&quot;<xsl:value-of select="@name"/>&quot;, </xsl:for-each>nullptr};
 
         PyObject* wrapper = (PyObject*)PythonFunctionWrapper<xsl:text>
-        </xsl:text>&lt; <xsl:value-of select="$is_base_complete"/>, <xsl:value-of select="$return_type"/><xsl:if test="count(./Argument)>0">, </xsl:if><xsl:apply-templates select="." mode="template_arg_type_list"/><xsl:text> &gt;::create
+        </xsl:text>&lt; <xsl:value-of select="$is_base_complete"/>, <xsl:if test="//Struct[@id=$returntypeid]">struct<xsl:text> </xsl:text></xsl:if><xsl:if test="//Class[@id=$returntypeid]">struct<xsl:text> </xsl:text></xsl:if><xsl:value-of select="$return_type"/><xsl:if test="count(./Argument)>0">, </xsl:if><xsl:apply-templates select="." mode="template_arg_type_list"/><xsl:text> &gt;::create
         </xsl:text>(  &quot;<xsl:value-of select="@name"/>&quot;, <xsl:apply-templates select="." mode="generate_scoped_name"/> , kwlist);
 	status = wrapper?0:-1;
         if (wrapper &amp;&amp; module) PyModule_AddObject( module, &quot;<xsl:value-of select="@name"/>&quot;, wrapper);
@@ -332,7 +297,15 @@ static int init_<xsl:value-of select="@id"/>( PyObject* module){
 }
   </xsl:template>
 
-  <xsl:template match="//Typedef">
+  <xsl:template match="//*" mode="is_fundamental">
+    <xsl:choose>
+      <xsl:when test="@type"><xsl:variable name="type" select="@type"/>
+        <xsl:apply-templates select="//*[@id=$type]" mode="is_fundamental"/></xsl:when>
+      <xsl:when test="local-name()='FundamentalType' or local-name()='FunctionType'">true</xsl:when>
+    </xsl:choose>
+  </xsl:template>
+
+  <xsl:template match="//Typedef|CvQualifiedType|PointerType|ReferenceType">
      <xsl:param name="nsname"/>
 
      <xsl:message terminate="no">
@@ -340,59 +313,35 @@ static int init_<xsl:value-of select="@id"/>( PyObject* module){
 # Generate Typedef <xsl:value-of select="@name"/>...
 ###
      </xsl:message>
-
-//init Typedef <xsl:value-of select="@name"/>
+       <xsl:variable name="type" select="@type"/>
+     //init type <xsl:value-of select="local-name()"/><xsl:text> </xsl:text><xsl:value-of select="@name"/>
 static int init_<xsl:value-of select="@id"/>( PyObject* module){
-     int status = 0;
-     <xsl:variable name="nsnamebare"><xsl:choose><xsl:when test="$nsname='::'"/><xsl:otherwise><xsl:value-of select="$nsname"/></xsl:otherwise></xsl:choose></xsl:variable>
-     <xsl:variable name="typeid" select="@id"/>
-    <xsl:if test="@name">
-        <xsl:variable name="typealias" select="//*[@id=$typeid]/@name"/>
-        <xsl:variable name="basetypeid" select="//*[@id=$typeid]/@type"/>
-        <xsl:variable name="is_complete"><xsl:choose><xsl:when test="@incomplete='1'">false</xsl:when><xsl:otherwise>true</xsl:otherwise></xsl:choose></xsl:variable><xsl:text>
-    </xsl:text><xsl:if test="@incomplete!='1' or not(@incomplete)">if (PythonClassWrapper&lt; <xsl:value-of select="$nsnamebare"/><xsl:if test="$nsnamebare!=''">::</xsl:if><xsl:value-of select="$typealias"/> &gt;::initialize<xsl:text>
-       </xsl:text>(&quot;<xsl:value-of select="@name"/>&quot;, 
-                   &quot;<xsl:value-of select="translate(@name,'&lt;&gt;:','___')"/>&quot;,
-                   module,
-                   &quot;<xsl:apply-templates select="." mode="generate_scoped_name"/>&quot; ) &lt; 0)<xsl:text>{
-         PyErr_SetString( PyExc_RuntimeError, "Failed to initialize Python-wrapper-to-reference for '</xsl:text><xsl:value-of select="@name"/><xsl:text>'");
-         status = -1;
-    }
-
-    </xsl:text></xsl:if><xsl:if test="//*[@id=$basetypeid]/@name!='void'">if (PythonClassWrapper&lt; <xsl:value-of select="$nsnamebare"/><xsl:if test="$nsnamebare!=''">::</xsl:if><xsl:value-of select="$typealias"/>&amp; &gt;::initialize<xsl:text>
-                  </xsl:text>(&quot;<xsl:value-of select="@name"/>&amp;&quot;, 
-				&quot;<xsl:value-of select="translate(@name,'&lt;&gt;:','___')"/>_ref&quot;, 
-				module,
-                 		&quot;<xsl:apply-templates select="." mode="generate_scoped_name"/>&amp;&quot;
-				 ) &lt; 0)<xsl:text>{
-         PyErr_SetString( PyExc_RuntimeError, "Failed to initialize Python-wrapper-to-reference for '</xsl:text><xsl:value-of select="@name"/><xsl:text>'");
-         status = -1;
-    }
-
-    </xsl:text></xsl:if>if (PythonClassWrapper&lt; <xsl:value-of select="$nsnamebare"/><xsl:if test="$nsnamebare!=''">::</xsl:if><xsl:value-of select="$typealias"/>* &gt;::initialize(&quot;<xsl:value-of select="@name"/>*&quot;,
-						 &quot;<xsl:value-of select="translate(@name,'&lt;&gt;:','___')"/>_ptr&quot;,  
-						 module,
-						 &quot;<xsl:apply-templates select="." mode="generate_scoped_name"/>*&quot;  ) &lt; 0)<xsl:text>{
-         PyErr_SetString( PyExc_RuntimeError, "Failed to initialize Python-wrapper-to-pointer for '</xsl:text><xsl:value-of select="@name"/><xsl:text>'");
-         status = -1;
-    }
-
-    return status;
+       <xsl:variable name="is_fundamental"><xsl:apply-templates select="." mode="is_fundamental"/></xsl:variable>
+       <xsl:choose>
+         <xsl:when test="$is_fundamental='true' or $type='__va_list_tag'">
+   return 0;
+         </xsl:when>
+         <xsl:otherwise>
+   return init_<xsl:value-of select="@type"/>( module );           
+         </xsl:otherwise>
+       </xsl:choose>
 }
-
-</xsl:text>
-     </xsl:if>
   </xsl:template>
 
 
-  <xsl:template match="//ArrayType[number(@max)&gt;0 or number(@min)&gt;=0]">
+  <xsl:template match="//ArrayType">
      <xsl:param name="nsname"/>
+     <xsl:param name="nested" />
+     <xsl:param name="scopedtypename"/>
+     <xsl:param name="scopedclassname"/>
+     <xsl:variable name="type" select="@type"/>
 
      <xsl:message terminate="no">
 ###
 # Generate ArrayType with Extend... <xsl:value-of select="@name"/>
 ###
      </xsl:message>
+     <xsl:if test="$type='__va_list_tag'">
 
 //init ArrayType <xsl:value-of select="@name"/>
 static int init_<xsl:value-of select="@id"/>( PyObject* module){
@@ -402,18 +351,23 @@ static int init_<xsl:value-of select="@id"/>( PyObject* module){
          <xsl:variable name="is_complete"><xsl:choose><xsl:when test="@incomplete='1'">false</xsl:when><xsl:otherwise>true</xsl:otherwise></xsl:choose></xsl:variable>
          <xsl:variable name="typeid" select="@id"/>
          <xsl:variable name="typealias" select="//*[@id=$typeid]/@name"/><xsl:text>
-    </xsl:text>if (PythonClassWrapper&lt; <xsl:value-of select="$nsnamebare"/><xsl:if test="$nsnamebare!=''">::</xsl:if><xsl:value-of select="$typealias"/>*, <xsl:if test="@max=''"><xsl:value-of select="@min"/></xsl:if><xsl:value-of select="@max"/>&gt;::initialize<xsl:text>
+    </xsl:text>if (PythonClassWrapper&lt; <xsl:apply-templates select="." mode="get_classifier"/> <xsl:value-of select="$nsnamebare"/><xsl:if test="$nsnamebare!=''">::</xsl:if><xsl:value-of select="$typealias"/>* <xsl:if test="@max=''"><xsl:if test="@min!=''">,<xsl:value-of select="@min"/></xsl:if></xsl:if><xsl:if test="@max!=''"><xsl:value-of select="@max"/></xsl:if>&gt;::initialize<xsl:text>
       </xsl:text>(&quot;<xsl:value-of select="$typealias"/>&quot;,
-		&quot;<xsl:value-of select="translate($typealias,'&lt;&gt;:','___')"/>&quot;,
-		 module,
-                &quot;<xsl:apply-templates select="." mode="generate_scoped_name"/>[<xsl:value-of select="$scopedname"/>]&quot; ) &lt; 0)<xsl:text>{
-         PyErr_SetString( PyExc_RuntimeError, "Failed to initialize Python-wrapper-to-reference for '</xsl:text><xsl:value-of select="@name"/><xsl:text>'&quot;);
-         status = -1;
-    }
-    return status;
+		 &quot;<xsl:value-of select="translate($typealias,'&lt;&gt;:','___')"/>&quot;,
+         module,
+         &quot;<xsl:apply-templates select="." mode="generate_scoped_name"/>[<xsl:value-of select="$scopedname"/>]&quot; ) &lt; 0)<xsl:text>{
+     PyErr_SetString( PyExc_RuntimeError, "Failed to initialize Python-wrapper-to-reference for '</xsl:text><xsl:value-of select="@name"/><xsl:text>'&quot;);
+
+     status = -1;
 }
+
 </xsl:text>
      </xsl:if>
+    <xsl:if test="not(//FundamentalType[@id=$type])">
+    status |= init_<xsl:value-of select="$type"/>( module ); 
+    </xsl:if>
+    return status;
+    }</xsl:if>
   </xsl:template>
    <xsl:template match="//Enumeration">
      <xsl:param name="nsname"/>
@@ -432,7 +386,7 @@ static int init_<xsl:value-of select="@id"/>( PyObject* module ){
      <xsl:if test="@name!=''">
          <xsl:variable name="enumname"><xsl:apply-templates select="." mode="generate_name"/></xsl:variable>
          <xsl:variable name="scopedenumname"><xsl:apply-templates select="." mode="generate_scoped_name"/></xsl:variable>
-     if (PythonClassWrapper&lt;<xsl:value-of select="$scopedenumname"/> &gt;::initialize<xsl:text>
+     if (PythonClassWrapper&lt; <xsl:apply-templates select="." mode="get_classifier"/><xsl:value-of select="$scopedenumname"/> &gt;::initialize<xsl:text>
           </xsl:text>(&quot;<xsl:value-of select="$enumname"/>&quot;,
           &quot;<xsl:value-of select="translate($enumname,'&lt;&gt;:','___')"/>&quot;,
           module,
@@ -453,14 +407,20 @@ static int init_<xsl:value-of select="@id"/>( PyObject* module ){
 }
 
    </xsl:template>
+
+   <xsl:template match="//*" mode="is_in_context">
+     <xsl:param name="context"/>
+     <xsl:choose>
+       <xsl:when test="@context=$context">true</xsl:when>
+       <xsl:when test="not(@context)"><xsl:variable name="type" select="@type"/><xsl:apply-templates select="//*[@id=$type]" mode="is_in_context"><xsl:with-param name="context" select="$context"/></xsl:apply-templates></xsl:when>
+     </xsl:choose>
+   </xsl:template>
+
    <xsl:template match="//Struct|//Class|//Union">
-     <xsl:param name="nsname"/>
-     <xsl:param name="parentclassname" select="''"/>
-     <xsl:param name="parentfieldname"/>
+     <xsl:param name="scopedclassname"><xsl:variable name="id" select="@id"/><xsl:choose><xsl:when test="@name!=''"><xsl:apply-templates select="." mode="generate_scoped_name"/></xsl:when><xsl:when test="//Typedef[@type=$id]"><xsl:value-of select="//Typedef[@type=$id]/@name"/></xsl:when><xsl:otherwise><xsl:apply-templates select="." mode="generate_scoped_name"/></xsl:otherwise></xsl:choose></xsl:param>
+     <xsl:param name="scopedtypename" select="$scopedclassname"/>
      <xsl:variable name="classid" select="@id"/>
-     <xsl:variable name="classname"><xsl:apply-templates select="." mode="generate_name"/></xsl:variable>
-     <xsl:variable name="scopedclassname"><xsl:apply-templates select="." mode="generate_scoped_name"/></xsl:variable>
-     <xsl:variable name="nsnamebare"><xsl:choose><xsl:when test="$nsname='::'"/><xsl:otherwise><xsl:value-of select="$nsname"/></xsl:otherwise></xsl:choose></xsl:variable>
+     <xsl:variable name="classname"><xsl:choose><xsl:when test="@name"><xsl:value-of select="@name"/></xsl:when><xsl:otherwise>inner_type_<xsl:value-of select="@id"/></xsl:otherwise></xsl:choose></xsl:variable>
      <xsl:variable name="fileid2" select="@file"/>
      <xsl:message terminate="no">
 ###
@@ -469,53 +429,73 @@ static int init_<xsl:value-of select="@id"/>( PyObject* module ){
 ###
      </xsl:message>
 
-/////////BEGIN <xsl:value-of select="@name"/>
+/////////BEGIN <xsl:value-of select="local-name()"/>: <xsl:value-of select="@name"/> @<xsl:value-of select="@id"/>
 
-// define nested type initializers first
-      <xsl:apply-templates select="//Typedef[@context=$classid and  (not(@access) or @access='public')]|
-			   //Class[@context=$classid and  (not(@access) or @access='public')]|
-                	              //Enumeration[@context=$classid and  (not(@access) or @access='public')]|
-                                    //Struct[@context=$classid and  (not(@access) or @access='public')]|
-                                    //ArrayType[@context=$classid and  (not(@access) or @access='public')]|
-				  //Function[@context=$classid and  (not(@access) or @access='public') and count(./Ellipsis)=0]">
-        <xsl:with-param name="nsname"><xsl:value-of select="$nsname"/><xsl:if test="$nsname!='::'">::</xsl:if><xsl:value-of select="$classname"/></xsl:with-param>
-         <xsl:with-param name="parentclassname"><xsl:if test="$parentclassname!=''"><xsl:value-of select="$parentclassname"/><xsl:if test="$classname!=''">::</xsl:if></xsl:if><xsl:value-of select="$classname"/></xsl:with-param>
-      </xsl:apply-templates>
+    // define nested type initializers first
+       <xsl:for-each select="//Typedef[@context=$classid and  (not(@access) or @access='public') and @name!='' ]|
+			   	             //Class[@context=$classid and  (not(@access) or @access='public') and @name!='']|
+                	         //Enumeration[@context=$classid and  (not(@access) or @access='public') and @name!='']|
+                             //Struct[@context=$classid and  (not(@access) or @access='public') and @name!='']|
+                             //ArrayType[@context=$classid and  (not(@access) or @access='public')  and @name!='']|
+                             //Union[@context=$classid and  (not(@access) or @access='public') and @name!='']|
+				             //Function[@context=$classid and  (not(@access) or @access='public') and @name!='' and count(./Ellipsis)=0]">
+           <xsl:apply-templates select=".">
+               <xsl:with-param name="scopedclassname"><xsl:value-of select="$scopedclassname"/>::<xsl:value-of select="$classname"/></xsl:with-param>
+               <xsl:with-param name="scopedtypename"><xsl:value-of select="$scopedtypename"/><xsl:if test="@name!=''">::<xsl:value-of select="@name"/></xsl:if></xsl:with-param>
+           </xsl:apply-templates>
+        </xsl:for-each>
+	    <xsl:for-each select="//Field[@context=$classid and @name!='']">
+	        <xsl:variable name="fieldtype" select="@type"/>
+            <xsl:variable name="is_in_context"><xsl:apply-templates select="//*[@id=$fieldtype]" mode="is_in_context"><xsl:with-param name="context" select="$classid"/></xsl:apply-templates></xsl:variable>
+            <xsl:if test="$is_in_context='true' and (//ArrayType[@id=$fieldtype] or //PointerType[@id=$fieldtype] or //ReferenceType[@id=$fieldtype] or //CvQualifiedType[@id=$fieldtype] or  //*[@id=$fieldtype and @context=$classid]/@name!='' or (//*[@id=$fieldtype  and @context=$classid] and not(//*[@id=$fieldtype  and @context=$classid]/name)))">
+                <xsl:apply-templates select="//*[@id=$fieldtype]"><xsl:with-param name="nested" select="'true'"/>
+                    <xsl:with-param name="scopedclassname"><xsl:value-of select="$scopedclassname"/>::<xsl:value-of select="$classname"/>::_anonymous_typed_for_field_<xsl:value-of select="@name"/></xsl:with-param>
+      	            <xsl:with-param name="scopedtypename">decltype(<xsl:value-of select="$scopedtypename"/><xsl:if test="@name!=''">::<xsl:value-of select="@name"/>)</xsl:if></xsl:with-param>
+                </xsl:apply-templates>
+ 	        </xsl:if>
+	    </xsl:for-each>
 
-	
-      <xsl:apply-templates select="//Union[@context=$classid and  (not(@access) or @access='public')]">
-         <xsl:with-param name="nsname" select="$nsname"/>
-         <xsl:with-param name="parentclassname"><xsl:if test="$parentclassname!=''"><xsl:value-of select="$parentclassname"/><xsl:if test="$classname!=''">::</xsl:if></xsl:if><xsl:value-of select="$classname"/></xsl:with-param>
-       </xsl:apply-templates>
+	    <xsl:for-each select="//Field[@context=$classid and @name='']">
+            <xsl:variable name="fieldtype" select="@type"/>
+            <xsl:variable name="is_in_context"><xsl:apply-templates select="//*[@id=$fieldtype]" mode="is_in_context"><xsl:with-param name="context" select="$classid"/></xsl:apply-templates></xsl:variable>
+            <xsl:if test="$is_in_context='true' and (//ArrayType[@id=$fieldtype] or //PointerType[@id=$fieldtype] or //ReferenceType[@id=$fieldtype] or //CvQualifiedType[@id=$fieldtype] or //*[@id=$fieldtype  and @context=$classid]/@name='' or (//*[@id=$fieldtype  and @context=$classid] and not(//*[@id=$fieldtype  and @context=$classid]/name)))">
+                <xsl:apply-templates select="//*[@id=$fieldtype]"><xsl:with-param name="nested" select="'true'"/>
+                    <xsl:with-param name="scopedclassname"><xsl:value-of select="$scopedclassname"/>::<xsl:value-of select="$classname"/>::_anonymous_type_<xsl:value-of select="@id"/></xsl:with-param>
+      	            <xsl:with-param name="scopedtypename"><xsl:value-of select="$scopedtypename"/><xsl:if test="@name!=''"></xsl:if></xsl:with-param>
+                </xsl:apply-templates>
+            </xsl:if>
+	    </xsl:for-each>
 
 // init Struct/Class/Union <xsl:value-of select="@name"/>
 static int init_<xsl:value-of select="@id"/>( PyObject* module ){
      int status = 0;
+      typedef  <xsl:apply-templates select="." mode="get_classifier"/> <xsl:value-of select="$scopedtypename"/> thistype; 
 
+     <xsl:choose>
+       <xsl:when test="@name!='' or //Field[@context=$classid and @name!='']">
 
+         <!-- NAMED -->
+         <xsl:text>
+     //Pyllars generation of class or struct or union  </xsl:text><xsl:value-of select="$scopedtypename"/> id: <xsl:value-of select="@id"/>
+         <xsl:if test="@name!=''">
+           <xsl:if test="not(//*[@id=$classid]/@abstract)">
+             <xsl:apply-templates select="//Constructor[@context=$classid and  (not(@access) or @access='public')]"><xsl:with-param name="classname" select="$scopedclassname" />
+               <xsl:with-param name="bareclassname" select="$classname"/></xsl:apply-templates>
+           </xsl:if>
+           <xsl:apply-templates select="//Method[ count(./Ellipsis)=0 and @context=$classid and (@access='' or @access='public')]"><xsl:with-param name="classname" select="$scopedclassname"/><xsl:with-param name="bareclassname" select="$classname"/></xsl:apply-templates>
+         </xsl:if>
+         <xsl:if test="$classname!=''"><xsl:if test="not(@incomplete) or @incomplete!='1'">
+     if (PythonClassWrapper&lt; thistype &gt;::initialize<xsl:text>
+         </xsl:text>( &quot;<xsl:value-of select="$classname"/>&quot;,
+		      &quot;<xsl:value-of select="translate($classname,'&lt;&gt;:','___')"/>&quot;,
+		      module,
+		      &quot;<xsl:value-of select="$scopedclassname"/>&quot;) &lt; 0)<xsl:text>{
 
-     <xsl:variable name="is_complete"><xsl:choose><xsl:when test="@incomplete='1'">false</xsl:when><xsl:otherwise>true</xsl:otherwise></xsl:choose></xsl:variable>
-<xsl:choose>
-   <xsl:when test="@name!='' or //Field[@context=$classid and @name!='']">
-     <xsl:text>
-     //Pyllars generation of class or struct or union  </xsl:text><xsl:value-of select="$classname"/> id: <xsl:value-of select="@id"/>
-       <xsl:if test="@name!=''">
-        <xsl:if test="not(//*[@id=$classid]/@abstract)">
-      <xsl:apply-templates select="//Constructor[@context=$classid and  (not(@access) or @access='public')]"><xsl:with-param name="classname"><xsl:if test="$nsname!='::' and $nsname!=''"><xsl:value-of select="$nsname"/>::</xsl:if><xsl:value-of select="$classname"/></xsl:with-param><xsl:with-param name="bareclassname" select="$classname"/></xsl:apply-templates>
-</xsl:if>
-      <xsl:apply-templates select="//Method[ count(./Ellipsis)=0 and @context=$classid and (@access='' or @access='public')]"><xsl:with-param name="classname"><xsl:if test="$nsname!='::' and $nsname!=''"><xsl:value-of select="$nsname"/>::</xsl:if><xsl:value-of select="$classname"/></xsl:with-param><xsl:with-param name="bareclassname" select="$classname"/></xsl:apply-templates>
-      </xsl:if>
-     <xsl:apply-templates select="//Field[@context=$classid and  (not(@access) or @access='public')]"><xsl:with-param name="classname"><xsl:if test="$nsname!='::' and $nsname!=''"><xsl:value-of select="$nsname"/>::</xsl:if><xsl:choose><xsl:when test="$classname!=''"><xsl:value-of select="$classname"/></xsl:when><xsl:otherwise><xsl:value-of select="$parentclassname"/></xsl:otherwise></xsl:choose></xsl:with-param></xsl:apply-templates>
-     <xsl:text>
-     </xsl:text><xsl:if test="$classname!=''"><xsl:if test="not(@incomplete) or @incomplete!='1'">if (PythonClassWrapper&lt; <xsl:value-of select="$nsnamebare"/><xsl:if test="$nsnamebare!=''">::</xsl:if><xsl:value-of select="$classname"/> &gt;::initialize<xsl:text>
-        </xsl:text>(&quot;<xsl:value-of select="$classname"/>&quot;,
-			&quot;<xsl:value-of select="translate($classname,'&lt;&gt;:','___')"/>&quot;,
-			 module,
-			&quot;<xsl:value-of select="$scopedclassname"/>&quot;) &lt; 0)<xsl:text>{
          PyErr_SetString( PyExc_RuntimeError, "Failed to initialize Python-wrapper-to-class/type for '</xsl:text><xsl:value-of select="$classname"/><xsl:text>'&quot;);
          status = -1;
      }
-     </xsl:text></xsl:if>if (PythonClassWrapper&lt; <xsl:value-of select="$nsnamebare"/><xsl:if test="$nsnamebare!=''">::</xsl:if><xsl:value-of select="$classname"/>&amp; &gt;::initialize<xsl:text>
+     </xsl:text></xsl:if>
+     if (PythonClassWrapper&lt; thistype&amp; &gt;::initialize<xsl:text>
        </xsl:text>(&quot;<xsl:value-of select="$classname"/>&amp;&quot;,
 			&quot;<xsl:value-of select="translate($classname,'&lt;&gt;:','___')"/>_ref&quot;,
 			  module,
@@ -523,7 +503,7 @@ static int init_<xsl:value-of select="@id"/>( PyObject* module ){
          PyErr_SetString( PyExc_RuntimeError, "Failed to initialize Python-wrapper-to-reference for '</xsl:text><xsl:value-of select="$classname"/><xsl:text>'&quot;);
          status = -1;
      }
-     </xsl:text>if (PythonClassWrapper&lt; <xsl:value-of select="$nsnamebare"/><xsl:if test="$nsnamebare!=''">::</xsl:if><xsl:value-of select="$classname"/>* &gt;::initialize<xsl:text>
+     </xsl:text>if (PythonClassWrapper&lt; thistype* &gt;::initialize<xsl:text>
        </xsl:text>(&quot;<xsl:value-of select="$classname"/>_ptr&quot;, 
 			&quot;<xsl:value-of select="translate($classname,'&lt;&gt;:','___')"/>_ptr&quot;, 
 			module,
@@ -534,31 +514,43 @@ static int init_<xsl:value-of select="@id"/>( PyObject* module ){
   </xsl:text>
 </xsl:if>
 
-      // BEGIN Nested Pyllars definitions initializations for <xsl:value-of select="@name"/>
+      // BEGIN Nested Pyllars definitions initializations for <xsl:value-of select="@name"/>:<xsl:value-of select="@id"/>
 
       <!-- Nested defintions -->
       <xsl:for-each select="//Typedef[@context=$classid and  (not(@access) or @access='public') and @name!='__va_list_tag']|
 	                    //Enumeration[@context=$classid and  (not(@access) or @access='public')]|
                             //Class[@context=$classid and  (not(@access) or @access='public')]|
-                            //Struct[@context=$classid and  (not(@access) or @access='public') and @name!='__va_list_tag' ]|
+                            //Struct[@context=$classid and  (not(@access) or @access='public') and @name!='__va_list_tag'  ]|
                             //Union[@context=$classid and  (not(@access) or @access='public')]|
 			    //Function[@context=$classid and  (not(@access) or @access='public') and count(./Ellipsis)=0]">
          <xsl:variable name="typeid" select="@id"/>
-         <xsl:variable name="name" ><xsl:choose> <xsl:when test="not(@name)"><xsl:value-of select="//*[@id=$typeid]/@name"/></xsl:when><xsl:otherwise><xsl:value-of select="@name"/></xsl:otherwise></xsl:choose></xsl:variable>
+         <xsl:variable name="name" select="@name"/>
       status |= init_<xsl:value-of select="@id"/>( module );
 
       // Add to this class/struct/union/enum definition  <xsl:text>
-      </xsl:text><xsl:if test="$name!=''">PythonClassWrapper&lt;<xsl:if test="$nsnamebare!='::'"> <xsl:value-of select="$nsnamebare"/>::</xsl:if><xsl:value-of select="$classname"/> &gt;::addClassMember<xsl:text>
-           </xsl:text>(&quot;<xsl:value-of select="$name"/>&quot;, (PyObject*)PythonClassWrapper&lt; <xsl:value-of select="$nsnamebare"/>::<xsl:value-of select="$classname"/>::<xsl:value-of select="$name"/> &gt;::getType(ptr_depth&lt;<xsl:if test="$nsnamebare!='::'"> <xsl:value-of select="$nsnamebare"/>::</xsl:if><xsl:value-of select="$classname"/>&gt;::value));</xsl:if>
+      </xsl:text>
+      <xsl:if test="$name!=''">PythonClassWrapper&lt; thistype &gt;::addClassMember<xsl:text>
+           </xsl:text>(&quot;<xsl:value-of select="$name"/>&quot;, (PyObject*)PythonClassWrapper&lt; <xsl:apply-templates select="." mode="generate_scoped_name"/> &gt;::getType(ptr_depth&lt; <xsl:apply-templates select="." mode="generate_scoped_name"/>  &gt;::value));</xsl:if>
       </xsl:for-each>
    </xsl:when>
+
+	<!-- UNNAMED -->
    <xsl:otherwise>
-      //This is an internal anonymous union within <xsl:value-of select="$parentclassname"/> not named as a field, so just add members as direct parent class members [ID: <xsl:value-of select="@id"/>]:
+      //This is an internal anonymous union within <xsl:value-of select="$classname"/> not named as a field, so just add members as direct parent class members [ID: <xsl:value-of select="@id"/>]:
       <xsl:variable name="attrname" select="@name"/>
-      <xsl:apply-templates select="//Field[@context=$classid and  (not(@access) or @access='public')]"><xsl:with-param name="classname"><xsl:if test="$nsname!='::' and $nsname!=''"><xsl:value-of select="$nsname"/>::</xsl:if><xsl:value-of select="$parentclassname"/></xsl:with-param><xsl:with-param name="parentfieldname" select="$parentfieldname"/></xsl:apply-templates>
+      <xsl:apply-templates select="//Field[@context=$classid and  (not(@access) or @access='public')]">
+        <xsl:with-param name="classname" select="$classname"/>
+        <xsl:with-param name="typename" select="$scopedtypename"/>
+        <xsl:with-param name="scopedclassname" select="$scopedclassname"/></xsl:apply-templates>
 
    </xsl:otherwise>
 </xsl:choose>
+	// Add fields for <xsl:value-of select="@name"/>:<xsl:value-of select="@id"/>
+    {
+         <xsl:apply-templates select="//Field[@context=$classid and  (not(@access) or @access='public')]"><xsl:with-param name="classname" select="$scopedclassname"/>
+	    <xsl:with-param name="typename" select="$scopedtypename"/></xsl:apply-templates>
+         <xsl:text>
+     }</xsl:text>
 
       //DONE
 
@@ -624,11 +616,15 @@ static int init_<xsl:value-of select="@id"/>( PyObject* module ){
 ////////////////  BEGIN sub-elements <xsl:value-of select="@name"/>  
 //
      <xsl:apply-templates select="//Typedef[(@file=$fileid or $fileid='') and @context=$nsid and  (not(@access) or @access='public') and not(@name='_va_list_tag')]|
-			    //Class[(@file=$fileid or $fileid='') and @context=$nsid and  (not(@access) or @access='public')]|
-        		    //Enumeration[(@file=$fileid or $fileid='') and @context=$nsid and  (not(@access) or @access='public')]|
-                            //Struct[(@file=$fileid or $fileid='') and @context=$nsid and  (not(@access) or @access='public')]|
-                            //Union[(@file=$fileid or $fileid='') and @context=$nsid and  (not(@access) or @access='public')]|
-			   //Function[(@file=$fileid or $fileid='') and @context=$nsid and  (not(@access) or @access='public') and count(./Ellipsis)=0]">
+			                      //Class[(@file=$fileid or $fileid='') and @context=$nsid and  (not(@access) or @access='public')]|
+        		                  //ArrayType[(@file=$fileid or $fileid='') and @context=$nsid and  (not(@access) or @access='public')]|
+        		                  //PointerType[(@file=$fileid or $fileid='') and @context=$nsid and  (not(@access) or @access='public')]|
+        		                  //ReferenceType[(@file=$fileid or $fileid='') and @context=$nsid and  (not(@access) or @access='public')]|
+        		                  //CvQualifiedType[(@file=$fileid or $fileid='') and @context=$nsid and  (not(@access) or @access='public')]|
+        		                  //Enumeration[(@file=$fileid or $fileid='') and @context=$nsid and  (not(@access) or @access='public')]|
+                                  //Struct[(@file=$fileid or $fileid='') and @context=$nsid and  (not(@access) or @access='public')]|
+                                  //Union[(@file=$fileid or $fileid='') and @context=$nsid and  (not(@access) or @access='public')]|
+			                      //Function[(@file=$fileid or $fileid='') and @context=$nsid and  (not(@access) or @access='public') and count(./Ellipsis)=0]">
        <xsl:with-param name="nsname"><xsl:value-of select="$nsname"/></xsl:with-param>
      </xsl:apply-templates><xsl:text>
 //
@@ -667,12 +663,16 @@ static int init_</xsl:text><xsl:value-of select="@id"/><xsl:text>( PyObject* mod
      </xsl:text>//initialize sub-element initialization
 
      <xsl:for-each select="//Typedef[(@file=$fileid or $fileid='') and @context=$nsid and  (not(@access) or @access='public') and  @name!='__va_list_tag']|
-	                 //Class[(@file=$fileid or $fileid='') and @context=$nsid and  (not(@access) or @access='public')]|
-                             //Enumeration[(@file=$fileid or $fileid='') and @context=$nsid and  (not(@access) or @access='public')]|
-                            //Struct[(@file=$fileid or $fileid='') and @context=$nsid and  (not(@access) or @access='public') and  @name!='__va_list_tag' ]|
-                            //Union[(@file=$fileid or $fileid='') and @context=$nsid and  (not(@access) or @access='public')]|
-		       	    //Function[(@file=$fileid or $fileid='') and @context=$nsid and (not(@access) or @access='public') and @name!='_IO_cookie_init' and @name!='gets' and count(./Ellipsis)=0]|
-                            //Namespace[@context= $nsid]">
+	                   //CvQualifiedType[(@file=$fileid or $fileid='') and @context=$nsid and  (not(@access) or @access='public')]|
+                           //PointerType[(@file=$fileid or $fileid='') and @context=$nsid and  (not(@access) or @access='public')]|
+	                   //ArrayType[(@file=$fileid or $fileid='') and @context=$nsid and  (not(@access) or @access='public')]|
+	                   //ReferenceType[(@file=$fileid or $fileid='') and @context=$nsid and  (not(@access) or @access='public')]|
+	                   //Class[(@file=$fileid or $fileid='') and @context=$nsid and  (not(@access) or @access='public')]|
+                           //Enumeration[(@file=$fileid or $fileid='') and @context=$nsid and  (not(@access) or @access='public')]|
+                           //Struct[(@file=$fileid or $fileid='') and @context=$nsid and  (not(@access) or @access='public') and  @name!='__va_list_tag' ]|
+                           //Union[(@file=$fileid or $fileid='') and @context=$nsid and  (not(@access) or @access='public')]|
+		     	   //Function[(@file=$fileid or $fileid='') and @context=$nsid and (not(@access) or @access='public') and @name!='_IO_cookie_init' and @name!='gets' and count(./Ellipsis)=0]|
+                           //Namespace[@context= $nsid]">
      status |= init_<xsl:value-of select="@id"/>( module );
       </xsl:for-each>
       <xsl:for-each select="//Variable[@context=$nsid and (@file=$fileid or $fileid='')]">
@@ -711,6 +711,12 @@ PyMODINIT_FUNC
 </xsl:text>init<xsl:value-of select="$init_name"/>(){
     int status = 0;
     __initpyllars();
+<xsl:for-each select="//Namespace[@id!=$nsid]">
+    if (!PyImport_ImportModule(&quot;<xsl:value-of select="@name"/>&quot;) ){
+       PyErr_SetString(PyExc_ImportError, "Unable to import module <xsl:value-of select="@name"/>");
+       return -1;
+    }
+</xsl:for-each>
     <xsl:for-each select="//Namespace[@id=$nsid]">
     status |= init_<xsl:value-of select="@id"/>(nullptr);//no module to add to, as this it the top
     </xsl:for-each>
@@ -794,6 +800,14 @@ __initpyllars(){
 
 namespace pyllars{
 }
+</xsl:text><xsl:apply-templates select="//PointerType[not(@context)]|
+                            //CvQualifiedType[not(@context)]|
+                            //ReferenceType[not(@context)]|
+                            //ArrayType[not(@context)]
+">
+</xsl:apply-templates><xsl:text>
+
+
    //Pyllars structs/classes for namespace  </xsl:text><xsl:value-of select="$target_namespace"/>
    <xsl:apply-templates select="//Namespace[@name=$target_namespace]" mode="generate_externs"/>
    <xsl:variable name="targetns"><xsl:choose><xsl:when test="$target_namespace=''">::</xsl:when><xsl:otherwise><xsl:value-of select="$target_namespace"/></xsl:otherwise></xsl:choose></xsl:variable>

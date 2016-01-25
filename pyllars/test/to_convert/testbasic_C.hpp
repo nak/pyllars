@@ -58,11 +58,16 @@ struct BitFields{
   } entry;
 };
 
+typedef double double_array_unboudned [];
+
 /**
  * Basic struct declaration
  **/
 struct TestStruct{
 
+  struct{ 
+    int d[2];
+  } array_field[2];
 
   // Inner enum typedef
   typedef enum { INNER_THIRD=3, INNER_FIFTH=5, INNER_SIXTH=10} InnerEnum_T;
