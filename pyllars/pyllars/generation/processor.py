@@ -1,9 +1,11 @@
+#!/usr/bin/env python
 '''
 Created on Jun 23, 2015
 
 @author: jrusnak
 '''
 import os.path
+from parser import CPPParser
 
 class ResultsProcessor(object):
     '''
@@ -19,10 +21,16 @@ class ResultsProcessor(object):
         self._file = infile
         self._python_code = []
         
-    def process(self, to_path):
+    @staticmethod
+    def process(path):
         '''
         Process self's file to generate python code to provided path
         '''
+        parser = CPPParser(path)
+        parser.parse_xml()
+        return parser.processed
+
+    def processold(self, to_path):
         imports = {}
         self._curr_package = "globals"
         def add_import( package, element):
@@ -87,7 +95,6 @@ class ResultsProcessor(object):
             
         for line in self._file:
             line = line.replace('\n','').replace('\r','')
-            #print ("PROCESSING LINE %s"%line)
             if line.startswith("===") and line.replace('=',''):
                 new_package = line.replace('=','')
                 if new_package == "::":
@@ -95,7 +102,6 @@ class ResultsProcessor(object):
                 if new_package != self._curr_package:
                     output_code(self._curr_package, typedefs, functypedefs, functiontypes)
                     self._curr_package = new_package
-                #print("CURR PACKAGE NOW %s"%self._curr_package)
                 if codetext:
                     eval(codetext)
                     codetext = ""
@@ -111,8 +117,23 @@ class ResultsProcessor(object):
                     eval(codetext)
                     codetext = ""
             else:
-                #print("ADDING CODE ")
                 self._python_code.append(line)
                 if codetext:
                     eval(codetext)
                     codetext = ""
+
+if __name__ == "__main__":
+    import sys
+    items = ResultsProcessor.process(sys.argv[1])
+    for item in items.itervalues():
+        code = item.generate_code(".")
+        if code is not None:
+            header, body = code
+            if not os.path.exists(item.get_include_parent_path().replace(" ","_").replace("<", "__").replace(">", "__").replace("::", "____").replace(", ", "__")):
+                os.makedirs(item.get_include_parent_path().replace(" ","_").replace("<","__").replace(">","__").replace("::", "____").replace(", ","__"))
+            with open(item.get_header_filename().replace("<", "__").replace(" ","_").replace(">","__").replace("::", "____").replace(", ", "__"), 'w') as f:
+                f.write(header)
+                print "Wrote header: %s"%f.name
+            with open(item.get_body_filename().replace("<", "__").replace(" ","_").replace(">", "__").replace("::","____").replace(", ", "__"), 'w') as f:
+                f.write(body)
+                print "Wrote body: %s"%f.name
