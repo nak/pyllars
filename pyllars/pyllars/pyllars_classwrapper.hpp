@@ -14,8 +14,8 @@
 #include <tupleobject.h>
 
 
-#include "pyllars_utils.hpp"
-#include "pyllars_defns.hpp"
+//#include "pyllars_utils.hpp"
+//#include "pyllars_defns.hpp"
 #include "pyllars_classmethodsemantics.hpp"
 #include "pyllars_constmethodcallsemantics.hpp"
 #include "pyllars_methodcallsemantics.hpp"
@@ -25,9 +25,6 @@
 namespace __pyllars_internal {
 
     namespace {
-        //basic constants (names and such)
-        extern const char address_name[] = "PYL_addr";
-        extern const char alloc_name[] = "PYL_alloc";
     }
 
 
@@ -60,7 +57,8 @@ namespace __pyllars_internal {
                     PyErr_SetString(PyExc_OverflowError, "Integer value out of range of int");
                     return -1;
                 }
-                self->_CObject = new T((T) value);
+                const T val = (T) value;
+                self->_CObject = new ObjContainerProxy<T, T>(val);
             } else {
                 long long value;
                 fprintf(stderr, "%ld", PyLong_AsLong(PyTuple_GetItem(args, 0)));
@@ -72,7 +70,8 @@ namespace __pyllars_internal {
                     PyErr_SetString(PyExc_OverflowError, "Integer value out of range of int");
                     return -1;
                 }
-                self->_CObject = new T((T) value);
+                const T val = (T) value;
+                self->_CObject = new ObjContainerProxy<T, T>(val);
             }
             return 0;
         }
@@ -98,7 +97,8 @@ namespace __pyllars_internal {
                 PyErr_SetString(PyExc_OverflowError, "Integer value out of range of int");
                 return -1;
             }
-            self->_CObject = new T((T) value);
+            T val = (T) value;
+            self->_CObject = new ObjContainerProxy<T, T>(val);
 
 
             return 0;
@@ -133,8 +133,8 @@ namespace __pyllars_internal {
                         PyErr_SetString(PyExc_TypeError, "Invalid type to construct from");
                         return -1;
                     }
-                    self->_CObject = new typename std::remove_reference<T>::type >
-                                     (*(reinterpret_cast<PythonClassWrapper<T> *>(pyobj)->template get_CObject<T>()));
+                    self->_CObject = new typename std::remove_reference<T>::type
+                            (*(reinterpret_cast<PythonClassWrapper<T> *>(pyobj)->template get_CObject<T>()));
                 } else if ((!kwds || PyDict_Size(kwds) == 0) && (!args || PyTuple_Size(args) == 0)) {
                     self->_CObject = new typename std::remove_reference<T>::type();
                     memset(self->_CObject, 0, sizeof(typename std::remove_reference<T>::type));
@@ -206,8 +206,8 @@ namespace __pyllars_internal {
 
     //specialize for pointer types:
     template<typename T>
-    class InitHelper<T, typename std::enable_if<!std::is_void<T>::value && !std::is_arithmetic<T>::value &&
-                                                             std::is_pointer<T>::value>::type> {
+    class InitHelper<T,  typename std::enable_if<!std::is_void<T>::value && !std::is_arithmetic<T>::value &&
+                                                std::is_pointer<T>::value>::type> {
     public:
         static int init(PythonClassWrapper<T> *self, PyObject *args, PyObject *kwds) {
             if (!self) {
@@ -255,10 +255,10 @@ namespace __pyllars_internal {
     //specialize for copiable non-fundamental reference types:
     template<typename T>
     class InitHelper<T, typename std::enable_if<!std::is_void<T>::value &&
-                                                             !std::is_integral<typename std::remove_reference<T>::type>::value &&
-                                                             !std::is_floating_point<typename std::remove_reference<T>::type>::value &&
-                                                             std::is_copy_constructible<typename std::remove_reference<T>::type>::value &&
-                                                             std::is_reference<T>::value>::type> {
+                                                !std::is_integral<typename std::remove_reference<T>::type>::value &&
+                                                !std::is_floating_point<typename std::remove_reference<T>::type>::value &&
+                                                std::is_copy_constructible<typename std::remove_reference<T>::type>::value &&
+                                                std::is_reference<T>::value>::type> {
     public:
         static int init(PythonClassWrapper<T> *self, PyObject *args, PyObject *kwds) {
             if (!self) {
@@ -366,7 +366,8 @@ namespace __pyllars_internal {
                         status = -1;
                         goto onerror;
                     }
-                    self->_CObject = new T_NoRef((T_NoRef) intval);
+                    T_NoRef  trueval = (T_NoRef) intval;
+                    self->_CObject = new ObjContainerProxy<T_NoRef, T_NoRef>(trueval);
 
                 } else {
                     unsigned long long intval = 0;
@@ -382,7 +383,8 @@ namespace __pyllars_internal {
                         status = -1;
                         goto onerror;
                     }
-                    self->_CObject = new T_NoRef((T_NoRef) intval);
+                    T_NoRef trueval = (T_NoRef) intval;
+                    self->_CObject = new ObjContainerProxy<T_NoRef, T_NoRef>(trueval);
 
                 }
             }
@@ -427,7 +429,7 @@ namespace __pyllars_internal {
                     PyErr_SetString(PyExc_TypeError, "Argument value out of range");
                     return -1;
                 }
-                self->_CObject = new T_NoRef((T_NoRef) intval);
+                self->_CObject = new ObjContainerProxy<T_NoRef, T_NoRef>((T_NoRef) intval);
 
             }
             return 0;
@@ -449,7 +451,7 @@ namespace __pyllars_internal {
                  it != PythonClassWrapper<T>::_constructors.end(); ++it) {
                 try {
                     if ((*it)(args, kwds, self->_CObject)) {
-		        self->_allocated = (self->_CObject != nullptr);
+                        self->_allocated = (self->_CObject != nullptr);
                         return 0;
                     }
                 } catch (...) {
@@ -478,10 +480,13 @@ namespace __pyllars_internal {
      **/
     template<typename T>
     struct PythonClassWrapper<T, UNKNOWN_SIZE,
-            typename std::enable_if< !std::is_array<T>::value && !std::is_pointer<T>::value>::type> : public CommonBaseWrapper {
+            typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>
+            : public CommonBaseWrapper {
+
+
         typedef CommonBaseWrapper::Base Base;
         typedef PythonClassWrapper DereferencedWrapper;
-        typedef PythonClassWrapper<T const, UNKNOWN_SIZE,void> ConstWrapper;
+        typedef PythonClassWrapper<T const,  UNKNOWN_SIZE, void> ConstWrapper;
         typedef PythonClassWrapper<typename std::remove_const<T>::type> NonConstWrapper;
         typedef PythonClassWrapper<typename std::remove_reference<T>::type> NoRefWrapper;
 
@@ -489,14 +494,14 @@ namespace __pyllars_internal {
 
         template<typename Z = T>
         typename std::remove_reference<T>::type *get_CObject() {
-            return _CObject;
+            return _CObject?_CObject->ptr():nullptr;
         }
 
         static PyTypeObject Type;
         typedef PyTypeObject *TypePtr_t;
         static TypePtr_t constexpr TypePtr = &Type;
 
-        static int initialize() { return Type.tp_name ? 0 : -1; }
+        //static int initialize() { return Type.tp_name ? 0 : -1; }
 
         static int initialize(const char *const name, const char *const module_entry_name,
                               PyObject *module, const char *const fullname = nullptr) {
@@ -529,7 +534,7 @@ namespace __pyllars_internal {
                 Type.tp_bases = PyTuple_New(_baseClasses.size());
                 Py_ssize_t index = 0;
                 for (auto it = _baseClasses.begin(); it != _baseClasses.end(); ++it) {
-                    PyTuple_SET_ITEM(Type.tp_bases, index++, (PyObject * ) * it);
+                    PyTuple_SET_ITEM(Type.tp_bases, index++, (PyObject *) *it);
                 }
             }
             if (PyType_Ready(&Type) < 0) {
@@ -554,18 +559,19 @@ namespace __pyllars_internal {
             return status;
         }
 
-
-        static PythonClassWrapper* createPy(const ssize_t arraySize, T_NoRef * const cobj, const bool isAllocated, PyObject* referencing, const size_t depth = 0){
-            static PyObject* kwds = PyDict_New();
-            static PyObject* emptyargs = PyTuple_New(0);
+        static PythonClassWrapper *createPy(const ssize_t arraySize, ObjContainer<T_NoRef> *const cobj, const bool isAllocated,
+                                            PyObject *referencing, const size_t depth = 0) {
+            static PyObject *kwds = PyDict_New();
+            static PyObject *emptyargs = PyTuple_New(0);
             PyDict_SetItemString(kwds, "__internal_allow_null", Py_True);
-            typedef PythonClassWrapper< T, -1> PyWrapper;
-            PyWrapper* pyobj = (PyWrapper*)PyObject_Call((PyObject*)&Type, emptyargs, kwds);
-            pyobj->_CObject = cobj;
+            typedef PythonClassWrapper<T,  -1> PyWrapper;
+            PyWrapper *pyobj = (PyWrapper *) PyObject_Call((PyObject *) &Type, emptyargs, kwds);
+            pyobj->_CObject = cobj;//new ObjContainerPtrProxy<T_NoRef>(cobj, isAllocated);
             pyobj->_allocated = isAllocated;
-            if(referencing) pyobj->_referenced = referencing;
+            if (referencing) pyobj->_referenced = referencing;
             return pyobj;
         }
+
         /**
          * Add a constructor to the list contained
          **/
@@ -578,7 +584,7 @@ namespace __pyllars_internal {
 
 
         template<typename ...Args>
-        static bool create(const char *const kwlist[], PyObject *args, PyObject *kwds, T_NoRef *&cobj) {
+        static bool create(const char *const kwlist[], PyObject *args, PyObject *kwds, ObjContainer<T_NoRef> *&cobj) {
             try {
                 return _createBase(cobj, args, kwds, kwlist, typename argGenerator<sizeof...(Args)>::type(),
                                    (typename std::remove_reference<Args>::type *) nullptr...);
@@ -598,8 +604,8 @@ namespace __pyllars_internal {
             std::string ptr_name = std::string(Type.tp_name) + "*";
             std::string module_ptr_name = std::string(Type.tp_name) + "_ptr";
             PythonClassWrapper<T_NoRef *>::initialize();
-	    PythonClassWrapper* self_ = reinterpret_cast<PythonClassWrapper *>(self);
-            PyObject *obj = toPyObject<T_NoRef *>(self_->_CObject, true, 1);
+            PythonClassWrapper *self_ = reinterpret_cast<PythonClassWrapper *>(self);
+            PyObject *obj = self_->_CObject?toPyObject<T_NoRef *>(self_->_CObject->ptr(), true, 1):Py_None;
             PyErr_Clear();
             ((PythonClassWrapper<T_NoRef *> *) obj)->make_reference(self);
             return obj;
@@ -690,7 +696,7 @@ namespace __pyllars_internal {
             PyDict_SetItemString(Type.tp_dict, name, pyobj);
         }
 
-        static void addExtraBaseClass(PyTypeObject *base) {
+        static void addBaseClass(PyTypeObject *base) {
             if (!base) return;
             if (!Type.tp_base && _baseClasses.empty()) {
                 Type.tp_base = base;
@@ -728,9 +734,10 @@ namespace __pyllars_internal {
         }
 
 
-        template<const char *const name,  typename Type, const size_t bits>
-        static void addBitField( typename BitFieldContainer<T_NoRef>::template Container<name, Type, bits>::getter_t &getter,
-                                 typename BitFieldContainer<T_NoRef>::template Container<name, Type, bits>::setter_t &setter) {
+        template<const char *const name, typename Type, const size_t bits>
+        static void addBitField(
+                typename BitFieldContainer<T_NoRef>::template Container<name, Type, bits>::getter_t &getter,
+                typename BitFieldContainer<T_NoRef>::template Container<name, Type,  bits>::setter_t &setter) {
             static const char *const doc = "Get bit-field attribute ";
             char *doc_string = new char[strlen(name) + strlen(doc) + 1];
             snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
@@ -742,11 +749,12 @@ namespace __pyllars_internal {
                                   doc_string
             };
             _addMethod(pyMeth);
-            _memberSettersDict[name] = BitFieldContainer<T>::template Container<name, Type,bits>::setFromPyObject;
+            _memberSettersDict[name] = BitFieldContainer<T>::template Container<name, Type, bits>::setFromPyObject;
         }
 
-        template<const char *const name,  typename Type, const size_t bits>
-        static void addConstBitFIeld( typename BitFieldContainer<T_NoRef>::template Container<name, Type, bits>::getter_t& getter) {
+        template<const char *const name, typename Type, const size_t bits>
+        static void addConstBitFIeld(
+                typename BitFieldContainer<T_NoRef>::template Container<name, Type, bits>::getter_t &getter) {
             static const char *const doc = "Get bit-field attribute ";
             char *doc_string = new char[strlen(name) + strlen(doc) + 1];
             snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
@@ -764,7 +772,7 @@ namespace __pyllars_internal {
          * add a getter method for the given compile-time-known named public class member
          **/
         template<const char *const name, typename Type>
-        static void addAttribute(typename MemberContainer<T_NoRef>::template Container<name,Type >::member_t member,
+        static void addAttribute(typename MemberContainer<T_NoRef>::template Container<name, Type>::member_t member,
                                  const ssize_t array_size) {
 
             static const char *const doc = "Get attribute ";
@@ -854,12 +862,12 @@ namespace __pyllars_internal {
             _CObject = ptr;
         }
 
-        static bool checkType( PyObject* const obj){
+        static bool checkType(PyObject *const obj) {
             return PyObject_TypeCheck(obj, &Type);
         }
 
-        static PyTypeObject* getType(const size_t unused_depth=0){
-	  (void)unused_depth;
+        static PyTypeObject *getType(const size_t unused_depth = 0) {
+            (void) unused_depth;
             return &Type;
         }
 
@@ -871,7 +879,7 @@ namespace __pyllars_internal {
 
         template<typename C, const ssize_t size, typename depth>
         friend
-        class PythonCPointerWrapper;
+        struct PythonCPointerWrapper;
 
         template<typename C, typename E>
         friend
@@ -884,7 +892,7 @@ namespace __pyllars_internal {
                     (cls, args, kwds, _constructors);
         }
 
-        T_NoRef *_CObject;
+        /* T_NoRef*/ ObjContainer<T_NoRef> *_CObject;
 
     private:
 
@@ -892,7 +900,7 @@ namespace __pyllars_internal {
         _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds) {
             if (Type.tp_base && Base::TypePtr->tp_init) {
                 PyObject *empty = PyTuple_New(0);
-                Base::TypePtr->tp_init((PyObject * ) & self->baseClass, empty, nullptr);
+                Base::TypePtr->tp_init((PyObject *) &self->baseClass, empty, nullptr);
                 Py_DECREF(empty);
                 PyErr_Clear();
             }
@@ -919,15 +927,14 @@ namespace __pyllars_internal {
 
         static void _free(void *self_) {
             PythonClassWrapper *self = (PythonClassWrapper *) self_;
-            T_NoRef *ptr = (T_NoRef *) self->_CObject;
             if (self->_raw_storage) {
                 delete self->_raw_storage;
             } else if (self->_allocated) {
                 ObjectLifecycleHelpers::Alloc<T_NoRef, PythonClassWrapper<T_NoRef *>, PythonClassWrapper<T_NoRef>>::dealloc(
-                        ptr);
+                        self->_CObject);
             }
             self->_raw_storage = nullptr;
-            if(self->_allocated) self->_CObject = nullptr;
+            if (self->_allocated) self->_CObject = nullptr;
         }
 
         static void _dealloc(PythonClassWrapper *self) {
@@ -949,18 +956,18 @@ namespace __pyllars_internal {
         }
 
         template<typename ...Args>
-        static bool _createBaseBase(T_NoRef *&cobj, Args&... args) {
+        static bool _createBaseBase(ObjContainer<T_NoRef> *&cobj, Args &... args) {
             if (!cobj) {
-                cobj = new T_NoRef(args...);
+                cobj = new ObjContainerProxy<T_NoRef, Args&...>(args...);
                 return cobj != nullptr;
             }
-            new(cobj) T_NoRef(args...);
+            new(cobj) ObjContainerProxy<T_NoRef, Args&...>(args...);
             return true;
         }
 
-        template<typename ...Args, int ...S>
+        template<typename ...Args,int ...S >
         static bool _createBase
-                (T_NoRef *&cobj, PyObject *args, PyObject *kwds,
+                (ObjContainer<T_NoRef> *&cobj, PyObject *args, PyObject *kwds,
                  const char *const kwlist[], container<S...> unused1, Args *... unused2) {
             (void) unused1;
             void *unused[] = {(void *) unused2..., nullptr};
@@ -976,7 +983,7 @@ namespace __pyllars_internal {
             }
 
             return _createBaseBase<Args...>(cobj,
-                                            *toCObject<Args, false, PythonClassWrapper<Args> >( *pyobjs[S])...);
+                                            *toCObject<Args, false, PythonClassWrapper<Args> >(*pyobjs[S])...);
         }
 
         static void _addMethod(PyMethodDef method) {
@@ -987,9 +994,9 @@ namespace __pyllars_internal {
 
         static std::string _name;
         static std::string _module_entry_name;
-        static std::vector <ConstructorContainer> _constructors;
+        static std::vector<ConstructorContainer> _constructors;
         static std::map<std::string, typename MethodContainer<T>::setter_t> _memberSettersDict;
-        static std::vector <PyMethodDef> _methodCollection;
+        static std::vector<PyMethodDef> _methodCollection;
         static std::vector<PyTypeObject *> _baseClasses;
 
         char *_raw_storage;
@@ -1003,7 +1010,7 @@ namespace __pyllars_internal {
             typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
             parent_module = nullptr;
     template<typename T>
-    std::vector <PyMethodDef> PythonClassWrapper<T, UNKNOWN_SIZE,
+    std::vector<PyMethodDef> PythonClassWrapper<T, UNKNOWN_SIZE,
             typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
             _methodCollection = std::vector<PyMethodDef>(emptyMethods, emptyMethods + 1);
     template<typename T>
@@ -1016,8 +1023,9 @@ namespace __pyllars_internal {
                     typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
             _memberSettersDict = std::map<std::string, typename MethodContainer<T>::setter_t>();
     template<typename T>
-    std::vector< typename PythonClassWrapper<T, UNKNOWN_SIZE, typename std::enable_if< !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
-                          ConstructorContainer>
+    std::vector<typename PythonClassWrapper<T, UNKNOWN_SIZE, typename std::enable_if<
+            !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+    ConstructorContainer>
             PythonClassWrapper<T, UNKNOWN_SIZE,
                     typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
             _constructors;
@@ -1039,7 +1047,7 @@ namespace __pyllars_internal {
                     nullptr,             /*tp_name*/ /*filled on init*/
                     sizeof(PythonClassWrapper),             /*tp_basicsize*/
                     0,                         /*tp_itemsize*/
-                    (destructor)PythonClassWrapper::_dealloc, /*tp_dealloc*/
+                    (destructor) PythonClassWrapper::_dealloc, /*tp_dealloc*/
                     nullptr,                         /*tp_print*/
                     nullptr,                         /*tp_getattr*/
                     nullptr,                         /*tp_setattr*/
@@ -1070,7 +1078,7 @@ namespace __pyllars_internal {
                     nullptr,                         /* tp_descr_get */
                     nullptr,                         /* tp_descr_set */
                     0,                         /* tp_dictoffset */
-                    (initproc)PythonClassWrapper::_init,  /* tp_init */
+                    (initproc) PythonClassWrapper::_init,  /* tp_init */
                     nullptr,                         /* tp_alloc */
                     PythonClassWrapper::_new,             /* tp_new */
                     _free,                         /*tp_free*/

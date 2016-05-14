@@ -17,7 +17,7 @@
 namespace __pyllars_internal {
 
     /**
-     * class to hold referecne to a class method and define
+     * class to hold reference to a class method and define
      * method call semantics
      **/
     template<typename CClass, typename T, typename ... Args>
@@ -32,9 +32,9 @@ namespace __pyllars_internal {
          */
         static PyObject *call(method_t method, PyObject *args, PyObject *kwds) {
             try {
-	        const T & result = call_methodBase(method, args, kwds, typename argGenerator<sizeof...(Args)>::type());
-                typedef typename std::remove_pointer< typename extent_as_pointer<T>::type>::type T_base;
-                const ssize_t array_size = sizeof(result)/sizeof(T_base);
+                const T &result = call_methodBase(method, args, kwds, typename argGenerator<sizeof...(Args)>::type());
+                typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
+                const ssize_t array_size = sizeof(result) / sizeof(T_base);
                 return toPyObject<T>(result, false, array_size);
             } catch (const char *const msg) {
                 PyErr_SetString(PyExc_RuntimeError, msg);
@@ -53,7 +53,7 @@ namespace __pyllars_internal {
             static char format[sizeof...(Args) + 1] = {0};
             if (sizeof...(Args) > 0)
                 memset(format, 'O', (size_t)
-            sizeof...(Args));
+                        sizeof...(Args));
 
             if (!PyArg_ParseTupleAndKeywords(args, kwds, format, (char **) kwlist, &pyargs...)) {
                 PyErr_Print();
@@ -79,8 +79,7 @@ namespace __pyllars_internal {
     };
 
     template<class CClass, typename ReturnType, typename ...Args>
-    const char *const *
-            ClassMethodCallSemantics<CClass, ReturnType, Args...>::kwlist;
+    const char *const *ClassMethodCallSemantics<CClass, ReturnType, Args...>::kwlist;
 
 
     /**
@@ -111,7 +110,7 @@ namespace __pyllars_internal {
             if (!PyArg_ParseTupleAndKeywords(args, kwds, format, (char **) kwlist, &pyargs...)) {
                 PyErr_SetString(PyExc_RuntimeError, "Failed to parse argument on method call");
             } else {
-	      method(*toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)...);
+                method(*toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)...);
             }
         }
 
@@ -255,7 +254,7 @@ namespace __pyllars_internal {
             }
 
             static void setFromPyObject(PyObject *pyobj) {
-	      member = *toCObject<T, false, PythonClassWrapper<T>>(*pyobj);
+                member = *toCObject<T, false, PythonClassWrapper<T>>(*pyobj);
             }
         };
 
@@ -273,7 +272,7 @@ namespace __pyllars_internal {
             }
 
             static void setFromPyObject(PyObject *pyobj) {
-	      T val[] = *toCObject<T[size], false, PythonClassWrapper<T[size]>>(*pyobj);
+                T val[] = *toCObject<T[size], false, PythonClassWrapper<T[size]>>(*pyobj);
                 for (size_t i = 0; i < size; ++i)member[i] = val[i];
             }
         };

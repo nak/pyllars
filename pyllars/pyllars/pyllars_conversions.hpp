@@ -4,6 +4,7 @@
 #include <memory>
 #include <Python.h>
 
+#include "pyllars_classwrapper.hpp"
 #include "pyllars_pointer.hpp"
 #include "pyllars_callbacks.hpp"
 #include "pyllars_utils.hpp"
@@ -532,13 +533,13 @@ namespace __pyllars_internal {
      * @param var: value to convert
      * @param asArgument: whether to be used as argument or not (can determine if copy is made or reference semantics used)
      **/
-    template<typename T, const ssize_t max, typename E>
+    template<typename T, bool delete_op_pub, const ssize_t max, typename E>
     PyObject *toPyObject(T &var, const bool asArgument, const ssize_t array_size, const size_t depth ) {
-        return ConversionHelpers::PyObjectConversionHelper<T, PythonClassWrapper<T, max, E>, max>::toPyObject(
+        return ConversionHelpers::PyObjectConversionHelper<T, PythonClassWrapper<T,  max, E>, max>::toPyObject(
 													      var, asArgument, array_size, depth);
     }
 
-    template<typename T, const ssize_t max, typename E>
+    template<typename T, bool delete_op_pub, const ssize_t max, typename E>
     PyObject *toPyObject(const T &var, const bool asArgument, const ssize_t array_size, const size_t depth) {
         return ConversionHelpers::PyObjectConversionHelper<const T, PythonClassWrapper<const T, max, E>, max>::toPyObject(
                 var, asArgument, array_size);

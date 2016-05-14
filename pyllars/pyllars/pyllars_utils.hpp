@@ -4,7 +4,6 @@
 #include <structmember.h>
 #include <memory>
 
-#include "pyllars_pointer.hpp"
 
 #undef NULL
 #define NULL nullptr
@@ -138,10 +137,10 @@ namespace __pyllars_internal {
      *  element is dynamically allocated and should be deleted (or not)
      */
     template<typename T, bool is_array = false, typename E = void>
-    struct smart_delete ;
+    struct smart_delete;
 
     template<typename T, bool is_array>
-    struct smart_delete<T,is_array , typename std::enable_if<!std::is_destructible<T>::value>::type >{
+    struct smart_delete<T, is_array, typename std::enable_if<!std::is_destructible<T>::value>::type> {
 
         typedef typename std::remove_reference<T>::type T_base;
 
@@ -149,16 +148,15 @@ namespace __pyllars_internal {
         }
 
         void operator()(T_base *ptr) const {
-	  // if (_deleteable) delete ptr;
+            // if (_deleteable) delete ptr;
         }
 
         const bool _deleteable;
     };
 
 
-
     template<typename T>
-    struct smart_delete<T, false , typename std::enable_if< std::is_destructible<T>::value>::type >{
+    struct smart_delete<T, false, typename std::enable_if<std::is_destructible<T>::value>::type> {
 
         typedef typename std::remove_reference<T>::type T_base;
 
@@ -166,17 +164,17 @@ namespace __pyllars_internal {
         }
 
         void operator()(T_base *ptr) const {
-	   if (_deleteable) delete ptr;
+            if (_deleteable) delete ptr;
         }
 
         const bool _deleteable;
     };
 
-   
-    template<typename T>
-    struct smart_delete<T, true, typename std::enable_if< std::is_destructible<T>::value>::type > {
 
-      typedef typename std::remove_reference<T>::type T_base;
+    template<typename T>
+    struct smart_delete<T, true, typename std::enable_if<std::is_destructible<T>::value>::type> {
+
+        typedef typename std::remove_reference<T>::type T_base;
 
         smart_delete(const bool deleteable) : _deleteable(deleteable) {
         }
@@ -188,7 +186,7 @@ namespace __pyllars_internal {
         const bool _deleteable;
     };
 
-  template<typename T, bool is_array = false>
+    template<typename T, bool is_array = false>
     using smart_ptr = std::unique_ptr<typename std::remove_reference<T>::type, smart_delete<T, is_array> >;
 
 
@@ -214,42 +212,238 @@ namespace __pyllars_internal {
     };
 
     template<typename T, typename Z = void>
-    struct Sizeof ;
+    struct Sizeof;
 
-    template< typename T>
-    struct Sizeof<T, typename std::enable_if< is_complete<T>::value >::type> {
+    template<typename T>
+    struct Sizeof<T, typename std::enable_if<is_complete<T>::value>::type> {
         static constexpr size_t value = sizeof(T);
     };
 
-    template< typename T>
-    struct Sizeof<T, typename std::enable_if< !is_complete<T>::value >::type> {
+    template<typename T>
+    struct Sizeof<T, typename std::enable_if<!is_complete<T>::value>::type> {
         static constexpr size_t value = 0;
     };
 
-    template< typename T, const size_t bits, typename E = void>
+    template<typename T, const size_t bits, typename E = void>
     struct BitFieldLimits;
 
     template<typename T, const size_t bits>
-    struct BitFieldLimits<T, bits, typename std::enable_if< std::numeric_limits<T>::is_signed &&  std::is_integral<T>::value>::type>{
-        static constexpr int64_t lower = -(1ull<<bits);
-        static constexpr int64_t upper = -lower+1;
+    struct BitFieldLimits<T, bits, typename std::enable_if<
+            std::numeric_limits<T>::is_signed && std::is_integral<T>::value>::type> {
+        static constexpr int64_t lower = -(1ull << bits);
+        static constexpr int64_t upper = -lower + 1;
 
-        static bool is_in_bounds( const T &value){ return (value >= lower) && (value <= upper);}
+        static bool is_in_bounds(const T &value) { return (value >= lower) && (value <= upper); }
     };
 
     template<typename T, const size_t bits>
-    struct BitFieldLimits<T, bits, typename std::enable_if< !std::numeric_limits<T>::is_signed &&  std::is_integral<T>::value>::type>{
+    struct BitFieldLimits<T, bits, typename std::enable_if<
+            !std::numeric_limits<T>::is_signed && std::is_integral<T>::value>::type> {
         static constexpr uint64_t lower = 0;
-        static constexpr uint64_t upper = (1ull<<bits)-1;
-        static bool is_in_bounds( const T &value){ return (value >= lower) && (value <= upper);}
+        static constexpr uint64_t upper = (1ull << bits) - 1;
+
+        static bool is_in_bounds(const T &value) { return (value >= lower) && (value <= upper); }
     };
 
     template<typename T, const size_t bits>
-    struct BitFieldLimits<T, bits, typename std::enable_if< ! std::is_integral<T>::value>::type>{
-       static bool is_in_bounds(const T & value){ return true;/*no meaning here, so always return true*/}
+    struct BitFieldLimits<T, bits, typename std::enable_if<!std::is_integral<T>::value>::type> {
+        static bool is_in_bounds(const T &value) { return true;/*no meaning here, so always return true*/}
     };
 }
 
+
+namespace __pyllars_internal {
+
+    template<typename T>
+    struct ObjContainer {
+        ObjContainer(T &obj) :
+                contained(obj),
+                containedP(&obj) {
+        }
+
+        operator T &() {
+            return contained;
+        }
+
+
+        virtual ~ObjContainer() {
+        }
+
+
+        T *ptr() {
+            return &contained;
+        }
+
+        T **ptrptr() {
+            return &containedP;
+        }
+
+    private:
+        T &contained;
+        T *containedP;
+    };
+
+    template<>
+    struct ObjContainer<void> {
+        ObjContainer() {
+
+        }
+
+        virtual void *ptr() {
+            return nullptr;
+        }
+
+        virtual void **ptrptr() {
+            static void *NO_PTR = nullptr;
+            return &NO_PTR;
+        }
+    };
+
+
+    template<>
+    struct ObjContainer<const void> {
+        ObjContainer() {
+
+        }
+
+        virtual const void *ptr() {
+            return nullptr;
+        }
+
+        virtual const void **ptrptr() {
+            static const void *NO_PTR = nullptr;
+            return &NO_PTR;
+        }
+    };
+
+    template<typename T, bool delete_op_public, typename E =void>
+    struct Deallocator {
+        static void dealloc(T *const ptr);
+    };
+
+    template<typename T>
+    struct Deallocator<T, true, typename std::enable_if<!is_function_ptr<T>::value && !std::is_reference<T>::value &&
+                                                  std::is_destructible<T>::value>::type> {
+        static void dealloc(T *const ptr) {
+            delete ptr;
+        }
+    };
+
+    template<typename T>
+    struct Deallocator<T, false, typename std::enable_if<!is_function_ptr<T>::value && !std::is_reference<T>::value &&
+                                                  std::is_destructible<T>::value>::type> {
+        static void dealloc(T *const ptr) {
+            delete ptr;
+        }
+    };
+    template<typename T, bool delete_op_public>
+    struct Deallocator<T, delete_op_public, typename std::enable_if<!is_function_ptr<T>::value && !std::is_reference<T>::value &&
+                                                  !std::is_destructible<T>::value>::type> {
+        static void dealloc(T *const ptr) {
+        }
+    };
+
+    template<typename T, bool delete_op_public>
+    struct Deallocator<T, delete_op_public, typename std::enable_if<is_function_ptr<T>::value || std::is_reference<T>::value>::type> {
+        static void dealloc(T *const ptr) {
+        }
+    };
+
+    template<typename T, bool delete_op_public>
+    struct ObjContainerPtrProxy : public ObjContainer<T> {
+        ObjContainerPtrProxy(T *const ptr, const bool isAllocated = delete_op_public) :
+                ObjContainer<T>(*ptr),
+                containedPtr(ptr),
+                _isAllocated(isAllocated) {
+        }
+
+        virtual ~ObjContainerPtrProxy() {
+            if (_isAllocated) { Deallocator<T, delete_op_public>::dealloc(containedPtr); }
+        }
+
+    private:
+        T *const containedPtr;
+        const bool _isAllocated;
+    };
+
+    template<bool b>
+    struct ObjContainerPtrProxy<void, b>: public ObjContainer<void>{
+        ObjContainerPtrProxy(void *const ptr, const bool isAllocated = false) :
+                containedPtr(ptr),
+                _isAllocated(isAllocated) {
+        }
+
+        virtual ~ObjContainerPtrProxy() {
+        }
+
+        virtual void* ptr(){
+            return containedPtr;
+        }
+
+        virtual void** ptrptr(){
+            return const_cast<void**>(&containedPtr);
+        }
+
+    private:
+        void *const containedPtr;
+        const bool _isAllocated;
+    };
+
+
+    template<bool b>
+    struct ObjContainerPtrProxy<const void, b>: public ObjContainer<const void>{
+        ObjContainerPtrProxy(const void *const ptr, const bool isAllocated = false) :
+                containedPtr(ptr),
+                _isAllocated(isAllocated) {
+        }
+
+        virtual ~ObjContainerPtrProxy() {
+        }
+
+        virtual const void* ptr(){
+            return containedPtr;
+        }
+
+        virtual const void** ptrptr(){
+            return const_cast<const void**>(&containedPtr);
+        }
+
+    private:
+        const void *const containedPtr;
+        const bool _isAllocated;
+    };
+
+    template<typename T, typename ...Args>
+    struct ObjContainerProxy : ObjContainer<T> {
+
+        ObjContainerProxy(Args ...args) :
+                ObjContainer<T>(contained2),
+                contained2(args...) {
+        }
+
+
+    private:
+        T contained2;
+    };
+
+    template< typename t, const size_t size>
+    struct ObjContainerProxy< t[size], t[size]>: ObjContainer<t[size]> {
+
+        ObjContainerProxy(t arg[size]) :
+                ObjContainer<t[size]>(contained2),
+                contained2{arg[0]}{
+            typedef typename std::remove_const<t>::type unconst_t;
+            unconst_t * unconst_contained = const_cast<unconst_t*>(arg);
+            for(size_t i = 0; i < size; ++i){
+                unconst_contained[i] = arg[i];
+            }
+        }
+
+
+    private:
+        t contained2[size];
+    };
+}
 
 
 #endif

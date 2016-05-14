@@ -11,7 +11,7 @@ namespace __pyllars_internal {
 
 
     struct GlobalVariable {
-        template<typename T>
+        template<typename T, bool del_is_pub>
         static
         PyObject *createGlobalVariable(const char *const name, const char *const tp_name,
                                        typename extent_as_pointer<T>::type *variable, PyObject *module,
@@ -21,33 +21,34 @@ namespace __pyllars_internal {
                 return nullptr;
             }
             static bool inited = false;
-            PyTypeObject *type = &Container<T>::Type;
+            PyTypeObject *type = &Container<T, del_is_pub>::Type;
             char *new_name = new char[strlen(tp_name)];
             strcpy(new_name, tp_name);
-            Container<T>::Type.tp_name = new_name;
+            Container<T, del_is_pub>::Type.tp_name = new_name;
             if (!inited && (PyType_Ready(type) < 0)) {
                 throw "Unable to initialize python object for c function global variable wrapper";
             } else {
                 Py_INCREF(type);
                 static PyObject *emptyargs = PyTuple_New(0);
                 inited = true;
-                auto callable = (Container <T> *) PyObject_CallObject((PyObject *) type, emptyargs);
+                auto callable = (Container <T, del_is_pub> *) PyObject_CallObject((PyObject *) type, emptyargs);
                 if (!PyCallable_Check((PyObject *) callable)) {
                     PyErr_SetString(PyExc_RuntimeError, "Python object is not callbable as expected!");
                     return nullptr;
                 }
-                callable->member = (typename Container<T>::member_t) variable;
+                callable->member = (typename Container<T, del_is_pub>::member_t) variable;
                 callable->array_size = size;
                 PyModule_AddObject(module, name, (PyObject *) callable);
                 return (PyObject *) callable;
             }
         }
 
-        template<typename T, typename E= void>
+        template<typename T, bool del_is_pub, typename E= void>
         class Container;
 
-        template<typename T>
-        class Container<T, typename std::enable_if<!std::is_array<T>::value && !std::is_const<T>::value>::type> {
+        template<typename T, bool del_is_pub>
+        class Container<T, del_is_pub, typename std::enable_if<
+                !std::is_array<T>::value && !std::is_const<T>::value>::type> {
         public:
             typedef typename std::remove_reference<T>::type T_NoRef;
             typedef T *member_t;
@@ -77,10 +78,10 @@ namespace __pyllars_internal {
             static PyObject *call(Container *callable, PyObject *args, PyObject *kwds) {
                 (void) callable;
                 typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
-		const ssize_t type_size = Sizeof<T_base>::value;
-                const ssize_t array_size = type_size> 0?sizeof(*(callable->member)) / type_size:1;
+                const ssize_t type_size = Sizeof<T_base>::value;
+                const ssize_t array_size = type_size > 0 ? sizeof(*(callable->member)) / type_size : 1;
                 if (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "value")) {
-                    *(callable->member) = *toCObject<T, false, PythonClassWrapper<T> >(
+                    *(callable->member) = *toCObject<T, false, PythonClassWrapper<T, del_is_pub> >(
                             *PyDict_GetItemString(kwds, "value"));
                 } else if (kwds) {
                     PyErr_SetString(PyExc_RuntimeError, "Invalid parameters when getting/setting global variable");
@@ -92,14 +93,14 @@ namespace __pyllars_internal {
 
         };
 
-        template<size_t size, typename T>
-        class Container<T[size]> {
+        template<size_t size, typename T, bool del_is_pub>
+        class Container<T[size], del_is_pub> {
         public:
             typedef typename std::remove_reference<T>::type T_NoRef;
             PyObject_HEAD
 
             static PyTypeObject
-            Type;
+                    Type;
             typedef T *member_t[size];
 
             member_t member;
@@ -131,8 +132,8 @@ namespace __pyllars_internal {
                     return nullptr;
                 }
                 typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
-		const ssize_t type_size = Sizeof<T_base>::value;
-                const ssize_t array_size = type_size > 0?sizeof(*(callable->member)) / type_size:1;
+                const ssize_t type_size = Sizeof<T_base>::value;
+                const ssize_t array_size = type_size > 0 ? sizeof(*(callable->member)) / type_size : 1;
                 return toPyObject<T[size], size>(callable->member, false, array_size);
             }
 
@@ -140,14 +141,14 @@ namespace __pyllars_internal {
             }
         };
 
-        template<typename T>
-        class Container<T[], typename std::enable_if<!std::is_const<T>::value>::type> {
+        template<typename T, bool del_is_pub>
+        class Container<T[], del_is_pub, typename std::enable_if<!std::is_const<T>::value>::type> {
         public:
             typedef typename std::remove_reference<T>::type T_NoRef;
             PyObject_HEAD
 
             static PyTypeObject
-            Type;
+                    Type;
 
             typedef T **member_t;
             member_t member;
@@ -176,28 +177,30 @@ namespace __pyllars_internal {
                         PyErr_SetString(PyExc_RuntimeError, "Attempt to set whole array of unknown size");
                         return nullptr;
                     }
-                    T *val = *toCObject<T*, true, PythonClassWrapper<T*> >(*PyDict_GetItemString(kwds, "value"));
+                    T *val = *toCObject<T *, true, PythonClassWrapper<T *, del_is_pub> >(
+                            *PyDict_GetItemString(kwds, "value"));
                     for (size_t i = 0; i < callable->array_size; ++i) (*callable->member)[i] = val[i];
                 } else if (kwds && PyDict_Size(kwds) == 2 && PyDict_GetItemString(kwds, "value") &&
                            PyDict_GetItemString(kwds, "index") &&
                            PyLong_Check(PyDict_GetItemString(kwds, "index"))) {
                     long i = PyLong_AsLong(PyDict_GetItemString(kwds, "index"));
-                    T *val = *toCObject<T*, false, PythonClassWrapper<T*> >(*PyDict_GetItemString(kwds, "value"));
+                    T *val = *toCObject<T *, false, PythonClassWrapper<T *, del_is_pub> >(
+                            *PyDict_GetItemString(kwds, "value"));
                     (*callable->member)[i] = val[i];
                 } else if (kwds && PyDict_Size(kwds) != 0) {
                     PyErr_SetString(PyExc_RuntimeError, "Invalid parameters when getting/setting global variable");
                     return nullptr;
                 }
                 typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
-		const ssize_t type_size = Sizeof<T_base>::value;
-                const ssize_t array_size = type_size > 0?sizeof(*(callable->member)) / type_size:1;
-                return toPyObject<T*>(*callable->member, false, array_size);
+                const ssize_t type_size = Sizeof<T_base>::value;
+                const ssize_t array_size = type_size > 0 ? sizeof(*(callable->member)) / type_size : 1;
+                return toPyObject<T *>(*callable->member, false, array_size);
             }
 
         };
 
-        template<typename T>
-        class Container<const T, typename std::enable_if<!std::is_array<T>::value>::type> {
+        template<typename T, bool del_is_pub>
+        class Container<const T, del_is_pub, typename std::enable_if<!std::is_array<T>::value>::type> {
         public:
             typedef typename std::remove_reference<T>::type T_NoRef;
             typedef const T *member_t;
@@ -205,7 +208,7 @@ namespace __pyllars_internal {
             PyObject_HEAD
 
             static PyTypeObject
-            Type;
+                    Type;
             member_t member;
             size_t array_size;
 
@@ -235,22 +238,22 @@ namespace __pyllars_internal {
                     return nullptr;
                 }
                 typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
-		const ssize_t type_size = Sizeof<T_base>::value;
-                const ssize_t array_size = type_size > 0?sizeof(*(callable->member)) / type_size:1;
+                const ssize_t type_size = Sizeof<T_base>::value;
+                const ssize_t array_size = type_size > 0 ? sizeof(*(callable->member)) / type_size : 1;
                 return toPyObject<T>(*callable->member, false, array_size);
             }
 
 
         };
 
-        template<size_t size, typename T>
-        class Container<const T[size], void> {
+        template<size_t size, typename T, bool del_is_pub>
+        class Container<const T[size], del_is_pub, void> {
         public:
             typedef typename std::remove_reference<T>::type T_NoRef;
             PyObject_HEAD
 
             static PyTypeObject
-            Type;
+                    Type;
             typedef const T **member_t;
 
             member_t member;
@@ -282,22 +285,22 @@ namespace __pyllars_internal {
                     return nullptr;
                 }
                 typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
-		const ssize_t type_size = Sizeof<T_base>::value;
-                const ssize_t array_size = type_size > 0?sizeof(*(callable->member)) / type_size : 1;
+                const ssize_t type_size = Sizeof<T_base>::value;
+                const ssize_t array_size = type_size > 0 ? sizeof(*(callable->member)) / type_size : 1;
                 return toPyObject<T>(callable->member, false, array_size);
             }
 
 
         };
 
-        template<typename T>
-        class Container<const T[], void> {
+        template<typename T, bool del_is_pub>
+        class Container<const T[], del_is_pub, void> {
         public:
             typedef typename std::remove_reference<T>::type T_NoRef;
             PyObject_HEAD
 
             static PyTypeObject
-            Type;
+                    Type;
             typedef const T **member_t;
 
             member_t member;
@@ -329,8 +332,8 @@ namespace __pyllars_internal {
                     return nullptr;
                 }
                 typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
-		const ssize_t type_size = Sizeof<T_base>::value;
-                const ssize_t  array_size = type_size>0?sizeof(*(callable->member))/type_size:1;
+                const ssize_t type_size = Sizeof<T_base>::value;
+                const ssize_t array_size = type_size > 0 ? sizeof(*(callable->member)) / type_size : 1;
                 return toPyObject<const T *>(*callable->member, false, array_size);
             }
 
@@ -342,13 +345,14 @@ namespace __pyllars_internal {
 
 
     //Python definition of Type for this function wrapper
-    template<typename T>
-    PyTypeObject GlobalVariable::Container<T, typename std::enable_if<
+    template<typename T, bool del_is_pub>
+    PyTypeObject GlobalVariable::Container<T, del_is_pub, typename std::enable_if<
             !std::is_array<T>::value && !std::is_const<T>::value>::type>::Type = {
             PyObject_HEAD_INIT(nullptr)
             0,                               /*ob_size*/
             nullptr,                         /*tp_name*/
-            sizeof(GlobalVariable::Container<T, typename std::enable_if< !std::is_array<T>::value && !std::is_const<T>::value>::type >),   /*tp_basicsize*/
+            sizeof(GlobalVariable::Container<T, del_is_pub, typename std::enable_if<
+                    !std::is_array<T>::value && !std::is_const<T>::value>::type>),   /*tp_basicsize*/
             0,                               /*tp_itemsize*/
             nullptr,                         /*tp_dealloc*/
             nullptr,                         /*tp_print*/
@@ -360,7 +364,7 @@ namespace __pyllars_internal {
             nullptr,                         /*tp_as_sequence*/
             nullptr,                         /*tp_as_mapping*/
             nullptr,                         /*tp_hash */
-            (ternaryfunc)call,                           /*tp_call*/
+            (ternaryfunc) call,                           /*tp_call*/
             nullptr,                         /*tp_str*/
             nullptr,                         /*tp_getattro*/
             nullptr,                         /*tp_setattro*/
@@ -397,12 +401,12 @@ namespace __pyllars_internal {
 
 
     //Python definition of Type for this function wrapper
-    template<size_t size, typename T>
-    PyTypeObject GlobalVariable::Container<T[size], void>::Type = {
+    template<size_t size, typename T, bool del_is_pub>
+    PyTypeObject GlobalVariable::Container<T[size], del_is_pub, void>::Type = {
             PyObject_HEAD_INIT(nullptr)
             0,                               /*ob_size*/
             nullptr,                         /*tp_name*/
-            sizeof(GlobalVariable::Container<T[size], void>),   /*tp_basicsize*/
+            sizeof(GlobalVariable::Container<T[size], del_is_pub, void>),   /*tp_basicsize*/
             0,                               /*tp_itemsize*/
             nullptr,                         /*tp_dealloc*/
             nullptr,                         /*tp_print*/
@@ -414,7 +418,7 @@ namespace __pyllars_internal {
             nullptr,                         /*tp_as_sequence*/
             nullptr,                         /*tp_as_mapping*/
             nullptr,                         /*tp_hash */
-            (ternaryfunc)call,                           /*tp_call*/
+            (ternaryfunc) call,                           /*tp_call*/
             nullptr,                         /*tp_str*/
             nullptr,                         /*tp_getattro*/
             nullptr,                         /*tp_setattro*/
@@ -450,12 +454,12 @@ namespace __pyllars_internal {
     };
 
     //Python definition of Type for this function wrapper
-    template<typename T>
-    PyTypeObject GlobalVariable::Container<const T, typename std::enable_if<!std::is_array<T>::value>::type>::Type = {
+    template<typename T, bool del_is_pub>
+    PyTypeObject GlobalVariable::Container<const T, del_is_pub, typename std::enable_if<!std::is_array<T>::value>::type>::Type = {
             PyObject_HEAD_INIT(nullptr)
             0,                               /*ob_size*/
             nullptr,                         /*tp_name*/
-            sizeof(GlobalVariable::Container<const T, typename std::enable_if< !std::is_array<T>::value>::type>),   /*tp_basicsize*/
+            sizeof(GlobalVariable::Container<const T,del_is_pub, typename std::enable_if<!std::is_array<T>::value>::type>),   /*tp_basicsize*/
             0,                               /*tp_itemsize*/
             nullptr,                         /*tp_dealloc*/
             nullptr,                         /*tp_print*/
@@ -467,7 +471,7 @@ namespace __pyllars_internal {
             nullptr,                         /*tp_as_sequence*/
             nullptr,                         /*tp_as_mapping*/
             nullptr,                         /*tp_hash */
-            (ternaryfunc)call,                           /*tp_call*/
+            (ternaryfunc) call,                           /*tp_call*/
             nullptr,                         /*tp_str*/
             nullptr,                         /*tp_getattro*/
             nullptr,                         /*tp_setattro*/
@@ -503,12 +507,12 @@ namespace __pyllars_internal {
     };
 
     //Python definition of Type for this function wrapper
-    template<size_t size, typename T>
-    PyTypeObject GlobalVariable::Container<const T[size], void>::Type = {
+    template<size_t size, typename T, bool del_is_pub>
+    PyTypeObject GlobalVariable::Container<const T[size], del_is_pub, void>::Type = {
             PyObject_HEAD_INIT(nullptr)
             0,                               /*ob_size*/
             nullptr,                         /*tp_name*/
-            sizeof(GlobalVariable::Container<const T[size], void>),   /*tp_basicsize*/
+            sizeof(GlobalVariable::Container<const T[size], del_is_pub, void>),   /*tp_basicsize*/
             0,                               /*tp_itemsize*/
             nullptr,                         /*tp_dealloc*/
             nullptr,                         /*tp_print*/
@@ -520,7 +524,7 @@ namespace __pyllars_internal {
             nullptr,                         /*tp_as_sequence*/
             nullptr,                         /*tp_as_mapping*/
             nullptr,                         /*tp_hash */
-            (ternaryfunc)call,                           /*tp_call*/
+            (ternaryfunc) call,                           /*tp_call*/
             nullptr,                         /*tp_str*/
             nullptr,                         /*tp_getattro*/
             nullptr,                         /*tp_setattro*/
@@ -557,12 +561,12 @@ namespace __pyllars_internal {
 
 
     //Python definition of Type for this function wrapper
-    template<typename T>
-    PyTypeObject GlobalVariable::Container<T[], typename std::enable_if<!std::is_const<T>::value>::type>::Type = {
+    template<typename T, bool del_is_pub>
+    PyTypeObject GlobalVariable::Container<T[], del_is_pub, typename std::enable_if<!std::is_const<T>::value>::type>::Type = {
             PyObject_HEAD_INIT(nullptr)
             0,                               /*ob_size*/
             nullptr,                         /*tp_name*/
-            sizeof(GlobalVariable::Container<T[], void>),   /*tp_basicsize*/
+            sizeof(GlobalVariable::Container<T[], del_is_pub, void>),   /*tp_basicsize*/
             0,                               /*tp_itemsize*/
             nullptr,                         /*tp_dealloc*/
             nullptr,                         /*tp_print*/
@@ -574,7 +578,7 @@ namespace __pyllars_internal {
             nullptr,                         /*tp_as_sequence*/
             nullptr,                         /*tp_as_mapping*/
             nullptr,                         /*tp_hash */
-            (ternaryfunc)call,                           /*tp_call*/
+            (ternaryfunc) call,                           /*tp_call*/
             nullptr,                         /*tp_str*/
             nullptr,                         /*tp_getattro*/
             nullptr,                         /*tp_setattro*/
@@ -610,12 +614,12 @@ namespace __pyllars_internal {
     };
 
     //Python definition of Type for this function wrapper
-    template<typename T>
-    PyTypeObject GlobalVariable::Container<const T[], void>::Type = {
+    template<typename T, bool del_is_pub>
+    PyTypeObject GlobalVariable::Container<const T[], del_is_pub, void>::Type = {
             PyObject_HEAD_INIT(nullptr)
             0,                               /*ob_size*/
             nullptr,                         /*tp_name*/
-            sizeof(GlobalVariable::Container<const T[], void>),   /*tp_basicsize*/
+            sizeof(GlobalVariable::Container<const T[], del_is_pub, void>),   /*tp_basicsize*/
             0,                               /*tp_itemsize*/
             nullptr,                         /*tp_dealloc*/
             nullptr,                         /*tp_print*/
@@ -627,7 +631,7 @@ namespace __pyllars_internal {
             nullptr,                         /*tp_as_sequence*/
             nullptr,                         /*tp_as_mapping*/
             nullptr,                         /*tp_hash */
-            (ternaryfunc)call,                           /*tp_call*/
+            (ternaryfunc) call,                           /*tp_call*/
             nullptr,                         /*tp_str*/
             nullptr,                         /*tp_getattro*/
             nullptr,                         /*tp_setattro*/

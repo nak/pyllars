@@ -8,7 +8,7 @@
 #include <Python.h>
 
 #include "pyllars_defns.hpp"
-#include "pyllars_pointer.hpp"
+//#include "pyllars_pointer.hpp"
 #include "pyllars_classwrapper.hpp"
 
 /***********************************
@@ -24,10 +24,11 @@
 namespace __pyllars_internal {
 
 
-
     template<typename C, const ssize_t last, typename Z>
     struct PythonClassWrapper;
 
+    template< typename T>
+    struct ObjConatinerPtrProxy;
 
     class ObjectLifecycleHelpers {
     public:
@@ -43,23 +44,28 @@ namespace __pyllars_internal {
         template<typename T, typename PtrWrapper, const ssize_t max, typename E>
         class PyObjectConversionHelper;
 
+        template< typename T>
+                friend struct ObjConatinerPtrProxy;
+
     private:
 
         template<typename T, typename Z= void>
         struct Array;
 
         template<typename T>
-        struct Array<T, typename std::enable_if< is_complete<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value>::type>{
+        struct Array<T, typename std::enable_if<is_complete<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value>::type> {
             typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
-            static T_base& at( T  array, size_t index){
+
+            static T_base &at(T array, size_t index) {
                 return array[index];
             }
         };
 
         template<typename T>
-        struct Array<T, typename std::enable_if< !is_complete<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value>::type>{
+        struct Array<T, typename std::enable_if<!is_complete<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value>::type> {
             typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
-            static T_base *at( T  array, size_t index){
+
+            static T_base *at(T array, size_t index) {
                 throw "Cannot dereference incomplete type";
             }
         };
@@ -69,21 +75,23 @@ namespace __pyllars_internal {
 
         template<typename T>
         struct Copy<T, typename std::enable_if<std::is_destructible<typename std::remove_reference<T>::type>::value &&
-                   std::is_assignable<typename std::remove_reference<T>::type, typename std::remove_reference<T>::type>::value &&
-                std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type> {
+                                               std::is_assignable<typename std::remove_reference<T>::type, typename std::remove_reference<T>::type>::value &&
+                                               std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type> {
             typedef typename std::remove_reference<T>::type T_NoRef;
-            static T_NoRef *new_copy(const T &value) {
-                return new T_NoRef(value);
+
+            static ObjContainer<T_NoRef> *new_copy(const T &value) {
+                return new ObjContainerProxy<T_NoRef, const T&>(value);
             }
 
-            static T_NoRef *new_copy(T_NoRef * const value) {
+            static T_NoRef *new_copy(T_NoRef *const value) {
                 return new T_NoRef(*value);
             }
 
-            static void inplace_copy(T_NoRef *const to, const Py_ssize_t index, const T_NoRef * const from, const bool in_place){
+            static void inplace_copy(T_NoRef *const to, const Py_ssize_t index, const T_NoRef *const from,
+                                     const bool in_place) {
                 if (in_place) {
                     to[index].~T();
-                    new (&to[index]) T_NoRef(*from);
+                    new(&to[index]) T_NoRef(*from);
                 } else {
                     to[index] = *from;
                 }
@@ -92,48 +100,56 @@ namespace __pyllars_internal {
         };
 
         template<typename T>
-        struct Copy<T, typename std::enable_if<(!std::is_assignable<typename std::remove_reference<T>::type, typename std::remove_reference<T>::type>::value || !std::is_destructible<typename std::remove_reference<T>::type>::value) &&
-                                               std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type> {
+        struct Copy<T, typename std::enable_if<
+                (!std::is_assignable<typename std::remove_reference<T>::type, typename std::remove_reference<T>::type>::value ||
+                 !std::is_destructible<typename std::remove_reference<T>::type>::value) &&
+                std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type> {
             typedef typename std::remove_reference<T>::type T_NoRef;
-            static T_NoRef *new_copy(const T &value) {
-                return new T_NoRef(value);
+
+            static ObjContainer<T_NoRef> *new_copy(const T &value) {
+                return new ObjContainerProxy<T_NoRef, const T&>(value);
             }
 
-            static T_NoRef *new_copy(T_NoRef* const value) {
-                return new T_NoRef(*value);
+            static ObjContainer<T_NoRef> *new_copy(T_NoRef *const value) {
+                return new ObjContainerProxy<T_NoRef, T_NoRef &>(*value);
             }
 
-            static void inplace_copy(T_NoRef * const to, const Py_ssize_t index, const T_NoRef * const from, const bool in_place){
+            static void inplace_copy(T_NoRef *const to, const Py_ssize_t index, const T_NoRef *const from,
+                                     const bool in_place) {
                 throw "Cannot copy over item of non-destructible type";
             }
         };
 
-      template<typename T>
-      struct Copy<T, typename std::enable_if< std::is_void<T>::value >::type > {
-            static void *new_copy( T* const value) {
-               throw "Attmpet to copy void object";
+        template<typename T>
+        struct Copy<T, typename std::enable_if<std::is_void<T>::value>::type> {
+            static ObjContainer<void> *new_copy(T *const value) {
+                throw "Attmpet to copy void object";
             }
 
-            static void inplace_copy(T* const to, const Py_ssize_t index,  const T* const from, const bool in_place){
+            static void inplace_copy(T *const to, const Py_ssize_t index, const T *const from, const bool in_place) {
                 throw "Cannot copy void item";
             }
         };
 
 
         template<typename T>
-        struct Copy<T, typename std::enable_if<!std::is_void<T>::value && !std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type> {
+        struct Copy<T, typename std::enable_if<!std::is_void<T>::value &&
+                                               !std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type> {
             typedef typename std::remove_reference<T>::type T_NoRef;
-            static T_NoRef *new_copy(const T_NoRef &value) {
+
+            static ObjContainer<T_NoRef> *new_copy(const T_NoRef &value) {
                 (void) value;
                 throw "Attempt to copy non-copy-constructible object";
             }
-            static T_NoRef *new_copy( T_NoRef * const value) {
+
+            static ObjContainer<T_NoRef> *new_copy(T_NoRef *const value) {
                 (void) value;
                 throw "Attempt to copy non-copy-constructible object";
             }
 
 
-            static void inplace_copy(T_NoRef * const to, const Py_ssize_t index, const T_NoRef * const from, const bool in_place){
+            static void inplace_copy(T_NoRef *const to, const Py_ssize_t index, const T_NoRef *const from,
+                                     const bool in_place) {
                 throw "Attempt to copy non-copy-constructible object";
             }
         };
@@ -217,16 +233,18 @@ namespace __pyllars_internal {
          **/
         template<typename T, typename ClassWrapper>
         class ObjectContent<T, ClassWrapper,
-                typename std::enable_if< !std::is_void<T>::value && !std::is_pointer<T>::value && !std::is_array<T>::value >::type> {
+                typename std::enable_if<
+                        !std::is_void<T>::value && !std::is_pointer<T>::value && !std::is_array<T>::value>::type> {
         public:
 
-	  static PyObject *getObjectAt(T const from, const size_t index, const ssize_t elements_array_size, const size_t depth, const bool asArgument = true) {
+            static PyObject *getObjectAt(T const from, const size_t index, const ssize_t elements_array_size,
+                                         const size_t depth, const bool asArgument = true) {
                 throw "Attempt to get element from non-array object";
             }
 
             static void set(const size_t index, T *const to, const T *const from, const size_t depth) {
                 if (depth > 1) {
-                    Assign<T*, T*>::assign(((T**)to)[index], *((T**)from));
+                    Assign<T *, T *>::assign(((T **) to)[index], *((T **) from));
                 } else {
                     Assign<T, T>::assign(to[index], *from);
                 }
@@ -250,15 +268,16 @@ namespace __pyllars_internal {
         public:
             typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
 
-            static PyObject *getObjectAt(T  from, const size_t index, const ssize_t elements_array_size, const size_t depth, 
-const bool asArgument = true) {
+            static PyObject *getObjectAt(T from, const size_t index, const ssize_t elements_array_size,
+                                         const size_t depth,
+                                         const bool asArgument = true) {
                 //TODO add reference to owning element to this object to not have go out of scope
                 //until parent does!!!!
                 if (depth == 1) {
                     return toPyObject<T_base>(Array<T>::at(from, index), true, elements_array_size);
                 } else {
-                    T* from_real = (T*)from;
-                    return toPyObject<T>( from_real[index], asArgument, elements_array_size, depth-1);
+                    T *from_real = (T *) from;
+                    return toPyObject<T>(from_real[index], asArgument, elements_array_size, depth - 1);
                 }
             }
 
@@ -267,7 +286,7 @@ const bool asArgument = true) {
                     Assign<T_base, T_base>::assign(Array<T>::at(to, index), *from);
                 } else {
                     typedef typename std::remove_reference<T>::type T_NoRef;
-                    Assign<T_NoRef , T_NoRef >::assign(Array<T_NoRef *>::at((T_NoRef *)to, index), *((T_NoRef *)from));
+                    Assign<T_NoRef, T_NoRef>::assign(Array<T_NoRef *>::at((T_NoRef *) to, index), *((T_NoRef *) from));
                 }
             }
 
@@ -285,7 +304,8 @@ const bool asArgument = true) {
                 typename std::enable_if<std::is_function<typename std::remove_pointer<T>::type>::value>::type> {
         public:
 
-	  static PyObject *getObjectAt(T const from, const size_t index, const ssize_t elements_array_size, const size_t depth, const bool asArgument = true) {
+            static PyObject *getObjectAt(T const from, const size_t index, const ssize_t elements_array_size,
+                                         const size_t depth, const bool asArgument = true) {
                 throw "Attempt to take index from function pointer";
             }
 
@@ -305,11 +325,12 @@ const bool asArgument = true) {
         template<typename T, typename PtrWrapper>
         class ObjectContent<T, PtrWrapper,
                 typename std::enable_if<!is_complete<typename std::remove_pointer<T>::type>::value &&
-                       !std::is_function<typename std::remove_pointer<T>::type>::value &&
-                        !std::is_void<typename std::remove_pointer<T>::type>::value>::type> {
+                                        !std::is_function<typename std::remove_pointer<T>::type>::value &&
+                                        !std::is_void<typename std::remove_pointer<T>::type>::value>::type> {
         public:
 
-	  static PyObject *getObjectAt(T const from, const size_t index, const ssize_t elements_array_size, const size_t depth, const bool asArgument = true) {
+            static PyObject *getObjectAt(T const from, const size_t index, const ssize_t elements_array_size,
+                                         const size_t depth, const bool asArgument = true) {
                 throw "Attempt to take index from function pointer";
             }
 
@@ -334,8 +355,8 @@ const bool asArgument = true) {
         template<typename PtrWrapper>
         struct BasicDeallocation {
             static void _free(PtrWrapper *self) {
-	        self->delete_raw_storage();
-                if(self->_allocated) self->_CObject = nullptr;
+                self->delete_raw_storage();
+                if (self->_allocated) self->_CObject = nullptr;
                 self->_allocated = false;
             }
         };
@@ -348,30 +369,31 @@ const bool asArgument = true) {
          * if needed in addition to basic clean-up
          **/
         template<typename T, typename PtrWrapper>
-        struct Deallocation<T , PtrWrapper, typename std::enable_if< 
-	       ( std::is_pointer<T>::value ||  std::is_array<T>::value) && 
-          	 std::is_class<typename std::remove_pointer<typename  extent_as_pointer<T>::type>::type>::value &&
-	std::is_destructible<typename std::remove_pointer<typename  extent_as_pointer<T>::type>::type>::value
-                       >::type > {
+        struct Deallocation<T, PtrWrapper, typename std::enable_if<
+                (std::is_pointer<T>::value || std::is_array<T>::value) &&
+                std::is_class<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value &&
+                std::is_destructible<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value
+        >::type> {
 
-	    typedef typename std::remove_pointer< typename extent_as_pointer<T>::type>::type T_base;
+            typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
+
             static void _free(PtrWrapper *self) {
                 if (self->_raw_storage) {
                     if (self->_depth == 1 && self->_max >= 0) {
                         for (Py_ssize_t j = 0; j <= self->_max; ++j) {
-			  ((*self->_CObject)[j]).~T_base();
+                            ((*self->_CObject)[j]).~T_base();
                         }
                     }
                     delete[] self->_raw_storage;
                 } else if (self->_allocated) {
-		  if(std::is_array<T>::value){
-		    delete[] self->_CObject;
-		  } else {
-		    delete self->_CObject;
-		  }
+                    if (std::is_array<T>::value) {
+                        delete[] self->_CObject;
+                    } else {
+                        delete self->_CObject;
+                    }
                 }
                 self->_raw_storage = nullptr;
-                if(self->_allocated) self->_CObject = nullptr;
+                if (self->_allocated) self->_CObject = nullptr;
                 self->_allocated = false;
             }
         };
@@ -381,24 +403,24 @@ const bool asArgument = true) {
          * if needed in addition to basic clean-up
          **/
         template<typename T, typename PtrWrapper>
-        struct Deallocation<T , PtrWrapper, typename std::enable_if<
-	       ( std::is_pointer<T>::value ||  std::is_array<T>::value) && 
-          	 !std::is_class<typename std::remove_pointer<typename  extent_as_pointer<T>::type>::type>::value &&
-	         std::is_destructible<typename std::remove_pointer<typename  extent_as_pointer<T>::type>::type>::value
-                   >::type> {
+        struct Deallocation<T, PtrWrapper, typename std::enable_if<
+                (std::is_pointer<T>::value || std::is_array<T>::value) &&
+                !std::is_class<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value &&
+                std::is_destructible<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value
+        >::type> {
             static void _free(PtrWrapper *self) {
                 if (self->_raw_storage) {
-		  // No class type here, so no need to call inline destructor
+                    // No class type here, so no need to call inline destructor
                     delete[] self->_raw_storage;
                 } else if (self->_allocated) {
-		  if(std::is_array<T>::value){
-		    delete[] self->_CObject;
-		  } else {
-		    delete self->_CObject;
-		  }
+                    if (std::is_array<T>::value) {
+                        delete[] self->_CObject;
+                    } else {
+                        delete self->_CObject;
+                    }
                 }
                 self->_raw_storage = nullptr;
-                if(self->_allocated) self->_CObject = nullptr;
+                if (self->_allocated) self->_CObject = nullptr;
                 self->_allocated = false;
             }
         };
@@ -408,17 +430,17 @@ const bool asArgument = true) {
          * if needed in addition to basic clean-up
          **/
         template<typename T, typename PtrWrapper>
-        struct Deallocation<T , PtrWrapper, typename std::enable_if<
-	         !std::is_destructible<typename std::remove_pointer<typename  extent_as_pointer<T>::type>::type>::value>::type> {
+        struct Deallocation<T, PtrWrapper, typename std::enable_if<
+                !std::is_destructible<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value>::type> {
             static void _free(PtrWrapper *self) {
                 if (self->_raw_storage) {
-		  // No class type here, so no need to call inline destructor
+                    // No class type here, so no need to call inline destructor
                     delete[] self->_raw_storage;
                 } else if (self->_allocated) {
-		  //Not destructible, so no delete call
+                    //Not destructible, so no delete call
                 }
                 self->_raw_storage = nullptr;
-                if(self->_allocated) self->_CObject = nullptr;
+                if (self->_allocated) self->_CObject = nullptr;
                 self->_allocated = false;
             }
         };
@@ -516,15 +538,15 @@ const bool asArgument = true) {
 
             class ConstructorContainer {
             public:
-                typedef bool(*constructor)(const char *const kwlist[], PyObject *args, PyObject *kwds, T_NoRef *&cobj);
+                typedef bool(*constructor)(const char *const kwlist[], PyObject *args, PyObject *kwds, ObjContainer<T_NoRef> *&cobj);
 
                 ConstructorContainer(const char *const kwlist[],
                                      constructor c) : _kwlist(kwlist),
                                                       _constructor(c) {
                 }
 
-                bool operator()(PyObject *args, PyObject *kwds, T_NoRef *&cobj) const {
-                    return _constructor(_kwlist, args, kwds, cobj);
+                bool operator()(PyObject *args, PyObject *kwds, ObjContainer <T_NoRef> *&cobj) const {
+                   return _constructor(_kwlist, args, kwds, cobj);
                 }
 
             private:
@@ -557,7 +579,7 @@ const bool asArgument = true) {
                         PyObject *constructor_pyargs = PyList_GetItem(list, i);
                         if (!PyTuple_Check(constructor_pyargs) && !PyDict_Check(constructor_pyargs)) {
                             PyErr_SetString(PyExc_TypeError, "Invalid element in list argument, expected tuple");
-                             if (raw_storage) {
+                            if (raw_storage) {
                                 for (Py_ssize_t j = 0; j < i; ++j) {
                                     values[j].~T();
                                 }
@@ -589,7 +611,7 @@ const bool asArgument = true) {
                         if (!values || !values[i]) {
                             PyErr_SetString(PyExc_RuntimeError,
                                             "Invalid constructor arguments on allocation.  Objects not destructible by design! ");
-                             if (raw_storage) {
+                            if (raw_storage) {
                                 for (Py_ssize_t j = 0; j < i; ++j) {
                                     values[j].~T();
                                 }
@@ -598,7 +620,7 @@ const bool asArgument = true) {
                             return nullptr;
                         }
                     }
-                     PtrWrapper *obj =
+                    PtrWrapper *obj =
                             (PtrWrapper *) PtrWrapper::template createPy<T_NoRef *>(size, &values, !raw_storage);
                     obj->_raw_storage = raw_storage;
                     return (PyObject *) obj;
@@ -617,7 +639,7 @@ const bool asArgument = true) {
                     PyErr_SetString(PyExc_RuntimeError, "Invalid constructor arguments on allocation");
                     return nullptr;
                 }
-                PtrWrapper *obj = PtrWrapper::template createPy<T*>( size, cobj,  true);
+                PtrWrapper *obj = PtrWrapper::template createPy<T *>(size, cobj, true);
                 return (PyObject *) obj;
             }
 
@@ -641,7 +663,7 @@ const bool asArgument = true) {
 
             typedef typename std::remove_reference<T>::type T_NoRef;
 
-            static void dealloc(T_NoRef *ptr) {
+            static void dealloc(ObjContainer <T_NoRef> *ptr) {
                 delete ptr;
             }
 
@@ -652,14 +674,14 @@ const bool asArgument = true) {
                 //Check if argument is list of tuples, and if so construct
                 //an array of objects to store "behind the pointer"
 
-                Py_ssize_t  size = 1;
+                Py_ssize_t size = 1;
                 if ((!kwds || PyDict_Size(kwds) == 0) && args && (PyTuple_Size(args) == 1) &&
                     PyList_Check(PyTuple_GetItem(args, 0))) {
                     PyObject *list = PyTuple_GetItem(args, 0);
                     size = PyList_Size(list);
                     char *raw_storage;
                     T_NoRef **values;
-                     PtrWrapper::initialize();
+                    PtrWrapper::initialize();
 
 
                     raw_storage = (char *) operator new[](size * sizeof(T));
@@ -670,7 +692,7 @@ const bool asArgument = true) {
                         PyObject *constructor_pyargs = PyList_GetItem(list, i);
                         if (!PyTuple_Check(constructor_pyargs) && !PyDict_Check(constructor_pyargs)) {
                             PyErr_SetString(PyExc_TypeError, "Invalid element in list argument, expected tuple");
-                             if (raw_storage) {
+                            if (raw_storage) {
                                 for (Py_ssize_t j = 0; j < i; ++j) {
                                     (*values)[j].~T();
                                 }
@@ -680,7 +702,7 @@ const bool asArgument = true) {
                         } else if (PyTuple_Check(constructor_pyargs)) {
                             for (auto it = constructors.begin(); it != constructors.end(); ++it) {
                                 try {
-				  T_NoRef *cobj = &((*values)[i]);
+                                    ObjContainer<T_NoRef> *cobj = new ObjContainer<T_NoRef>(((*values)[i]));
                                     if ((*it)(constructor_pyargs, nullptr, cobj)) {
                                         found = true;
                                         break;
@@ -693,7 +715,7 @@ const bool asArgument = true) {
                             for (auto it = constructors.begin(); it != constructors.end(); ++it) {
                                 try {
                                     static PyObject *emptyargs = PyTuple_New(0);
-                                    T_NoRef *cobj = &(*values)[i];
+                                    ObjContainer<T_NoRef> *cobj = new ObjContainer<T_NoRef>((*values)[i]);
                                     if ((*it)(emptyargs, constructor_pyargs, cobj)) {
                                         found = true;
                                         break;
@@ -714,9 +736,9 @@ const bool asArgument = true) {
                             return nullptr;
                         }
                     }
-                    PtrWrapper* obj = (PtrWrapper*)PtrWrapper::createPy(size, values, false);
+                    PtrWrapper *obj = (PtrWrapper *) PtrWrapper::createPy(size, values, false);
                     if (raw_storage) {
-		      obj->set_raw_storage(raw_storage);
+                        obj->set_raw_storage(raw_storage);
                     }
                     return (PyObject *) obj;
                 }
@@ -725,7 +747,7 @@ const bool asArgument = true) {
                 //for single object allocation
                 PyObject *alloc_kwds = PyDict_New();
                 PyDict_SetItemString(alloc_kwds, "__internal_allow_null", Py_True);
-                T_NoRef *cobj = nullptr;
+                ObjContainer<T_NoRef> *cobj = nullptr;
                 for (auto it = constructors.begin(); it != constructors.end(); ++it) {
                     try {
                         if ((*it)(args, kwds, cobj)) { break; }
@@ -738,7 +760,7 @@ const bool asArgument = true) {
                     PyErr_SetString(PyExc_RuntimeError, "Invalid constructor arguments on allocation");
                     return nullptr;
                 }
-                return (PyObject*) PtrWrapper::createPy( size, &cobj, true);
+                return (PyObject *) PtrWrapper::createPy(size, cobj?cobj->ptrptr():nullptr, true);
             }
         };
 
@@ -753,7 +775,7 @@ const bool asArgument = true) {
             typedef typename std::remove_reference<T>::type T_NoRef;
 
 
-            static void dealloc(T_NoRef *ptr) {
+            static void dealloc(ObjContainer <T_NoRef> *ptr) {
                 delete ptr;
             }
 
@@ -775,11 +797,11 @@ const bool asArgument = true) {
                         raw_storage = nullptr;
                         values = nullptr;
                     }
-                     for (Py_ssize_t i = 0; i < PyTuple_Size(args); ++i) {
+                    for (Py_ssize_t i = 0; i < PyTuple_Size(args); ++i) {
                         PyObject *constructor_pyargs = PyList_GetItem(list, i);
                         if (!PyTuple_Check(constructor_pyargs) && !PyDict_Check(constructor_pyargs)) {
                             PyErr_SetString(PyExc_TypeError, "Invalid element in list argument, expected tuple");
-                             if (raw_storage) {
+                            if (raw_storage) {
                                 if (raw_storage) {
                                     for (Py_ssize_t j = 0; j < i; ++j) {
                                         values[j].~T();
@@ -813,7 +835,7 @@ const bool asArgument = true) {
                         if (!values || !values[i]) {
                             PyErr_SetString(PyExc_RuntimeError,
                                             "Invalid constructor arguments on allocation.  Objects not destructible by design! ");
-                             if (raw_storage) {
+                            if (raw_storage) {
                                 for (Py_ssize_t j = 0; j < i; ++j) {
                                     values[j].~T();
                                 }
@@ -825,7 +847,7 @@ const bool asArgument = true) {
 
                         }
                     }
-                    PtrWrapper *obj =PtrWrapper::template createPy(size, values, !raw_storage);
+                    PtrWrapper *obj = PtrWrapper::template createPy(size, values, !raw_storage);
                     obj->set_raw_storage(raw_storage);
                     return (PyObject *) obj;
                 }
@@ -840,11 +862,11 @@ const bool asArgument = true) {
                     PyErr_Clear();
                 }
                 if (!cobj) {
-                     PyErr_SetString(PyExc_RuntimeError, "Invalid constructor arguments on allocation");
+                    PyErr_SetString(PyExc_RuntimeError, "Invalid constructor arguments on allocation");
                     return nullptr;
                 }
-                PythonClassWrapper<T_NoRef *, -1, void> *obj =
-                        PythonClassWrapper<T_NoRef *, -1, void>::template createPy<T_NoRef*>( 1, cobj, true);
+                PythonClassWrapper<T_NoRef *, UNKNOWN_SIZE, void> *obj =
+                        PythonClassWrapper<T_NoRef *, UNKNOWN_SIZE, void>::template createPy(1, cobj, true);
 
                 return (PyObject *) obj;
             }
@@ -852,18 +874,18 @@ const bool asArgument = true) {
         };
 
         template<typename ReturnType, typename ...Args>
-        struct Alloc<ReturnType(*)(Args...), PythonClassWrapper<ReturnType(**)(Args...)>,
-                PythonClassWrapper<ReturnType(*)(Args...)>,
+        struct Alloc<ReturnType(*)(Args...), PythonClassWrapper<ReturnType(**)(Args...), true>,
+                PythonClassWrapper<ReturnType(*)(Args...), true>,
                 void> :
-                public BasicAlloc<ReturnType(*)(Args...), PythonClassWrapper<ReturnType(**)(Args...)> > {
+                public BasicAlloc<ReturnType(*)(Args...), PythonClassWrapper<ReturnType(**)(Args...), true> > {
 
-            typedef PythonClassWrapper<ReturnType(**)(Args...), -1, void> PtrWrapper;
+            typedef PythonClassWrapper<ReturnType(**)(Args...), UNKNOWN_SIZE, void> PtrWrapper;
 
             typedef ReturnType(*T)(Args...);
 
             typedef typename std::remove_reference<T>::type T_NoRef;
 
-            static void dealloc(T_NoRef *ptr) {
+            static void dealloc(ObjContainer <T_NoRef> *ptr) {
                 delete ptr;
             }
 
@@ -885,7 +907,7 @@ const bool asArgument = true) {
                         raw_storage = nullptr;
                         values = nullptr;
                     }
-                     for (Py_ssize_t i = 0; i < PyTuple_Size(args); ++i) {
+                    for (Py_ssize_t i = 0; i < PyTuple_Size(args); ++i) {
                         PyObject *constructor_pyargs = PyList_GetItem(list, i);
                         if (!PyTuple_Check(constructor_pyargs) && !PyDict_Check(constructor_pyargs)) {
                             PyErr_SetString(PyExc_TypeError, "Invalid element in list argument, expected tuple");
@@ -932,8 +954,8 @@ const bool asArgument = true) {
                         PyErr_SetString(PyExc_RuntimeError, "Invalid object creation");
                         return nullptr;
                     }
-                    PtrWrapper *obj = PtrWrapper::template createPy< T*>(size, values, !raw_storage);
-                    obj->set_raw_storage( raw_storage);
+                    PtrWrapper *obj = PtrWrapper::createPy(size, values, !raw_storage);
+                    obj->set_raw_storage(raw_storage);
                     return (PyObject *) obj;
                 }
 
@@ -951,23 +973,23 @@ const bool asArgument = true) {
                     PyErr_SetString(PyExc_RuntimeError, "Invalid constructor arguments on allocation");
                     return nullptr;
                 }
-                PtrWrapper *obj = PythonClassWrapper<T_NoRef *, -1, void>::template createPy<T_NoRef*>( 1, cobj, true);
-                obj->set_raw_storage( nullptr);
+                PtrWrapper *obj = PythonClassWrapper<T_NoRef *, UNKNOWN_SIZE, void>::template createPy<T_NoRef *>(1, cobj, true);
+                obj->set_raw_storage(nullptr);
                 return (PyObject *) obj;
             }
         };
 
         template<typename T>
         struct Alloc<T,
-                PythonClassWrapper<T *, -1, void>,
-                PythonClassWrapper<T, -1, void>,
+                PythonClassWrapper<T *, UNKNOWN_SIZE, void>,
+                PythonClassWrapper<T, UNKNOWN_SIZE, void>,
                 typename std::enable_if<std::is_void<typename std::remove_volatile<T>::type>::value>::type> :
-                public BasicAlloc<T, PythonClassWrapper<void *, -1, void> > {
+                public BasicAlloc<T, PythonClassWrapper<void *, UNKNOWN_SIZE, void> > {
 
-            typedef PythonClassWrapper<void *, -1, void> PtrWrapper;
+            typedef PythonClassWrapper<void *, UNKNOWN_SIZE, void> PtrWrapper;
             typedef typename std::remove_reference<T>::type C_NoRef;
 
-            static void dealloc(C_NoRef *ptr) {
+            static void dealloc(ObjContainer <C_NoRef> *ptr) {
                 (void) ptr;
             }
 
@@ -981,7 +1003,7 @@ const bool asArgument = true) {
             }
         };
 
-       
+
         template<typename T, typename PtrWrapper, typename ClassWrapper>
         struct Alloc<T, PtrWrapper,
                 ClassWrapper,
@@ -991,7 +1013,7 @@ const bool asArgument = true) {
 
             typedef typename std::remove_reference<T>::type C_NoRef;
 
-            static void dealloc(C_NoRef *ptr) {
+            static void dealloc(ObjContainer <C_NoRef> *ptr) {
                 (void) ptr;
             }
 
@@ -1014,7 +1036,7 @@ const bool asArgument = true) {
 
             typedef typename std::remove_reference<T>::type C_NoRef;
 
-            static void dealloc(C_NoRef *ptr) {
+            static void dealloc(ObjContainer <C_NoRef> *ptr) {
                 (void) ptr;
             }
 
@@ -1035,14 +1057,15 @@ const bool asArgument = true) {
      * Specialization for void-pointer type
      **/
     template<typename T, typename PtrWrapper>
-    class ObjectLifecycleHelpers::ObjectContent<T*, PtrWrapper, typename std::enable_if< std::is_void<T>::value>::type> {
+    class ObjectLifecycleHelpers::ObjectContent<T *, PtrWrapper, typename std::enable_if<std::is_void<T>::value>::type> {
     public:
 
         static void set(const size_t index, T **const to, T **const from, const size_t depth) {
             to[index] = *from;
         }
 
-      static PyObject *getObjectAt(T *const from, const size_t index, const ssize_t elements_array_size, const size_t depth, const bool asArgument = true) {
+        static PyObject *getObjectAt(T *const from, const size_t index, const ssize_t elements_array_size,
+                                     const size_t depth, const bool asArgument = true) {
             (void) from;
             (void) index;
             (void) elements_array_size;
@@ -1055,17 +1078,17 @@ const bool asArgument = true) {
 
     };
 
- 
 
-  template<typename T, typename PtrWrapper>
-  class ObjectLifecycleHelpers::ObjectContent<T, PtrWrapper, typename std::enable_if<std::is_void<T>::value> > {
+    template<typename T, typename PtrWrapper>
+    class ObjectLifecycleHelpers::ObjectContent<T, PtrWrapper, typename std::enable_if<std::is_void<T>::value> > {
     public:
 
         static void set(const size_t index, void *const to, void *const from, const size_t depth) {
             throw "Attempt to access element from object  of type void";
         }
 
-      static PyObject *getObjectAt(void *const from, const size_t index, const ssize_t elements_array_size, const size_t depth, const bool asArgument = true) {
+        static PyObject *getObjectAt(void *const from, const size_t index, const ssize_t elements_array_size,
+                                     const size_t depth, const bool asArgument = true) {
             (void) from;
             (void) index;
             (void) elements_array_size;
@@ -1081,15 +1104,16 @@ const bool asArgument = true) {
     /**
      * Specialization for void-pointer type
      **/
-     template<typename T, typename PtrWrapper>
-     class ObjectLifecycleHelpers::ObjectContent<T *const,  PtrWrapper, typename std::enable_if< std::is_void<T>::value>::type > {
+    template<typename T, typename PtrWrapper>
+    class ObjectLifecycleHelpers::ObjectContent<T *const, PtrWrapper, typename std::enable_if<std::is_void<T>::value>::type> {
     public:
 
         static void set(const size_t index, T *const *const to, T *const *const from, const size_t depth) {
             throw "Attempt to assign to const value";
         }
 
-      static PyObject *getObjectAt(T *const from, const size_t index, const ssize_t elements_array_size, const size_t depth, const bool asArgument = true) {
+        static PyObject *getObjectAt(T *const from, const size_t index, const ssize_t elements_array_size,
+                                     const size_t depth, const bool asArgument = true) {
             (void) from;
             (void) index;
             (void) elements_array_size;
@@ -1101,6 +1125,7 @@ const bool asArgument = true) {
         }
 
     };
+
 
 }
 #endif // PYLLARS_INTERNAL__OBJECTLIFECYCLEHELPERS_H
