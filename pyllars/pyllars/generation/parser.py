@@ -106,7 +106,8 @@ class CPPParser(object):
     def process_struct(self, element):
         return elements.Struct(name=element.attrib['name'], id_=element.attrib['id'],
                                header_filename=self.get_file(element),
-                               is_incomplete = element.attrib.get('incomplete')!='1',
+                               is_incomplete=element.attrib.get('incomplete')!='1',
+                               is_absrtact=element.attrib.get('abstract')=='1',
                                inherited_from=self.get_bases(element),
                                context=self.get_context(element))
 
@@ -125,7 +126,8 @@ class CPPParser(object):
     def process_class(self, element):
         return elements.Class(name=element.attrib['name'], id_=element.attrib['id'],
                               header_filename=self.get_file(element),
-                              is_incomplete = element.attrib.get('incomplete')!='1',
+                              is_incomplete=element.attrib.get('incomplete')!='1',
+                              is_absrtact=element.attrib.get('abstract')=='1',
                               inherited_from=self.get_bases(element),
                               context=self.get_context(element))
 
@@ -176,6 +178,7 @@ class CPPParser(object):
                               id_=element.attrib['id'],
                               header_filename=self.get_file(element),
                               is_incomplete = element.attrib.get('incomplete')!='1',
+                              is_absrtact=False,
                               inherited_from=self.get_bases(element),
                               context=self.get_context(element))
 

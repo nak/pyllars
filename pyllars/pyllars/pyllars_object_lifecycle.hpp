@@ -77,7 +77,7 @@ namespace __pyllars_internal {
         struct Copy<T, typename std::enable_if<std::is_destructible<typename std::remove_reference<T>::type>::value &&
                                                std::is_assignable<typename std::remove_reference<T>::type, typename std::remove_reference<T>::type>::value &&
                                                std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type> {
-            typedef typename std::remove_reference<T>::type T_NoRef;
+	  typedef typename std::remove_volatile<typename std::remove_reference<T>::type>::type T_NoRef;
 
             static ObjContainer<T_NoRef> *new_copy(const T &value) {
                 return new ObjContainerProxy<T_NoRef, const T&>(value);
@@ -874,10 +874,10 @@ namespace __pyllars_internal {
         };
 
         template<typename ReturnType, typename ...Args>
-        struct Alloc<ReturnType(*)(Args...), PythonClassWrapper<ReturnType(**)(Args...), true>,
-                PythonClassWrapper<ReturnType(*)(Args...), true>,
+        struct Alloc<ReturnType(*)(Args...), PythonClassWrapper<ReturnType(**)(Args...)>,
+                PythonClassWrapper<ReturnType(*)(Args...)>,
                 void> :
-                public BasicAlloc<ReturnType(*)(Args...), PythonClassWrapper<ReturnType(**)(Args...), true> > {
+                public BasicAlloc<ReturnType(*)(Args...), PythonClassWrapper<ReturnType(**)(Args...)> > {
 
             typedef PythonClassWrapper<ReturnType(**)(Args...), UNKNOWN_SIZE, void> PtrWrapper;
 

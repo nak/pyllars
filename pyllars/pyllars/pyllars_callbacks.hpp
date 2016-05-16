@@ -7,7 +7,7 @@
 
 #include <Python.h>
 
-#include "pyllars_conversions.hpp"
+//#include "pyllars_conversions.hpp"
 #include "pyllars_classwrapper.hpp"
 
 namespace __pyllars_internal{
@@ -86,7 +86,7 @@ namespace __pyllars_internal{
             } else if( result == (PyObject*)Py_None){
               throw "Invalid return type from callback";
             }
-             return *toCObject<ReturnType, false, PythonClassWrapper<ReturnType, true> >(*result);
+             return *toCObject<ReturnType, false, PythonClassWrapper<ReturnType> >(*result);
         }
      };
 

@@ -14,7 +14,6 @@
 
 #include "pyllars_classwrapper.hpp"
 #include "pyllars_object_lifecycle.hpp"
-#include "pyllars_defns.hpp"
 
 // TODO (jrusnak#1#): All adding of bases, but not through template parameter....
 
@@ -23,7 +22,7 @@ namespace __pyllars_internal {
 
     template<typename T, const ssize_t last>
     struct PythonClassWrapper<T, last,typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-            //!std::is_function<typename std::remove_pointer<T>::type>::value &&
+            !std::is_function<typename std::remove_pointer<T>::type>::value &&
             (std::is_pointer<T>::value || std::is_array<T>::value)>::type> :
             public CommonBaseWrapper {
 
@@ -343,10 +342,10 @@ namespace __pyllars_internal {
             int result = _initbase(self, args, kwds, getType(self->_depth));
 
             if (result == ERROR_TYPE_MISMATCH && (self->_depth == 1) &&
-                (PythonClassWrapper<const char *, true>::checkType((PyObject *) self) ||
-                 PythonClassWrapper<const char *const, true>::checkType((PyObject *) self) ||
-                 PythonClassWrapper<char *const, true>::checkType((PyObject *) self) ||
-                 PythonClassWrapper<char *, true>::checkType((PyObject *) self))
+                (PythonClassWrapper<const char *>::checkType((PyObject *) self) ||
+                 PythonClassWrapper<const char *const>::checkType((PyObject *) self) ||
+                 PythonClassWrapper<char *const>::checkType((PyObject *) self) ||
+                 PythonClassWrapper<char *>::checkType((PyObject *) self))
                     ) {
                 PyObject *arg = PyTuple_GetItem(args, 0);
                 const char *const s = PyString_AsString(arg);
@@ -635,12 +634,12 @@ namespace __pyllars_internal {
 
     template<typename T, const ssize_t last>
     PyObject *PythonClassWrapper<T, last, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-            // !std::is_function<typename std::remove_pointer<T>::type>::value &&
+             !std::is_function<typename std::remove_pointer<T>::type>::value &&
             (std::is_pointer<T>::value || std::is_array<T>::value)>::type>::parent_module = nullptr;
 
     template<typename T, const ssize_t last>
     PyMethodDef PythonClassWrapper<T,  last, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-            // !std::is_function<typename std::remove_pointer<T>::type>::value &&
+             !std::is_function<typename std::remove_pointer<T>::type>::value &&
             (std::is_pointer<T>::value || std::is_array<T>::value)>::type>::_methods[] =
             {{address_name, nullptr, METH_KEYWORDS, nullptr},
              {"at",         nullptr, METH_KEYWORDS, nullptr},
@@ -649,7 +648,7 @@ namespace __pyllars_internal {
 
     template<typename T, const ssize_t last>
     PySequenceMethods PythonClassWrapper<T, last, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-            // !std::is_function<typename std::remove_pointer<T>::type>::value &&
+             !std::is_function<typename std::remove_pointer<T>::type>::value &&
             (std::is_pointer<T>::value || std::is_array<T>::value)>::type>::_seqmethods;
 
 }

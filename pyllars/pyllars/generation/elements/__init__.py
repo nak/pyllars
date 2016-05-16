@@ -143,6 +143,7 @@ class Namespace(BaseElement):
         code = """
 #include <Python.h>
 #include <%(path)s/module.hpp>
+#include <pyllars_classwrapper.impl>
 
 """ % {'path': self.get_include_parent_path()} + code
         return header_code, code
@@ -282,7 +283,7 @@ class Class(Type):
                 return "__pyllars_internal::UNKNOWN_SIZE"
             return self.type.get_array_size()
 
-    def __init__(self, name, id_, header_filename, is_incomplete, context=None, inherited_from=None):
+    def __init__(self, name, id_, header_filename, is_incomplete, is_absrtact, context=None, inherited_from=None):
         assert (context is None or isinstance(context, Namespace) or isinstance(context, Class))
         Type.__init__(self, name, id_, context, is_incomplete, header_filename)
         self._id = id_
@@ -293,6 +294,7 @@ class Class(Type):
         self._members = []
         self._members = []
         self._constructors = []
+        self._is_abstract = is_absrtact
 
     def get_path(self):
         context = self.context
@@ -344,6 +346,7 @@ class Class(Type):
         code = """
 #include <Python.h>
 #include <pyllars.hpp>
+#include <pyllars_classwrapper.impl>
 #include <%(headername)s>
 #include "%(myheader)s"
 #include "%(myparentheader)s"
@@ -398,7 +401,7 @@ typedef %(full_classname)s %(sname)s_Target_Type;
 #endif
 """
         if isinstance(self.context, Namespace):
-            parent_init = self.context.name + "::init"
+            parent_init = self.context.get_qualified_name() + "::init"
         else:
             parent_init = self.context.get_qualified_ns_name() + "::initialize_type"
         parent_mod = self.context
@@ -475,33 +478,34 @@ static inline status_t initialize_type(){
        'method_name2': method.name, 'return_type': method.return_type.get_qualified_name(),
        'callable': call_method_name, 'args': (", " if len(args) else "")+ ", ".join(args), 'indent': indent}
             print "################### ARGS are %s"%(", ".join(args))
-        for constructor in [c for c in self._constructors if c.scope == "public"]:
-            call_method_name = "add"
-            if constructor.is_const:
-                call_method_name += 'Const'
-            call_method_name += "Constructor"
-            args = []
-            kwlist =[]
-            for arg_name, arg_type in constructor.arguments:
-                args.append(arg_type.get_qualified_name())
-                kwlist.append('"%s"' % arg_name)
-            if len(kwlist)> 0:
-                code +="""
-   {
-      static const char* const kwlist[] = {%(kwlist)s};
-""" % {'indent': indent, 'kwlist': ", ".join(kwlist), }
-            else:
-                code +="""
-   {
-      static const char* const kwlist[] = {};
-"""
-            code += """
-      PythonClassWrapper< %(classname)s>::%(callable)s
-      ( kwlist,
-        PythonClassWrapper< %(classname)s >::create< %(args)s >);
-   }
-""" % {'classname': self.get_qualified_name(), 'bare_class_name': self.name,
-       'callable': call_method_name, 'args': ", ".join(args), 'indent': indent}
+        if not self._is_abstract:
+            for constructor in [c for c in self._constructors if c.scope == "public"]:
+                call_method_name = "add"
+                if constructor.is_const:
+                    call_method_name += 'Const'
+                call_method_name += "Constructor"
+                args = []
+                kwlist =[]
+                for arg_name, arg_type in constructor.arguments:
+                    args.append(arg_type.get_qualified_name())
+                    kwlist.append('"%s"' % arg_name)
+                if len(kwlist)> 0:
+                    code +="""
+       {
+          static const char* const kwlist[] = {%(kwlist)s};
+    """ % {'indent': indent, 'kwlist': ", ".join(kwlist), }
+                else:
+                    code +="""
+       {
+          static const char* const kwlist[] = {};
+    """
+                code += """
+          PythonClassWrapper< %(classname)s>::%(callable)s
+          ( kwlist,
+            PythonClassWrapper< %(classname)s >::create< %(args)s >);
+       }
+    """ % {'classname': self.get_qualified_name(), 'bare_class_name': self.name,
+           'callable': call_method_name, 'args': ", ".join(args), 'indent': indent}
 
         for child in [c for c in self.children if isinstance(c, Type)]:
             code += """

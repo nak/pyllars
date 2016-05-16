@@ -59,6 +59,8 @@ namespace __pyllars_internal {
             }
         }
 
+
+
     private:
 
         PythonFunctionWrapper() : _cfunc(nullptr) { }
@@ -88,7 +90,6 @@ namespace __pyllars_internal {
             (void) pyobjs;
             return callFuncBase(tuple, kw, &pyobjs[S]...);
         }
-
 
         func_type _cfunc;
         std::vector<const char *> _kwlist;
