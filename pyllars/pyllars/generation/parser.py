@@ -55,13 +55,19 @@ class CPPParser(object):
                 "Method": self.process_method,
                 "Constructor": self.process_constructor,
                 }.get(child.tag, self.process_unknown)(child)
+        if item is not None and item.name == "":
+            for k, e in self.element_lookup.iteritems():
+                if e.attrib.get('type')==child.attrib['id'] and \
+                        e.tag == "Typedef":
+                    item.name = e.attrib['name']
+                    break
         if item is not None:
             self.processed[child.attrib['id']] = item
         if context is None and child.attrib['id']=="_1":
             # top level
             assert(self.root_item is None) # only one top level!
             self.root_item = item
-        elif context is not None:
+        elif context is not None and item is not None:
             if context not in self.processed:
                 self.process_xml_element(self.element_lookup[context])
             if context in self.processed:
@@ -76,7 +82,8 @@ class CPPParser(object):
                                 id_=element.attrib['id'],
                                 header_filename=self.get_file(element),
                                 context=self.get_context(element),
-                                alias=element.attrib.get('name'))
+                                alias=element.attrib.get('name'),
+                                scope=element.attrib.get('access'))
 
     def process_fundamental_type(self, element):
         return elements.FundamentalType(element.attrib['name'], element.attrib['id'], element.attrib['size'],element.attrib['align'])
@@ -89,7 +96,8 @@ class CPPParser(object):
                                     id_=element.attrib.get('id'),
                                     context=self.get_context(element),
                                     header_filename=self.get_file(element),
-                                    enumerators=enum_values)
+                                    enumerators=enum_values,
+                                    scope=element.attrib.get('access'))
 
     def process_array_type(self, element):
         size = element.attrib.get('max')
@@ -101,7 +109,8 @@ class CPPParser(object):
                               id_=element.attrib['id'],
                               context=self.get_context(element),
                               header_filename=self.get_file(element),
-                              array_size=size)
+                              array_size=size,
+                                scope=element.attrib.get('access'))
 
     def process_struct(self, element):
         return elements.Struct(name=element.attrib['name'], id_=element.attrib['id'],
@@ -109,19 +118,22 @@ class CPPParser(object):
                                is_incomplete=element.attrib.get('incomplete')!='1',
                                is_absrtact=element.attrib.get('abstract')=='1',
                                inherited_from=self.get_bases(element),
-                               context=self.get_context(element))
+                               context=self.get_context(element),
+                                scope=element.attrib.get('access'))
 
     def process_pointer_type(self, element):
         return elements.Pointer(base_type=self.get_base_type(element),
                                 id_=element.attrib['id'],
                                 header_filename=self.get_file(element),
-                                context=self.get_context(element))
+                                context=self.get_context(element),
+                                scope=element.attrib.get('access'))
 
     def process_reference_type(self, element):
         return elements.Reference(base_type=self.get_base_type(element),
                                   id_=element.attrib['id'],
                                   header_filename=self.get_file(element),
-                                  context=self.get_context(element))
+                                  context=self.get_context(element),
+                                  scope=element.attrib.get('access'))
 
     def process_class(self, element):
         return elements.Class(name=element.attrib['name'], id_=element.attrib['id'],
@@ -129,7 +141,8 @@ class CPPParser(object):
                               is_incomplete=element.attrib.get('incomplete')!='1',
                               is_absrtact=element.attrib.get('abstract')=='1',
                               inherited_from=self.get_bases(element),
-                              context=self.get_context(element))
+                              context=self.get_context(element),
+                              scope=element.attrib.get('access'))
 
     def process_cvqualified_type(self, element):
         qualifiers=[]
@@ -141,7 +154,8 @@ class CPPParser(object):
                                         id_=element.attrib['id'],
                                         context=self.get_context(element),
                                         header_filename=self.get_file(element),
-                                        qualifiers=qualifiers)
+                                        qualifiers=qualifiers,
+                                        scope=element.attrib.get('access'))
 
     def process_function_type(self, element):
         typeid=element.attrib.get('returns')
@@ -171,16 +185,18 @@ class CPPParser(object):
                                      return_type=type_,
                                      header_filename=self.get_file(element),
                                      arguments=arguments,
-                                     name=parent.attrib.get('name') or "func%s"%element.attrib['id'])
+                                     name=parent.attrib.get('name') or "func%s"%element.attrib['id'],
+                                     scope=element.attrib.get('access'))
 
     def process_union_type(self, element):
-        return elements.Union(name=element.attrib.get('name') or element.attrib['id'],
+        return elements.Union(name=element.attrib.get('name') or "",
                               id_=element.attrib['id'],
                               header_filename=self.get_file(element),
                               is_incomplete = element.attrib.get('incomplete')!='1',
                               is_absrtact=False,
                               inherited_from=self.get_bases(element),
-                              context=self.get_context(element))
+                              context=self.get_context(element),
+                              scope=element.attrib.get('access'))
 
     def process_unknown(self, element):
         print "UNKNOWN ELEMENT: " + element.tag

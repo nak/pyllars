@@ -483,7 +483,7 @@ enum class WeakCallbackType { kParameter, kInternalFields };
  * existing handles can be disposed using PersistentBase::Reset.
  *
  */
-template <class T> class PersistentBase {
+ template <class T> class PersistentBase{
  public:
   /**
    * If non-empty, destroy the underlying storage cell

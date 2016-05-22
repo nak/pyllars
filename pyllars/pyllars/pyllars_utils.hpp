@@ -211,6 +211,26 @@ namespace __pyllars_internal {
         };
     };
 
+    template<typename T>
+    struct ArraySize{
+        static const int size = 1;
+    };
+
+    template<typename T>
+    struct ArraySize<T*>{
+        static const int size = -1;
+    };
+
+    template <typename T>
+    struct ArraySize<T[]>{
+        static const int size = -1;
+    };
+
+    template<typename T_base, size_t arsize>
+    struct ArraySize< T_base[arsize]>{
+        static const int size = arsize;
+    };
+
     template<typename T, typename Z = void>
     struct Sizeof;
 

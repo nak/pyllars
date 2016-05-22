@@ -198,6 +198,10 @@ namespace __pyllars_internal {
 
         static void addClassMember(const char *const name, PyObject *pyobj) ;
 
+        static void addEnumValue( const char* const name, long value){
+            addClassMember(name, PyInt_FromLong(value));
+        }
+
         static void addBaseClass(PyTypeObject *base) ;
 
         /**

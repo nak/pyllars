@@ -1,3 +1,6 @@
+#ifndef ___PYLLARS__FUNCTION_WRAPPER
+#define ___PYLLARS__FUNCTION_WRAPPER
+
 #include <limits>
 #include <functional>
 #include <Python.h>
@@ -32,6 +35,16 @@ namespace __pyllars_internal {
             return (PyObject *) self;
         }
 
+        static void initialize_type(const char* const name){
+            type_name = name;
+            char * newname =  new char[strlen(name)+1];
+            strcpy(newname, name);
+            Type.tp_name = newname;
+        }
+
+        static std::string get_name(){
+            return type_name.c_str();
+        }
 
         static
         PythonFunctionWrapper *create(const char *const func_name, func_type func, const char *const names[]) {
@@ -66,6 +79,8 @@ namespace __pyllars_internal {
         PythonFunctionWrapper() : _cfunc(nullptr) { }
 
         ~PythonFunctionWrapper() { }
+
+        static std::string type_name;
 
         template<typename ...PyO>
         ReturnType callFuncBase(PyObject *pytuple, PyObject *kwds, PyO *...pyargs) {
@@ -149,6 +164,9 @@ namespace __pyllars_internal {
     };
 
     template<bool is_base_return_complete, typename ReturnType, typename... Args>
+    std::string PythonFunctionWrapper<is_base_return_complete, ReturnType, Args...>::type_name;
+
+    template<bool is_base_return_complete, typename ReturnType, typename... Args>
     int PythonFunctionWrapper<is_base_return_complete, ReturnType, Args...>::_init(PyObject *self, PyObject *args,
                                                                                    PyObject *kwds) {
         //avoid compiler warnings (including reinterpret cast to avoid type-punned warning)
@@ -201,6 +219,13 @@ namespace __pyllars_internal {
             return (PyObject *) self;
         }
 
+        static void initialize_type(const char* const name){
+            type_name = name;
+        }
+
+        static std::string get_name(){
+            return type_name.c_str();
+        }
 
         static
         PythonFunctionWrapper *create(const char *const func_name, func_type func, const char *const names[]) {
@@ -261,6 +286,7 @@ namespace __pyllars_internal {
 
         func_type _cfunc;
         std::vector<const char *> _kwlist;
+        static std::string type_name;
     };
 
     //Python definition of Type for this function wrapper
@@ -317,6 +343,10 @@ namespace __pyllars_internal {
     };
 
     template<typename... Args>
+    std::string PythonFunctionWrapper<true, void, Args...>::type_name;
+
+
+            template<typename... Args>
     int PythonFunctionWrapper<true, void, Args...>::_init(PyObject *self, PyObject *args, PyObject *kwds) {
         //avoid compiler warnings (including reinterpret cast to avoid type-punned warning)
         (void) self;
@@ -345,5 +375,33 @@ namespace __pyllars_internal {
         }
     }
 
+    template<typename func_type>
+    struct PythonFunctionWrapper2;
+
+    template<typename function_type>
+    struct PythonFunctionWrapper2<function_type*>:public PythonFunctionWrapper2<function_type>{
+
+    };
+
+    template<typename ReturnType, typename ...Args>
+    struct PythonFunctionWrapper2< ReturnType(Args...)>:
+       public PythonFunctionWrapper<is_complete<ReturnType>::value, ReturnType, Args...>{
+
+    };
+
+    template<typename ...Args>
+    struct PythonFunctionWrapper2< void(Args...)>:
+            public PythonFunctionWrapper<true, void, Args...>{
+
+    };
+
+    template<typename T>
+     struct PythonClassWrapper<T, -1, typename std::enable_if<
+     std::is_function<typename std::remove_pointer<T>::type>::value >::type> :
+        public PythonFunctionWrapper2< typename std::remove_pointer<T>::type>{
+
+    };
+
 }
 
+#endif

@@ -36,7 +36,7 @@ namespace __pyllars_internal {
             try {
                 typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
                 const T &result = call_methodBase(method, self, args, kwds, typename argGenerator<sizeof...(Args)>::type());
-                const ssize_t array_size = sizeof(result) / sizeof(T_base);
+                const ssize_t array_size = ArraySize<T>::size;//sizeof(result) / sizeof(T_base);
                 return toPyObject<T>(result, false, array_size);
             } catch (const char *const msg) {
                 PyErr_SetString(PyExc_RuntimeError, msg);
@@ -210,7 +210,7 @@ namespace __pyllars_internal {
                 typedef PythonClassWrapper<CClass> ClassWrapper;
                 auto _this = reinterpret_cast<ClassWrapper *>(self);
                 typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
-                const ssize_t array_size = sizeof(_this->template get_CObject<CClass>()->*member) / sizeof(T_base);
+                const ssize_t array_size = ArraySize<T>::size;//sizeof(_this->template get_CObject<CClass>()->*member) / sizeof(T_base);
                 if (_this->template get_CObject<CClass>()) {
                     return toPyObject<T>((_this->template get_CObject<CClass>()->*member), false, array_size);
                 }

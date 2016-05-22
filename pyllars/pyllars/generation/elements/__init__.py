@@ -83,7 +83,6 @@ class Namespace(BaseElement):
             p = p.context
             depth += 1
             fullindent += indent
-        print "############!!!!!!!!!!!!!!!!!!! %s" % code
         indent = fullindent[3:]
         header_code = header_code + code + """
 %(indent)sextern PyObject* %(name)s_mod;
@@ -144,7 +143,7 @@ class Namespace(BaseElement):
 #include <Python.h>
 #include <%(path)s/module.hpp>
 #include <pyllars_classwrapper.impl>
-
+#include <pyllars_function_wrapper.hpp>        
 """ % {'path': self.get_include_parent_path()} + code
         return header_code, code
 
@@ -161,7 +160,7 @@ class Namespace(BaseElement):
 
 
 class Type(BaseElement):
-    def __init__(self, name, id_, context, is_incomplete, header_filename):
+    def __init__(self, name, id_, context, is_incomplete, header_filename, scope):
         BaseElement.__init__(self)
         assert(isinstance(context, Type) or isinstance(context, Namespace) or context is None)
         assert (id_ is not None)
@@ -178,6 +177,8 @@ class Type(BaseElement):
         self.qualifiers = []
         self.sanitized_name = name.replace("<", "__").replace(">", "__").replace(",", "___").replace(" ", "_").\
             replace("::", "____")
+        self.scope = scope
+        self.is_incomplete = is_incomplete
 
     def get_qualified_ns_name(self, sanitized=False):
         return self.context.get_qualified_ns_name(sanitized) + "::" + self.sanitized_name + "___ns"
@@ -190,6 +191,9 @@ class Type(BaseElement):
             return " ".join(self.qualifiers) + " " + name
         else:
             return " ".join(self.qualifiers) + " " + "::" + name
+
+    def is_function_type(self):
+        return False
 
     def set_qualifiers(self, qualifiers):
         self.qualifiers = qualifiers or []
@@ -211,15 +215,7 @@ class Type(BaseElement):
         pass
 
     def get_include_parent_path(self):
-#        return self.context.get_include_parent_path()
         return os.path.join(self.context.get_include_parent_path(), self.sanitized_name)
-#        if self.context is None or self.context.name == "::":
-#            return "pyllars"
-#        elif not isinstance(self.context, Namespace):
-#            return self.context.context.get_include_parent_path()
-#        else:
-#            return os.path.join(self.context.get_include_parent_path(), self.name).\
-#                replace(" ","_").replace("<", "__").replace(">", "__").replace("::", "____").replace(", ", "__")
 
     def get_header_filename(self, path=None):
         return os.path.join(self.get_include_parent_path(), self.sanitized_name +".hpp") if path is None else\
@@ -239,7 +235,6 @@ class Class(Type):
 
         def __init__(self, name, scope, qualifiers, return_type, arguments):
             assert (isinstance(return_type, Type) or return_type is None)
-            print "SCOPE IS %s"%scope
             assert (scope in Class.SCOPES or scope is None)
             self.name = name
             for qualifier in qualifiers or []:
@@ -283,16 +278,15 @@ class Class(Type):
                 return "__pyllars_internal::UNKNOWN_SIZE"
             return self.type.get_array_size()
 
-    def __init__(self, name, id_, header_filename, is_incomplete, is_absrtact, context=None, inherited_from=None):
+    def __init__(self, name, id_, header_filename, is_incomplete, is_absrtact, context=None, inherited_from=None, scope=None):
         assert (context is None or isinstance(context, Namespace) or isinstance(context, Class))
-        Type.__init__(self, name, id_, context, is_incomplete, header_filename)
+        Type.__init__(self, name, id_, context, is_incomplete, header_filename, scope)
         self._id = id_
         self.context = context
         self._header_filename = header_filename
         self.bases = inherited_from or []
         self._methods = []
-        self._members = []
-        self._members = []
+        self.members = []
         self._constructors = []
         self._is_abstract = is_absrtact
 
@@ -333,7 +327,7 @@ class Class(Type):
         :param member_scope: public, protected, private
         :param qualifiers: const, static, ...
         """
-        self._members.append(Class.Member(member_name, type_, member_scope, qualifiers, bit_field_size))
+        self.members.append(Class.Member(member_name, type_, member_scope, qualifiers, bit_field_size))
 
     def generate_code(self, path):
         include_path = os.path.join(path, self.get_include_parent_path())
@@ -347,6 +341,7 @@ class Class(Type):
 #include <Python.h>
 #include <pyllars.hpp>
 #include <pyllars_classwrapper.impl>
+#include <pyllars_function_wrapper.hpp>
 #include <%(headername)s>
 #include "%(myheader)s"
 #include "%(myparentheader)s"
@@ -422,10 +417,17 @@ typedef const char c_string[];
             code += """
 constexpr c_string %s_name = "%s";
 """% (method_name, method_name)
-        for member_name in set([m.name for m in self._members if m.scope == 'public']):
-            code += """
+
+        def add_memberattnames(from_, code2):
+            for member in set([m for m in from_.members if m.scope == 'public']):
+                if member.name == "" and (isinstance(member.type, Union) or isinstance(member.type, Class)):
+                    code2 = add_memberattnames(member.type, code2)
+                    continue
+                code2 += """
 constexpr c_string %s_attrname = "%s";
-"""% (member_name, member_name)
+"""% ( member.name, member.name)
+            return code2
+        code = add_memberattnames(self, code)
         code += """
 
 static inline status_t initialize_type(){
@@ -435,18 +437,27 @@ static inline status_t initialize_type(){
 """ % {'classname': self.get_qualified_name(), 'name': self.name, 'pyname': self.name,
        'module_name': "%s_mod" % parent_mod.name, 'full_name': self.full_name, 'parent_init': parent_init if not parent_init.startswith("::") else parent_init[2:],
        'indent': "   ", 'namespace_name': parent_mod.get_qualified_name()}
-        for member in [m for m in self._members if m.scope == 'public']:
-            attr_method_name = "add"
-            if member.is_const():
-                attr_method_name += 'Const'
-            if member.is_static:
-                attr_method_name += 'Class'
-            attr_method_name += "Attribute"
-            code += """
-   PythonClassWrapper< %(classname)s >::%(methodname)s< %(member_name)s_attrname, %(member_type_name)s >
-      ( &%(classname)s::%(member_name)s, %(array_size)s);
-""" % {'classname': self.get_qualified_name(), 'member_name': member.name, 'member_type_name': member.type.get_qualified_name(),
-       'array_size': member.array_size(), 'methodname': attr_method_name, 'indent': indent}
+
+        def add_members(from_, code2, is_const, is_static):
+            for member in [m for m in from_.members if m.scope == 'public']:
+                if member.name == "" and (isinstance(member.type, Union) or isinstance(member.type, Struct) or isinstance(member.type, Class)):
+                    #recursively add anonymous union's members
+                    code2 = add_members(member.type, code2, member.is_const(), member.is_static)
+                    continue
+                attr_method_name = "add"
+                if is_const or member.is_const():
+                    attr_method_name += 'Const'
+                if is_static or member.is_static:
+                    attr_method_name += 'Class'
+                attr_method_name += "Attribute"
+                code2 += """
+       PythonClassWrapper< %(classname)s >::%(methodname)s< %(member_name)s_attrname, %(member_type_name)s >
+          ( &%(classname)s::%(member_name)s, %(array_size)s);
+    """ % {'classname': self.get_qualified_name(), 'member_name': member.name, 'member_type_name': member.type.get_qualified_name(),
+           'array_size': member.array_size(), 'methodname': attr_method_name, 'indent': indent}
+            return code2
+
+        code = add_members(self, code, False, False)
         for method in [m for m in self._methods if m.scope == 'public']:
             call_method_name = "add"
             if method.is_const:
@@ -477,7 +488,6 @@ static inline status_t initialize_type(){
        'method_name': method.name,
        'method_name2': method.name, 'return_type': method.return_type.get_qualified_name(),
        'callable': call_method_name, 'args': (", " if len(args) else "")+ ", ".join(args), 'indent': indent}
-            print "################### ARGS are %s"%(", ".join(args))
         if not self._is_abstract:
             for constructor in [c for c in self._constructors if c.scope == "public"]:
                 call_method_name = "add"
@@ -507,17 +517,46 @@ static inline status_t initialize_type(){
     """ % {'classname': self.get_qualified_name(), 'bare_class_name': self.name,
            'callable': call_method_name, 'args': ", ".join(args), 'indent': indent}
 
-        for child in [c for c in self.children if isinstance(c, Type)]:
-            code += """
-   PythonClassWrapper<%(full_classname)s>::addClassMember( "%(child_name)s",
-      (PyObject*)&PythonClassWrapper< %(child_fullname)s >::Type);
-""" % {'full_classname': self.get_qualified_name(), 'classname':self.name, 'child_name': child.name,
-       'child_fullname': child.get_qualified_name(),
-       'indent': indent}
-        print ("#########################BASES ARE %s"%self.bases)
+        def add_children(elem, from_, code2):
+            for child in [c for c in from_.children if isinstance(c, Type) and c.scope == 'public']:
+                base_type = child
+                while(not isinstance(base_type, Enumeration) and hasattr(base_type, "base_type") or
+                          (isinstance(base_type, Pointer) and isinstance(base_type.base_type, FunctionType))):
+                    base_type = base_type.base_type
+                if child.name == "" and isinstance(base_type, Enumeration):
+                    for enum, value in child.enum_values:
+                        code2 += """
+       PythonClassWrapper<%(full_classname)s>::addEnumValue( "%(child_name)s", %(value)s);
+    """ % {'full_classname': elem.get_qualified_name(), 'child_name': enum, 'value' : value,
+           'indent': indent}
+                    continue
+                if child.name == "" and isinstance(child, Union):
+                    #recursively add anonymous union's children
+                    add_children(elem, child, code2)
+                    continue
+                assert len(child.name) != 0
+                if child.is_function_type():
+                    code2 += """
+        {
+          PythonFunctionWrapper2< %(child_fullname)s >::initialize_type("%(child_name)s");
+          PythonClassWrapper<%(full_classname)s>::addClassMember( "%(child_name)s",
+          (PyObject*)&PythonFunctionWrapper2< %(child_fullname)s >::Type);
+        }
+    """ % {'full_classname': elem.get_qualified_name(), 'classname':elem.name, 'child_name': child.name,
+           'child_fullname': child.get_qualified_name(),
+            'return_is_complete': str(not base_type.return_type.is_incomplete).lower(),
+           'indent': indent}
+                    continue
+                code2 += """
+       PythonClassWrapper<%(full_classname)s>::addClassMember( "%(child_name)s",
+          (PyObject*)&PythonClassWrapper< %(child_fullname)s >::Type);
+    """ % {'full_classname': elem.get_qualified_name(), 'classname':elem.name, 'child_name': child.name,
+           'child_fullname': child.get_qualified_name(),
+           'indent': indent}
+            return code2
+        code = add_children(self, self, code)
         for base in self.bases:
             code += """
-   pyllars%(base_class_name)s::initialize_type();
    PythonClassWrapper<%(full_class_name)s>::addBaseClass
       (&PythonClassWrapper< %(base_class_full_name)s >::Type);
 """ % {'full_class_name': self.get_qualified_name(), 'class_name': self.name,
@@ -543,9 +582,9 @@ class Struct(Class):
 
 class Referencing(Type):
 
-    def __init__(self, base_type, ext, id_, context, header_filename):
+    def __init__(self, base_type, ext, id_, context, header_filename, scope):
         assert(isinstance(base_type, Type))
-        Type.__init__(self, base_type.name+ext, id_, context, base_type.is_incomplete, header_filename)
+        Type.__init__(self, base_type.name+ext, id_, context, base_type.is_incomplete, header_filename, scope)
         self.base_type = base_type
         self.context = base_type.context
         self.ext = ext
@@ -554,8 +593,10 @@ class Referencing(Type):
     def generate_code(self, path):
         raise Exception("Abstract method")
 
+    def is_function_type(self):
+        return self.base_type.is_function_type()
+
     def get_qualified_name(self, sanitized=False):
-        print "???????????????? TYPE %s %s  == %s" % (self , self.base_type, " ".join(self.qualifiers + [self.base_type.get_qualified_name()+self.ext]))
         if isinstance(self.base_type, FundamentalType):
             return " ".join(self.qualifiers + [self.name])
         return " ".join(self.qualifiers + [self.base_type.get_qualified_name() + self.ext])
@@ -563,14 +604,14 @@ class Referencing(Type):
 
 class Array(Referencing):
 
-    def __init__(self, base_type, id_, context, header_filename, array_size=None):
+    def __init__(self, base_type, id_, context, header_filename, array_size=None, scope=None):
         """
         :param base_type:
         :param array_size: None means unbounded
         :return:
         """
         assert(isinstance(base_type, Type))
-        Referencing.__init__(self, base_type, "[]", id_, context, header_filename)
+        Referencing.__init__(self, base_type, "[]", id_, context, header_filename, scope)
         assert(isinstance(base_type, Type))
         self.array_size = array_size
         self.base_type = base_type
@@ -581,9 +622,9 @@ class Array(Referencing):
 
 class Pointer(Referencing):
 
-    def __init__(self, base_type, id_, context, header_filename):
+    def __init__(self, base_type, id_, context, header_filename, scope=None):
         assert(isinstance(base_type, Type))
-        Referencing.__init__(self, base_type, "" if isinstance(base_type, FunctionType) else "*", id_, context, header_filename)
+        Referencing.__init__(self, base_type, "" if isinstance(base_type, FunctionType) else "*", id_, context, header_filename, scope)
 
     def generate_code(self, path):
         pass
@@ -591,8 +632,8 @@ class Pointer(Referencing):
 
 class Reference(Referencing):
 
-    def __init__(self, base_type, id_, context, header_filename):
-        Referencing.__init__(self, base_type, "&", id_, context, header_filename)
+    def __init__(self, base_type, id_, context, header_filename, scope=None):
+        Referencing.__init__(self, base_type, "&", id_, context, header_filename, scope)
 
     def generate_code(self, path):
         pass
@@ -600,8 +641,8 @@ class Reference(Referencing):
 
 class Typedef(Referencing):
 
-    def __init__(self, base_type, id_, context, alias, header_filename):
-        Referencing.__init__(self, base_type, "", id_, context, header_filename)
+    def __init__(self, base_type, id_, context, alias, header_filename, scope=None):
+        Referencing.__init__(self, base_type, "", id_, context, header_filename, scope)
         self.alias = alias
         self.set_qualifiers(base_type.qualifiers)
         self.context = context
@@ -634,7 +675,7 @@ class FundamentalType(Type):
         if type_ not in FundamentalType.TYPES:
             print "TYPE NOT FUNDAMENTAL: "  + type_
         assert(type_ in FundamentalType.TYPES)
-        Type.__init__(self, type_, id_, None, False, None)
+        Type.__init__(self, type_, id_, None, False, None, None)
         self.type_ = type_
         self.size = size
         self.alignment = alignment
@@ -649,12 +690,11 @@ class CvQualifiedType(Referencing):
 
     QUALIFIERS = ["const", "volatile"]
 
-    def __init__(self, base_type, id_, context, qualifiers, header_filename):
+    def __init__(self, base_type, id_, context, qualifiers, header_filename, scope=None):
         assert(len(qualifiers) >= 0)
         for qualifier in qualifiers:
             assert(qualifier in CvQualifiedType.QUALIFIERS)
-        Referencing.__init__(self, base_type, "", id_, context,
-                             header_filename)
+        Referencing.__init__(self, base_type, "", id_, context, header_filename, scope)
         self.set_qualifiers(qualifiers)
 
     def is_const(self):
@@ -669,8 +709,8 @@ class Enumeration(Type):
     def generate_code(self, path):
         pass
 
-    def __init__(self, name, id_, context, enumerators, header_filename, base_type=None, is_incomplete=False):
-        Type.__init__(self, name, id_, context, is_incomplete, header_filename)
+    def __init__(self, name, id_, context, enumerators, header_filename, base_type=None, is_incomplete=False, scope=None):
+        Type.__init__(self, name, id_, context, is_incomplete, header_filename, scope)
         assert(base_type is None or isinstance(base_type, Type))
         self.base_type = base_type or FundamentalType("int", "internal", 16, 8)
         for value in enumerators or []:
@@ -686,9 +726,9 @@ class Union(Class):
 
 class FunctionType(Type):
 
-    def __init__(self, id_, return_type, arguments, header_filename, context = None, name=None):
+    def __init__(self, id_, return_type, arguments, header_filename, context = None, name=None, scope=None):
         assert(isinstance(return_type, Type))
-        Type.__init__(self, name if name is not None else "func%s"%id_, id_, context, False, header_filename)
+        Type.__init__(self, name if name is not None else "func%s"%id_, id_, context, False, header_filename, scope)
         for argument in arguments or []:
             assert(isinstance(argument, tuple))
             assert(len(argument) == 2)
@@ -702,6 +742,9 @@ class FunctionType(Type):
 
     def generate_code(self, path):
         pass
+
+    def is_function_type(self):
+        return True
 
 #    def get_qualified_name(self):
 #        return self.name

@@ -1,3 +1,5 @@
+#ifndef PYLLARS__CLASSWRAPPER_IMPL
+#define PYLLARS__CLASSWRAPPER_IMPL
 
 #include <limits>
 
@@ -830,3 +832,4 @@ _addMethod(PyMethodDef method) {
     _methodCollection.insert(_methodCollection.begin(), method);
     Type.tp_methods = _methodCollection.data();
 }
+#endif
