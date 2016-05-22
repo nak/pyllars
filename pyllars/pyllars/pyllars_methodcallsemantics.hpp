@@ -31,8 +31,8 @@ namespace __pyllars_internal {
             try {
                 typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
                 T result = call_methodBase(method, self, args, kwds, typename argGenerator<sizeof...(Args)>::type());
-                const ssize_t type_size = Sizeof<T_base>::value;
-                const ssize_t array_size = type_size > 0 ? sizeof(result) / type_size : 1;
+                // const ssize_t type_size = Sizeof<T_base>::value;
+                const ssize_t array_size = ArraySize<T>::size;//type_size > 0 ? sizeof(result) / type_size : 1;
                 return toPyObject<T>(result, false, array_size);
             } catch (const char *const msg) {
                 PyErr_SetString(PyExc_RuntimeError, msg);

@@ -211,6 +211,13 @@ namespace __pyllars_internal {
         };
     };
 
+    template<>
+    struct is_complete<void>{
+        enum {
+           value = 1
+        };
+    };
+
     template<typename T>
     struct ArraySize{
         static const int size = 1;

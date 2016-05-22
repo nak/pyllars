@@ -54,6 +54,7 @@ class CPPParser(object):
                 "Field": self.process_field,
                 "Method": self.process_method,
                 "Constructor": self.process_constructor,
+                "Function": self.process_function,
                 }.get(child.tag, self.process_unknown)(child)
         if item is not None and item.name == "":
             for k, e in self.element_lookup.iteritems():
@@ -187,6 +188,25 @@ class CPPParser(object):
                                      arguments=arguments,
                                      name=parent.attrib.get('name') or "func%s"%element.attrib['id'],
                                      scope=element.attrib.get('access'))
+
+    def process_function(self, element):
+        typeid=element.attrib.get('returns')
+        if typeid is None:
+            type_=None
+        else:
+            if typeid not in self.processed:
+                self.process_xml_element(self.element_lookup[typeid])
+            type_ = self.processed[typeid]
+        arguments = []
+        for child in [c for c in element if c.tag == 'Argument']:
+            arguments.append((child.attrib.get('name'), self.get_type_from(child.attrib['type'])))
+        return elements.Function(id_=element.attrib['id'],
+                                 name=element.attrib.get('name') or 'func%s'%element.attrib['id'],
+                                 return_type=type_,
+                                 context=self.get_context(element),
+                                 scope=element.attrib.get('access'),
+                                 arguments=arguments,
+                                )
 
     def process_union_type(self, element):
         return elements.Union(name=element.attrib.get('name') or "",

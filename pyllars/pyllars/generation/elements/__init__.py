@@ -77,6 +77,32 @@ class Namespace(BaseElement):
         depth = 0
         indent = "   "
         fullindent = indent
+        context_name = self.context.name if self.context is not None else "pyllars_mod"
+        if self.context is not None:
+            context_name = context_name + "::" + context_name + "_mod"
+        precode = ""
+        precode += """
+%(indent)sstatus_t init_functions(PyObject *%(name)s_mod){
+%(indent)s   int status = 0;
+"""% {'name': self.name, 'indent': indent, 'contextname': context_name, 'fullname': self.full_name,
+       'parent_init': "pyllars%s::init();" % self.context.get_qualified_name() if self.context and self.context.full_name != "::" else ""}
+        for func in [f for f in self.children if isinstance(f, Function)]:
+            precode += """%(indent)s
+%(indent)s      {
+%(indent)s         static const char* const argumentnames[] = {%(argument_names)s};
+%(indent)s         status |= PyModule_AddObject( %(name)s_mod, "%(func_name)s",
+%(indent)s              (PyObject*)__pyllars_internal::PythonFunctionWrapper<__pyllars_internal::is_complete< %(return_type)s >::value, %(return_type)s %(arguments)s>::create("%(func_name)s", %(context)s::%(func_name)s, argumentnames));
+%(indent)s      }"""%{'indent': indent,
+     'name': self.name,
+     'func_name': func.name,
+     'context': self.get_qualified_name(),
+     'return_type': func.return_type.get_qualified_name(),
+     'arguments': (',' if len(func.arguments) > 0 else "") + ','.join([t.get_qualified_name() for _,t in func.arguments]),
+     'argument_names': ','.join(["\"%s\""%(n if n!="" else "_%s"%index) for index, (n,_) in enumerate(func.arguments)])}
+        precode += """
+%(indent)s}
+
+"""%{'indent':indent}
         while p is not None and p.name != "" and p.name != "::":
             code = """%(indent)snamespace %(name)s{
 %(indent)s""" % {'name': p.name, 'indent': indent} + code
@@ -92,9 +118,8 @@ class Namespace(BaseElement):
         code += """
 %(indent)sPyObject* %(name)s_mod;
 """ % {'name': self.name, 'indent': indent}
-        context_name = self.context.name if self.context is not None else "pyllars_mod"
-        if self.context is not None:
-            context_name = context_name + "::" + context_name + "_mod"
+
+        code = precode + code
         code += """
 %(indent)sstatus_t _init(){
 %(indent)s   if (%(name)s_mod) return 0;// if already initialized
@@ -102,6 +127,7 @@ class Namespace(BaseElement):
 %(indent)s   int status = 0;
 %(indent)s   %(name)s_mod = Py_InitModule3("%(name)s", nullptr,"Module corresponding to C++ namespace %(fullname)s");
 %(indent)s   if( %(name)s_mod ){
+%(indent)s      status |= init_functions(%(name)s_mod);
 %(indent)s      status |= PyModule_AddObject( ::%(contextname)s, "%(name)s", %(name)s_mod );
 %(indent)s   } else {
 %(indent)s      status = -1;
@@ -139,11 +165,13 @@ class Namespace(BaseElement):
 
 #endif
 """
+        my_header_path = self.get_header_filename(path)#  os.path.join(self.get_include_parent_path(), self.name + ".hpp")
         code = """
 #include <Python.h>
 #include <%(path)s/module.hpp>
 #include <pyllars_classwrapper.impl>
-#include <pyllars_function_wrapper.hpp>        
+#include <pyllars_function_wrapper.hpp>
+#include <v8.h>
 """ % {'path': self.get_include_parent_path()} + code
         return header_code, code
 
@@ -752,7 +780,7 @@ class FunctionType(Type):
 
 class Function(object):
 
-    def ___init__(self, id_, name, return_type, context, arguments = None):
+    def __init__(self, id_, name, return_type, context, arguments=None, scope=None):
         assert(isinstance(return_type, Type))
         assert(isinstance(context, Namespace) or isinstance(context, Type))
         for argument in arguments or []:
@@ -760,11 +788,16 @@ class Function(object):
             assert(len(argument)==2)
             assert(isinstance(argument[1], Type))
         self.arguments = arguments or []
-        for argument, index in enumerate(self.arguments):
+        for index, argument in enumerate(self.arguments):
             if argument[0] is None:
-                self.arguments[index][0] = "_%d" % index
+                self.arguments[index] = ("_%d" % index, argument[1])
         self.name = name
         self.return_type = return_type
         self.context = context
+        self.scope = scope
+        self.context.children.append(self)
+
+    def generate_code(self, path):
+        pass
 
 #TODO: handle operator functions
