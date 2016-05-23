@@ -413,7 +413,7 @@ typedef %(full_classname)s %(sname)s_Target_Type;
      'full_classname': self.get_qualified_name(), 'sname': self.sanitized_name} + namespace_decls
         header_code += """
 %(indent)sstatus_t initialize_type();
-%(indent)sPyTypeObject *%(classname)s_obj = &__pyllars_internal::PythonClassWrapper< %(full_classname)s >::Type;
+%(indent)s//PyTypeObject *%(classname)s_obj = &__pyllars_internal::PythonClassWrapper< %(full_classname)s >::Type;
 """ % {'classname': self.sanitized_name, 'full_classname': self.sanitized_name + "_Target_Type", 'indent': indent}
         indent2 = indent[3:]
         for _ in range(level):
