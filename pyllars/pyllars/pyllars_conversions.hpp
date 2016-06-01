@@ -443,7 +443,8 @@ namespace __pyllars_internal {
             typedef typename std::remove_reference<T>::type T_NoRef;
 
 	  static PyObject *toPyObject(T_NoRef &var, const bool asReference, const ssize_t array_size = -1, const size_t depth = ptr_depth<T>::value) {
-	    PyObject* pyobj = (PyObject *) ClassWrapper::createPy(array_size, (asReference?&var:ObjectLifecycleHelpers::Copy<T>::new_copy(var)), !asReference, nullptr, depth);
+	    ObjContainer<T_NoRef> * const ref = (asReference?new ObjContainerPtrProxy<T_NoRef, true>(&var, false):ObjectLifecycleHelpers::Copy<T>::new_copy(var));
+	    PyObject* pyobj = (PyObject *) ClassWrapper::createPy(array_size, ref, !asReference, nullptr, depth);
                 if (!pyobj || !ClassWrapper::checkType(pyobj)) {
                     PyErr_Format(PyExc_TypeError, "Unable to convert C type object to Python object %s: %s", pyobj->ob_type->tp_name, ClassWrapper::get_name().c_str());
                     pyobj = nullptr;
@@ -533,13 +534,13 @@ namespace __pyllars_internal {
      * @param var: value to convert
      * @param asArgument: whether to be used as argument or not (can determine if copy is made or reference semantics used)
      **/
-    template<typename T, bool delete_op_pub, const ssize_t max, typename E>
+    template<typename T,  const ssize_t max, typename E>
     PyObject *toPyObject(T &var, const bool asArgument, const ssize_t array_size, const size_t depth ) {
         return ConversionHelpers::PyObjectConversionHelper<T, PythonClassWrapper<T,  max, E>, max>::toPyObject(
 													      var, asArgument, array_size, depth);
     }
 
-    template<typename T, bool delete_op_pub, const ssize_t max, typename E>
+    template<typename T, const ssize_t max, typename E>
     PyObject *toPyObject(const T &var, const bool asArgument, const ssize_t array_size, const size_t depth) {
         return ConversionHelpers::PyObjectConversionHelper<const T, PythonClassWrapper<const T, max, E>, max>::toPyObject(
                 var, asArgument, array_size);

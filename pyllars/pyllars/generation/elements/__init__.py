@@ -32,8 +32,8 @@ class Namespace(BaseElement):
             Namespace.namespaces[self.full_name] = self
             Namespace.namespaces[id_] = Namespace.namespaces[self.full_name]
         self._classes = {}
-        if self.name == "":
-            self.name = "pyllars"
+        ###if self.name == "":
+        ###    self.name = "pyllars"
 
     @staticmethod
     def lookup(id_):
@@ -55,7 +55,7 @@ class Namespace(BaseElement):
         if self.context is None or self.context.name == "::":
             return "pyllars"
         else:
-            return os.path.join(self.context.get_include_parent_path(), self.name).replace(" ","_").replace("<", "__").\
+            return os.path.join(self.context.get_include_parent_path(), self.name or "pyllars").replace(" ","_").replace("<", "__").\
                 replace(">", "__").replace("::", "____").replace(", ", "__")
 
     def get_header_filename(self, path=None):
@@ -105,7 +105,7 @@ class Namespace(BaseElement):
 """%{'indent':indent}
         while p is not None and p.name != "" and p.name != "::":
             code = """%(indent)snamespace %(name)s{
-%(indent)s""" % {'name': p.name, 'indent': indent} + code
+%(indent)s""" % {'name': p.name or "pyllars", 'indent': indent} + code
             p = p.context
             depth += 1
             fullindent += indent
@@ -138,7 +138,7 @@ class Namespace(BaseElement):
 %(indent)s//add init to methods to be called on intiailization
 %(indent)sstatic pyllars::Initializer __initializer( init );
 
-""" % {'name': self.name, 'indent': indent, 'contextname': context_name, 'fullname': self.full_name,
+""" % {'name': self.name, 'indent': indent, 'contextname': context_name, 'fullname': self.full_name or "pyllars",
        'parent_init': "pyllars%s::init();" % self.context.get_qualified_name() if self.context and self.context.full_name != "::" else ""}
 
         #  closing brackets:
@@ -179,7 +179,7 @@ class Namespace(BaseElement):
         if self.context is not None:
             return "::".join([self.context.get_qualified_ns_name(True), self.name])
         elif not iterative:
-            return "::" + self.name
+            return self.name
         else:
             return ""
 
@@ -214,11 +214,11 @@ class Type(BaseElement):
     def get_qualified_name(self, sanitized=False):
         name = self.name if not sanitized else self.sanitized_name
         if self.context is not None:
-            return " ".join(self.qualifiers) + " " + "::".join([self.context.get_qualified_name(), name])
+            return  "::".join([self.context.get_qualified_name(), name]) + " " +  " ".join(self.qualifiers)
         elif isinstance(self, FundamentalType):
-            return " ".join(self.qualifiers) + " " + name
+            return name + " " + " ".join(self.qualifiers)
         else:
-            return " ".join(self.qualifiers) + " " + "::" + name
+            return "::" + name + " " + "  ".join(self.qualifiers)
 
     def is_function_type(self):
         return False
@@ -394,7 +394,7 @@ using namespace __pyllars_internal;
         while p.context is not None:
             level += 1
             if isinstance(p.context, Namespace):
-                namespace_decls = "\nnamespace %s{" % p.context.name + namespace_decls.replace('\n','\n' + indent)
+                namespace_decls = "\nnamespace %s{" % (p.context.name or "pyllars") + namespace_decls.replace('\n','\n' + indent)
             else:
                 namespace_decls = "\nnamespace %s___ns{" % p.context.sanitized_name + namespace_decls.replace('\n','\n' + indent)
             indent += "   "
@@ -461,14 +461,13 @@ constexpr c_string %s_attrname = "%s";
 static inline status_t initialize_type(){
    status_t status = pyllars::%(parent_init)s();
    if (status != 0) return status;
-   status |= PythonClassWrapper< %(classname)s >::initialize("%(name)s", "%(pyname)s", pyllars%(namespace_name)s::%(module_name)s, "%(full_name)s");
 """ % {'classname': self.get_qualified_name(), 'name': self.name, 'pyname': self.name,
-       'module_name': "%s_mod" % parent_mod.name, 'full_name': self.full_name, 'parent_init': parent_init if not parent_init.startswith("::") else parent_init[2:],
+       'module_name': "%s_mod" % (parent_mod.name or "pyllars"), 'full_name': self.full_name, 'parent_init': parent_init if not parent_init.startswith("::") else parent_init[2:],
        'indent': "   ", 'namespace_name': parent_mod.get_qualified_name()}
 
         def add_members(from_, code2, is_const, is_static):
             for member in [m for m in from_.members if m.scope == 'public']:
-                if member.name == "" and (isinstance(member.type, Union) or isinstance(member.type, Struct) or isinstance(member.type, Class)):
+                if member.name == "" and (isinstance(member.type, Union) or isinstance(member.type, Class)):
                     #recursively add anonymous union's members
                     code2 = add_members(member.type, code2, member.is_const(), member.is_static)
                     continue
@@ -479,8 +478,8 @@ static inline status_t initialize_type(){
                     attr_method_name += 'Class'
                 attr_method_name += "Attribute"
                 code2 += """
-       PythonClassWrapper< %(classname)s >::%(methodname)s< %(member_name)s_attrname, %(member_type_name)s >
-          ( &%(classname)s::%(member_name)s, %(array_size)s);
+       PythonClassWrapper< %(classname)s >::%(methodname)s< %(member_name)s_attrname, decltype(%(classname)s::%(member_name)s) >
+          ( &%(classname)s::%(member_name)s);
     """ % {'classname': self.get_qualified_name(), 'member_name': member.name, 'member_type_name': member.type.get_qualified_name(),
            'array_size': member.array_size(), 'methodname': attr_method_name, 'indent': indent}
             return code2
@@ -558,10 +557,12 @@ static inline status_t initialize_type(){
     """ % {'full_classname': elem.get_qualified_name(), 'child_name': enum, 'value' : value,
            'indent': indent}
                     continue
-                if child.name == "" and isinstance(child, Union):
+                if child.name == "" and (isinstance(child, Union) or isinstance(child, Class)):
                     #recursively add anonymous union's children
                     add_children(elem, child, code2)
                     continue
+                if len(child.name) == 0:
+                    print("EMPTY CHILD NAME FOR COMPONENT ID %s", child._id)
                 assert len(child.name) != 0
                 if child.is_function_type():
                     code2 += """
@@ -576,6 +577,10 @@ static inline status_t initialize_type(){
            'indent': indent}
                     continue
                 code2 += """
+       //initialize subtype, which does not directly belong to a module:
+       PythonClassWrapper< %(child_fullname)s >::initialize("%(child_fullname)s", "%(child_name)s", nullptr,
+          "%(child_fullname)s");
+       //now add it to this class/type:
        PythonClassWrapper<%(full_classname)s>::addClassMember( "%(child_name)s",
           (PyObject*)&PythonClassWrapper< %(child_fullname)s >::Type);
     """ % {'full_classname': elem.get_qualified_name(), 'classname':elem.name, 'child_name': child.name,
@@ -591,6 +596,10 @@ static inline status_t initialize_type(){
        'base_class_name': base.get_qualified_ns_name(True),
        'base_class_full_name': base.get_qualified_name(),
        'indent': indent}
+        code += """status |= PythonClassWrapper< %(classname)s >::initialize("%(name)s", "%(pyname)s", pyllars%(namespace_name)s::%(module_name)s, "%(full_name)s");
+""" % {'classname': self.get_qualified_name(), 'name': self.name, 'pyname': self.name,
+       'module_name': "%s_mod" % (parent_mod.name or "pyllars"), 'full_name': self.full_name, 'parent_init': parent_init if not parent_init.startswith("::") else parent_init[2:],
+       'indent': "   ", 'namespace_name': parent_mod.get_qualified_name()}
         code += """
    return status;
 }
@@ -626,8 +635,8 @@ class Referencing(Type):
 
     def get_qualified_name(self, sanitized=False):
         if isinstance(self.base_type, FundamentalType):
-            return " ".join(self.qualifiers + [self.name])
-        return " ".join(self.qualifiers + [self.base_type.get_qualified_name() + self.ext])
+            return " ".join([self.name] + self.qualifiers)
+        return " ".join([self.base_type.get_qualified_name() + self.ext] + self.qualifiers)
 
 
 class Array(Referencing):
@@ -690,13 +699,12 @@ class Typedef(Referencing):
         return name
 
 
-
 class FundamentalType(Type):
 
     TYPES=["signed char", "unsigned char", "char", "short int", "short unsigned int", "int", "unsigned int",
            "long int", "long unsigned int", "long long int", "long long unsigned int",
            "__int128", "unsigned __int128",
-           "float", "double", "bool",
+           "float", "__float128", "double", "bool",
            "void"]
 
     def __init__(self, type_, id_, size, alignment):

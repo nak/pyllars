@@ -720,10 +720,10 @@ int __pyllars_internal::PythonClassWrapper<T, UNKNOWN_SIZE,
         typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
 _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds) {
     if (Type.tp_base && Base::TypePtr->tp_init) {
-        PyObject *empty = PyTuple_New(0);
+ 	PyObject *empty = PyTuple_New(0);
         Base::TypePtr->tp_init((PyObject *) &self->baseClass, empty, nullptr);
-        Py_DECREF(empty);
         PyErr_Clear();
+        Py_DECREF(empty);
     }
     self->_allocated = false;
     self->_raw_storage = nullptr;

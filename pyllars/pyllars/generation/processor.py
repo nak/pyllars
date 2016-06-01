@@ -127,7 +127,8 @@ if __name__ == "__main__":
     items = ResultsProcessor.process(sys.argv[1])
     for item in items.itervalues():
         code = item.generate_code(".")
-        if code is not None:
+        if code is not None and item.name != "":
+            print "ITEM %s:  %s %s"%(item._id,item.name, item.get_header_filename())
             header, body = code
             if not os.path.exists(item.get_include_parent_path().replace(" ","_").replace("<", "__").replace(">", "__").replace("::", "____").replace(", ", "__")):
                 os.makedirs(item.get_include_parent_path().replace(" ","_").replace("<","__").replace(">","__").replace("::", "____").replace(", ","__"))

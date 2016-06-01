@@ -1,3 +1,6 @@
+#ifndef test_basics
+#define test_basics
+
 #include <stdio.h>
 #include <string.h>
 
@@ -118,4 +121,4 @@ int test_function( char* const * const out_msg, const size_t length){
   }
   return out_msg?strlen(*out_msg):0;
 }
-
+#endif
