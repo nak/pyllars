@@ -378,6 +378,10 @@ using namespace __pyllars_internal;
 
 """ % {'myheader': my_header_path, 'headername': self._header_filename, 'namespace_id': nsid,
        'myparentheader': self.context.get_header_filename(path)}
+        for child in [c for c in self.children if isinstance(c, Type) if c.name != ""]:
+            code += """
+#include "%(header)s"
+"""%{'header': os.path.join(os.path.dirname(my_header_path), child.name, child.name+".hpp")}
         if include_path.startswith('.'):
             guard = include_path[1:].replace('/','__')
         else:
@@ -459,6 +463,11 @@ constexpr c_string %s_attrname = "%s";
         code += """
 
 static inline status_t initialize_type(){
+   static bool inited = false;
+   if (inited){
+      return 0;
+   }
+   inited = true;
    status_t status = pyllars::%(parent_init)s();
    if (status != 0) return status;
 """ % {'classname': self.get_qualified_name(), 'name': self.name, 'pyname': self.name,
@@ -577,13 +586,9 @@ static inline status_t initialize_type(){
            'indent': indent}
                     continue
                 code2 += """
-       //initialize subtype, which does not directly belong to a module:
-       PythonClassWrapper< %(child_fullname)s >::initialize("%(child_fullname)s", "%(child_name)s", nullptr,
-          "%(child_fullname)s");
-       //now add it to this class/type:
-       PythonClassWrapper<%(full_classname)s>::addClassMember( "%(child_name)s",
-          (PyObject*)&PythonClassWrapper< %(child_fullname)s >::Type);
-    """ % {'full_classname': elem.get_qualified_name(), 'classname':elem.name, 'child_name': child.name,
+   //initialize subtype:
+   status |= pyllars%(full_classname)s___ns::%(child_name)s___ns::initialize_type();
+""" % {'full_classname': self.get_qualified_name().strip(), 'classname':elem.name, 'child_name': child.name,
            'child_fullname': child.get_qualified_name(),
            'indent': indent}
             return code2
@@ -743,7 +748,125 @@ class CvQualifiedType(Referencing):
 class Enumeration(Type):
 
     def generate_code(self, path):
-        pass
+        if isinstance(self.context, Namespace):
+            parent_init = self.context.get_qualified_name() + "::init"
+        else:
+            parent_init = self.context.get_qualified_ns_name() + "::initialize_type"
+        parent_mod = self.context
+        while not isinstance(parent_mod, Namespace):
+            parent_mod = parent_mod.context
+
+        include_path = os.path.join(path, self.get_include_parent_path())
+        #  first generate #includes
+        if self.context is None:
+            nsid = "_1"
+        else:
+            nsid = self.context._id
+        my_header_path = self.get_header_filename(path)#  os.path.join(self.get_include_parent_path(), self.name + ".hpp")
+        if include_path.startswith('.'):
+            guard = include_path[1:].replace('/','__')
+        else:
+            guard = include_path.replace('/', '__')
+        parent = self.context
+        while parent is not None and not isinstance(self.context, Namespace):
+            parent = parent.context
+        mod_header_path = parent.get_header_filename() if parent is not None else "pyllars.hpp"
+        assert(not mod_header_path.startswith('/'))
+        indent = ""
+        p = self
+        namespace_decls = ""
+        level = 0
+        while p.context is not None:
+            level += 1
+            if isinstance(p.context, Namespace):
+                namespace_decls = "\nnamespace %s{" % (p.context.name or "pyllars") + namespace_decls.replace('\n','\n' + indent)
+            else:
+                namespace_decls = "\nnamespace %s___ns{" % p.context.sanitized_name + namespace_decls.replace('\n','\n' + indent)
+            indent += "   "
+            p = p.context
+        namespace_decls += "\n%snamespace %s___ns{\n" % (indent, self.sanitized_name)
+        level += 1
+        header_code = """#ifndef %(guard)s
+#define %(guard)s
+#include <pyllars_classwrapper.hpp>
+#include <%(path)s>
+#include <%(classheader)s>
+
+typedef %(full_classname)s %(sname)s_Target_Type;
+
+"""%{'path': mod_header_path, 'classheader': self.header_filenanme, 'guard': guard,
+     'full_classname': self.get_qualified_name(), 'sname': self.sanitized_name} + namespace_decls
+        header_code += """
+%(indent)sstatus_t initialize_type();
+%(indent)s//PyTypeObject *%(classname)s_obj = &__pyllars_internal::PythonClassWrapper< %(full_classname)s >::Type;
+""" % {'classname': self.sanitized_name, 'full_classname': self.sanitized_name + "_Target_Type", 'indent': indent}
+        indent2 = indent[3:]
+        for _ in range(level):
+            header_code += "%s}\n" % indent2
+            indent2 = indent2[3:]
+        header_code += """
+
+#endif
+"""
+        code = """
+#include <Python.h>
+#include <pyllars.hpp>
+#include <pyllars_classwrapper.impl>
+#include <pyllars_function_wrapper.hpp>
+#include <%(headername)s>
+#include "%(myheader)s"
+#include "%(myparentheader)s"
+
+using namespace __pyllars_internal;
+
+""" % {'myheader': my_header_path, 'headername': self._header_filename, 'namespace_id': nsid,
+       'myparentheader': self.context.get_header_filename(path)}
+        code += """static inline status_t initialize_type(){
+   static bool inited = false;
+   if (inited){
+      return 0;
+   }
+   inited = true;
+   status_t status = pyllars::%(parent_init)s();
+   if (status != 0) return status;
+""" % {'classname': self.get_qualified_name(), 'name': self.name, 'pyname': self.name,
+       'module_name': "%s_mod" % (parent_mod.name or "pyllars"), 'full_name': self.full_name,
+       'parent_init': parent_init if not parent_init.startswith("::") else parent_init[2:],
+       'indent': "   ", 'namespace_name': parent_mod.get_qualified_name()}
+        for v in self.enum_values:
+            name, val = v
+            code += """
+   PythonClassWrapper< %(fullname)s >::addEnumValue("%(name)s", %(val)s);
+"""%{'val': val, 'name': name,  'fullname': self.get_qualified_name()}
+        code += """
+   status |= PythonClassWrapper< %(fullname)s >::initialize("%(fullname)s", "%(name)s", %(parent_mod)s,"%(fullname)s");
+"""%{'fullname': self.get_qualified_name(), 'name': self.name, 'parent_mod': ("%s_mod"%self.context.name)
+        if isinstance(self.context, Namespace) else "nullptr"}
+        if not isinstance(self.context, Namespace):
+           code += """
+   PythonClassWrapper< %(parent_fullname)s>::addClassMember( "%(name)s",
+       (PyObject*) &PythonClassWrapper< %(fullname)s>::Type);
+"""%{'parent_fullname': self.context.get_qualified_name(),
+     'fullname': self.get_qualified_name(),
+     'name': self.name}
+        namespace_name = "pyllars::" + parent_mod.get_qualified_name()
+        suffix = ""
+        context = self.context
+        while context is not None and not isinstance(context, Namespace):
+            suffix = context.name + "___ns" + suffix
+            context = context.context
+        namespace_name += suffix + "::" + self.name + "___ns"
+        code += """
+   return status;
+}
+
+status_t %(namespace_name)s::initialize_type(){
+    ::initialize_type();
+}
+
+static pyllars::Initializer _initializer(%(namespace_name)s::initialize_type);
+"""%{'namespace_name': namespace_name }
+        return header_code, code
 
     def __init__(self, name, id_, context, enumerators, header_filename, base_type=None, is_incomplete=False, scope=None):
         Type.__init__(self, name, id_, context, is_incomplete, header_filename, scope)
@@ -752,6 +875,7 @@ class Enumeration(Type):
         for value in enumerators or []:
             assert(isinstance(value[1], int))
         self.enum_values = enumerators or []
+        self._header_filename = header_filename
 
 
 class Union(Class):

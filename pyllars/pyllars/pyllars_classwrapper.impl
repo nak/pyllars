@@ -832,4 +832,6 @@ _addMethod(PyMethodDef method) {
     _methodCollection.insert(_methodCollection.begin(), method);
     Type.tp_methods = _methodCollection.data();
 }
+
+
 #endif

@@ -164,7 +164,13 @@ namespace __pyllars_internal {
         }
 
         void operator()(T_base *ptr) const {
-            if (_deleteable) delete ptr;
+	  if (_deleteable) {
+	    if (std::is_array< T_base>::value){
+	      delete[] ptr;
+	    } else {
+	      delete ptr;
+	    }
+	  }
         }
 
         const bool _deleteable;
@@ -352,7 +358,11 @@ namespace __pyllars_internal {
     struct Deallocator<T, true, typename std::enable_if<!is_function_ptr<T>::value && !std::is_reference<T>::value &&
                                                   std::is_destructible<T>::value>::type> {
         static void dealloc(T *const ptr) {
+	  if (std::is_array<T>::value){
+	    delete[] ptr;
+	  } else {
             delete ptr;
+	  }
         }
     };
 
@@ -360,7 +370,11 @@ namespace __pyllars_internal {
     struct Deallocator<T, false, typename std::enable_if<!is_function_ptr<T>::value && !std::is_reference<T>::value &&
                                                   std::is_destructible<T>::value>::type> {
         static void dealloc(T *const ptr) {
+	  if (std::is_array<T>::value){
+	    delete[] ptr;
+	  } else {
             delete ptr;
+	  }
         }
     };
     template<typename T, bool delete_op_public>

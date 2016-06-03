@@ -123,7 +123,7 @@ namespace __pyllars_internal {
         template<typename T>
         struct Copy<T, typename std::enable_if<std::is_void<T>::value>::type> {
             static ObjContainer<void> *new_copy(T *const value) {
-                throw "Attmpet to copy void object";
+                throw "Attempt to copy void object";
             }
 
             static void inplace_copy(T *const to, const Py_ssize_t index, const T *const from, const bool in_place) {
@@ -131,9 +131,31 @@ namespace __pyllars_internal {
             }
         };
 
+        template<typename T, size_t size>
+        struct Copy<T[size], typename std::enable_if< (size > 0) >::type >{
+            typedef T T_array[size];
+
+            static ObjContainer<T_array> *new_copy(const T_array &value) {
+                T_array *new_value = new T_array[1];
+                memcpy(*new_value, value, sizeof(T[size]));
+                return new ObjContainerPtrProxy<T_array, true>(new_value, true);
+            }
+
+            static ObjContainer<T_array> *new_copy(T_array *const value) {
+                return new ObjContainerPtrProxy<T_array,true>(value, false);
+            }
+
+            static void inplace_copy(T_array *const to, const Py_ssize_t index, const T_array *const from,
+                                     const bool in_place) {
+                for( ssize_t i = 0; i < size; ++i){
+                    (*to)[i] = (*from)[i];
+                }
+            }
+        };
 
         template<typename T>
         struct Copy<T, typename std::enable_if<!std::is_void<T>::value &&
+        (!std::is_array<T>::value || ArraySize<T>::size <= 0 )&&
                                                !std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type> {
             typedef typename std::remove_reference<T>::type T_NoRef;
 
@@ -386,11 +408,7 @@ namespace __pyllars_internal {
                     }
                     delete[] self->_raw_storage;
                 } else if (self->_allocated) {
-                    if (std::is_array<T>::value) {
-                        delete[] self->_CObject;
-                    } else {
-                        delete self->_CObject;
-                    }
+	             delete self->_CObject;
                 }
                 self->_raw_storage = nullptr;
                 if (self->_allocated) self->_CObject = nullptr;

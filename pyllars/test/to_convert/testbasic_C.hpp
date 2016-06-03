@@ -1,3 +1,5 @@
+#ifndef __TEST_BASICS__
+#define __TEST_BASICS__
 #ifndef test_basics
 #define test_basics
 
@@ -12,22 +14,17 @@
  * Global variables
  **/
 //test global variable
-extern constexpr int data1 = 1;
-extern const int data2 = 2;
-extern int data3 = 3;
-extern const char* const string_array[] = {"one", "two", "three"};
+constexpr int data1 = 1;
+extern const int data2;
+extern int data3;
+extern const char* const string_array[];
 
 typedef const char* const cstringtype;
 
 /**
  * Function to make a copy of a C string
  **/
-const char* copy_string( const char* const s){
-  if (!s) return nullptr;
-  char* retval = new char[strlen(s)+1];
-  strcpy(retval, s);
-  return (const char*) retval;
-}
+const char* copy_string( const char* const s);
 
 /**
  * global enum definition
@@ -115,10 +112,6 @@ struct TestStruct{
 };
 
 //function that manipulates its first parameter
-int test_function( char* const * const out_msg, const size_t length){
-  if( out_msg && length > strlen("test_function")){
-    strcpy(*out_msg, "test_function");
-  }
-  return out_msg?strlen(*out_msg):0;
-}
+int test_function( char* const * const out_msg, const size_t length);
+#endif
 #endif

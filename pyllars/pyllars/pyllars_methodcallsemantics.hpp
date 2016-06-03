@@ -438,12 +438,15 @@ namespace __pyllars_internal {
             static size_t array_size;
 
             static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds) {
+	      try{
                 if (!self) return nullptr;
                 PythonClassWrapper<CClass> *_this = (PythonClassWrapper<CClass> *) self;
 
                 if ((!args || PyTuple_Size(args) == 0) && (!kwds || PyDict_Size(kwds) == 0)) {
                     if (array_size != size) {
-                        PyErr_SetString(PyExc_TypeError, "Mismatched array sizes");
+                        static char msg[250];
+                        snprintf(msg, 250, "Mismatched array sizes (static)%lld!=%lld", (long long)array_size, (long long)size);
+                        PyErr_SetString(PyExc_TypeError, msg);
                         return nullptr;
                     }
                     if (_this->template get_CObject<CClass>()) {
@@ -464,12 +467,15 @@ namespace __pyllars_internal {
                     }
                     if (PyTuple_Check(pyVal)) {
                         if (PyTuple_Size(pyVal) == size) {
-                            for (size_t i = 0; i < size; ++i)
+                           for (size_t i = 0; i < size; ++i)
                                 (_this->template get_CObject<CClass_NoRef>()->*
                                  member)[i] = *toCObject<T, false, PythonClassWrapper<T> >(
                                         *PyTuple_GetItem(pyVal, i));
                         } else {
-                            PyErr_SetString(PyExc_IndexError, "Mismatched array sizes");
+                            static char msg[250];
+                            snprintf(msg, 250, "Mismatched array sizes (tuple)%lld!=%lld", (long long)PyTuple_Size(pyVal),
+                                     (long long)size);
+                            PyErr_SetString(PyExc_IndexError, msg);
                             return nullptr;
                         }
                     } else if (PythonClassWrapper<T_array>::checkType(pyVal)) {
@@ -486,6 +492,10 @@ namespace __pyllars_internal {
                     return nullptr;
                 }
                 return Py_None;
+	      } catch(const char* const msg){
+		PyErr_SetString(PyExc_SystemError, msg);
+		return nullptr;
+	      }
             }
 
             static void setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj) {
@@ -584,7 +594,10 @@ namespace __pyllars_internal {
                                  member)[i] = *toCObject<T, false, PythonClassWrapper<T> >(
                                         *PyTuple_GetItem(pyVal, i));
                         } else {
-                            PyErr_SetString(PyExc_IndexError, "Mismatched array sizes");
+                            static char msg[250];
+                            snprintf(msg, 250, "Mismatched array sizes (tuple)%lld!=%lld", (long long)PyTuple_Size(pyVal),
+                                     (long long)array_size);
+                            PyErr_SetString(PyExc_IndexError, msg);
                             return nullptr;
                         }
                     } else if (PythonClassWrapper<T_array>::checkType(pyVal)) {

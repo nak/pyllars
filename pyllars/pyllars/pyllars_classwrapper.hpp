@@ -259,7 +259,7 @@ namespace __pyllars_internal {
             static const char *const doc = "Get attribute ";
             char *doc_string = new char[strlen(name) + strlen(doc) + 1];
             snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
-            const ssize_t array_size = Sizeof<Type>::value;
+            const ssize_t array_size = ArraySize<Type>::size;
             MemberContainer<T_NoRef>::template Container<name, Type>::member = member;
             MemberContainer<T_NoRef>::template Container<name, Type>::array_size = array_size;
             PyMethodDef pyMeth = {name,
