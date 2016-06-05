@@ -44,7 +44,7 @@ namespace __pyllars_internal {
     };
 
 
-    template <typename T, const ssize_t last = UNKNOWN_SIZE, typename E = void>
+    template <typename T, typename E = void>
     struct PythonClassWrapper;
 
     /**

@@ -396,7 +396,7 @@ namespace __pyllars_internal {
     };
 
     template<typename T>
-     struct PythonClassWrapper<T, -1, typename std::enable_if<
+     struct PythonClassWrapper<T, typename std::enable_if<
      std::is_function<typename std::remove_pointer<T>::type>::value >::type> :
         public PythonFunctionWrapper2< typename std::remove_pointer<T>::type>{
 

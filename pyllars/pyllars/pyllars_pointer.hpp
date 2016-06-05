@@ -20,11 +20,13 @@
 namespace __pyllars_internal {
 
 
-    template<typename T, const ssize_t last>
-    struct PythonClassWrapper<T, last,typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
+    template<typename T>
+    struct PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
             !std::is_function<typename std::remove_pointer<T>::type>::value &&
             (std::is_pointer<T>::value || std::is_array<T>::value)>::type> :
             public CommonBaseWrapper {
+
+	      static constexpr ssize_t last = ArraySize<T>::size -1;
 
         static PyObject *parent_module;
 
@@ -154,7 +156,7 @@ namespace __pyllars_internal {
                                                                                            true, nullptr);
                     result = (PyObject *) res;
                 } else {
-                    PythonClassWrapper<T, last> *res = (PythonClassWrapper<T, last> *)
+                    PythonClassWrapper<T> *res = (PythonClassWrapper<T> *)
                             (ObjectContent<T>::getObjectAt(*self_->_CObject, index, element_array_size, self_->_depth));
 
                     if (self_->_depth != 1) {
@@ -270,6 +272,10 @@ namespace __pyllars_internal {
                 PyErr_SetString(PyExc_RuntimeError, "Cannot get type for pointer wrapper object");
                 return nullptr;
             }
+	    if (!type->tp_name){
+                PyErr_SetString(PyExc_RuntimeError, "Uninitialized type when creating object");
+                return nullptr;
+	    }
 
             PythonClassWrapper *pyobj = (PythonClassWrapper *) PyObject_Call((PyObject *) type, args, kwds);
             if (!pyobj) {
@@ -306,6 +312,10 @@ namespace __pyllars_internal {
                 PyErr_SetString(PyExc_RuntimeError, "Cannot get type for pointer wrapper object");
                 return nullptr;
             }
+	    if (!type->tp_name){
+                PyErr_SetString(PyExc_RuntimeError, "Uninitialized type when creating object");
+                return nullptr;
+	    }
 
             PythonClassWrapper *pyobj = (PythonClassWrapper *) PyObject_Call((PyObject *) type, args, kwds);
             if (!pyobj) {
@@ -632,13 +642,13 @@ namespace __pyllars_internal {
 
     };
 
-    template<typename T, const ssize_t last>
-    PyObject *PythonClassWrapper<T, last, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
+    template<typename T>
+    PyObject *PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
              !std::is_function<typename std::remove_pointer<T>::type>::value &&
             (std::is_pointer<T>::value || std::is_array<T>::value)>::type>::parent_module = nullptr;
 
-    template<typename T, const ssize_t last>
-    PyMethodDef PythonClassWrapper<T,  last, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
+    template<typename T>
+    PyMethodDef PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
              !std::is_function<typename std::remove_pointer<T>::type>::value &&
             (std::is_pointer<T>::value || std::is_array<T>::value)>::type>::_methods[] =
             {{address_name, nullptr, METH_KEYWORDS, nullptr},
@@ -646,8 +656,8 @@ namespace __pyllars_internal {
              {nullptr,      nullptr, 0,             nullptr} /*sentinel*/
             };
 
-    template<typename T, const ssize_t last>
-    PySequenceMethods PythonClassWrapper<T, last, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
+    template<typename T>
+    PySequenceMethods PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
              !std::is_function<typename std::remove_pointer<T>::type>::value &&
             (std::is_pointer<T>::value || std::is_array<T>::value)>::type>::_seqmethods;
 

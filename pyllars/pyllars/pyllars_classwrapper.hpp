@@ -128,14 +128,14 @@ namespace __pyllars_internal {
      * Class to define Python wrapper to C class/type
      **/
     template<typename T>
-    struct PythonClassWrapper<T, UNKNOWN_SIZE,
+    struct PythonClassWrapper<T, 
             typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>
             : public CommonBaseWrapper {
 
 
         typedef CommonBaseWrapper::Base Base;
         typedef PythonClassWrapper DereferencedWrapper;
-        typedef PythonClassWrapper<T const,  UNKNOWN_SIZE, void> ConstWrapper;
+        typedef PythonClassWrapper<T const,   void> ConstWrapper;
         typedef PythonClassWrapper<typename std::remove_const<T>::type> NonConstWrapper;
         typedef PythonClassWrapper<typename std::remove_reference<T>::type> NoRefWrapper;
 
@@ -404,39 +404,39 @@ namespace __pyllars_internal {
 
 
     template<typename T>
-    PyObject *PythonClassWrapper<T, UNKNOWN_SIZE,
+    PyObject *PythonClassWrapper<T, 
             typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
             parent_module = nullptr;
     template<typename T>
-    std::vector<PyMethodDef> PythonClassWrapper<T, UNKNOWN_SIZE,
+    std::vector<PyMethodDef> PythonClassWrapper<T,
             typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
             _methodCollection = std::vector<PyMethodDef>(emptyMethods, emptyMethods + 1);
     template<typename T>
-    std::vector<PyTypeObject *> PythonClassWrapper<T, UNKNOWN_SIZE,
+    std::vector<PyTypeObject *> PythonClassWrapper<T,
             typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
             _baseClasses = std::vector<PyTypeObject *>();
     template<typename T>
     std::map<std::string, typename MethodContainer<T>::setter_t>
-            PythonClassWrapper<T, UNKNOWN_SIZE,
+            PythonClassWrapper<T, 
                     typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
             _memberSettersDict = std::map<std::string, typename MethodContainer<T>::setter_t>();
     template<typename T>
-    std::vector<typename PythonClassWrapper<T, UNKNOWN_SIZE, typename std::enable_if<
+    std::vector<typename PythonClassWrapper<T, typename std::enable_if<
             !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
     ConstructorContainer>
-            PythonClassWrapper<T, UNKNOWN_SIZE,
+            PythonClassWrapper<T,
                     typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
             _constructors;
 
 
     template<typename T>
-    std::string PythonClassWrapper<T, UNKNOWN_SIZE,
+    std::string PythonClassWrapper<T,
             typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::_name;
     template<typename T>
-    std::string PythonClassWrapper<T, UNKNOWN_SIZE,
+    std::string PythonClassWrapper<T,
             typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::_module_entry_name;
     template<typename T>
-    PyTypeObject PythonClassWrapper<T, UNKNOWN_SIZE,
+    PyTypeObject PythonClassWrapper<T,
             typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
             Type = {
 

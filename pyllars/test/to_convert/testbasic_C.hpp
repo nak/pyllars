@@ -67,6 +67,9 @@ struct TestStruct{
 
   struct{ 
     int d[2];
+    struct {
+      float f = 9.87654e+32;
+    } inner2;
   } array_field[2];
 
   // Inner enum typedef

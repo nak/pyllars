@@ -24,7 +24,7 @@
 namespace __pyllars_internal {
 
 
-    template<typename C, const ssize_t last, typename Z>
+    template<typename C, typename Z>
     struct PythonClassWrapper;
 
     template< typename T>
@@ -34,7 +34,7 @@ namespace __pyllars_internal {
     public:
 
 
-        template<typename CClass, const ssize_t last, typename Z>
+        template<typename CClass,  typename Z>
         friend
         struct PythonClassWrapper;
 
@@ -883,8 +883,8 @@ namespace __pyllars_internal {
                     PyErr_SetString(PyExc_RuntimeError, "Invalid constructor arguments on allocation");
                     return nullptr;
                 }
-                PythonClassWrapper<T_NoRef *, UNKNOWN_SIZE, void> *obj =
-                        PythonClassWrapper<T_NoRef *, UNKNOWN_SIZE, void>::template createPy(1, cobj, true);
+                PythonClassWrapper<T_NoRef *, void> *obj =
+                        PythonClassWrapper<T_NoRef *,  void>::template createPy(1, cobj, true);
 
                 return (PyObject *) obj;
             }
@@ -897,7 +897,7 @@ namespace __pyllars_internal {
                 void> :
                 public BasicAlloc<ReturnType(*)(Args...), PythonClassWrapper<ReturnType(**)(Args...)> > {
 
-            typedef PythonClassWrapper<ReturnType(**)(Args...), UNKNOWN_SIZE, void> PtrWrapper;
+            typedef PythonClassWrapper<ReturnType(**)(Args...),  void> PtrWrapper;
 
             typedef ReturnType(*T)(Args...);
 
@@ -991,7 +991,7 @@ namespace __pyllars_internal {
                     PyErr_SetString(PyExc_RuntimeError, "Invalid constructor arguments on allocation");
                     return nullptr;
                 }
-                PtrWrapper *obj = PythonClassWrapper<T_NoRef *, UNKNOWN_SIZE, void>::template createPy<T_NoRef *>(1, cobj, true);
+                PtrWrapper *obj = PythonClassWrapper<T_NoRef *,  void>::template createPy<T_NoRef *>(1, cobj, true);
                 obj->set_raw_storage(nullptr);
                 return (PyObject *) obj;
             }
@@ -999,12 +999,12 @@ namespace __pyllars_internal {
 
         template<typename T>
         struct Alloc<T,
-                PythonClassWrapper<T *, UNKNOWN_SIZE, void>,
-                PythonClassWrapper<T, UNKNOWN_SIZE, void>,
+                PythonClassWrapper<T *, void>,
+                PythonClassWrapper<T, void>,
                 typename std::enable_if<std::is_void<typename std::remove_volatile<T>::type>::value>::type> :
-                public BasicAlloc<T, PythonClassWrapper<void *, UNKNOWN_SIZE, void> > {
+                public BasicAlloc<T, PythonClassWrapper<void *, void> > {
 
-            typedef PythonClassWrapper<void *, UNKNOWN_SIZE, void> PtrWrapper;
+            typedef PythonClassWrapper<void *, void> PtrWrapper;
             typedef typename std::remove_reference<T>::type C_NoRef;
 
             static void dealloc(ObjContainer <C_NoRef> *ptr) {

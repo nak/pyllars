@@ -499,7 +499,7 @@ namespace __pyllars_internal {
             }
 
             static void setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj) {
-                smart_ptr<T[size], false> val = toCObject<T[size], false, PythonClassWrapper<T[size],  size - 1> >(
+                smart_ptr<T[size], false> val = toCObject<T[size], false, PythonClassWrapper<T[size]> >(
                         *pyobj);
                 for (size_t i = 0; i < size; ++i) {
                     (self->*member)[i] = (*val)[i];
@@ -544,7 +544,7 @@ namespace __pyllars_internal {
             }
 
             static void setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj) {
-                smart_ptr<T[size], false> val = toCObject<T[size], false, PythonClassWrapper<T[size], size - 1> >(
+                smart_ptr<T[size], false> val = toCObject<T[size], false, PythonClassWrapper<T[size]> >(
                         *pyobj);
                 for (size_t i = 0; i < size; ++i) {
                     (self->*member)[i] = (*val)[i];
@@ -618,7 +618,7 @@ namespace __pyllars_internal {
             }
 
             static void setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj) {
-                smart_ptr<T[], false> val = toCObject<T[], false, PythonClassWrapper<T[], -1> >(*pyobj);
+                smart_ptr<T[], false> val = toCObject<T[], false, PythonClassWrapper<T[]> >(*pyobj);
                 for (size_t i = 0; i < array_size; ++i) {
                     (self->*member)[i] = (*val)[i];
                 }

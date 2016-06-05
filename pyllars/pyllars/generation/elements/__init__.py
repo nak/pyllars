@@ -66,7 +66,7 @@ class Namespace(BaseElement):
         return os.path.join(self.get_include_parent_path(), "module.cpp") if path is None else\
             os.path.join(path, self.get_include_parent_path(), "module.cpp")
 
-    def generate_code(self, path):
+    def generate_code(self, path, suffix="", classname=None):
         include_path = os.path.join(path, self.get_include_parent_path())
         if not os.path.exists(include_path):
             os.makedirs(include_path)
@@ -166,7 +166,8 @@ class Namespace(BaseElement):
 #endif
 """
         my_header_path = self.get_header_filename(path)#  os.path.join(self.get_include_parent_path(), self.name + ".hpp")
-        code = """
+        if suffix=="":
+            code = """
 #include <Python.h>
 #include <%(path)s/module.hpp>
 #include <pyllars_classwrapper.impl>
@@ -209,7 +210,7 @@ class Type(BaseElement):
         self.is_incomplete = is_incomplete
 
     def get_qualified_ns_name(self, sanitized=False):
-        return self.context.get_qualified_ns_name(sanitized) + "::" + self.sanitized_name + "___ns"
+        return self.context.get_qualified_ns_name(sanitized) + ("::" + self.sanitized_name + "___ns" if self.sanitized_name!="" else "")
 
     def get_qualified_name(self, sanitized=False):
         name = self.name if not sanitized else self.sanitized_name
@@ -253,6 +254,8 @@ class Type(BaseElement):
         return os.path.join(self.get_include_parent_path(), self.sanitized_name +".cpp") if path is None else\
             os.path.join(path, self.get_include_parent_path(), self.sanitized_name +".cpp")
 
+    def get_core_type(self):
+        return self
 
 class Class(Type):
     SCOPES = ["public", "protected", "private"]
@@ -357,7 +360,8 @@ class Class(Type):
         """
         self.members.append(Class.Member(member_name, type_, member_scope, qualifiers, bit_field_size))
 
-    def generate_code(self, path):
+    def generate_code(self, path, suffix="", classname=None):
+        classname = classname or self.get_qualified_name()
         include_path = os.path.join(path, self.get_include_parent_path())
         #  first generate #includes
         if self.context is None:
@@ -365,7 +369,9 @@ class Class(Type):
         else:
             nsid = self.context._id
         my_header_path = self.get_header_filename(path)#  os.path.join(self.get_include_parent_path(), self.name + ".hpp")
-        code = """
+        code=""
+        if suffix=="":
+            code += """
 #include <Python.h>
 #include <pyllars.hpp>
 #include <pyllars_classwrapper.impl>
@@ -378,10 +384,11 @@ using namespace __pyllars_internal;
 
 """ % {'myheader': my_header_path, 'headername': self._header_filename, 'namespace_id': nsid,
        'myparentheader': self.context.get_header_filename(path)}
-        for child in [c for c in self.children if isinstance(c, Type) if c.name != ""]:
-            code += """
-#include "%(header)s"
-"""%{'header': os.path.join(os.path.dirname(my_header_path), child.name, child.name+".hpp")}
+            for child in [c for c in self.children if isinstance(c, Type) if c.name != ""]:
+                code += """
+    #include "%(header)s"
+    """%{'header': os.path.join(os.path.dirname(my_header_path), child.name, child.name+".hpp")}
+        header_code = ""
         if include_path.startswith('.'):
             guard = include_path[1:].replace('/','__')
         else:
@@ -405,28 +412,46 @@ using namespace __pyllars_internal;
             p = p.context
         namespace_decls += "\n%snamespace %s___ns{\n" % (indent, self.sanitized_name)
         level += 1
-        header_code = """#ifndef %(guard)s
-#define %(guard)s
-#include <pyllars_classwrapper.hpp>
-#include <%(path)s>
-#include <%(classheader)s>
+        if suffix == "":
+            header_code += """#ifndef %(guard)s
+    #define %(guard)s
+    #include <pyllars_classwrapper.hpp>
+    #include <%(path)s>
+    #include <%(classheader)s>
 
-typedef %(full_classname)s %(sname)s_Target_Type;
+    typedef %(full_classname)s %(sname)s_Target_Type;
 
-"""%{'path': mod_header_path, 'classheader': self.header_filenanme, 'guard': guard,
-     'full_classname': self.get_qualified_name(), 'sname': self.sanitized_name} + namespace_decls
+    """%{'path': mod_header_path, 'classheader': self.header_filenanme, 'guard': guard,
+         'full_classname': classname, 'sname': self.sanitized_name or self._id} + namespace_decls
         header_code += """
-%(indent)sstatus_t initialize_type();
+%(indent)sstatus_t initialize_type%(suffix)s();
 %(indent)s//PyTypeObject *%(classname)s_obj = &__pyllars_internal::PythonClassWrapper< %(full_classname)s >::Type;
-""" % {'classname': self.sanitized_name, 'full_classname': self.sanitized_name + "_Target_Type", 'indent': indent}
+""" % {'classname': self.sanitized_name, 'full_classname': self.sanitized_name + "_Target_Type", 'indent': indent,
+       'suffix': suffix}
         indent2 = indent[3:]
-        for _ in range(level):
-            header_code += "%s}\n" % indent2
-            indent2 = indent2[3:]
-        header_code += """
-
-#endif
+        if suffix=="":
+            code += """
+typedef const char c_string[];
 """
+        for member in [m for m in self.members if m.scope == 'public' and
+                        m.type.get_core_type() != self and
+                        m.type.get_core_type().name == "" and
+                (isinstance(m.type.get_core_type(), Type) and not isinstance(m.type.get_core_type(), Union) and
+                     not isinstance(m.type.get_core_type(), FundamentalType))]:
+            child = member.type.get_core_type()
+            name = "_anonymous%s"%child._id
+            childclassname = "std::remove_pointer<typename extent_as_pointer<decltype(%(classname)s::%(name)s)>::type>::type"%{'classname': classname, 'name': member.name}
+            h,c = child.generate_code(path, suffix=name, classname=childclassname)
+            header_code += h
+            code += c
+        if suffix == "":
+            for _ in range(level):
+                header_code += "%s}\n" % indent2
+                indent2 = indent2[3:]
+            header_code += """
+
+    #endif
+    """
         if isinstance(self.context, Namespace):
             parent_init = self.context.get_qualified_name() + "::init"
         else:
@@ -436,15 +461,14 @@ typedef %(full_classname)s %(sname)s_Target_Type;
             parent_mod = parent_mod.context
 
         # initialize type
-        for base in self.bases:
-            code += """
-#include <%(baseheader)s>
-""" % {'indent': indent,
-       'baseheader': base.get_header_filename(path)
-       }
-        code += """
-typedef const char c_string[];
-"""
+        if suffix == "":
+            for base in self.bases:
+                code += """
+    #include <%(baseheader)s>
+    """ % {'indent': indent,
+           'baseheader': base.get_header_filename(path)
+           }
+
         for method_name in set([m.name for m in self._methods if m.scope == 'public']):
             code += """
 constexpr c_string %s_name = "%s";
@@ -454,15 +478,21 @@ constexpr c_string %s_name = "%s";
             for member in set([m for m in from_.members if m.scope == 'public']):
                 if member.name == "" and (isinstance(member.type, Union) or isinstance(member.type, Class)):
                     code2 = add_memberattnames(member.type, code2)
+                    print "RETURNTING %s"%code2
                     continue
                 code2 += """
 constexpr c_string %s_attrname = "%s";
 """% ( member.name, member.name)
             return code2
         code = add_memberattnames(self, code)
+        typedef_code = ""
+        if suffix!="":
+            typedef_code = "typedef %s main_type;"%classname
+            classname = "main_type"
         code += """
 
-static inline status_t initialize_type(){
+static inline status_t initialize_type%(suffix)s(){
+   %(typedef_code)s
    static bool inited = false;
    if (inited){
       return 0;
@@ -470,26 +500,43 @@ static inline status_t initialize_type(){
    inited = true;
    status_t status = pyllars::%(parent_init)s();
    if (status != 0) return status;
-""" % {'classname': self.get_qualified_name(), 'name': self.name, 'pyname': self.name,
+""" % {'classname': classname, 'name': self.name, 'pyname': self.name,
        'module_name': "%s_mod" % (parent_mod.name or "pyllars"), 'full_name': self.full_name, 'parent_init': parent_init if not parent_init.startswith("::") else parent_init[2:],
-       'indent': "   ", 'namespace_name': parent_mod.get_qualified_name()}
+       'indent': "   ", 'namespace_name': parent_mod.get_qualified_name(),
+       'suffix': suffix, 'typedef_code': typedef_code}
 
         def add_members(from_, code2, is_const, is_static):
             for member in [m for m in from_.members if m.scope == 'public']:
-                if member.name == "" and (isinstance(member.type, Union) or isinstance(member.type, Class)):
-                    #recursively add anonymous union's members
+                if member.name == "" and (isinstance(member.type, Class)):
+                    #recursively add anonymous members
                     code2 = add_members(member.type, code2, member.is_const(), member.is_static)
                     continue
+                if member.type.get_core_type().name == "" and isinstance(member.type.get_core_type(), Class) and \
+                        not isinstance(member.type.get_core_type(), Union):
+                    if member.type != member.type.get_core_type():
+                         code2 += """
+       PythonClassWrapper< decltype(%(classname)s::%(member_name)s) >::initialize( "decltype(%(classname)s::%(member_name)s)",
+          "decltype(%(classname)s::%(member_name)s)", nullptr, "decltype(%(classname)s::%(member_name)s)");
+    """ % {'classname': classname, 'member_name': member.name, 'member_type_name': member.type.get_qualified_name(),
+            'indent': indent}
+                    code2 += """initialize_type_anonymous%s();
+        """%member.type.get_core_type()._id
+                    code2 += """
+       PythonClassWrapper< decltype(%(classname)s::%(member_name)s) >::initialize( "decltype(%(classname)s::%(member_name)s)",
+          "decltype(%(classname)s::%(member_name)s)", nullptr, "decltype(%(classname)s::%(member_name)s)");
+    """ % {'classname': classname, 'member_name': member.name, 'member_type_name': member.type.get_qualified_name(),
+            'indent': indent}
                 attr_method_name = "add"
                 if is_const or member.is_const():
                     attr_method_name += 'Const'
                 if is_static or member.is_static:
                     attr_method_name += 'Class'
                 attr_method_name += "Attribute"
+
                 code2 += """
        PythonClassWrapper< %(classname)s >::%(methodname)s< %(member_name)s_attrname, decltype(%(classname)s::%(member_name)s) >
           ( &%(classname)s::%(member_name)s);
-    """ % {'classname': self.get_qualified_name(), 'member_name': member.name, 'member_type_name': member.type.get_qualified_name(),
+    """ % {'classname': classname, 'member_name': member.name, 'member_type_name': member.type.get_qualified_name(),
            'array_size': member.array_size(), 'methodname': attr_method_name, 'indent': indent}
             return code2
 
@@ -520,7 +567,7 @@ static inline status_t initialize_type(){
       PythonClassWrapper< %(classname)s >::%(callable)s< %(method_name2)s_name, %(return_type)s %(args)s >
          ( &%(classname)s::%(method_name)s, kwlist);
    }
-""" % {'classname': self.get_qualified_name(),
+""" % {'classname': classname,
        'method_name': method.name,
        'method_name2': method.name, 'return_type': method.return_type.get_qualified_name(),
        'callable': call_method_name, 'args': (", " if len(args) else "")+ ", ".join(args), 'indent': indent}
@@ -533,7 +580,10 @@ static inline status_t initialize_type(){
                 args = []
                 kwlist =[]
                 for arg_name, arg_type in constructor.arguments:
-                    args.append(arg_type.get_qualified_name())
+                    if arg_type.get_core_type().name == "":
+                        args.append(classname + arg_type.name)
+                    else:
+                        args.append(arg_type.get_qualified_name())
                     kwlist.append('"%s"' % arg_name)
                 if len(kwlist)> 0:
                     code +="""
@@ -550,7 +600,7 @@ static inline status_t initialize_type(){
           ( kwlist,
             PythonClassWrapper< %(classname)s >::create< %(args)s >);
        }
-    """ % {'classname': self.get_qualified_name(), 'bare_class_name': self.name,
+    """ % {'classname': classname, 'bare_class_name': self.name,
            'callable': call_method_name, 'args': ", ".join(args), 'indent': indent}
 
         def add_children(elem, from_, code2):
@@ -588,7 +638,7 @@ static inline status_t initialize_type(){
                 code2 += """
    //initialize subtype:
    status |= pyllars%(full_classname)s___ns::%(child_name)s___ns::initialize_type();
-""" % {'full_classname': self.get_qualified_name().strip(), 'classname':elem.name, 'child_name': child.name,
+""" % {'full_classname': classname.strip(), 'classname':elem.name, 'child_name': child.name,
            'child_fullname': child.get_qualified_name(),
            'indent': indent}
             return code2
@@ -597,24 +647,27 @@ static inline status_t initialize_type(){
             code += """
    PythonClassWrapper<%(full_class_name)s>::addBaseClass
       (&PythonClassWrapper< %(base_class_full_name)s >::Type);
-""" % {'full_class_name': self.get_qualified_name(), 'class_name': self.name,
+""" % {'full_class_name': classname, 'class_name': self.name,
        'base_class_name': base.get_qualified_ns_name(True),
        'base_class_full_name': base.get_qualified_name(),
        'indent': indent}
-        code += """status |= PythonClassWrapper< %(classname)s >::initialize("%(name)s", "%(pyname)s", pyllars%(namespace_name)s::%(module_name)s, "%(full_name)s");
-""" % {'classname': self.get_qualified_name(), 'name': self.name, 'pyname': self.name,
-       'module_name': "%s_mod" % (parent_mod.name or "pyllars"), 'full_name': self.full_name, 'parent_init': parent_init if not parent_init.startswith("::") else parent_init[2:],
+        modulename = "pyllars%(namespace_name)s::%(module_name)s"%{'namespace_name': parent_mod.get_qualified_name(), 'module_name': "%s_mod" % (parent_mod.name or "pyllars")} if \
+            suffix=="" else "nullptr"
+        code += """status |= PythonClassWrapper< %(classname)s >::initialize("%(name)s", "%(pyname)s",%(module_name)s, "%(full_name)s");
+""" % {'classname': classname, 'name': self.name or "_anonymous%s"%self._id, 'pyname': self.name or "_anonymous%s"%self._id,
+       'module_name': modulename, 'full_name': self.full_name.replace("::::","::") + ("_anaonymous%s"%self._id if self.name=="" else ""),
+       'parent_init': parent_init if not parent_init.startswith("::") else parent_init[2:],
        'indent': "   ", 'namespace_name': parent_mod.get_qualified_name()}
         code += """
    return status;
 }
 
-status_t pyllars%(namespace_name)s::initialize_type(){
-    ::initialize_type();
+status_t pyllars%(namespace_name)s::initialize_type%(suffix)s(){
+    ::initialize_type%(suffix)s();
 }
 
-static pyllars::Initializer _initializer(pyllars%(namespace_name)s::initialize_type);
-""" % {'indent': indent, 'namespace_name': self.get_qualified_ns_name()}
+static pyllars::Initializer _initializer%(suffix)s(pyllars%(namespace_name)s::initialize_type%(suffix)s);
+""" % {'indent': indent, 'namespace_name': self.get_qualified_ns_name(), 'suffix': suffix}
         return header_code, code
 
 
@@ -642,6 +695,9 @@ class Referencing(Type):
         if isinstance(self.base_type, FundamentalType):
             return " ".join([self.name] + self.qualifiers)
         return " ".join([self.base_type.get_qualified_name() + self.ext] + self.qualifiers)
+
+    def get_core_type(self):
+        return self.base_type.get_core_type()
 
 
 class Array(Referencing):
@@ -747,7 +803,8 @@ class CvQualifiedType(Referencing):
 
 class Enumeration(Type):
 
-    def generate_code(self, path):
+    def generate_code(self, path, suffix="", classname=None):
+        classname = classname or self.get_qualified_name()
         if isinstance(self.context, Namespace):
             parent_init = self.context.get_qualified_name() + "::init"
         else:
@@ -795,11 +852,12 @@ class Enumeration(Type):
 typedef %(full_classname)s %(sname)s_Target_Type;
 
 """%{'path': mod_header_path, 'classheader': self.header_filenanme, 'guard': guard,
-     'full_classname': self.get_qualified_name(), 'sname': self.sanitized_name} + namespace_decls
+     'full_classname': classname, 'sname': self.sanitized_name} + namespace_decls
         header_code += """
-%(indent)sstatus_t initialize_type();
+%(indent)sstatus_t initialize_type%(suffix)s();
 %(indent)s//PyTypeObject *%(classname)s_obj = &__pyllars_internal::PythonClassWrapper< %(full_classname)s >::Type;
-""" % {'classname': self.sanitized_name, 'full_classname': self.sanitized_name + "_Target_Type", 'indent': indent}
+""" % {'classname': self.sanitized_name, 'full_classname': self.sanitized_name + "_Target_Type", 'indent': indent,
+       'suffix': suffix}
         indent2 = indent[3:]
         for _ in range(level):
             header_code += "%s}\n" % indent2
@@ -808,19 +866,20 @@ typedef %(full_classname)s %(sname)s_Target_Type;
 
 #endif
 """
-        code = """
-#include <Python.h>
-#include <pyllars.hpp>
-#include <pyllars_classwrapper.impl>
-#include <pyllars_function_wrapper.hpp>
-#include <%(headername)s>
-#include "%(myheader)s"
-#include "%(myparentheader)s"
+        if suffix=="":
+            code = """
+    #include <Python.h>
+    #include <pyllars.hpp>
+    #include <pyllars_classwrapper.impl>
+    #include <pyllars_function_wrapper.hpp>
+    #include <%(headername)s>
+    #include "%(myheader)s"
+    #include "%(myparentheader)s"
 
-using namespace __pyllars_internal;
+    using namespace __pyllars_internal;
 
-""" % {'myheader': my_header_path, 'headername': self._header_filename, 'namespace_id': nsid,
-       'myparentheader': self.context.get_header_filename(path)}
+    """ % {'myheader': my_header_path, 'headername': self._header_filename, 'namespace_id': nsid,
+           'myparentheader': self.context.get_header_filename(path)}
         code += """static inline status_t initialize_type(){
    static bool inited = false;
    if (inited){
@@ -829,7 +888,7 @@ using namespace __pyllars_internal;
    inited = true;
    status_t status = pyllars::%(parent_init)s();
    if (status != 0) return status;
-""" % {'classname': self.get_qualified_name(), 'name': self.name, 'pyname': self.name,
+""" % {'classname': classname, 'name': self.name, 'pyname': self.name,
        'module_name': "%s_mod" % (parent_mod.name or "pyllars"), 'full_name': self.full_name,
        'parent_init': parent_init if not parent_init.startswith("::") else parent_init[2:],
        'indent': "   ", 'namespace_name': parent_mod.get_qualified_name()}
@@ -840,14 +899,14 @@ using namespace __pyllars_internal;
 """%{'val': val, 'name': name,  'fullname': self.get_qualified_name()}
         code += """
    status |= PythonClassWrapper< %(fullname)s >::initialize("%(fullname)s", "%(name)s", %(parent_mod)s,"%(fullname)s");
-"""%{'fullname': self.get_qualified_name(), 'name': self.name, 'parent_mod': ("%s_mod"%self.context.name)
+"""%{'fullname': classname, 'name': self.name, 'parent_mod': ("%s_mod"%self.context.name)
         if isinstance(self.context, Namespace) else "nullptr"}
         if not isinstance(self.context, Namespace):
            code += """
    PythonClassWrapper< %(parent_fullname)s>::addClassMember( "%(name)s",
        (PyObject*) &PythonClassWrapper< %(fullname)s>::Type);
 """%{'parent_fullname': self.context.get_qualified_name(),
-     'fullname': self.get_qualified_name(),
+     'fullname': classname,
      'name': self.name}
         namespace_name = "pyllars::" + parent_mod.get_qualified_name()
         suffix = ""
@@ -880,7 +939,7 @@ static pyllars::Initializer _initializer(%(namespace_name)s::initialize_type);
 
 class Union(Class):
 
-    def generate_code(self, path):
+    def generate_code(self, path, suffix="", classname=None):
         pass
 
 
@@ -905,9 +964,6 @@ class FunctionType(Type):
 
     def is_function_type(self):
         return True
-
-#    def get_qualified_name(self):
-#        return self.name
 
 
 class Function(object):
