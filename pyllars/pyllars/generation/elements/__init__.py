@@ -15,7 +15,7 @@ class Namespace(BaseElement):
 
     namespaces = {}
 
-    def __init__(self, name, id_, context=None):
+    def __init__(self, name, id_, header_filename, context):
         BaseElement.__init__(self)
         assert (context is None or isinstance(context, Namespace))
         assert (id is not None)
@@ -32,8 +32,7 @@ class Namespace(BaseElement):
             Namespace.namespaces[self.full_name] = self
             Namespace.namespaces[id_] = Namespace.namespaces[self.full_name]
         self._classes = {}
-        ###if self.name == "":
-        ###    self.name = "pyllars"
+        self.from_header = header_filename
 
     @staticmethod
     def lookup(id_):
@@ -91,9 +90,10 @@ class Namespace(BaseElement):
 %(indent)s      {
 %(indent)s         static const char* const argumentnames[] = {%(argument_names)s};
 %(indent)s         status |= PyModule_AddObject( %(name)s_mod, "%(func_name)s",
-%(indent)s              (PyObject*)__pyllars_internal::PythonFunctionWrapper<__pyllars_internal::is_complete< %(return_type)s >::value, %(return_type)s %(arguments)s>::create("%(func_name)s", %(context)s::%(func_name)s, argumentnames));
+%(indent)s              (PyObject*)__pyllars_internal::PythonFunctionWrapper<__pyllars_internal::is_complete< %(return_type)s >::value, %(return_type)s %(arguments)s>::
+%(indent)s                 create("%(func_name)s", %(context)s::%(func_name)s, argumentnames));
 %(indent)s      }"""%{'indent': indent,
-     'name': self.name,
+     'name': self.name.replace("::::","::"),
      'func_name': func.name,
      'context': self.get_qualified_name(),
      'return_type': func.return_type.get_qualified_name(),
@@ -109,6 +109,8 @@ class Namespace(BaseElement):
             p = p.context
             depth += 1
             fullindent += indent
+        if self.name != "" and self.name != "::":
+            code = "namespace pyllars{\n" + code
         indent = fullindent[3:]
         header_code = header_code + code + """
 %(indent)sextern PyObject* %(name)s_mod;
@@ -121,14 +123,21 @@ class Namespace(BaseElement):
 
         code = precode + code
         code += """
-%(indent)sstatus_t _init(){
+%(indent)sstatus_t init(){
 %(indent)s   if (%(name)s_mod) return 0;// if already initialized
 %(indent)s   %(parent_init)s
 %(indent)s   int status = 0;
 %(indent)s   %(name)s_mod = Py_InitModule3("%(name)s", nullptr,"Module corresponding to C++ namespace %(fullname)s");
 %(indent)s   if( %(name)s_mod ){
 %(indent)s      status |= init_functions(%(name)s_mod);
-%(indent)s      status |= PyModule_AddObject( ::%(contextname)s, "%(name)s", %(name)s_mod );
+""" % {'name': self.name, 'indent': indent, 'contextname': context_name, 'fullname': self.full_name or "pyllars",
+       'parent_init': "pyllars%s::init();" % self.context.get_qualified_name() if self.context and self.context.full_name != "::" else ""}
+        if self.context is not None and self.context.context is not None:
+            code += """
+%(indent)s      status |= PyModule_AddObject( %(contextname)s, "%(name)s", %(name)s_mod );
+""" % {'name': self.name, 'indent': indent, 'contextname': context_name, 'fullname': self.full_name or "pyllars",
+       'parent_init': "pyllars%s::init();" % self.context.get_qualified_name() if self.context and self.context.full_name != "::" else ""}
+        code += """
 %(indent)s   } else {
 %(indent)s      status = -1;
 %(indent)s   }
@@ -146,6 +155,10 @@ class Namespace(BaseElement):
             indent = indent[:-3]
             code += indent + '}\n'
             header_code += indent + '}\n'
+        if self.name != "" and self.name != "::":
+            code += "}\n"
+        if self.name != "" or self.name!="::":
+            header_code += "\n}"
         code += "// END %s" % self.full_name
         if include_path.startswith('.'):
             guard = include_path[1:].replace('/', '__')
@@ -172,8 +185,8 @@ class Namespace(BaseElement):
 #include <%(path)s/module.hpp>
 #include <pyllars_classwrapper.impl>
 #include <pyllars_function_wrapper.hpp>
-#include <v8.h>
-""" % {'path': self.get_include_parent_path()} + code
+#include "%(header)s"
+""" % {'header': self.from_header, 'path': self.get_include_parent_path()} + code
         return header_code, code
 
     def get_qualified_name(self, iterative=False):
@@ -908,11 +921,11 @@ typedef %(full_classname)s %(sname)s_Target_Type;
 """%{'parent_fullname': self.context.get_qualified_name(),
      'fullname': classname,
      'name': self.name}
-        namespace_name = "pyllars::" + parent_mod.get_qualified_name()
+        namespace_name = "pyllars" + parent_mod.get_qualified_name()
         suffix = ""
         context = self.context
         while context is not None and not isinstance(context, Namespace):
-            suffix = context.name + "___ns" + suffix
+            suffix = "::" + context.name + "___ns" + suffix
             context = context.context
         namespace_name += suffix + "::" + self.name + "___ns"
         code += """
@@ -924,7 +937,7 @@ status_t %(namespace_name)s::initialize_type(){
 }
 
 static pyllars::Initializer _initializer(%(namespace_name)s::initialize_type);
-"""%{'namespace_name': namespace_name }
+"""%{'namespace_name': namespace_name}
         return header_code, code
 
     def __init__(self, name, id_, context, enumerators, header_filename, base_type=None, is_incomplete=False, scope=None):

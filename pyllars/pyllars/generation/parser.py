@@ -76,7 +76,10 @@ class CPPParser(object):
         return item
 
     def process_namespace(self, element):
-        return elements.Namespace(element.attrib['name'], element.attrib['id'], self.get_context(element))
+        assert(self.get_file(element) is not None)
+        return elements.Namespace(element.attrib['name'], element.attrib['id'],
+                                  header_filename=self.get_file(element),
+                                  context=self.get_context(element))
 
     def process_typedef(self, element):
         return elements.Typedef(base_type=self.get_base_type(element),
@@ -254,15 +257,20 @@ class CPPParser(object):
         arguments = []
         for child in [c for c in element if c.tag == 'Argument']:
             arguments.append( (child.attrib.get('name'), self.get_type_from(child.attrib['type'])))
-        #return_type = self.get_type_from(element.attrib.get('returns')) if element.attrib.get('returns') else None
         parent.add_constructor( method_scope=element.attrib.get('access') or 'private',
                                 qualifiers=qualifiers,
-                               # return_type=return_type,
                                 method_parameters=arguments)
 
     def get_file(self, element):
         fileid = element.attrib.get('file')
-        if fileid is None: return fileid
+        if fileid is None:
+            children = element.attrib.get('members')
+            if children is None: return None
+            for member in children.split(' '):
+                fileid = self.element_lookup[member].attrib.get('file')
+                if fileid is not None:
+                    header = self.element_lookup[fileid].attrib.get('name')
+                    if header is not None: return header
         file_element = self.element_lookup[fileid]
         return file_element.attrib['name']
 

@@ -1,7 +1,5 @@
 #ifndef __TEST_BASICS__
 #define __TEST_BASICS__
-#ifndef test_basics
-#define test_basics
 
 #include <stdio.h>
 #include <string.h>
@@ -18,6 +16,8 @@ constexpr int data1 = 1;
 extern const int data2;
 extern int data3;
 extern const char* const string_array[];
+
+namespace test{
 
 typedef const char* const cstringtype;
 
@@ -116,5 +116,6 @@ struct TestStruct{
 
 //function that manipulates its first parameter
 int test_function( char* const * const out_msg, const size_t length);
-#endif
+}
+
 #endif
