@@ -1,5 +1,8 @@
+.idea
 *.o
 *.pyc
 *~
+*.so
+#*
 build
 build/*

@@ -909,17 +909,17 @@ typedef %(full_class_name)s %(sname)s_Target_Type;
         code = ""
         if suffix == "":
             code += """
-    #include <Python.h>
-    #include <pyllars.hpp>
-    #include <pyllars_classwrapper.impl>
-    #include <pyllars_function_wrapper.hpp>
-    #include <%(headername)s>
-    #include "%(myheader)s"
-    #include "%(myparentheader)s"
+#include <Python.h>
+#include <pyllars.hpp>
+#include <pyllars_classwrapper.impl>
+#include <pyllars_function_wrapper.hpp>
+#include <%(headername)s>
+#include "%(myheader)s"
+#include "%(myparentheader)s"
 
-    using namespace __pyllars_internal;
+using namespace __pyllars_internal;
 
-    """ % {'myheader': my_header_path, 'headername': self._header_filename, 'namespace_id': nsid,
+""" % {'myheader': my_header_path, 'headername': self._header_filename, 'namespace_id': nsid,
            'myparentheader': self.context.get_header_filename(path)}
         code += """static inline status_t initialize_type(){
    static bool inited = false;
