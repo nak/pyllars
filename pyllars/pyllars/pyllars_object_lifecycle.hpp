@@ -27,25 +27,27 @@ namespace __pyllars_internal {
     template<typename C, typename Z>
     struct PythonClassWrapper;
 
-    template< typename T>
+    template<typename T>
     struct ObjConatinerPtrProxy;
 
     class ObjectLifecycleHelpers {
     public:
 
 
-        template<typename CClass,  typename Z>
+        template<typename CClass, typename Z>
         friend
         struct PythonClassWrapper;
 
         template<typename T, bool is_array, typename ClassWrapper, typename E>
-        class CObjectConversionHelper;
+        friend class CObjectConversionHelper;
 
-        template<typename T, typename PtrWrapper, const ssize_t max, typename E>
-        class PyObjectConversionHelper;
+        template<typename T, typename PtrWrapper, typename E>
+        friend class PyObjectConversionHelper;
 
-        template< typename T>
-                friend struct ObjConatinerPtrProxy;
+        template<typename T>
+        friend
+        struct ObjConatinerPtrProxy;
+
 
     private:
 
@@ -70,6 +72,7 @@ namespace __pyllars_internal {
             }
         };
 
+    public:
         template<typename T, typename Z = void>
         struct Copy;
 
@@ -77,10 +80,10 @@ namespace __pyllars_internal {
         struct Copy<T, typename std::enable_if<std::is_destructible<typename std::remove_reference<T>::type>::value &&
                                                std::is_assignable<typename std::remove_reference<T>::type, typename std::remove_reference<T>::type>::value &&
                                                std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type> {
-	  typedef typename std::remove_volatile<typename std::remove_reference<T>::type>::type T_NoRef;
+            typedef typename std::remove_volatile<typename std::remove_reference<T>::type>::type T_NoRef;
 
-            static ObjContainer<T_NoRef> *new_copy(const T &value) {
-                return new ObjContainerProxy<T_NoRef, const T&>(value);
+            static ObjContainer <T_NoRef> *new_copy(const T &value) {
+                return new ObjContainerProxy<T_NoRef, const T &>(value);
             }
 
             static T_NoRef *new_copy(T_NoRef *const value) {
@@ -106,11 +109,11 @@ namespace __pyllars_internal {
                 std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type> {
             typedef typename std::remove_reference<T>::type T_NoRef;
 
-            static ObjContainer<T_NoRef> *new_copy(const T &value) {
-                return new ObjContainerProxy<T_NoRef, const T&>(value);
+            static ObjContainer <T_NoRef> *new_copy(const T &value) {
+                return new ObjContainerProxy<T_NoRef, const T &>(value);
             }
 
-            static ObjContainer<T_NoRef> *new_copy(T_NoRef *const value) {
+            static ObjContainer <T_NoRef> *new_copy(T_NoRef *const value) {
                 return new ObjContainerProxy<T_NoRef, T_NoRef &>(*value);
             }
 
@@ -132,22 +135,22 @@ namespace __pyllars_internal {
         };
 
         template<typename T, size_t size>
-        struct Copy<T[size], typename std::enable_if< (size > 0) >::type >{
+        struct Copy<T[size], typename std::enable_if<(size > 0)>::type> {
             typedef T T_array[size];
 
-            static ObjContainer<T_array> *new_copy(const T_array &value) {
+            static ObjContainer <T_array> *new_copy(const T_array &value) {
                 T_array *new_value = new T_array[1];
                 memcpy(*new_value, value, sizeof(T[size]));
                 return new ObjContainerPtrProxy<T_array, true>(new_value, true);
             }
 
-            static ObjContainer<T_array> *new_copy(T_array *const value) {
-                return new ObjContainerPtrProxy<T_array,true>(value, false);
+            static ObjContainer <T_array> *new_copy(T_array *const value) {
+                return new ObjContainerPtrProxy<T_array, true>(value, false);
             }
 
             static void inplace_copy(T_array *const to, const Py_ssize_t index, const T_array *const from,
                                      const bool in_place) {
-                for( ssize_t i = 0; i < size; ++i){
+                for (ssize_t i = 0; i < size; ++i) {
                     (*to)[i] = (*from)[i];
                 }
             }
@@ -155,16 +158,16 @@ namespace __pyllars_internal {
 
         template<typename T>
         struct Copy<T, typename std::enable_if<!std::is_void<T>::value &&
-        (!std::is_array<T>::value || ArraySize<T>::size <= 0 )&&
+                                               (!std::is_array<T>::value || ArraySize<T>::size <= 0) &&
                                                !std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type> {
             typedef typename std::remove_reference<T>::type T_NoRef;
 
-            static ObjContainer<T_NoRef> *new_copy(const T_NoRef &value) {
+            static ObjContainer <T_NoRef> *new_copy(const T_NoRef &value) {
                 (void) value;
                 throw "Attempt to copy non-copy-constructible object";
             }
 
-            static ObjContainer<T_NoRef> *new_copy(T_NoRef *const value) {
+            static ObjContainer <T_NoRef> *new_copy(T_NoRef *const value) {
                 (void) value;
                 throw "Attempt to copy non-copy-constructible object";
             }
@@ -176,6 +179,7 @@ namespace __pyllars_internal {
             }
         };
 
+    private:
         template<typename To, typename From, typename Z = void>
         struct Assign;
 
@@ -408,7 +412,7 @@ namespace __pyllars_internal {
                     }
                     delete[] self->_raw_storage;
                 } else if (self->_allocated) {
-	             delete self->_CObject;
+                    delete self->_CObject;
                 }
                 self->_raw_storage = nullptr;
                 if (self->_allocated) self->_CObject = nullptr;
@@ -556,7 +560,8 @@ namespace __pyllars_internal {
 
             class ConstructorContainer {
             public:
-                typedef bool(*constructor)(const char *const kwlist[], PyObject *args, PyObject *kwds, ObjContainer<T_NoRef> *&cobj);
+                typedef bool(*constructor)(const char *const kwlist[], PyObject *args, PyObject *kwds,
+                                           ObjContainer <T_NoRef> *&cobj);
 
                 ConstructorContainer(const char *const kwlist[],
                                      constructor c) : _kwlist(kwlist),
@@ -564,7 +569,7 @@ namespace __pyllars_internal {
                 }
 
                 bool operator()(PyObject *args, PyObject *kwds, ObjContainer <T_NoRef> *&cobj) const {
-                   return _constructor(_kwlist, args, kwds, cobj);
+                    return _constructor(_kwlist, args, kwds, cobj);
                 }
 
             private:
@@ -778,7 +783,7 @@ namespace __pyllars_internal {
                     PyErr_SetString(PyExc_RuntimeError, "Invalid constructor arguments on allocation");
                     return nullptr;
                 }
-                return (PyObject *) PtrWrapper::createPy(size, cobj?cobj->ptrptr():nullptr, true);
+                return (PyObject *) PtrWrapper::createPy(size, cobj ? cobj->ptrptr() : nullptr, true);
             }
         };
 
@@ -884,7 +889,7 @@ namespace __pyllars_internal {
                     return nullptr;
                 }
                 PythonClassWrapper<T_NoRef *, void> *obj =
-                        PythonClassWrapper<T_NoRef *,  void>::template createPy(1, cobj, true);
+                        PythonClassWrapper<T_NoRef *, void>::template createPy(1, cobj, true);
 
                 return (PyObject *) obj;
             }
@@ -897,7 +902,7 @@ namespace __pyllars_internal {
                 void> :
                 public BasicAlloc<ReturnType(*)(Args...), PythonClassWrapper<ReturnType(**)(Args...)> > {
 
-            typedef PythonClassWrapper<ReturnType(**)(Args...),  void> PtrWrapper;
+            typedef PythonClassWrapper<ReturnType(**)(Args...), void> PtrWrapper;
 
             typedef ReturnType(*T)(Args...);
 
@@ -991,7 +996,7 @@ namespace __pyllars_internal {
                     PyErr_SetString(PyExc_RuntimeError, "Invalid constructor arguments on allocation");
                     return nullptr;
                 }
-                PtrWrapper *obj = PythonClassWrapper<T_NoRef *,  void>::template createPy<T_NoRef *>(1, cobj, true);
+                PtrWrapper *obj = PythonClassWrapper<T_NoRef *, void>::template createPy<T_NoRef *>(1, cobj, true);
                 obj->set_raw_storage(nullptr);
                 return (PyObject *) obj;
             }

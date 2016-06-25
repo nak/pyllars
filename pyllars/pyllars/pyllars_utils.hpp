@@ -156,7 +156,7 @@ namespace __pyllars_internal {
 
 
     template<typename T>
-    struct smart_delete<T, false, typename std::enable_if<std::is_destructible<T>::value>::type> {
+    struct smart_delete<T, false, typename std::enable_if<std::is_destructible<T>::value && !std::is_array<typename std::remove_reference<T>::type>::value>::type> {
 
         typedef typename std::remove_reference<T>::type T_base;
 
@@ -164,18 +164,30 @@ namespace __pyllars_internal {
         }
 
         void operator()(T_base *ptr) const {
-	  if (_deleteable) {
-	    if (std::is_array< T_base>::value){
-	      delete[] ptr;
-	    } else {
-	      delete ptr;
-	    }
-	  }
+            if (_deleteable) {
+                delete ptr;
+            }
         }
 
         const bool _deleteable;
     };
 
+    template<typename T>
+    struct smart_delete<T, false, typename std::enable_if<std::is_destructible<T>::value && std::is_array<typename std::remove_reference<T>::type>::value>::type> {
+
+        typedef typename std::remove_reference<T>::type T_base;
+
+        smart_delete(const bool deleteable) : _deleteable(deleteable) {
+        }
+
+        void operator()(T_base *ptr) const {
+            if (_deleteable) {
+                delete[] ptr;
+            }
+        }
+
+        const bool _deleteable;
+    };
 
     template<typename T>
     struct smart_delete<T, true, typename std::enable_if<std::is_destructible<T>::value>::type> {
@@ -218,29 +230,29 @@ namespace __pyllars_internal {
     };
 
     template<>
-    struct is_complete<void>{
+    struct is_complete<void> {
         enum {
-           value = 1
+            value = 1
         };
     };
 
     template<typename T>
-    struct ArraySize{
+    struct ArraySize {
         static const int size = 1;
     };
 
     template<typename T>
-    struct ArraySize<T*>{
+    struct ArraySize<T *> {
         static const int size = -1;
     };
 
-    template <typename T>
-    struct ArraySize<T[]>{
+    template<typename T>
+    struct ArraySize<T[]> {
         static const int size = -1;
     };
 
     template<typename T_base, size_t arsize>
-    struct ArraySize< T_base[arsize]>{
+    struct ArraySize<T_base[arsize]> {
         static const int size = arsize;
     };
 
@@ -349,43 +361,40 @@ namespace __pyllars_internal {
         }
     };
 
-    template<typename T, bool delete_op_public, typename E =void>
+    template<typename T, typename E =void>
     struct Deallocator {
         static void dealloc(T *const ptr);
     };
 
     template<typename T>
-    struct Deallocator<T, true, typename std::enable_if<!is_function_ptr<T>::value && !std::is_reference<T>::value &&
-                                                  std::is_destructible<T>::value>::type> {
+    struct Deallocator<T, typename std::enable_if<!is_function_ptr<T>::value && !std::is_reference<T>::value &&
+                                                        std::is_destructible<T>::value && !std::is_array<T>::value>::type > {
         static void dealloc(T *const ptr) {
-	  if (std::is_array<T>::value){
-	    delete[] ptr;
-	  } else {
             delete ptr;
-	  }
+        }
+    };
+
+
+    template<typename T>
+    struct Deallocator<T, typename std::enable_if<!is_function_ptr<T>::value && !std::is_reference<T>::value &&
+                                                         std::is_destructible<T>::value && std::is_array<T>::value>::type> {
+        static void dealloc(T *const ptr) {
+            delete[] ptr;
+        }
+    };
+
+
+    template<typename T>
+    struct Deallocator<T, typename std::enable_if<
+            !is_function_ptr<T>::value && !std::is_reference<T>::value &&
+            !std::is_destructible<T>::value>::type> {
+        static void dealloc(T *const ptr) {
         }
     };
 
     template<typename T>
-    struct Deallocator<T, false, typename std::enable_if<!is_function_ptr<T>::value && !std::is_reference<T>::value &&
-                                                  std::is_destructible<T>::value>::type> {
-        static void dealloc(T *const ptr) {
-	  if (std::is_array<T>::value){
-	    delete[] ptr;
-	  } else {
-            delete ptr;
-	  }
-        }
-    };
-    template<typename T, bool delete_op_public>
-    struct Deallocator<T, delete_op_public, typename std::enable_if<!is_function_ptr<T>::value && !std::is_reference<T>::value &&
-                                                  !std::is_destructible<T>::value>::type> {
-        static void dealloc(T *const ptr) {
-        }
-    };
-
-    template<typename T, bool delete_op_public>
-    struct Deallocator<T, delete_op_public, typename std::enable_if<is_function_ptr<T>::value || std::is_reference<T>::value>::type> {
+    struct Deallocator<T, typename std::enable_if<
+            is_function_ptr<T>::value || std::is_reference<T>::value>::type> {
         static void dealloc(T *const ptr) {
         }
     };
@@ -399,7 +408,7 @@ namespace __pyllars_internal {
         }
 
         virtual ~ObjContainerPtrProxy() {
-            if (_isAllocated) { Deallocator<T, delete_op_public>::dealloc(containedPtr); }
+            if (_isAllocated) { Deallocator<T>::dealloc(containedPtr); }
         }
 
     private:
@@ -408,7 +417,7 @@ namespace __pyllars_internal {
     };
 
     template<bool b>
-    struct ObjContainerPtrProxy<void, b>: public ObjContainer<void>{
+    struct ObjContainerPtrProxy<void, b> : public ObjContainer<void> {
         ObjContainerPtrProxy(void *const ptr, const bool isAllocated = false) :
                 containedPtr(ptr),
                 _isAllocated(isAllocated) {
@@ -417,12 +426,12 @@ namespace __pyllars_internal {
         virtual ~ObjContainerPtrProxy() {
         }
 
-        virtual void* ptr(){
+        virtual void *ptr() {
             return containedPtr;
         }
 
-        virtual void** ptrptr(){
-            return const_cast<void**>(&containedPtr);
+        virtual void **ptrptr() {
+            return const_cast<void **>(&containedPtr);
         }
 
     private:
@@ -432,7 +441,7 @@ namespace __pyllars_internal {
 
 
     template<bool b>
-    struct ObjContainerPtrProxy<const void, b>: public ObjContainer<const void>{
+    struct ObjContainerPtrProxy<const void, b> : public ObjContainer<const void> {
         ObjContainerPtrProxy(const void *const ptr, const bool isAllocated = false) :
                 containedPtr(ptr),
                 _isAllocated(isAllocated) {
@@ -441,12 +450,12 @@ namespace __pyllars_internal {
         virtual ~ObjContainerPtrProxy() {
         }
 
-        virtual const void* ptr(){
+        virtual const void *ptr() {
             return containedPtr;
         }
 
-        virtual const void** ptrptr(){
-            return const_cast<const void**>(&containedPtr);
+        virtual const void **ptrptr() {
+            return const_cast<const void **>(&containedPtr);
         }
 
     private:
@@ -467,15 +476,15 @@ namespace __pyllars_internal {
         T contained2;
     };
 
-    template< typename t, const size_t size>
-    struct ObjContainerProxy< t[size], t[size]>: ObjContainer<t[size]> {
+    template<typename t, const size_t size>
+    struct ObjContainerProxy<t[size], t[size]> : ObjContainer<t[size]> {
 
         ObjContainerProxy(t arg[size]) :
                 ObjContainer<t[size]>(contained2),
-                contained2{arg[0]}{
+                contained2{arg[0]} {
             typedef typename std::remove_const<t>::type unconst_t;
-            unconst_t * unconst_contained = const_cast<unconst_t*>(arg);
-            for(size_t i = 0; i < size; ++i){
+            unconst_t *unconst_contained = const_cast<unconst_t *>(arg);
+            for (size_t i = 0; i < size; ++i) {
                 unconst_contained[i] = arg[i];
             }
         }

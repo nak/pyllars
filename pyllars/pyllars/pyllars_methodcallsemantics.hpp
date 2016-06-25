@@ -29,7 +29,6 @@ namespace __pyllars_internal {
          */
         static PyObject *call(method_t method, CClass &self, PyObject *args, PyObject *kwds) {
             try {
-                typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
                 T result = call_methodBase(method, self, args, kwds, typename argGenerator<sizeof...(Args)>::type());
                 // const ssize_t type_size = Sizeof<T_base>::value;
                 const ssize_t array_size = ArraySize<T>::size;//type_size > 0 ? sizeof(result) / type_size : 1;
@@ -454,7 +453,7 @@ namespace __pyllars_internal {
                         const ssize_t array_size =
                                 base_size > 0 ? sizeof(_this->template get_CObject<CClass>()->*member) / base_size
                                               : UNKNOWN_SIZE;
-                        return toPyObject<T_array, size>(_this->template get_CObject<CClass>()->*member, false,
+                        return toPyObject<T_array>(_this->template get_CObject<CClass>()->*member, false,
                                                          array_size);
                     }
                     PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");

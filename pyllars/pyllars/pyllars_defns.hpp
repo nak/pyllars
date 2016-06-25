@@ -22,10 +22,10 @@ namespace __pyllars_internal {
     ///////////
     // Helper conversion functions
     //////////
-    template<typename T, const ssize_t max = std::extent<T>::value-1, typename E = void>
+    template<typename T, typename E = void>
     PyObject *toPyObject(T &var, const bool asArgument, const ssize_t array_size, const size_t depth = ptr_depth<T>::value);
 
-    template<typename T, const ssize_t max = std::extent<T>::value -1, typename E = void>
+    template<typename T,  typename E = void>
     PyObject *toPyObject(const T &var, const bool asArgument, const ssize_t array_size, const size_t depth = ptr_depth<T>::value);
 
     template<typename T, bool is_array, typename ClassWrapper>

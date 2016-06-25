@@ -120,9 +120,9 @@ initmod() {
     PythonClassWrapper<TestClass &>::initialize("TestClass_ref", "TestClass_ref", m);
     PythonClassWrapper<const TestClass &>::initialize("TestClass_const_ref", "TestClass_const_ref", m);
     PythonClassWrapper<TestClassCopiable &>::initialize("TestClassCopiable_ref", "TestClassCopiable_ref", m);
-    PythonClassWrapper<callback_t>::initialize("cb_t", "cb_t", m);
-    PythonClassWrapper<void *, true>::initialize("void_ptr_t", "void_ptr_t", m);
-    PythonClassWrapper<void **, true>::initialize("void_ptr_t", "void_ptr_t", m);
+   // PythonClassWrapper<callback_t>::initialize("cb_t", "cb_t", m);
+    PythonClassWrapper<void *>::initialize("void_ptr_t", "void_ptr_t", m);
+    PythonClassWrapper<void **>::initialize("void_ptr_t", "void_ptr_t", m);
     PythonClassWrapper<int >::initialize("c_int", "c_int", m);
     PythonClassWrapper<int &>::initialize("int_ref", "int_ref", m);
     // PythonClassWrapper< double, true>::initialize("double","double", m );
@@ -137,9 +137,9 @@ initmod() {
     PythonClassWrapper<char *[13]>::initialize("char_extent_ptr", "char_extent_ptr", m, "char_extent");
     PythonClassWrapper<char ***>::initialize("char_extent_ptr", "char_extent_ptr", m, "char_extent");
     typedef char ctype[13];
-    PythonClassWrapper<ctype **, true>::initialize("char_extent_ptr", "char_extent_ptr", m, "char_extent");
-    PythonClassWrapper<int *, true>::initialize("int_ptr", "int_ptr", m, "init_ptr");
-    PythonClassWrapper<const char *, true>::initialize("const_char_ptr", "const_char_ptr", m);
+    PythonClassWrapper<ctype **>::initialize("char_extent_ptr", "char_extent_ptr", m, "char_extent");
+    PythonClassWrapper<int *>::initialize("int_ptr", "int_ptr", m, "init_ptr");
+    PythonClassWrapper<const char *>::initialize("const_char_ptr", "const_char_ptr", m);
     wrapper = (PyObject *) PythonFunctionWrapper<true, int16_t, int, double, int &, TestClass &, TestClass *, callback_t>::create(
             funcname, testFunction, names);
     PyModule_AddObject(m, "testFunction", (PyObject *) wrapper);
@@ -160,7 +160,7 @@ int main()
     Py_Initialize();
 #endif
     {
-        PyObject *obj = toPyObject<int, true>(1, false, -1);
+        PyObject *obj = toPyObject<int>(1, false, -1);
         (void) obj;
     }
     static const char *const emptykwlist[] = {nullptr};
@@ -210,7 +210,7 @@ int main()
     PyTuple_SetItem(pArgs, 0, obj);
     //PythonClassWrapper<int>::addType("Pointer", &PythonCPointerWrapper<int>::Type);
     int *intval = new int(99);
-    PyObject *o = (PyObject*) PythonClassWrapper<int*, true>::createPy(1, &intval, false);
+    PyObject *o = (PyObject*) PythonClassWrapper<int*>::createPy(1, &intval, false);
 //            PyObject_CallObject((PyObject *) &PythonClassWrapper<int *, true>::Type, nullptr);
     if (o == nullptr) {
         printf("nullptr O\n");
@@ -233,7 +233,7 @@ int main()
             PyErr_Print();
             return -1;
         }
-        assert(PyObject_TypeCheck(dumm2_ptr, (PythonClassWrapper<TestClass * const, true>::getType(1))) );
+        assert(PyObject_TypeCheck(dumm2_ptr, (PythonClassWrapper<TestClass * const>::getType(1))) );
         assert(dumm2_ptr != Py_None);
         PyTuple_SetItem(args, 4, dumm2_ptr);
         PyTuple_SetItem(args, 5, (PyObject *) message_me_py);

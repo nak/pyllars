@@ -33,7 +33,6 @@ namespace __pyllars_internal {
         static PyObject *call(method_t method, PyObject *args, PyObject *kwds) {
             try {
                 const T &result = call_methodBase(method, args, kwds, typename argGenerator<sizeof...(Args)>::type());
-                typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
                 const ssize_t array_size = ArraySize<T>::size;//sizeof(result) / sizeof(T_base);
                 return toPyObject<T>(result, false, array_size);
             } catch (const char *const msg) {

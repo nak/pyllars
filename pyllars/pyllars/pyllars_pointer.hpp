@@ -184,13 +184,15 @@ namespace __pyllars_internal {
         class CObjectConversionHelper;
 
         static std::string get_name(const size_t depth = 1) {
-            char extension[depth + 1] = {0};
+            char extension[depth + 1];// = {0};
+            extension[depth] = 0;
             memset(extension, '*', depth);
             return PythonClassWrapper<T_base>::get_name() + extension;
         }
 
         static std::string get_module_entry_name(const size_t depth = 1) {
-            char extension[depth + 1] = {0};
+            char extension[depth + 1];// = {0};
+            extension[depth] = 0;
             memset(extension, '*', depth);
             return PythonClassWrapper<T_base>::get_module_entry_name() + extension;
         }
@@ -605,7 +607,7 @@ namespace __pyllars_internal {
         friend
         struct ObjectLifecycleHelpers::BasicDeallocation;
 
-        template<typename T2, typename PtrWrapper>
+        template<typename T2, typename PtrWrapper, typename E>
         friend
         struct ObjectLifecycleHelpers::Deallocation;
 
