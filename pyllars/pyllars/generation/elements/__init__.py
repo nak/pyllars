@@ -106,6 +106,7 @@ class Namespace(BaseElement):
                         'argument_names': ','.join(["\"%s\"" % (n if n != "" else "_%s" % index) for index, (n, _) in
                                                     enumerate(func.arguments)])}
         precode += """
+%(indent)s   return status;
 %(indent)s}
 
 """ % {'indent': indent}
@@ -703,7 +704,7 @@ static inline status_t initialize_type%(suffix)s(){
 }
 
 status_t pyllars%(namespace_name)s::initialize_type%(suffix)s(){
-    ::initialize_type%(suffix)s();
+    return ::initialize_type%(suffix)s();
 }
 
 static pyllars::Initializer _initializer%(suffix)s(pyllars%(namespace_name)s::initialize_type%(suffix)s);
@@ -961,7 +962,7 @@ using namespace __pyllars_internal;
 }
 
 status_t %(namespace_name)s::initialize_type(){
-    ::initialize_type();
+    return ::initialize_type();
 }
 
 static pyllars::Initializer _initializer(%(namespace_name)s::initialize_type);

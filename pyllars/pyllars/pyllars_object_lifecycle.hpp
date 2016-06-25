@@ -67,7 +67,7 @@ namespace __pyllars_internal {
         struct Array<T, typename std::enable_if<!is_complete<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value>::type> {
             typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
 
-            static T_base *at(T array, size_t index) {
+            static T_base &at(T array, size_t index) {
                 throw "Cannot dereference incomplete type";
             }
         };
@@ -307,9 +307,9 @@ namespace __pyllars_internal {
                 }
             }
 
-            static void set(const size_t index, T const to, T const from, const size_t depth) {
+            static void set(const size_t index, T& to, T const from, const size_t depth) {
                 if (depth == 1) {
-                    Assign<T_base, T_base>::assign(Array<T>::at(to, index), *from);
+                    Assign<T, T>::assign(Array<T>::at(to, index), *from);
                 } else {
                     typedef typename std::remove_reference<T>::type T_NoRef;
                     Assign<T_NoRef, T_NoRef>::assign(Array<T_NoRef *>::at((T_NoRef *) to, index), *((T_NoRef *) from));

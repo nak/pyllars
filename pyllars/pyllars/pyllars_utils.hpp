@@ -261,7 +261,7 @@ namespace __pyllars_internal {
 
     template<typename T>
     struct Sizeof<T, typename std::enable_if<is_complete<T>::value>::type> {
-        static constexpr size_t value = sizeof(T);
+        static constexpr size_t value = Sizeof<T>::value;
     };
 
     template<typename T>
