@@ -13,6 +13,193 @@
 #include "pyllars_conversions.hpp"
 
 constexpr int UNKNOWN_SIZE = __pyllars_internal::UNKNOWN_SIZE;
+namespace __pyllars_internal{
+    template<typename T, typename E>
+    class InitHelper {
+    public:
+        static int init(PythonClassWrapper<T> *self, PyObject *args, PyObject *kwds);
+    };
+
+    /**
+     * Specialization for integers
+     **/
+    template<typename T>
+    class InitHelper<T, typename std::enable_if<std::is_integral<T>::value>::type> {
+    public:
+        static int init(PythonClassWrapper<T> *self, PyObject *args, PyObject *kwds);
+    };
+
+    /**
+     * Specialization for floating point
+     **/
+    template<typename T>
+    class InitHelper<T, typename std::enable_if<std::is_floating_point<T>::value>::type> {
+    public:
+        static int init(PythonClassWrapper<T> *self, PyObject *args, PyObject *kwds) ;
+    };
+
+    //specialize for non-numeric fundamental types:
+    template<typename T>
+    class InitHelper<T, typename std::enable_if<
+            !std::is_void<T>::value && !std::is_arithmetic<T>::value && std::is_fundamental<T>::value>::type> {
+    public:
+        static int init(PythonClassWrapper<T> *self, PyObject *args, PyObject *kwds) ;
+    };
+
+    //specialize for non-numeric fundamental types:
+    template<typename T>
+    class InitHelper<T, typename std::enable_if<std::is_void<T>::value>::type> {
+    public:
+        static int init(PythonClassWrapper<T> *self, PyObject *args, PyObject *kwds) ;
+    };
+
+
+    //specialize for pointer types:
+    template<typename T>
+    class InitHelper<T,  typename std::enable_if<!std::is_void<T>::value && !std::is_arithmetic<T>::value &&
+                                                std::is_pointer<T>::value>::type> {
+    public:
+        static int init(PythonClassWrapper<T> *self, PyObject *args, PyObject *kwds) ;
+    };
+
+    //specialize for copiable non-fundamental reference types:
+    template<typename T>
+    class InitHelper<T, typename std::enable_if<!std::is_void<T>::value &&
+                                                !std::is_integral<typename std::remove_reference<T>::type>::value &&
+                                                !std::is_floating_point<typename std::remove_reference<T>::type>::value &&
+                                                std::is_copy_constructible<typename std::remove_reference<T>::type>::value &&
+                                                std::is_reference<T>::value>::type> {
+    public:
+        static int init(PythonClassWrapper<T> *self, PyObject *args, PyObject *kwds) ;
+    };
+
+    //  specialize for non-copiable non-fundamental reference types:
+    template<typename T>
+    class InitHelper<T, typename std::enable_if<
+            !std::is_integral<typename std::remove_reference<T>::type>::value &&
+            !std::is_floating_point<typename std::remove_reference<T>::type>::value &&
+            !std::is_copy_constructible<typename std::remove_reference<T>::type>::value &&
+            std::is_reference<T>::value>::type> {
+    public:
+        static int init(PythonClassWrapper<T> *self, PyObject *args, PyObject *kwds) ;
+    };
+
+    //specialize for integral reference types:
+    template<typename T>
+    class InitHelper<T, typename std::enable_if<
+            std::is_integral<typename std::remove_reference<T>::type>::value &&
+            std::is_reference<T>::value>::type> {
+    public:
+        static int init(PythonClassWrapper<T> *self, PyObject *args, PyObject *kwds) ;
+    };
+
+    //specialize for floating point reference types:
+    template<typename T>
+    class InitHelper<T, typename std::enable_if<
+            std::is_floating_point<typename std::remove_reference<T>::type>::value &&
+            std::is_reference<T>::value>::type> {
+    public:
+        static int init(PythonClassWrapper<T> *self, PyObject *args, PyObject *kwds);
+    };
+
+    //specialize for other complex types:
+    template<typename T>
+    class InitHelper<T, typename std::enable_if<
+            !std::is_arithmetic<T>::value && !std::is_reference<T>::value &&
+            !std::is_pointer<T>::value && !std::is_fundamental<T>::value>::type> {
+    public:
+        static int init(PythonClassWrapper<T> *self, PyObject *args, PyObject *kwds) ;
+    };
+
+   template<typename T>
+    PyObject *PythonClassWrapper<T,
+            typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+            parent_module = nullptr;
+    template<typename T>
+    std::vector<PyMethodDef> PythonClassWrapper<T,
+            typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+            _methodCollection = std::vector<PyMethodDef>(emptyMethods, emptyMethods + 1);
+    template<typename T>
+    std::vector<PyTypeObject *> PythonClassWrapper<T,
+            typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+            _baseClasses = std::vector<PyTypeObject *>();
+    template<typename T>
+    std::map<std::string, typename MethodContainer<T>::setter_t>
+            PythonClassWrapper<T,
+                    typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+            _memberSettersDict = std::map<std::string, typename MethodContainer<T>::setter_t>();
+    template<typename T>
+    std::vector<typename PythonClassWrapper<T, typename std::enable_if<
+            !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+    ConstructorContainer>
+            PythonClassWrapper<T,
+                    typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+            _constructors;
+
+
+    template<typename T>
+    std::string PythonClassWrapper<T,
+            typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::_name;
+    template<typename T>
+    std::string PythonClassWrapper<T,
+            typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::_module_entry_name;
+    template<typename T>
+    PyTypeObject PythonClassWrapper<T,
+            typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+            Type = {
+
+                    PyObject_HEAD_INIT(nullptr)
+                    0,                         /*ob_size*/
+                    nullptr,             /*tp_name*/ /*filled on init*/
+                    sizeof(PythonClassWrapper),             /*tp_basicsize*/
+                    0,                         /*tp_itemsize*/
+                    (destructor) PythonClassWrapper::_dealloc, /*tp_dealloc*/
+                    nullptr,                         /*tp_print*/
+                    nullptr,                         /*tp_getattr*/
+                    nullptr,                         /*tp_setattr*/
+                    nullptr,                         /*tp_compare*/
+                    nullptr,                         /*tp_repr*/
+                    nullptr,                         /*tp_as_number*/
+                    nullptr,                         /*tp_as_sequence*/
+                    nullptr,                         /*tp_as_mapping*/
+                    nullptr,                         /*tp_hash */
+                    nullptr,                         /*tp_call*/
+                    nullptr,                         /*tp_str*/
+                    nullptr,                         /*tp_getattro*/
+                    nullptr,                         /*tp_setattro*/
+                    nullptr,                         /*tp_as_buffer*/
+                    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /*tp_flags*/
+                    "PythonClassWrapper object",           /* tp_doc */
+                    nullptr,                       /* tp_traverse */
+                    nullptr,                       /* tp_clear */
+                    nullptr,                       /* tp_richcompare */
+                    0,                               /* tp_weaklistoffset */
+                    nullptr,                       /* tp_iter */
+                    nullptr,                       /* tp_iternext */
+                    PythonClassWrapper::_methodCollection.data(),             /* tp_methods */
+                    nullptr,             /* tp_members */
+                    nullptr,                         /* tp_getset */
+                    Base::TypePtr,                         /* tp_base */
+                    nullptr,                         /* tp_dict */
+                    nullptr,                         /* tp_descr_get */
+                    nullptr,                         /* tp_descr_set */
+                    0,                         /* tp_dictoffset */
+                    (initproc) PythonClassWrapper::_init,  /* tp_init */
+                    nullptr,                         /* tp_alloc */
+                    PythonClassWrapper::_new,             /* tp_new */
+                    _free,                         /*tp_free*/
+                    nullptr,                         /*tp_is_gc*/
+                    nullptr,                         /*tp_bases*/
+                    nullptr,                         /*tp_mro*/
+                    nullptr,                         /*tp_cache*/
+                    nullptr,                         /*tp_subclasses*/
+                    nullptr,                          /*tp_weaklist*/
+                    nullptr,                          /*tp_del*/
+                    0,                          /*tp_version_tag*/
+            };
+
+
+}
 
 template<typename T>
 int __pyllars_internal::InitHelper<T, typename std::enable_if<std::is_integral<T>::value>::type>::init
@@ -573,17 +760,8 @@ addr(PyObject *self, PyObject *args) {
 template<typename T>
 bool __pyllars_internal::PythonClassWrapper<T, 
         typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
-findMemberSetter(const char *const name) {
+_findMemberSetter(const char *const name) {
     return _memberSettersDict.find(name) != _memberSettersDict.end();
-}
-
-template<typename T>
-void __pyllars_internal::PythonClassWrapper<T,
-        typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
-callMemberSetter(const char *const name, T_NoRef *this_, PyObject *pyval) {
-    if (findMemberSetter(name)) {
-        _memberSettersDict[name](this_, pyval);
-    }
 }
 
 template<typename T>

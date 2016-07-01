@@ -18,7 +18,7 @@ namespace pyllars{
 
     Initializer(const initializer_t initializer){
       if(!_initializers){
-	_initializers = new std::vector<initializer_t>();
+	    _initializers = new std::vector<initializer_t>();
       }
       _initializers->push_back(initializer);
     }

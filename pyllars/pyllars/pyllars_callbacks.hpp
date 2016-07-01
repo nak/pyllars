@@ -16,7 +16,10 @@ namespace __pyllars_internal{
        * template class for a pool of C-style callbacks
        * mapped to python-function-callbacks.  There is
        * probably some magic way through ffi to do this,
-       * but didn't want to go that route just yet
+       * but didn't want to go that route just yet.  so a
+       * pool of callbacks are available when requested.
+
+       * TODO:  figure out ffi perhaps. This may be somewhat memory inefficient.
        **/
       template <  typename ReturnType,
                   typename... Args >
@@ -24,7 +27,7 @@ namespace __pyllars_internal{
       public:
 
         typedef ReturnType(*callback_t)( Args...);
-	typedef ReturnType(*callbackvar_t)( Args...,...);
+	    typedef ReturnType(*callbackvar_t)( Args...,...);
 
         static PyObject *pycallbacks[MAX_CB_POOL_DEPTH+1];
         static callback_t c_callbacks[MAX_CB_POOL_DEPTH+1];
