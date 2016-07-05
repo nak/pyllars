@@ -7,13 +7,13 @@ import os.path
 
 from generation import elements
 
+
 class CPPParser(object):
-    '''
+    """
     Class to process a CPP XML definition into a pre-Python
     results file.  @pyllars.generation.ResultProcessor can 
     be invoked on the resulting file to produce the final Python
-    '''
-
+    """
 
     def __init__(self, path):
         '''
@@ -56,6 +56,7 @@ class CPPParser(object):
                 "Constructor": self.process_constructor,
                 "Function": self.process_function,
                 }.get(child.tag, self.process_unknown)(child)
+        #  for anonymous definitions, traverse the typedefs...
         if item is not None and item.name == "":
             for k, e in self.element_lookup.iteritems():
                 if e.attrib.get('type')==child.attrib['id'] and \
@@ -64,7 +65,7 @@ class CPPParser(object):
                     break
         if item is not None:
             self.processed[child.attrib['id']] = item
-        if context is None and child.attrib['id']=="_1":
+        if context is None and child.attrib['id'] == "_1":
             # top level
             assert(self.root_item is None) # only one top level!
             self.root_item = item
@@ -77,7 +78,8 @@ class CPPParser(object):
 
     def process_namespace(self, element):
         assert(self.get_file(element) is not None)
-        return elements.Namespace(element.attrib['name'], element.attrib['id'],
+        return elements.Namespace(element.attrib['name'],
+                                  element.attrib['id'],
                                   header_filename=self.get_file(element),
                                   context=self.get_context(element))
 

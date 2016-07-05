@@ -50,14 +50,15 @@ namespace __pyllars_internal {
         static typename extent_as_pointer<T>::type call_methodC(typename extent_as_pointer<T>::type  (*method)(Args...),
                                                                 PyObject *args, PyObject *kwds, PyO *...pyargs) {
             static char format[sizeof...(Args) + 1] = {0};
-            if (sizeof...(Args) > 0)
+            if (sizeof...(Args) > 0){
                 memset(format, 'O', (size_t)
                         sizeof...(Args));
 
-            if (!PyArg_ParseTupleAndKeywords(args, kwds, format, (char **) kwlist, &pyargs...)) {
-                PyErr_Print();
-                throw "Invalid arguments to method call";
-            }
+		if (!PyArg_ParseTupleAndKeywords(args, kwds, format, (char **) kwlist, &pyargs...)) {
+		  PyErr_Print();
+		  throw "Invalid arguments to method call";
+		}
+	    }
             T retval = method(*toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)...);
             return retval;
         }

@@ -23,7 +23,8 @@ class Namespace(BaseElement):
         self.name = name.replace("::", "")
         self.id_ = id_
         self.context = context
-
+        if context is None or context.name == "::" or context.name =="":
+            self.is_global_namespace = True
         if context and context.full_name != "::":
             self.full_name = context.full_name + "::" + name
         else:
@@ -214,6 +215,16 @@ class Namespace(BaseElement):
 
 # noinspection PyMethodMayBeStatic
 class Type(BaseElement):
+
+    @staticmethod
+    def get_module_name(context, fallback_name):
+        if not context:
+            return None
+        parent_mod = context
+        while not isinstance(parent_mod, Namespace):
+            parent_mod = parent_mod.context
+        return parent_mod.name if not parent_mod.is_global_namespace or not fallback_name else fallback_name
+
     def __init__(self, name, id_, context, is_incomplete, header_filename, scope):
         BaseElement.__init__(self)
         assert (isinstance(context, Type) or isinstance(context, Namespace) or context is None)
@@ -222,8 +233,9 @@ class Type(BaseElement):
         self.name = name.replace('&lt;', '<').replace('&gt;', '>')
         self.id_ = id_
         self.context = context
+        self.module_name = Type.get_module_name(context, os.path.basename(header_filename).split('.')[0] if header_filename else None)
         self.is_incomplete = is_incomplete
-        self.header_filenanme = header_filename
+        self.header_filename = header_filename
         if context:
             self.full_name = context.full_name + "::" + name
         else:
@@ -282,6 +294,31 @@ class Type(BaseElement):
 
     def get_core_type(self):
         return self
+
+    def generate_preamble(self, path, code):
+        if self.context is None:
+            nsid = "_1"
+        else:
+            nsid = self.context.id_
+        my_header_path = self.get_header_filename(path)
+        code += """
+#include <Python.h>
+#include <pyllars.hpp>
+#include <pyllars_classwrapper.impl>
+#include <pyllars_function_wrapper.hpp>
+#include <%(headername)s>
+#include "%(myheader)s"
+#include "%(myparentheader)s"
+
+using namespace __pyllars_internal;
+
+""" % {'myheader': my_header_path, 'headername': self._header_filename, 'namespace_id': nsid,
+       'myparentheader': self.context.get_header_filename(path)}
+        for child in [c for c in self.children if isinstance(c, Type) if c.name != ""]:
+            code += """
+#include "%(header)s"
+""" % {'header': os.path.join(os.path.dirname(my_header_path), child.name, child.name + ".hpp")}
+        return code
 
 
 class Class(Type):
@@ -400,23 +437,7 @@ class Class(Type):
             path)  # os.path.join(self.get_include_parent_path(), self.name + ".hpp")
         code = ""
         if suffix == "":
-            code += """
-#include <Python.h>
-#include <pyllars.hpp>
-#include <pyllars_classwrapper.impl>
-#include <pyllars_function_wrapper.hpp>
-#include <%(headername)s>
-#include "%(myheader)s"
-#include "%(myparentheader)s"
-
-using namespace __pyllars_internal;
-
-""" % {'myheader': my_header_path, 'headername': self._header_filename, 'namespace_id': nsid,
-       'myparentheader': self.context.get_header_filename(path)}
-            for child in [c for c in self.children if isinstance(c, Type) if c.name != ""]:
-                code += """
-    #include "%(header)s"
-    """ % {'header': os.path.join(os.path.dirname(my_header_path), child.name, child.name + ".hpp")}
+            code += self.generate_preamble(path=path, code=code)
         header_code = ""
         if include_path.startswith('.'):
             guard = include_path[1:].replace('/', '__')
@@ -452,7 +473,7 @@ using namespace __pyllars_internal;
 
     typedef %(full_class_name)s %(sname)s_Target_Type;
 
-    """ % {'path': mod_header_path, 'classheader': self.header_filenanme, 'guard': guard,
+    """ % {'path': mod_header_path, 'classheader': self.header_filename, 'guard': guard,
            'full_class_name': class_name, 'sname': self.sanitized_name or self.id_} + namespace_decls
         header_code += """
 %(indent)sstatus_t initialize_type%(suffix)s();
@@ -598,7 +619,7 @@ static inline status_t initialize_type%(suffix)s(){
             else:
                 code += """
    {
-      static const char* const kwlist[] = {};
+      static const char* const *kwlist = nullptr;//[] = {};
 """
             code += """
       PythonClassWrapper< %(class_name)s >::%(callable)s< %(method_name2)s_name, %(return_type)s %(args)s >
@@ -892,7 +913,7 @@ class Enumeration(Type):
 
 typedef %(full_class_name)s %(sname)s_Target_Type;
 
-""" % {'path': mod_header_path, 'classheader': self.header_filenanme, 'guard': guard,
+""" % {'path': mod_header_path, 'classheader': self.header_filename, 'guard': guard,
        'full_class_name': class_name, 'sname': self.sanitized_name} + namespace_decls
         header_code += """
 %(indent)sstatus_t initialize_type%(suffix)s();
@@ -931,7 +952,7 @@ using namespace __pyllars_internal;
    status_t status = pyllars::%(parent_init)s();
    if (status != 0) return status;
 """ % {'class_name': class_name, 'name': self.name, 'pyname': self.name,
-       'module_name': "%s_mod" % (parent_mod.name or "pyllars"), 'full_name': self.full_name,
+       'module_name': "%s_mod" % (self.module_name or "pyllars"), 'full_name': self.full_name,
        'parent_init': parent_init if not parent_init.startswith("::") else parent_init[2:],
        'indent': "   ", 'namespace_name': parent_mod.get_qualified_name()}
         for v in self.enum_values:
@@ -941,7 +962,7 @@ using namespace __pyllars_internal;
 """ % {'val': val, 'name': name, 'fullname': self.get_qualified_name()}
         code += """
    status |= PythonClassWrapper< %(fullname)s >::initialize("%(fullname)s", "%(name)s", %(parent_mod)s,"%(fullname)s");
-""" % {'fullname': class_name, 'name': self.name, 'parent_mod': ("%s_mod" % self.context.name)
+""" % {'fullname': class_name, 'name': self.name, 'parent_mod': ("%s_mod" % self.module_name)
         if isinstance(self.context, Namespace) else "nullptr"}
         if not isinstance(self.context, Namespace):
             code += """
