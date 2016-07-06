@@ -233,7 +233,7 @@ namespace __pyllars_internal {
             //char *getter_name = new char[strlen(name) +strlen(getter_prefix)+1];
             //snprintf(getter_name, strlen(name) +strlen(getter_prefix)+1, "%s%s_",getter_prefix,name);
             static const char *const kwlist[] = {"value", nullptr};
-            ClassMemberContainer<T_NoRef>::template Container<name, Type>::kwlist = kwlist;
+	    //            ClassMemberContainer<T_NoRef>::template Container<name, Type>::kwlist = kwlist;
             ClassMemberContainer<T_NoRef>::template Container<name, Type>::member = member;
             PyMethodDef pyMeth = {name,
                                   (PyCFunction) ClassMemberContainer<T_NoRef>::template Container<name, Type>::call,
@@ -241,7 +241,7 @@ namespace __pyllars_internal {
                                   doc_string
             };
             _addMethod(pyMeth);
-            _memberSettersDict[name] = ClassMemberContainer<T>::template Container<name, Type>::setFromPyObject;
+	    //UPDATE?? _memberSettersDict[name] = ClassMemberContainer<T>::template Container<name, Type>::setFromPyObject;
         }
 
 
@@ -258,7 +258,7 @@ namespace __pyllars_internal {
             //char *getter_name = new char[strlen(name) +strlen(getter_prefix)+1];
             //snprintf(getter_name, strlen(name) +strlen(getter_prefix)+1, "%s%s_",getter_prefix,name);
             static const char *const kwlist[] = {"value", nullptr};
-            ConstClassMemberContainer<T_NoRef>::template Container<name, Type>::kwlist = kwlist;
+            //ConstClassMemberContainer<T_NoRef>::template Container<name, Type>::kwlist = kwlist;
             ConstClassMemberContainer<T_NoRef>::template Container<name, Type>::member = member;
             PyMethodDef pyMeth = {name,
                                   (PyCFunction) ConstClassMemberContainer<T_NoRef>::template Container<name, Type>::call,

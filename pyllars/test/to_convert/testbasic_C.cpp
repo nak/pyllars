@@ -10,6 +10,10 @@ int data3 = 3;
 const char* const string_array[] = {"one", "two", "three"};
 
 
+double test::TestStruct::static_double_member = -9.87654321;
+const double test::TestStruct::static_const_double_member = -9.090909;
+
+constexpr test::cstringtype test::TestStruct::msg;
 
 //function that manipulates its first parameter
 int test::test_function( char* const * const out_msg, const size_t length){

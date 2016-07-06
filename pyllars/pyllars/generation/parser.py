@@ -52,6 +52,7 @@ class CPPParser(object):
                 "Enumeration": self.process_enumeration_type,
                 "Union": self.process_union_type,
                 "Field": self.process_field,
+                "Variable": self.process_variable,
                 "Method": self.process_method,
                 "Constructor": self.process_constructor,
                 "Function": self.process_function,
@@ -226,13 +227,18 @@ class CPPParser(object):
     def process_unknown(self, element):
         print "UNKNOWN ELEMENT: " + element.tag
 
-    def process_field(self, element):
+    def process_field(self, element, qualifiers=None):
         parent = self.get_type_from(element.attrib['context'])
         parent.add_member(member_name=element.attrib['name'],
                           type_=self.get_type_from(element.attrib['type']),
                           member_scope=element.attrib.get('access') or 'private',
-                          qualifiers=None,
+                          qualifiers=qualifiers,
                           bit_field_size=element.attrib.get('bits'))
+
+    def process_variable(self, element):
+        context = self.get_type_from(element.attrib['context'])
+        if not isinstance(context, elements.Namespace):
+            self.process_field(element, ["static"])
 
     def process_method(self, element):
         parent = self.get_type_from(element.attrib['context'])

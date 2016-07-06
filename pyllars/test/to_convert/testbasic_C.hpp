@@ -112,6 +112,8 @@ struct TestStruct{
   const char* const str_member;
   double double_member;
 
+  static double static_double_member;
+  static const double static_const_double_member;
 };
 
 //function that manipulates its first parameter

@@ -423,7 +423,8 @@ class Class(Type):
         :param member_scope: public, protected, private
         :param qualifiers: const, static, ...
         """
-        self.members.append(Class.Member(member_name, type_, member_scope, qualifiers, bit_field_size))
+        print "################# ADDING MEMBER %s"%member_name
+        self.members.append(Class.Member(member_name, type_, member_scope, "static" in (qualifiers or []), bit_field_size))
 
     def generate_code(self, path, suffix="", class_name=None):
         class_name = class_name or self.get_qualified_name()

@@ -55,7 +55,6 @@ namespace __pyllars_internal {
                         sizeof...(Args));
 
 		if (!PyArg_ParseTupleAndKeywords(args, kwds, format, (char **) kwlist, &pyargs...)) {
-		  PyErr_Print();
 		  throw "Invalid arguments to method call";
 		}
 	    }
@@ -250,11 +249,24 @@ namespace __pyllars_internal {
 
             static PyObject *call(PyObject *cls, PyObject *args, PyObject *kwds) {
                 (void) cls;
-                return toPyObject<T>(member, false);
+		static const char* kwlist[] = {"value",nullptr};
+		static char format[2] = {'O',0};
+		PyObject *pyarg = nullptr;
+		if (PyTuple_Size(args) > 0 ){
+		  PyErr_SetString(PyExc_ValueError, "Only one value with explicit keyword 'value' allowed to this method");
+		  return nullptr;		
+		} else if (kwds && !PyArg_ParseTupleAndKeywords(args, kwds, format, (char **) kwlist, &pyarg)) {
+		  PyErr_SetString(PyExc_ValueError, "Invalid argument keyword name or type to method call");
+		  return nullptr;
+		} else if ( kwds ) {
+		  *member = *toCObject<T, std::is_array<T>::value, PythonClassWrapper<T> >( *pyarg );
+		  return Py_None;
+		} 
+                return toPyObject<T>(*member, false, ArraySize<T>::size);
             }
 
             static void setFromPyObject(PyObject *pyobj) {
-                member = *toCObject<T, false, PythonClassWrapper<T>>(*pyobj);
+               *member = *toCObject<T, false, PythonClassWrapper<T>>(*pyobj);
             }
         };
 
@@ -268,7 +280,20 @@ namespace __pyllars_internal {
 
             static PyObject *call(PyObject *cls, PyObject *args, PyObject *kwds) {
                 (void) cls;
-                return toPyObject<T>(member, false);
+		static const char* kwlist[] = {"value",nullptr};
+		static char format[2] = {'O',0};
+		PyObject *pyarg = nullptr;
+		if (PyTuple_Size(args) > 0 ){
+		  PyErr_SetString(PyExc_ValueError, "Only one value with explicit keyword 'value' allowed to this method");
+		  return nullptr;		
+		} else if (kwds && !PyArg_ParseTupleAndKeywords(args, kwds, format, (char **) kwlist, &pyarg)) {
+		  PyErr_SetString(PyExc_ValueError, "Invalid argument keyword name or type to method call");
+		  return nullptr;
+		} else if ( kwds ) {
+		  setFromPyObject(pyarg);
+		  return Py_None;
+		} 		
+		return toPyObject<T>(member, false);
             }
 
             static void setFromPyObject(PyObject *pyobj) {
@@ -301,7 +326,11 @@ namespace __pyllars_internal {
 
             static PyObject *call(PyObject *cls, PyObject *args, PyObject *kwds) {
                 (void) cls;
-                return toPyObject<T>(member, false);
+		if (PyTuple_Size(args) > 0 || kwds){
+		  PyErr_SetString(PyExc_ValueError, "C++: const static members cannot change value");
+		  return nullptr;		
+		}
+                return toPyObject<T>(*member, false, ArraySize<T>::size);
             }
 
         };
