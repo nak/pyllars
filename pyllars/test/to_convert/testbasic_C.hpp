@@ -17,7 +17,7 @@ extern const int data2;
 extern int data3;
 extern const char* const string_array[];
 
-namespace test{
+namespace test_pyllars{
 
 typedef const char* const cstringtype;
 
@@ -85,7 +85,11 @@ struct TestStruct{
   TestStruct( const char* const  msg2):
     str_member(copy_string(msg2)),double_member(2.34567890){}
 
-  ~TestStruct(){ fprintf(stderr, "\n\n============>Deleted %s\n\n", str_member);}
+  ~TestStruct(){ fprintf(stderr, "\n\n============>Deleted %s\n\n", str_member);
+  }
+
+  void alloc(int i){}
+
   /**
    * Method that takes a number of parmaeters and prints them
    **/
@@ -105,6 +109,8 @@ struct TestStruct{
               t.str_member );
     return str;
   }
+
+
     static const  double static_double(){ return 1234596834.034;}
 
 

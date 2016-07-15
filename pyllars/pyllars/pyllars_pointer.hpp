@@ -26,7 +26,7 @@ namespace __pyllars_internal {
             (std::is_pointer<T>::value || std::is_array<T>::value)>::type> :
             public CommonBaseWrapper {
 
-	      static constexpr ssize_t last = ArraySize<T>::size -1;
+        static constexpr ssize_t last = ArraySize<T>::size - 1;
 
         static PyObject *parent_module;
 
@@ -35,7 +35,6 @@ namespace __pyllars_internal {
 
         typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
 
-        //typedef PythonClassWrapper<T_base> DereferencedWrapper//TODO: FIX ME
         typedef PythonClassWrapper<T const> ConstWrapper;
         typedef PythonClassWrapper<typename std::remove_const<T>::type> NonConstWrapper;
         typedef PythonClassWrapper<typename std::remove_reference<T>::type> NoRefWrapper;
@@ -153,17 +152,18 @@ namespace __pyllars_internal {
                     ObjContainer<T_base> *new_copy = ObjectLifecycleHelpers::Copy<T_base>::new_copy(
                             ObjectLifecycleHelpers::Array<T>::at(*self_->_CObject, index));
                     PythonClassWrapper<T_base> *res = PythonClassWrapper<T_base>::createPy(element_array_size, new_copy,
-                                                                                           true, nullptr);
+                                                                                           true, false, nullptr);
                     result = (PyObject *) res;
                 } else {
-                    PythonClassWrapper<T> *res = (PythonClassWrapper<T> *)
-                            (ObjectContent<T>::getObjectAt(*self_->_CObject, index, element_array_size, self_->_depth));
-
-                    if (self_->_depth != 1) {
+		  typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
+		  PythonClassWrapper< T_base> *res = (PythonClassWrapper<T_base > *)
+		    (ObjectContent<T>::getObjectAt(*self_->_CObject->ptr(), index, element_array_size, self_->_depth));
+		  if(!res) return nullptr;
+		  if (self_->_depth != 1) {
                         res->_depth = self_->_depth - 1;
-                    }
-                    res->make_reference(self);
-                    result = (PyObject *) res;
+		  }
+		  res->make_reference(self);
+		  result = (PyObject *) res;
                 }
                 return (PyObject *) result;
             } catch (const char *const msg) {
@@ -198,18 +198,29 @@ namespace __pyllars_internal {
         }
 
         static int initialize(const size_t depth = ptr_depth<T>::value) {
+	  if (PythonClassWrapper<T_base>::get_name().size() == 0) {
+	    if (depth > 1){ initialize(depth-1);} else {
+	      return -1;
+	    }
+	  }
             int status = 0;// PythonClassWrapper<T_base>::initialize();
+            static std::string name = PythonClassWrapper<T_base>::get_name() + "*";
+            static std::string module_name = PythonClassWrapper<T_base>::get_module_entry_name() + "*";
+	    static std::string full_name = PythonClassWrapper<T_base>::get_full_name() + "*";
 
-            return status != 0 ? status : initialize(nullptr,
-                                                     nullptr,
+            return status != 0 ? status : initialize(name.c_str(),
+                                                     module_name.c_str(),
                                                      PythonClassWrapper<T_base>::parent_module,
-                                                     get_name(depth).c_str(),
+                                                     full_name.c_str(),
                                                      depth);
         }
 
         static int initialize(const char *const name, const char *const module_entry_name,
                               PyObject *module, const char *const fullname = nullptr,
                               const size_t depth = ptr_depth<T>::value) {
+	  static bool initialized = false;
+	  if (initialized) return 0;
+	  initialized = true;
             if (!name && PythonClassWrapper<T_base>::initialize(name, module_entry_name,
                                                                 module, fullname) != 0) {
                 return -1;
@@ -240,7 +251,6 @@ namespace __pyllars_internal {
 
             type->tp_as_sequence = &_seqmethods;
 
-            //reinterpret to avoid compiler warning:
             Py_INCREF(type);
             if (module == nullptr)
                 return 0;
@@ -253,8 +263,22 @@ namespace __pyllars_internal {
         }
 
 
-        static PythonClassWrapper *createPy(const ssize_t arraySize, T *const cobj, const bool isAllocated,
-                                            PyObject *referencing = nullptr, const size_t depth = ptr_depth<T>::value) {
+        static PythonClassWrapper *createPy2(const ssize_t arraySize,
+					    T *const cobj,
+					    const bool isAllocated,
+                                            const bool inPlace,
+                                            PyObject *referencing = nullptr, const size_t depth = ptr_depth<T>::value
+        ) {
+
+	  return createPy( arraySize, new ObjContainerProxy<T, T>(*cobj), isAllocated, inPlace, referencing);
+	}
+
+        static PythonClassWrapper *createPy(const ssize_t arraySize,
+					    ObjContainer<T> *const cobj,
+					    const bool isAllocated,
+                                            const bool inPlace,
+                                            PyObject *referencing = nullptr, const size_t depth = ptr_depth<T>::value
+        ) {
             if (cobj == nullptr) {
                 PyErr_SetString(PyExc_RuntimeError, "Invalid null pointer on object creation!");
                 return nullptr;
@@ -264,7 +288,9 @@ namespace __pyllars_internal {
                                 "Pointer depth requested greater than 1000 -- possible run time error");
                 return nullptr;
             }
-            initialize(depth);
+            if (initialize(depth) != 0) {
+                return nullptr;
+            }
             static PyObject *args = PyTuple_New(0);
             static PyObject *kwds = PyDict_New();
             PyDict_SetItemString(kwds, "__internal_depth", PyLong_FromLong(depth));
@@ -274,50 +300,10 @@ namespace __pyllars_internal {
                 PyErr_SetString(PyExc_RuntimeError, "Cannot get type for pointer wrapper object");
                 return nullptr;
             }
-	    if (!type->tp_name){
+            if (!type->tp_name) {
                 PyErr_SetString(PyExc_RuntimeError, "Uninitialized type when creating object");
                 return nullptr;
-	    }
-
-            PythonClassWrapper *pyobj = (PythonClassWrapper *) PyObject_Call((PyObject *) type, args, kwds);
-            if (!pyobj) {
-                PyErr_SetString(PyExc_RuntimeError, "Unable to create Python Object");
-                return nullptr;
             }
-            pyobj->_CObject = new ObjContainerProxy<T, T>(*cobj);
-            pyobj->_allocated = isAllocated;
-            pyobj->_arraySize = arraySize;
-            if (arraySize > 0) { pyobj->_max = arraySize - 1; }
-            pyobj->_depth = depth;
-            if (referencing) pyobj->make_reference(referencing);
-            return pyobj;
-        }
-
-        static PythonClassWrapper *createPy(const ssize_t arraySize, ObjContainer<T> *const cobj, const bool isAllocated,
-                                            PyObject *referencing = nullptr, const size_t depth = ptr_depth<T>::value) {
-            if (cobj == nullptr) {
-                PyErr_SetString(PyExc_RuntimeError, "Invalid null pointer on object creation!");
-                return nullptr;
-            }
-            if (depth > 1000) {
-                PyErr_SetString(PyExc_RuntimeError,
-                                "Pointer depth requested greater than 1000 -- possible run time error");
-                return nullptr;
-            }
-            initialize(depth);
-            static PyObject *args = PyTuple_New(0);
-            static PyObject *kwds = PyDict_New();
-            PyDict_SetItemString(kwds, "__internal_depth", PyLong_FromLong(depth));
-            PythonClassWrapper::initialize(depth);
-            PyTypeObject *type = getType(depth);
-            if (!type) {
-                PyErr_SetString(PyExc_RuntimeError, "Cannot get type for pointer wrapper object");
-                return nullptr;
-            }
-	    if (!type->tp_name){
-                PyErr_SetString(PyExc_RuntimeError, "Uninitialized type when creating object");
-                return nullptr;
-	    }
 
             PythonClassWrapper *pyobj = (PythonClassWrapper *) PyObject_Call((PyObject *) type, args, kwds);
             if (!pyobj) {
@@ -326,12 +312,14 @@ namespace __pyllars_internal {
             }
             pyobj->_CObject = cobj;
             pyobj->_allocated = isAllocated;
+            pyobj->_inPlace = inPlace;
             pyobj->_arraySize = arraySize;
             if (arraySize > 0) { pyobj->_max = arraySize - 1; }
             pyobj->_depth = depth;
             if (referencing) pyobj->make_reference(referencing);
             return pyobj;
         }
+
 
         static int _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds) {
             if (!kwds || !PyDict_GetItemString(kwds, "__internal_depth")) {
@@ -364,13 +352,13 @@ namespace __pyllars_internal {
                 if (s) {
                     char *new_s = new char[strlen(s) + 1];
                     strcpy(new_s, s);
-                    T* val = const_cast<T*>(reinterpret_cast<const T*>(&new_s));
-                    self->_CObject = new ObjContainerProxy<T,T>(*val);
+                    T *val = const_cast<T *>(reinterpret_cast<const T *>(&new_s));
+                    self->_CObject = new ObjContainerProxy<T, T>(*val);
                     self->_arraySize = UNKNOWN_SIZE;
                     self->_depth = 1;
                     self->_referenced = nullptr;
                     self->_allocated = true;
-
+                    self->_inPlace = false;
                     PyErr_Clear();
                     return 0;
                 }
@@ -384,6 +372,7 @@ namespace __pyllars_internal {
             self->_referenced = nullptr;
             self->_max = last;
             self->_allocated = false;
+            self->_inPlace = false;
             self->_raw_storage = nullptr;
             if (((PyObject *) self)->ob_type->tp_base && Base::TypePtr->tp_init) {
                 PyObject *empty = PyTuple_New(0);
@@ -442,6 +431,7 @@ namespace __pyllars_internal {
                 }
             } else {
                 self->_allocated = true;
+                self->_inPlace = false;
                 self->_CObject = nullptr;
                 status = 0;
             }
@@ -460,8 +450,8 @@ namespace __pyllars_internal {
                 return nullptr;
             }
             try {
-                T **obj = self->_CObject?self->_CObject->ptrptr():nullptr;
-                PythonClassWrapper *pyobj = createPy(1, (T *) obj, false, (PyObject *) self, self->_depth + 1);
+                T **obj = self->_CObject ? self->_CObject->ptrptr() : nullptr;
+                PythonClassWrapper *pyobj = createPy2(1, (T *) obj, false, false, (PyObject *) self, self->_depth + 1);
                 return (PyObject *) pyobj;
             } catch (const char *const msg) {
                 PyErr_SetString(PyExc_RuntimeError, msg);
@@ -553,7 +543,7 @@ namespace __pyllars_internal {
                     _new,                 /* tp_new */
                     nullptr,                         /*tp_free*/ // no freeing of fixed-array
                     nullptr,                         /*tp_is_gc*/
-                    nullptr,                         /*tp_bass*/
+                    nullptr,                         /*tp_base*/
                     nullptr,                         /*tp_mro*/
                     nullptr,                         /*tp_cache*/
                     nullptr,                         /*tp_subclasses*/
@@ -585,23 +575,31 @@ namespace __pyllars_internal {
             return typeList.at(depth);
         }
 
-        void set_raw_storage(char *const storage) {
+        void set_raw_storage(T_base *const storage, const size_t size) {
             _raw_storage = storage;
+            _raw_size = size;
             if (storage) {
-                _CObject = new ObjContainerProxy<T,T>((T)_raw_storage);
+                _CObject = new ObjContainerProxy<T, T>(_raw_storage);
                 _allocated = false;
             }
         }
 
         void delete_raw_storage() {
             if (_raw_storage) {
-
-                delete[] _raw_storage;
+                for (size_t i = 0; i < _raw_size; ++i) {
+                    _raw_storage[i].~T_base();
+                }
+                void *storage = (void *) _raw_storage;
+                delete[] storage;
                 _raw_storage = nullptr;
                 _allocated = false;
                 _arraySize = UNKNOWN_SIZE;
             }
         }
+
+        template<typename T2, typename PtrWrapper>
+        friend
+        struct ObjectLifecycleHelpers::BasicAlloc;
 
         template<typename PtrWrapper>
         friend
@@ -633,25 +631,27 @@ namespace __pyllars_internal {
 
         static PyMethodDef _methods[];
         static PySequenceMethods _seqmethods;
-        ObjContainer<T> *_CObject;//use objcontainer only for compatability with non-pointer defn
-        char *_raw_storage;
+        ObjContainer <T> *_CObject;
+        //use objcontainer only for compatability with non-pointer defn
+        T_base *_raw_storage;
         PyObject *_referenced_elements;
         ssize_t _max;
         ssize_t _arraySize;
+        size_t _raw_size;
     public:
         size_t _depth;
         bool _allocated;
-
+        bool _inPlace;
     };
 
     template<typename T>
     PyObject *PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-             !std::is_function<typename std::remove_pointer<T>::type>::value &&
+            !std::is_function<typename std::remove_pointer<T>::type>::value &&
             (std::is_pointer<T>::value || std::is_array<T>::value)>::type>::parent_module = nullptr;
 
     template<typename T>
     PyMethodDef PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-             !std::is_function<typename std::remove_pointer<T>::type>::value &&
+            !std::is_function<typename std::remove_pointer<T>::type>::value &&
             (std::is_pointer<T>::value || std::is_array<T>::value)>::type>::_methods[] =
             {{address_name, nullptr, METH_KEYWORDS, nullptr},
              {"at",         nullptr, METH_KEYWORDS, nullptr},
@@ -660,7 +660,7 @@ namespace __pyllars_internal {
 
     template<typename T>
     PySequenceMethods PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-             !std::is_function<typename std::remove_pointer<T>::type>::value &&
+            !std::is_function<typename std::remove_pointer<T>::type>::value &&
             (std::is_pointer<T>::value || std::is_array<T>::value)>::type>::_seqmethods;
 
 }

@@ -15,8 +15,8 @@ namespace __pyllars_internal {
         constexpr ssize_t UNKNOWN_SIZE = -1;
         static constexpr Py_ssize_t INVALID_INDEX = LONG_LONG_MIN;
         //basic constants (names and such)
-        extern const char address_name[] = "PYL_addr";
-        extern const char alloc_name[] = "PYL_alloc";
+        extern const char address_name[] = "this";
+        extern const char alloc_name_[] = "new";
     }
 
     ///////////

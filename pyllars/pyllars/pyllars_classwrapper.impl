@@ -2,6 +2,7 @@
 #define PYLLARS__CLASSWRAPPER_IMPL
 
 #include <limits>
+#include <string.h>
 
 #include "pyllars_classwrapper.hpp"
 
@@ -143,6 +144,9 @@ namespace __pyllars_internal{
     template<typename T>
     std::string PythonClassWrapper<T,
             typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::_module_entry_name;
+    template<typename T>
+    std::string PythonClassWrapper<T,
+            typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::_full_name;
     template<typename T>
     PyTypeObject PythonClassWrapper<T,
             typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
@@ -367,6 +371,7 @@ int __pyllars_internal::InitHelper<T,  typename std::enable_if<!std::is_void<T>:
         return -1;
     }
     self->_CObject = nullptr;
+
     for (auto it = PythonClassWrapper<T>::_constructors.begin();
          it != PythonClassWrapper<T>::_constructors.end(); ++it) {
         try {
@@ -384,7 +389,7 @@ int __pyllars_internal::InitHelper<T,  typename std::enable_if<!std::is_void<T>:
         PythonClassWrapper<T> *pyclass = reinterpret_cast<PythonClassWrapper<T> *>(&pyobj);
         if (PyArg_ParseTupleAndKeywords(args, kwds, "O", (char **) kwdlist, &pyobj)) {
             if (!PythonClassWrapper<T>::checkType(&pyobj)) {
-                PyErr_SetString(PyExc_TypeError, "Invalid type to construct from");
+                PyErr_SetString(PyExc_TypeError, "Invalid type to constructor");
                 return -1;
             }
             self->_CObject = pyclass->template get_CObject<T>();
@@ -419,7 +424,7 @@ int __pyllars_internal::InitHelper<T, typename std::enable_if<!std::is_void<T>::
     for (auto it = PythonClassWrapper<T>::_constructors.begin();
          it != PythonClassWrapper<T>::_constructors.end(); ++it) {
         try {
-            if ((*it)(args, kwds, self->_CObject)) {
+            if ((*it)(args, kwds, self->_CObject, false)) {
                 break;
             }
         } catch (...) {
@@ -593,8 +598,11 @@ int __pyllars_internal::InitHelper<T, typename std::enable_if<
     for (auto it = PythonClassWrapper<T>::_constructors.begin();
          it != PythonClassWrapper<T>::_constructors.end(); ++it) {
         try {
-            if ((*it)(args, kwds, self->_CObject)) {
+            if ((*it)(args, kwds, self->_CObject, false)) {
                 self->_allocated = (self->_CObject != nullptr);
+                self->_inPlace = false;
+                self->_arraySize = 0;
+		self->_depth = 0;
                 return 0;
             }
         } catch (...) {
@@ -639,9 +647,11 @@ int __pyllars_internal::PythonClassWrapper<T,
                  PyObject *module, const char *const fullname) {
     if (!name || strlen(name) == 0) return -1;
     if (!module_entry_name || strlen(module_entry_name) == 0) return -1;
+    if (!fullname || strlen(fullname) == 0) return -1;
     int status = 0;
     _name = name;
     _module_entry_name = module_entry_name;
+    _full_name = fullname;
     if (Type.tp_name) {/*already initialized*/ return status; }
     char *tp_name = new char[strlen(fullname ? fullname : name) + 1];
     strcpy(tp_name, fullname ? fullname : name);
@@ -655,7 +665,7 @@ int __pyllars_internal::PythonClassWrapper<T,
     };
     _methodCollection.insert(_methodCollection.begin(), pyMeth);
     PyMethodDef pyMethAlloc = {
-            alloc_name,
+            alloc_name_,
             (PyCFunction) alloc,
             METH_KEYWORDS | METH_CLASS,
             "allocate arry of single dynamic instance of this class"
@@ -695,10 +705,11 @@ int __pyllars_internal::PythonClassWrapper<T,
 template<typename T>
 __pyllars_internal::PythonClassWrapper<T, 
         typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>
-*__pyllars_internal::PythonClassWrapper<T, 
-        typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::createPy
+                 *__pyllars_internal::PythonClassWrapper<T,
+        typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+createPy
         (const ssize_t arraySize, ObjContainer<T_NoRef> *const cobj, const bool isAllocated,
-                                            PyObject *referencing, const size_t depth) {
+         const bool inPlace, PyObject *referencing, const size_t depth) {
     static PyObject *kwds = PyDict_New();
     static PyObject *emptyargs = PyTuple_New(0);
     PyDict_SetItemString(kwds, "__internal_allow_null", Py_True);
@@ -712,6 +723,9 @@ __pyllars_internal::PythonClassWrapper<T,
     PythonClassWrapper *pyobj = (PythonClassWrapper *) PyObject_Call((PyObject *) &Type, emptyargs, kwds);
     pyobj->_CObject = cobj;//new ObjContainerPtrProxy<T_NoRef>(cobj, isAllocated);
     pyobj->_allocated = isAllocated;
+    pyobj->_inPlace = inPlace;
+    pyobj->_arraySize = 0;
+    pyobj->_depth = 0;
     if (referencing) pyobj->_referenced = referencing;
     return pyobj;
 }
@@ -727,7 +741,7 @@ template<typename T>
 template<typename ...Args>
 bool __pyllars_internal::PythonClassWrapper<T,
         typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
-create(const char *const kwlist[], PyObject *args, PyObject *kwds, ObjContainer<T_NoRef> *&cobj) {
+create(const char *const kwlist[], PyObject *args, PyObject *kwds, ObjContainer<T_NoRef> *&cobj, const bool inPlace) {
     try {
         return _createBase(cobj, args, kwds, kwlist, typename argGenerator<sizeof...(Args)>::type(),
                            (typename std::remove_reference<Args>::type *) nullptr...);
@@ -751,10 +765,10 @@ addr(PyObject *self, PyObject *args) {
     std::string module_ptr_name = std::string(Type.tp_name) + "_ptr";
     PythonClassWrapper<T_NoRef *>::initialize();
     PythonClassWrapper *self_ = reinterpret_cast<PythonClassWrapper *>(self);
-    PyObject *obj = self_->_CObject ? toPyObject<T_NoRef *>(self_->_CObject->ptr(), true, 1) : Py_None;
-    PyErr_Clear();
-    ((PythonClassWrapper<T_NoRef *> *) obj)->make_reference(self);
-    return obj;
+    PythonClassWrapper<T_NoRef *> * obj = (PythonClassWrapper<T_NoRef *> * ) (self_->_CObject ? toPyObject<T_NoRef *>(self_->_CObject->ptr(), AS_VARIABLE, 1) : Py_None);
+     PyErr_Clear();
+     obj->make_reference(self);
+     return (PyObject*) obj;
 }
 
 template<typename T>
@@ -812,8 +826,7 @@ template<typename T>
 template<const char *const name, typename ReturnType, typename ...Args>
 void __pyllars_internal::PythonClassWrapper<T, 
         typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
-addConstMethod(
-                typename ConstMethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+addConstMethod( typename ConstMethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
                 const char *const kwlist[]) {
     static const char *const doc = "Call method ";
     char *doc_string = new char[strlen(name) + strlen(doc) + 1];
@@ -861,8 +874,11 @@ addBaseClass(PyTypeObject *base) {
 template<typename T>
 void __pyllars_internal::PythonClassWrapper<T,
         typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
-set_contents(typename std::remove_reference<T>::type *ptr, bool allocated) {
+set_contents(typename std::remove_reference<T>::type *ptr, const bool allocated, const bool inPlace) {
     _allocated = allocated;
+    _inPlace = inPlace;
+    _arraySize = 1;
+    _depth = 0;
     _CObject = ptr;
 }
 
@@ -891,6 +907,11 @@ std::string __pyllars_internal::PythonClassWrapper<T,
         typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
 get_module_entry_name() { return _module_entry_name; }
 
+template<typename T>
+std::string __pyllars_internal::PythonClassWrapper<T,
+        typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+get_full_name() { return _full_name; }
+
 template<typename T>   
 PyObject *__pyllars_internal::PythonClassWrapper<T,
         typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
@@ -910,7 +931,9 @@ _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds) {
         Py_DECREF(empty);
     }
     self->_allocated = false;
-    self->_raw_storage = nullptr;
+    self->_inPlace = false;
+    self->_arraySize = 0;
+    self->_depth = 0;
     return InitHelper<T>::init(self, args, kwds);
 }
 
@@ -930,7 +953,7 @@ _new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
     if (nullptr != self) {
         self->_CObject = nullptr;
     }
-    return (PyObject *) self;
+     return (PyObject *) self;
 }
 
 template<typename T>
@@ -938,14 +961,17 @@ void __pyllars_internal::PythonClassWrapper<T,
         typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
 _free(void *self_) {
     PythonClassWrapper *self = (PythonClassWrapper *) self_;
-    if (self->_raw_storage) {
-        delete self->_raw_storage;
-    } else if (self->_allocated) {
-        ObjectLifecycleHelpers::Alloc<T_NoRef, PythonClassWrapper<T_NoRef *>, PythonClassWrapper<T_NoRef>>::dealloc(
-                self->_CObject);
+    if (!self->_CObject) return;
+    if (self->_allocated) {
+        //Deallocator<T_NoRef>::dealloc(
+        //        self->_CObject->ptr(), self->_inPlace, self->_arraySize);
+        if(self->_allocated) delete self->_CObject;
     }
-    self->_raw_storage = nullptr;
     if (self->_allocated) self->_CObject = nullptr;
+    self->_allocated = false;
+    self->_inPlace = false;
+    self->_arraySize = 0;
+    self->_depth = 0;
 }
 
 template<typename T>
@@ -976,12 +1002,14 @@ template<typename T>
 template<typename ...Args>
 bool __pyllars_internal::PythonClassWrapper<T,
         typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
-_createBaseBase(ObjContainer<T_NoRef> *&cobj, Args &... args) {
+_createBaseBase(ObjContainer<T_NoRef> *&cobj,  Args &... args) {
     if (!cobj) {
         cobj = new ObjContainerProxy<T_NoRef, Args &...>(args...);
         return cobj != nullptr;
     }
-    new(cobj) ObjContainerProxy<T_NoRef, Args& ...>(args...);
+    cobj->set_contents(args...);
+      //new(cobj) ObjContainerProxy<T_NoRef, Args& ...>(args...);
+
     return true;
 }
 
@@ -1000,7 +1028,7 @@ _createBase( ObjContainer<T_NoRef> *&cobj, PyObject *args, PyObject *kwds,
     PyObject *pyobjs[sizeof...(Args) + 1];
     (void) pyobjs;
     if (!_parsePyArgs(kwlist, args, kwds, pyobjs[S]...)) {
-        PyErr_SetString(PyExc_TypeError, "Invalid constructor arguments");
+        PyErr_SetString(PyExc_TypeError, "Invalid constructor argument(s)");
         return false;
     }
 

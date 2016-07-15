@@ -1,42 +1,46 @@
 #!/usr/bin/env python
 import sys, os.path
-sys.path= [os.path.join(os.path.abspath(os.path.dirname(os.path.dirname(__file__))),"..","build","lib.linux-x86_64-2.7")]+sys.path
+#####sys.path=
+[os.path.join(os.path.abspath(os.path.dirname(os.path.dirname(__file__))),"..","build","lib.linux-x86_64-2.7")]+sys.path
 print "### %s"%sys.path
-import testbasic_C
+import test_pyllars
 import unittest
 
 class Test_BasicC(unittest.TestCase):
 
 
     def testGlobalData(self):
-        self.assertEqual( testbasic_C.data1(), 1)
-        self.assertEqual( testbasic_C.data2(), 2)
-        self.assertEqual( testbasic_C.data3(), 3)
+        t = test_pyllars.TestStruct()
+        t.new()
+        return
+        self.assertEqual( test_pyllars.data1(), 1)
+        self.assertEqual( test_pyllars.data2(), 2)
+        self.assertEqual( test_pyllars.data3(), 3)
 
-        self.assertRaises( RuntimeError, testbasic_C.data1, value=2)
-        self.assertRaises( RuntimeError, testbasic_C.data2, value=23)
-        testbasic_C.data3( value = 43)
-        self.assertEqual( testbasic_C.data3(), 43)
+        self.assertRaises( RuntimeError, test_pyllars.data1, value=2)
+        self.assertRaises( RuntimeError, test_pyllars.data2, value=23)
+        test_pyllars.data3( value = 43)
+        self.assertEqual( test_pyllars.data3(), 43)
 
-    def testGlobalFunction(self):
-        stringcopy = testbasic_C.copy_string("MAKE A COPY");
-        self.assertEqual( stringcopy, "MAKE A COPY")
+    #def testGlobalFunction(self):
+    #    stringcopy = test_pyllars.copy_string("MAKE A COPY");
+    #    self.assertEqual( stringcopy, "MAKE A COPY")
 
     def testTestStructMemberDouble(self):
-        t = testbasic_C.TestStruct()
+        t = test_pyllars.TestStruct()
         self.assertEqual(t.str_member(), "Default constructed  TestStruct")
         self.assertAlmostEqual( t.double_member(), 1.23456789,delta=  0.000000000000001)
         t.double_member(set_to=9.87654321)
         self.assertAlmostEqual( t.double_member(), 9.87654321,delta=  0.000000000000001)
 
     def testTestStructMemberCString(self):
-        t = testbasic_C.TestStruct("My_Message")
+        t = test_pyllars.TestStruct("My_Message")
         self.assertEqual(type(t.str_member()), type("My_Message"))
         self.assertEqual(t.str_member(), "My_Message")
         self.assertRaises(RuntimeError, t.str_member,set_to="New value")
 
     def testTestStructAlloc(self):
-        t = testbasic_C.TestStruct.PYL_alloc([(), ("Second Instance",)])
+        t = test_pyllars.TestStruct.new([(), ("Second Instance",)])
         self.assertEqual( t[0].str_member(), "Default constructed  TestStruct")
         self.assertEqual( t[1].str_member(), "Second Instance")
         self.assertEqual( t[-2].str_member(), "Default constructed  TestStruct")
@@ -51,12 +55,11 @@ class Test_BasicC(unittest.TestCase):
             self.assertTrue( false, "Failed to raise index error")
         except IndexError:
             pass
-        taddr = t.PYL_addr()
-        return
+        taddr = t.this()
 
+        return
         for i in range(100):
            self.assertEqual(taddr[0][0].str_member(), "Default constructed  TestStruct")
-
         tptr = taddr[0]
         titem = tptr[0]
         del taddr
@@ -69,7 +72,7 @@ class Test_BasicC(unittest.TestCase):
         self.assertEqual( titem.str_member(), "Default constructed  TestStruct")
 
     def testArrayElements( self):
-         t = testbasic_C.TestStruct.PYL_alloc([(), ("Second Instance",)])
+         t = test_pyllars.TestStruct.new([(), ("Second Instance",)])
          titemcopy = t.at(1)
          titemref = t[1]
          for i in range(100):print titemcopy.double_member()==2.3456789
@@ -87,11 +90,11 @@ class Test_BasicC(unittest.TestCase):
 
 
     def testAddressAndDereference(self):
-        t = testbasic_C.TestStruct("TakeMyAddress")
-        taddr = t.PYL_addr()
+        t = test_pyllars.TestStruct("TakeMyAddress")
+        taddr = t.this()
         #del t and see that C object is still arround since
         #taddr hold reference to t
-        del(t)
+        #del(t)
         self.assertEqual(taddr[0].str_member(), "TakeMyAddress")
 
 if __name__ == "__main__":

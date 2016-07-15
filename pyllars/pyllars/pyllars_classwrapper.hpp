@@ -38,7 +38,6 @@ namespace __pyllars_internal {
             typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>
             : public CommonBaseWrapper {
 
-
         typedef CommonBaseWrapper::Base Base;
         typedef PythonClassWrapper DereferencedWrapper;
         typedef PythonClassWrapper<T const,   void> ConstWrapper;
@@ -46,7 +45,7 @@ namespace __pyllars_internal {
         typedef PythonClassWrapper<typename std::remove_reference<T>::type> NoRefWrapper;
 
         typedef typename std::remove_reference<T>::type T_NoRef;
-        typedef typename ObjectLifecycleHelpers::BasicAlloc<T, PythonClassWrapper<T_NoRef *> >::ConstructorContainer
+        typedef typename ObjectLifecycleHelpers::BasicAlloc<T>::ConstructorContainer
         ConstructorContainer;
         typedef typename ConstructorContainer::constructor constructor;
         typedef PyTypeObject *TypePtr_t;
@@ -58,7 +57,7 @@ namespace __pyllars_internal {
         static PyTypeObject Type;
         static TypePtr_t constexpr TypePtr = &Type;
 
-        /**
+         /**
          * Python initialization of underlying type, called to init and register type with
          * underlying Python system
          **/
@@ -68,8 +67,10 @@ namespace __pyllars_internal {
         /**
          * create a python object of this class type
          **/
-        static PythonClassWrapper *createPy(const ssize_t arraySize, ObjContainer<T_NoRef> *const cobj, const bool isAllocated,
-                                            PyObject *referencing, const size_t depth = 0) ;
+        static PythonClassWrapper *createPy(const ssize_t arraySize, 
+					    ObjContainer<T_NoRef> *const cobj, const bool isAllocated,
+                                            const bool inPlace,
+                                            PyObject *referencing = nullptr, const size_t depth = 0) ;
 
         /**
          * Add a constructor to the list contained
@@ -81,7 +82,8 @@ namespace __pyllars_internal {
          * the constructor
          **/
         template<typename ...Args>
-        static bool create(const char *const kwlist[], PyObject *args, PyObject *kwds, ObjContainer<T_NoRef> *&cobj) ;
+        static bool create(const char *const kwlist[], PyObject *args, PyObject *kwds, ObjContainer<T_NoRef> *&cobj,
+                           const bool inPlace) ;
 
         /**
          * return python object representing the address of the contained object
@@ -268,7 +270,7 @@ namespace __pyllars_internal {
             _addMethod(pyMeth);
         }
 
-        void set_contents(typename std::remove_reference<T>::type *ptr, bool allocated);
+        void set_contents(typename std::remove_reference<T>::type *ptr, const bool allocated, const bool inPlace);
 
         static bool checkType(PyObject *const obj);
 
@@ -277,6 +279,8 @@ namespace __pyllars_internal {
         static std::string get_name();
 
         static std::string get_module_entry_name();
+
+        static std::string get_full_name();
 
         static PyObject *parent_module;
 
@@ -331,14 +335,16 @@ namespace __pyllars_internal {
 
         static std::string _name;
         static std::string _module_entry_name;
+        static std::string _full_name;
         static std::vector<ConstructorContainer> _constructors;
         static std::map<std::string, typename MethodContainer<T>::setter_t> _memberSettersDict;
         static std::vector<PyMethodDef> _methodCollection;
         static std::vector<PyTypeObject *> _baseClasses;
-
-        char *_raw_storage;
+        size_t _arraySize;
         bool _allocated;
-
+        bool _inPlace;
+      public:
+        size_t _depth;
     };
 
 }

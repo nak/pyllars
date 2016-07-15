@@ -615,12 +615,12 @@ static inline status_t initialize_type%(suffix)s(){
             if len(kwlist) > 0:
                 code += """
    {
-      static const char* const kwlist[] = {%(kwlist)s};
+      static const char* const kwlist[] = {%(kwlist)s, nullptr};
 """ % {'indent': indent, 'kwlist': ", ".join(kwlist), }
             else:
                 code += """
    {
-      static const char* const *kwlist = nullptr;//[] = {};
+      static const char* const *kwlist = {nullptr};
 """
             code += """
       PythonClassWrapper< %(class_name)s >::%(callable)s< %(method_name2)s_name, %(return_type)s %(args)s >
@@ -647,12 +647,12 @@ static inline status_t initialize_type%(suffix)s(){
                 if len(kwlist) > 0:
                     code += """
        {
-          static const char* const kwlist[] = {%(kwlist)s};
+          static const char* const kwlist[] = {%(kwlist)s, nullptr};
     """ % {'indent': indent, 'kwlist': ", ".join(kwlist), }
                 else:
                     code += """
        {
-          static const char* const kwlist[] = {};
+          static const char* const kwlist[] = {nullptr};
     """
                 code += """
           PythonClassWrapper< %(class_name)s>::%(callable)s

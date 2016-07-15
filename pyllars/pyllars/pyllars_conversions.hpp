@@ -16,6 +16,11 @@ namespace __pyllars_internal {
     namespace {
         const bool PTR_IS_ALLOCATED = true;
         const bool PTR_IS_NOT_ALLOCATED = false;
+
+      /** for use in asReference/asArgument parameters **/
+      constexpr bool AS_ARGUMENT = true;
+      constexpr bool AS_REFERNCE = true;
+      constexpr bool AS_VARIABLE = false;
     }
     /**
      * template function to convert python to C object
@@ -458,9 +463,9 @@ namespace __pyllars_internal {
 
             static PyObject *toPyObject(T_NoRef &var, const bool asReference, const ssize_t array_size = -1,
                                         const size_t depth = ptr_depth<T>::value) {
-                ObjContainer<T_NoRef> *const ref = (asReference ? new ObjContainerPtrProxy<T_NoRef, true>(&var, false)
+	      ObjContainer<T_NoRef> *const ref = (asReference ? new ObjContainerPtrProxy<T_NoRef, true>(&var, false, false)
                                                                 : ObjectLifecycleHelpers::Copy<T>::new_copy(var));
-                PyObject *pyobj = (PyObject *) ClassWrapper::createPy(array_size, ref, !asReference, nullptr, depth);
+                PyObject *pyobj = (PyObject *) ClassWrapper::createPy(array_size, ref, !asReference, false, nullptr, depth);
                 if (!pyobj || !ClassWrapper::checkType(pyobj)) {
                     PyErr_Format(PyExc_TypeError, "Unable to convert C type object to Python object %s: %s",
                                  pyobj->ob_type->tp_name, ClassWrapper::get_name().c_str());

@@ -1,5 +1,5 @@
 #include "pyllars.hpp"
-#include "pyllars/test/module.hpp"
+#include "pyllars/test_pyllars/module.hpp"
 
 
 static PyMethodDef methods[] = {
@@ -7,9 +7,9 @@ static PyMethodDef methods[] = {
 };
 
 PyMODINIT_FUNC
-inittest(void)
+inittest_pyllars(void)
 {
-  PyObject* mod = Py_InitModule("test", methods);
-  pyllars::test::init();
+  PyObject* mod = Py_InitModule("test_pyllars", methods);
+  pyllars::test_pyllars::init();
   pyllars::Initializer::init();  
 }

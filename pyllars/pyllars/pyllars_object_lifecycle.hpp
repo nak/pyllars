@@ -265,7 +265,8 @@ namespace __pyllars_internal {
 
             static PyObject *getObjectAt(T const from, const size_t index, const ssize_t elements_array_size,
                                          const size_t depth, const bool asArgument = true) {
-                throw "Attempt to get element from non-array object";
+	      PyErr_SetString(PyExc_TypeError,"Attempt to get element from non-array object");
+	      return nullptr;
             }
 
             static void set(const size_t index, T *const to, const T *const from, const size_t depth) {
@@ -332,7 +333,8 @@ namespace __pyllars_internal {
 
             static PyObject *getObjectAt(T const from, const size_t index, const ssize_t elements_array_size,
                                          const size_t depth, const bool asArgument = true) {
-                throw "Attempt to take index from function pointer";
+	      PyErr_SetString(PyExc_TypeError,"Attempt to get element from non-array object");
+	      return nullptr;
             }
 
             static void set(const size_t index, T const to, T const from, const size_t depth) {
@@ -357,7 +359,8 @@ namespace __pyllars_internal {
 
             static PyObject *getObjectAt(T const from, const size_t index, const ssize_t elements_array_size,
                                          const size_t depth, const bool asArgument = true) {
-                throw "Attempt to take index from function pointer";
+	      PyErr_SetString(PyExc_TypeError,"Attempt to get element from non-array object");
+	      return nullptr;
             }
 
             static void set(const size_t index, T const to, T const from, const size_t depth) {
@@ -410,7 +413,8 @@ namespace __pyllars_internal {
                             ((*self->_CObject)[j]).~T_base();
                         }
                     }
-                    delete[] self->_raw_storage;
+		    char * raw_storage = (char*) self->_raw_storage;
+                    delete[] raw_storage;
                 } else if (self->_allocated) {
                     delete self->_CObject;
                 }
@@ -467,109 +471,27 @@ namespace __pyllars_internal {
             }
         };
 
-        /**
-         * If an array, cannot destruct an array, so should not have raw storage in this case.
-         * cover that base just in case (as best as possible), but do delete the "real" object
-         * pointer
-         *
-        template<typename T, typename PtrWrapper>
-        struct Deallocation<T , PtrWrapper,  typename std::enable_if<
-                std::is_array<T>::value && std::is_destructible<T>::value>::type> {
-            static void _free(PtrWrapper *self) {
-	      //typedef T *Tptr;
-              //  Tptr obj = (Tptr) self->_CObject;
-                if (self->_raw_storage) {
-		  if (self->_depth == 1 && self->_max >= 0) {
-		    for (Py_ssize_t j = 0; j <= (self->_max); ++j) {
-                            self->_CObject[j].~T();
-                        }
-                    }
-                    delete[] self->_raw_storage;
-                } else if (self->_allocated) {
-                    delete self->_CObject;
-                }
-                self->_raw_storage = nullptr;
-                if(self->_allocated) self->_CObject = nullptr;
-                self->_allocated = false;
-            }
-	    };*/
-
-        /**
-         * cons-pointer version of destructible non-array type
-         *
-        template<typename T, typename PtrWrapper>
-        struct Deallocation<T *const, PtrWrapper, typename std::enable_if<
-                !std::is_array<T>::value && std::is_destructible<T>::value>::type> {
-            static void _free(PtrWrapper *self) {
-                typedef T *Tptr;
-                Tptr obj = (Tptr) self->_CObject;
-                if (self->_raw_storage) {
-                    if (self->_max >= 0) {
-                        for (Py_ssize_t j = 0; j <= (self->_max); ++j) {
-                            obj[j].~T();
-                        }
-                    }
-                    delete[] self->_raw_storage;
-                } else if (self->_allocated) {
-                    delete obj;
-		    self->_CObject = nullptr;
-                }
-                self->_raw_storage = nullptr;
-                self->_allocated = false;
-            }
-        };*/
-
-        /**
-         * const-pointer version of array-type destructible
-         
-        template<typename T, typename PtrWrapper>
-        struct Deallocation<T *const, PtrWrapper, typename std::enable_if<
-                std::is_array<T>::value && std::is_destructible<T>::value>::type> {
-            static void _free(PtrWrapper *self) {
-                typedef T *Tptr;
-                Tptr obj = (Tptr) self->_CObject;
-                if (self->_raw_storage) {
-                    delete[] self->_raw_storage;
-                } else if (self->_allocated) {
-                    delete obj;
-		    self->_CObject = nullptr;
-                }
-                self->_raw_storage = nullptr;
-                self->_allocated = false;
-            }
-        };**/
-
-        /**
-         * for types, not destructible, just do basic deallocation
-         *
-        template<typename Tptr, typename PtrWrapper>
-        struct Deallocation<Tptr, PtrWrapper, typename std::enable_if<!std::is_destructible<typename std::remove_pointer<Tptr>::type>::value>::type> {
-            static void _free(PtrWrapper *self) {
-                BasicDeallocation<PtrWrapper>::_free(self);
-            }
-	    };*/
-
 
         ///////////////////////////////
         // DEALLOCATION LOGIC FOR VARIOUS TYPES
         ////////////////////////////////
 
-        template<typename T, typename PtrWrapper>
+        template<typename T>
         struct BasicAlloc {
             typedef typename std::remove_reference<T>::type T_NoRef;
-
+  	    typedef PythonClassWrapper<T_NoRef*> PtrWrapper;
             class ConstructorContainer {
             public:
                 typedef bool(*constructor)(const char *const kwlist[], PyObject *args, PyObject *kwds,
-                                           ObjContainer <T_NoRef> *&cobj);
+                                           ObjContainer <T_NoRef> *&cobj, const bool in_place);
 
                 ConstructorContainer(const char *const kwlist[],
                                      constructor c) : _kwlist(kwlist),
                                                       _constructor(c) {
                 }
 
-                bool operator()(PyObject *args, PyObject *kwds, ObjContainer <T_NoRef> *&cobj) const {
-                    return _constructor(_kwlist, args, kwds, cobj);
+	        bool operator()(PyObject *args, PyObject *kwds, ObjContainer <T_NoRef> *&cobj, const bool in_place) const {
+                    return _constructor(_kwlist, args, kwds, cobj, in_place);
                 }
 
             private:
@@ -580,7 +502,7 @@ namespace __pyllars_internal {
             typedef std::vector<ConstructorContainer> constructor_list;
 
             static PyObject *allocbase(PyObject *cls, PyObject *args, PyObject *kwds,
-                                       typename BasicAlloc<T, PtrWrapper>::constructor_list const &constructors) {
+                                       typename BasicAlloc<T>::constructor_list const &constructors) {
                 (void) cls;
                 //Check if argument is list of tuples, and if so construct
                 //an array of objects to store "behind the pointer"
@@ -615,7 +537,12 @@ namespace __pyllars_internal {
                             for (auto it = constructors.begin(); it != constructors.end(); ++it) {
                                 try {
                                     static PyObject *emptylist = PyDict_New();
-                                    if ((*it)(args, emptylist, values[i])) { break; }
+				    ObjContainer<T_NoRef>  *o = new ObjContainerPtrProxy<T_NoRef, false, true>(&values[i], size, true); 
+                                    if ((*it)(args, emptylist, o, true)) { 
+				      delete o;
+				      break; 
+				    }
+				    delete o;
                                 } catch (...) {
                                 }
                                 PyErr_Clear();
@@ -625,13 +552,18 @@ namespace __pyllars_internal {
                             for (auto it = constructors.begin(); it != constructors.end(); ++it) {
                                 try {
                                     static PyObject *emptyargs = PyTuple_New(0);
-                                    if ((*it)(emptyargs, constructor_pyargs, values ? values[i] : values)) { break; }
+				    ObjContainer<T_NoRef> * o = values? new ObjContainerPtrProxy<T_NoRef, false, true>(&values[i], 1, true): nullptr;
+                                    if ((*it)(emptyargs, constructor_pyargs, o, false)) { 
+				      delete o;
+				      break; 
+				    }
+				    delete o;
                                 } catch (...) {
                                 }
                                 PyErr_Clear();
                             }
                         }
-                        if (!values || !values[i]) {
+                        if (!values ) {
                             PyErr_SetString(PyExc_RuntimeError,
                                             "Invalid constructor arguments on allocation.  Objects not destructible by design! ");
                             if (raw_storage) {
@@ -644,25 +576,32 @@ namespace __pyllars_internal {
                         }
                     }
                     PtrWrapper *obj =
-                            (PtrWrapper *) PtrWrapper::template createPy<T_NoRef *>(size, &values, !raw_storage);
-                    obj->_raw_storage = raw_storage;
+		      (PtrWrapper *) PtrWrapper::createPy2(size, &values, !raw_storage, false);
+		    typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
+                    obj->_raw_storage = (T_base*) raw_storage;
                     return (PyObject *) obj;
                 }
                 //otherwise, just have regular list of constructor arguments
                 //for single object allocation
-                T *cobj = nullptr;
+		char *raw = new char[sizeof(T_NoRef)];
+		T_NoRef* ccobj = (T_NoRef*)raw;
+                ObjContainerPtrProxy<T_NoRef, false, true> cobj = 
+		  ObjContainerPtrProxy<T_NoRef, false, true>(ccobj, 1, true);
+		ObjContainer<T_NoRef> *oo = & cobj;
+		bool found = false;
                 for (auto it = constructors.begin(); it != constructors.end(); ++it) {
                     try {
-                        if ((*it)(args, kwds, cobj)) { break; }
+		      if ((*it)(args, kwds, oo, true)) { found = true; break; }
                     } catch (...) {
                     }
                     PyErr_Clear();
                 }
-                if (!cobj) {
+                if (!found) {
                     PyErr_SetString(PyExc_RuntimeError, "Invalid constructor arguments on allocation");
+		    delete[] raw;
                     return nullptr;
                 }
-                PtrWrapper *obj = PtrWrapper::template createPy<T *>(size, cobj, true);
+                PtrWrapper *obj = PtrWrapper::createPy2(size, &ccobj, true, true);
                 return (PyObject *) obj;
             }
 
@@ -682,17 +621,23 @@ namespace __pyllars_internal {
                 typename std::enable_if<!is_function_ptr<T>::value && !std::is_reference<T>::value &&
                                         std::is_constructible<T>::value &&
                                         std::is_destructible<T>::value>::type> :
-                public BasicAlloc<T, PtrWrapper> {
+                public BasicAlloc<T> {
 
             typedef typename std::remove_reference<T>::type T_NoRef;
 
-            static void dealloc(ObjContainer <T_NoRef> *ptr) {
-                delete ptr;
+            static void deallocREMOVE(ObjContainer <T_NoRef> *ptr, const bool inPlace, const size_t size) {
+                if( inPlace && ptr){
+                    for(size_t i =0; i < size; ++i){
+                        ptr->ptr()[i].~T();
+                    }
+                } else {
+                    delete ptr;
+                }
             }
 
 
             static PyObject *allocbase(PyObject *cls, PyObject *args, PyObject *kwds,
-                                       typename BasicAlloc<T, PtrWrapper>::constructor_list const &constructors) {
+                                       typename BasicAlloc<T>::constructor_list const &constructors) {
                 (void) cls;
                 //Check if argument is list of tuples, and if so construct
                 //an array of objects to store "behind the pointer"
@@ -703,30 +648,35 @@ namespace __pyllars_internal {
                     PyObject *list = PyTuple_GetItem(args, 0);
                     size = PyList_Size(list);
                     char *raw_storage;
-                    T_NoRef **values;
+                    T_NoRef *values;
                     PtrWrapper::initialize();
 
 
                     raw_storage = (char *) operator new[](size * sizeof(T));
                     memset(raw_storage, 0, size * sizeof(T));
-                    values = (T_NoRef **) &raw_storage;
-                    bool found = false;
+                    values = (T_NoRef *) raw_storage;
                     for (Py_ssize_t i = 0; i < size; ++i) {
+                        bool found = false;
                         PyObject *constructor_pyargs = PyList_GetItem(list, i);
                         if (!PyTuple_Check(constructor_pyargs) && !PyDict_Check(constructor_pyargs)) {
                             PyErr_SetString(PyExc_TypeError, "Invalid element in list argument, expected tuple");
+			                //clean up before singalling exception
                             if (raw_storage) {
                                 for (Py_ssize_t j = 0; j < i; ++j) {
-                                    (*values)[j].~T();
+                                    values[j].~T();
                                 }
                                 delete[] raw_storage;
+                                raw_storage = nullptr;
                             }
+			                //signal exception:
                             return nullptr;
                         } else if (PyTuple_Check(constructor_pyargs)) {
                             for (auto it = constructors.begin(); it != constructors.end(); ++it) {
                                 try {
-                                    ObjContainer<T_NoRef> *cobj = new ObjContainer<T_NoRef>(((*values)[i]));
-                                    if ((*it)(constructor_pyargs, nullptr, cobj)) {
+                                    // declare t NOT be in-place as we will destroy the object created here
+                                    ObjContainerPtrProxy<T_NoRef, false, false> cobj = ObjContainerPtrProxy<T_NoRef, false, false>(&values[i], size, false);
+                                    ObjContainer<T_NoRef> *cobjptr = &cobj;
+                                    if ((*it)(constructor_pyargs, nullptr, cobjptr, false)) {
                                         found = true;
                                         break;
                                     }
@@ -738,8 +688,10 @@ namespace __pyllars_internal {
                             for (auto it = constructors.begin(); it != constructors.end(); ++it) {
                                 try {
                                     static PyObject *emptyargs = PyTuple_New(0);
-                                    ObjContainer<T_NoRef> *cobj = new ObjContainer<T_NoRef>((*values)[i]);
-                                    if ((*it)(emptyargs, constructor_pyargs, cobj)) {
+                                    // declare t NOT be in-place as we will destroy the object created here
+                                    ObjContainerPtrProxy<T_NoRef,false, false> cobj = ObjContainerPtrProxy<T_NoRef, false, false>(&values[i], size, false);
+                                    ObjContainer<T_NoRef> *cobjptr = &cobj;
+                                    if ((*it)(emptyargs, constructor_pyargs, cobjptr, false)) {
                                         found = true;
                                         break;
                                     }
@@ -752,17 +704,25 @@ namespace __pyllars_internal {
                             PyErr_SetString(PyExc_RuntimeError, "Invalid constructor arguments on allocation");
                             if (raw_storage) {
                                 for (Py_ssize_t j = 0; j < i; ++j) {
-                                    (*values)[j].~T();
+                                    values[j].~T();
                                 }
                                 delete[] raw_storage;
+                                raw_storage = nullptr;
                             }
                             return nullptr;
                         }
                     }
-                    PtrWrapper *obj = (PtrWrapper *) PtrWrapper::createPy(size, values, false);
-                    if (raw_storage) {
-                        obj->set_raw_storage(raw_storage);
-                    }
+                    PtrWrapper *obj = (PtrWrapper *) PtrWrapper::createPy2(size, &values, false, true/*inplace*/);
+                    if (raw_storage && obj) {
+                        obj->set_raw_storage(values, size);
+                    } else if (raw_storage){ // obj==nullptr
+                        //clean up, since will be signalling exception
+                        for (Py_ssize_t j = 0; j < size; ++j) {
+                            values[j].~T();
+                        }
+                        delete[] raw_storage;
+                        raw_storage = nullptr;
+		            }
                     return (PyObject *) obj;
                 }
 
@@ -773,7 +733,7 @@ namespace __pyllars_internal {
                 ObjContainer<T_NoRef> *cobj = nullptr;
                 for (auto it = constructors.begin(); it != constructors.end(); ++it) {
                     try {
-                        if ((*it)(args, kwds, cobj)) { break; }
+                        if ((*it)(args, kwds, cobj, false)) { break; }
                     } catch (...) {
                     }
                     PyErr_Clear();
@@ -783,7 +743,7 @@ namespace __pyllars_internal {
                     PyErr_SetString(PyExc_RuntimeError, "Invalid constructor arguments on allocation");
                     return nullptr;
                 }
-                return (PyObject *) PtrWrapper::createPy(size, cobj ? cobj->ptrptr() : nullptr, true);
+                return (PyObject *) PtrWrapper::createPy2(size, cobj ? cobj->ptrptr() : nullptr, true, false);
             }
         };
 
@@ -793,17 +753,23 @@ namespace __pyllars_internal {
                 typename std::enable_if<!is_function_ptr<T>::value && !std::is_reference<T>::value &&
                                         std::is_constructible<T>::value &&
                                         !std::is_destructible<T>::value>::type> :
-                public BasicAlloc<T, PtrWrapper> {
+                public BasicAlloc<T> {
 
             typedef typename std::remove_reference<T>::type T_NoRef;
 
 
-            static void dealloc(ObjContainer <T_NoRef> *ptr) {
-                delete ptr;
+            static void deallocREMOVE(ObjContainer <T_NoRef> *ptr , const bool inPlace, const size_t size) {
+                if( inPlace && ptr){
+                    for(size_t i =0; i < size; ++i){
+                        ptr->ptr()[i].~T();
+                    }
+                } else {
+                    delete ptr;
+                }
             }
 
             static PyObject *allocbase(PyObject *cls, PyObject *args, PyObject *kwds,
-                                       typename BasicAlloc<T, PtrWrapper>::constructor_list const &constructors) {
+                                       typename BasicAlloc<T>::constructor_list const &constructors) {
                 (void) cls;
                 //Check if argument is list of tuples, and if so construct
                 //an array of objects to store "behind the pointer"
@@ -812,15 +778,16 @@ namespace __pyllars_internal {
                     const Py_ssize_t size = PyList_Size(list);
                     char *raw_storage;
                     T_NoRef *values;
-                    if (size > 1) {
-                        raw_storage = (char *) operator new[](size * sizeof(T));
+                    //if (size > 1) {
+                        raw_storage = (char *) operator new[](size * sizeof(ObjContainer<T_NoRef>));
                         memset(raw_storage, 0, size * sizeof(T));
                         values = reinterpret_cast<T_NoRef *>(raw_storage);
-                    } else {
-                        raw_storage = nullptr;
-                        values = nullptr;
-                    }
+                    //} else {
+                    //    raw_storage = nullptr;
+                    //    values = nullptr;
+                    //}
                     for (Py_ssize_t i = 0; i < PyTuple_Size(args); ++i) {
+                        bool found = false;
                         PyObject *constructor_pyargs = PyList_GetItem(list, i);
                         if (!PyTuple_Check(constructor_pyargs) && !PyDict_Check(constructor_pyargs)) {
                             PyErr_SetString(PyExc_TypeError, "Invalid element in list argument, expected tuple");
@@ -839,7 +806,11 @@ namespace __pyllars_internal {
                             for (auto it = constructors.begin(); it != constructors.end(); ++it) {
                                 try {
                                     static PyObject *emptylist = PyDict_New();
-                                    if ((*it)(args, emptylist, values[i])) { break; }
+                                    ObjContainer<T_NoRef > cobj = ObjContainerPtrProxy<T_NoRef, false, false>(&values[i]);
+                                    if ((*it)(args, emptylist, cobj)) {
+                                        found = true;
+                                        break;
+                                    }
                                 } catch (...) {
                                 }
                                 PyErr_Clear();
@@ -849,23 +820,25 @@ namespace __pyllars_internal {
                             for (auto it = constructors.begin(); it != constructors.end(); ++it) {
                                 try {
                                     static PyObject *emptyargs = PyTuple_New(0);
-                                    if ((*it)(emptyargs, constructor_pyargs, values ? values[i] : values)) { break; }
+                                    ObjContainer<T_NoRef > cobj = ObjContainerPtrProxy<T_NoRef, false, false>( &values[i] );
+                                    if ((*it)(emptyargs, constructor_pyargs, cobj)) {
+                                        found = true;
+                                        break;
+                                    }
                                 } catch (...) {
                                 }
                                 PyErr_Clear();
                             }
                         }
-                        if (!values || !values[i]) {
+                        if (!found || !values) {
                             PyErr_SetString(PyExc_RuntimeError,
                                             "Invalid constructor arguments on allocation.  Objects not destructible by design! ");
                             if (raw_storage) {
                                 for (Py_ssize_t j = 0; j < i; ++j) {
                                     values[j].~T();
                                 }
-
                                 delete[] raw_storage;
                             }
-
                             return nullptr;
 
                         }
@@ -900,7 +873,7 @@ namespace __pyllars_internal {
         struct Alloc<ReturnType(*)(Args...), PythonClassWrapper<ReturnType(**)(Args...)>,
                 PythonClassWrapper<ReturnType(*)(Args...)>,
                 void> :
-                public BasicAlloc<ReturnType(*)(Args...), PythonClassWrapper<ReturnType(**)(Args...)> > {
+                public BasicAlloc<ReturnType(*)(Args...) > {
 
             typedef PythonClassWrapper<ReturnType(**)(Args...), void> PtrWrapper;
 
@@ -908,12 +881,17 @@ namespace __pyllars_internal {
 
             typedef typename std::remove_reference<T>::type T_NoRef;
 
-            static void dealloc(ObjContainer <T_NoRef> *ptr) {
+            static void deallocREMOVE(ObjContainer <T_NoRef> *ptr, const bool inPlace, const size_t size, const bool nonononon) {
+                if( inPlace){
+                    for(size_t i =0; i < size; ++i){
+                        ptr->ptr()[i].~T();
+                    }
+                }
                 delete ptr;
             }
 
             static PyObject *allocbase(PyObject *cls, PyObject *args, PyObject *kwds,
-                                       typename BasicAlloc<T, PtrWrapper>::constructor_list const &constructors) {
+                                       typename BasicAlloc<T>::constructor_list const &constructors) {
                 (void) cls;
                 //Check if argument is list of tuples, and if so construct
                 //an array of objects to store "behind the pointer"
@@ -955,7 +933,7 @@ namespace __pyllars_internal {
                                 try {
                                     static PyObject *emptyargs = PyTuple_New(0);
                                     T_NoRef *cobj = &(*values)[i];
-                                    if ((*it)(emptyargs, constructor_pyargs, cobj)) { break; }
+                                    if ((*it)(emptyargs, constructor_pyargs, cobj, false)) { break; }
                                 } catch (...) {
                                 }
                                 PyErr_Clear();
@@ -1007,17 +985,17 @@ namespace __pyllars_internal {
                 PythonClassWrapper<T *, void>,
                 PythonClassWrapper<T, void>,
                 typename std::enable_if<std::is_void<typename std::remove_volatile<T>::type>::value>::type> :
-                public BasicAlloc<T, PythonClassWrapper<void *, void> > {
+                public BasicAlloc<T> {
 
             typedef PythonClassWrapper<void *, void> PtrWrapper;
             typedef typename std::remove_reference<T>::type C_NoRef;
 
-            static void dealloc(ObjContainer <C_NoRef> *ptr) {
+            static void deallocREMOVE(ObjContainer <C_NoRef> *ptr) {
                 (void) ptr;
             }
 
             static PyObject *allocbase(PyObject *cls, PyObject *args, PyObject *kwds,
-                                       typename BasicAlloc<T, PtrWrapper>::constructor_list const &constructors) {
+                                       typename BasicAlloc<T>::constructor_list const &constructors) {
                 (void) args;
                 (void) kwds;
                 (void) cls;
@@ -1032,16 +1010,16 @@ namespace __pyllars_internal {
                 ClassWrapper,
                 typename std::enable_if<!std::is_void<T>::value && !std::is_function<T>::value &&
                                         (std::is_reference<T>::value || !std::is_constructible<T>::value)>::type> :
-                public BasicAlloc<T, PtrWrapper> {
+                public BasicAlloc<T> {
 
             typedef typename std::remove_reference<T>::type C_NoRef;
 
-            static void dealloc(ObjContainer <C_NoRef> *ptr) {
+            static void deallocREMOVE(ObjContainer <C_NoRef> *ptr) {
                 (void) ptr;
             }
 
             static PyObject *allocbase(PyObject *cls, PyObject *args, PyObject *kwds,
-                                       typename BasicAlloc<T, PtrWrapper>::constructor_list const &constructors) {
+                                       typename BasicAlloc<T>::constructor_list const &constructors) {
                 (void) args;
                 (void) kwds;
                 (void) cls;
@@ -1055,16 +1033,16 @@ namespace __pyllars_internal {
         struct Alloc<T, PtrWrapper,
                 ClassWrapper,
                 typename std::enable_if<std::is_function<T>::value>::type> :
-                public BasicAlloc<T, PtrWrapper> {
+                public BasicAlloc<T> {
 
             typedef typename std::remove_reference<T>::type C_NoRef;
 
-            static void dealloc(ObjContainer <C_NoRef> *ptr) {
+            static void deallocREMOVE(ObjContainer <C_NoRef> *ptr) {
                 (void) ptr;
             }
 
             static PyObject *allocbase(PyObject *cls, PyObject *args, PyObject *kwds,
-                                       typename BasicAlloc<T, PtrWrapper>::constructor_list const &constructors) {
+                                       typename BasicAlloc<T>::constructor_list const &constructors) {
                 (void) args;
                 (void) kwds;
                 (void) cls;
@@ -1092,7 +1070,8 @@ namespace __pyllars_internal {
             (void) from;
             (void) index;
             (void) elements_array_size;
-            throw "Attempt to get void value";
+	    PyErr_SetString(PyExc_TypeError,"Attempt to get element from non-array object");
+	    return nullptr;
         }
 
         static T **getObjectPtr(PtrWrapper *const self) {
@@ -1115,7 +1094,8 @@ namespace __pyllars_internal {
             (void) from;
             (void) index;
             (void) elements_array_size;
-            throw "Attempt to get void value";
+	    PyErr_SetString(PyExc_TypeError,"Attempt to get element from non-array object");
+	    return nullptr;
         }
 
         static void *getObjectPtr(PtrWrapper *const self) {
@@ -1140,7 +1120,8 @@ namespace __pyllars_internal {
             (void) from;
             (void) index;
             (void) elements_array_size;
-            throw "Attempt to get void value";
+	    PyErr_SetString(PyExc_TypeError,"Attempt to get element from non-array object");
+	    return nullptr;
         }
 
         static T *const *getObjectPtr(PtrWrapper *const self) {
