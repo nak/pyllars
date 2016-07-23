@@ -16,21 +16,9 @@ namespace pyllars{
 
     typedef int(*initializer_t)(void);
 
-    Initializer(const initializer_t initializer){
-      if(!_initializers){
-	    _initializers = new std::vector<initializer_t>();
-      }
-      _initializers->push_back(initializer);
-    }
+    Initializer(const initializer_t initializer);
 
-    static status_t init(){
-      int status = 0;
-      if(!_initializers) return 0;
-      for (auto it = _initializers->begin(); it != _initializers->end(); ++ it){
-	status |= (*it)();
-      }
-      return status;
-    }
+    static status_t init();
 
   private:
     static std::vector< initializer_t> *_initializers;

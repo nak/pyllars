@@ -195,7 +195,7 @@ class Namespace(BaseElement):
             code = """
 #include <Python.h>
 #include <%(path)s/module.hpp>
-#include <pyllars_classwrapper.impl>
+#include <pyllars_classwrapper.cpp>
 #include <pyllars_function_wrapper.hpp>
 #include "%(header)s"
 """ % {'header': self.from_header, 'path': self.get_include_parent_path()} + code
@@ -304,7 +304,7 @@ class Type(BaseElement):
         code += """
 #include <Python.h>
 #include <pyllars.hpp>
-#include <pyllars_classwrapper.impl>
+#include <pyllars_classwrapper.cpp>
 #include <pyllars_function_wrapper.hpp>
 #include <%(headername)s>
 #include "%(myheader)s"
@@ -934,7 +934,7 @@ typedef %(full_class_name)s %(sname)s_Target_Type;
             code += """
 #include <Python.h>
 #include <pyllars.hpp>
-#include <pyllars_classwrapper.impl>
+#include <pyllars_classwrapper.cpp>
 #include <pyllars_function_wrapper.hpp>
 #include <%(headername)s>
 #include "%(myheader)s"

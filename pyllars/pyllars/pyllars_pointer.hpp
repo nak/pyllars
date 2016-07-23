@@ -589,7 +589,7 @@ namespace __pyllars_internal {
                 for (size_t i = 0; i < _raw_size; ++i) {
                     _raw_storage[i].~T_base();
                 }
-                void *storage = (void *) _raw_storage;
+                char *storage = (char *) _raw_storage;
                 delete[] storage;
                 _raw_storage = nullptr;
                 _allocated = false;
@@ -597,7 +597,7 @@ namespace __pyllars_internal {
             }
         }
 
-        template<typename T2, typename PtrWrapper>
+        template<typename PtrWrapper>
         friend
         struct ObjectLifecycleHelpers::BasicAlloc;
 

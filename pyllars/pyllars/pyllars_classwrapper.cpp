@@ -11,7 +11,7 @@
 #include "pyllars_constmethodcallsemantics.hpp"
 #include "pyllars_methodcallsemantics.hpp"
 #include "pyllars_object_lifecycle.hpp"
-#include "pyllars_conversions.hpp"
+#include "pyllars_conversions.cpp"
 
 constexpr int UNKNOWN_SIZE = __pyllars_internal::UNKNOWN_SIZE;
 namespace __pyllars_internal{

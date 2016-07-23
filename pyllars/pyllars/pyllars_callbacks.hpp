@@ -35,21 +35,6 @@ namespace __pyllars_internal{
 
       };
 
-      template < typename ReturnType,
-                 typename... Args>
-      PyObject* CallbackPool< ReturnType, Args...>::pycallbacks[MAX_CB_POOL_DEPTH+1];
-
-      template < typename ReturnType,
-                 typename... Args>
-      typename CallbackPool< ReturnType, Args...>::callback_t
-      CallbackPool< ReturnType, Args...>::c_callbacks[MAX_CB_POOL_DEPTH+1];
-
-      template < typename ReturnType,
-                 typename... Args>
-      typename CallbackPool< ReturnType, Args...>::callbackvar_t
-      CallbackPool< ReturnType, Args...>::c_callbacksvar[MAX_CB_POOL_DEPTH+1];
-
-
       __attribute__((noinline)) static PyObject* __pycb( PyObject *pycallback, PyObject* pyargs[], const Py_ssize_t size) {
         if(!pycallback || !PyCallable_Check(pycallback)){
             PyErr_SetString( PyExc_RuntimeError,
