@@ -6,6 +6,7 @@
 #define __PYLLARS_INTERNAL__POINTER_CPP_
 
 #include "pyllars_pointer.hpp"
+#include "pyllars_object_lifecycle.cpp"
 
 namespace __pyllars_internal {
 

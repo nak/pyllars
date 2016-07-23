@@ -10,7 +10,7 @@
 #include "pyllars_classmethodsemantics.cpp"
 #include "pyllars_constmethodcallsemantics.cpp"
 #include "pyllars_methodcallsemantics.cpp"
-#include "pyllars_object_lifecycle.hpp"
+#include "pyllars_object_lifecycle.cpp"
 #include "pyllars_conversions.cpp"
 
 constexpr int UNKNOWN_SIZE = __pyllars_internal::UNKNOWN_SIZE;
