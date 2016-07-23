@@ -30,16 +30,7 @@ namespace __pyllars_internal {
         /**
          * Used for regular methods:
          */
-        static PyObject *call(method_t method, PyObject *args, PyObject *kwds) {
-            try {
-                const T &result = call_methodBase(method, args, kwds, typename argGenerator<sizeof...(Args)>::type());
-                const ssize_t array_size = ArraySize<T>::size;//sizeof(result) / sizeof(T_base);
-                return toPyObject<T>(result, false, array_size);
-            } catch (const char *const msg) {
-                PyErr_SetString(PyExc_RuntimeError, msg);
-                return nullptr;
-            }
-        }
+        static PyObject *call(method_t method, PyObject *args, PyObject *kwds) ;
 
     private:
 
@@ -48,37 +39,16 @@ namespace __pyllars_internal {
          **/
         template<typename ...PyO>
         static typename extent_as_pointer<T>::type call_methodC(typename extent_as_pointer<T>::type  (*method)(Args...),
-                                                                PyObject *args, PyObject *kwds, PyO *...pyargs) {
-            static char format[sizeof...(Args) + 1] = {0};
-            if (sizeof...(Args) > 0){
-                memset(format, 'O', (size_t)
-                        sizeof...(Args));
-
-		if (!PyArg_ParseTupleAndKeywords(args, kwds, format, (char **) kwlist, &pyargs...)) {
-		  throw "Invalid arguments to method call";
-		}
-	    }
-            T retval = method(*toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)...);
-            return retval;
-        }
-
+                                                                PyObject *args, PyObject *kwds, PyO *...pyargs);
         /**
          * call that converts python given arguments to make C call:
          **/
         template<int ...S>
         static typename extent_as_pointer<T>::type call_methodBase(
                 typename extent_as_pointer<T>::type  (*method)(Args...),
-                PyObject *args, PyObject *kwds, container<S...> s) {
-            (void) s;
-            PyObject pyobjs[sizeof...(Args) + 1];
-            (void) pyobjs;
-            return call_methodC(method, args, kwds, &pyobjs[S]...);
-        }
+                PyObject *args, PyObject *kwds, container<S...> s) ;
 
     };
-
-    template<class CClass, typename ReturnType, typename ...Args>
-    const char *const *ClassMethodCallSemantics<CClass, ReturnType, Args...>::kwlist;
 
 
     /**
@@ -91,47 +61,24 @@ namespace __pyllars_internal {
 
         static const char *const *kwlist;
 
-        static PyObject *call(method_t method, PyObject *args, PyObject *kwds) {
-            call_methodBase(method, args, kwds, typename argGenerator<sizeof...(Args)>::type());
-            return Py_None;
-        }
+        static PyObject *call(method_t method, PyObject *args, PyObject *kwds) ;
 
     private:
 
         template<typename ...PyO>
         static void call_methodC(void (*method)(Args...),
                                  PyObject *args, PyObject *kwds,
-                                 PyO *...pyargs) {
-
-            char format[sizeof...(Args) + 1] = {0};
-            if (sizeof...(Args) > 0)
-                memset(format, 'O', sizeof...(Args));
-            if (!PyArg_ParseTupleAndKeywords(args, kwds, format, (char **) kwlist, &pyargs...)) {
-                PyErr_SetString(PyExc_RuntimeError, "Failed to parse argument on method call");
-            } else {
-                method(*toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)...);
-            }
-        }
+                                 PyO *...pyargs) ;
 
         template<int ...S>
         static void call_methodBase(void (*method)(Args...),
                                     PyObject *args, PyObject *kwds,
-                                    container<S...> unused) {
-            (void) unused;
-            PyObject pyobjs[sizeof...(Args) + 1];
-            call_methodC(method, args, kwds, &pyobjs[S]...);
-            (void) pyobjs;
-        }
+                                    container<S...> unused) ;
 
     };
 
 
-    template<class CClass, typename ...Args>
-    const char *const *
-            ClassMethodCallSemantics<CClass, void, Args...>::kwlist;
-
-
-    /**
+     /**
      * This class is needed to prevent ambiguities and compiler issues in add_method
      * It holds the method call and allows specialization based on
      * underlying CClass type
@@ -170,16 +117,7 @@ namespace __pyllars_internal {
             static constexpr kwlist_t &kwlist = ClassMethodCallSemantics<CClass, ReturnType, Args...>::kwlist;
             static method_t method;
 
-            static PyObject *call(PyObject *cls, PyObject *args, PyObject *kwds) {
-                (void) cls;
-                try {
-                    return ClassMethodCallSemantics<CClass, ReturnType, Args...>::call(method, args, kwds);
-                } catch (...) {
-                    PyErr_SetString(PyExc_RuntimeError, "Exception in class method");
-                    return nullptr;
-                }
-                return nullptr;
-            }
+            static PyObject *call(PyObject *cls, PyObject *args, PyObject *kwds) ;
 
         };
     };
@@ -202,34 +140,11 @@ namespace __pyllars_internal {
             static constexpr kwlist_t &kwlist = ClassMethodCallSemantics<CClass, ReturnType, Args...>::kwlist;
             static method_t method;
 
-            static PyObject *call(PyObject *cls, PyObject *args, PyObject *kwds) {
-                (void) cls;
-                try {
-                    return ClassMethodCallSemantics<CClass, ReturnType, Args...>::call(method, args, kwds);
-                } catch (...) {
-                    PyErr_SetString(PyExc_RuntimeError, "Exception in class method");
-                    return nullptr;
-                }
-                return nullptr;
-            }
+            static PyObject *call(PyObject *cls, PyObject *args, PyObject *kwds);
 
         };
+
     };
-
-    template<class CClass>
-    template<const char *const name, typename ReturnType, typename ...Args>
-    typename ClassMethodContainer<CClass, typename std::enable_if<std::is_class<CClass>::value &&
-                                                                  !std::is_const<CClass>::value>::type>::template Container<name, ReturnType, Args...>::method_t
-            ClassMethodContainer<CClass, typename std::enable_if<std::is_class<CClass>::value &&
-                                                                 !std::is_const<CClass>::value>::type>::Container<name, ReturnType, Args...>::method;
-
-
-    template<class CClass>
-    template<const char *const name, typename ReturnType, typename ...Args>
-    typename ClassMethodContainer<CClass, typename std::enable_if<std::is_class<CClass>::value &&
-                                                                  std::is_const<CClass>::value>::type>::template Container<name, ReturnType, Args...>::method_t
-            ClassMethodContainer<CClass, typename std::enable_if<std::is_class<CClass>::value &&
-                                                                 std::is_const<CClass>::value>::type>::Container<name, ReturnType, Args...>::method;
 
 
     /**
@@ -247,27 +162,10 @@ namespace __pyllars_internal {
 
             static member_t member;
 
-            static PyObject *call(PyObject *cls, PyObject *args, PyObject *kwds) {
-                (void) cls;
-		static const char* kwlist[] = {"value",nullptr};
-		static char format[2] = {'O',0};
-		PyObject *pyarg = nullptr;
-		if (PyTuple_Size(args) > 0 ){
-		  PyErr_SetString(PyExc_ValueError, "Only one value with explicit keyword 'value' allowed to this method");
-		  return nullptr;		
-		} else if (kwds && !PyArg_ParseTupleAndKeywords(args, kwds, format, (char **) kwlist, &pyarg)) {
-		  PyErr_SetString(PyExc_ValueError, "Invalid argument keyword name or type to method call");
-		  return nullptr;
-		} else if ( kwds ) {
-		  *member = *toCObject<T, std::is_array<T>::value, PythonClassWrapper<T> >( *pyarg );
-		  return Py_None;
-		} 
-                return toPyObject<T>(*member, false, ArraySize<T>::size);
-            }
+            static PyObject *call(PyObject *cls, PyObject *args, PyObject *kwds);
 
-            static void setFromPyObject(PyObject *pyobj) {
-               *member = *toCObject<T, false, PythonClassWrapper<T>>(*pyobj);
-            }
+            static void setFromPyObject(PyObject *pyobj);
+
         };
 
         template<const char *const name, size_t size, typename T>
@@ -280,20 +178,21 @@ namespace __pyllars_internal {
 
             static PyObject *call(PyObject *cls, PyObject *args, PyObject *kwds) {
                 (void) cls;
-		static const char* kwlist[] = {"value",nullptr};
-		static char format[2] = {'O',0};
-		PyObject *pyarg = nullptr;
-		if (PyTuple_Size(args) > 0 ){
-		  PyErr_SetString(PyExc_ValueError, "Only one value with explicit keyword 'value' allowed to this method");
-		  return nullptr;		
-		} else if (kwds && !PyArg_ParseTupleAndKeywords(args, kwds, format, (char **) kwlist, &pyarg)) {
-		  PyErr_SetString(PyExc_ValueError, "Invalid argument keyword name or type to method call");
-		  return nullptr;
-		} else if ( kwds ) {
-		  setFromPyObject(pyarg);
-		  return Py_None;
-		} 		
-		return toPyObject<T>(member, false);
+                static const char *kwlist[] = {"value", nullptr};
+                static char format[2] = {'O', 0};
+                PyObject *pyarg = nullptr;
+                if (PyTuple_Size(args) > 0) {
+                    PyErr_SetString(PyExc_ValueError,
+                                    "Only one value with explicit keyword 'value' allowed to this method");
+                    return nullptr;
+                } else if (kwds && !PyArg_ParseTupleAndKeywords(args, kwds, format, (char **) kwlist, &pyarg)) {
+                    PyErr_SetString(PyExc_ValueError, "Invalid argument keyword name or type to method call");
+                    return nullptr;
+                } else if (kwds) {
+                    setFromPyObject(pyarg);
+                    return Py_None;
+                }
+                return toPyObject<T>(member, false);
             }
 
             static void setFromPyObject(PyObject *pyobj) {
@@ -303,13 +202,7 @@ namespace __pyllars_internal {
         };
     };
 
-    template<class CClass>
-    template<const char *const name, typename T>
-    typename ClassMemberContainer<CClass>::template Container<name, T>::member_t
-            ClassMemberContainer<CClass>::Container<name, T>::member;
-
-
-    /**
+   /**
      * Class member container for const class members
      **/
     template<class CClass>
@@ -324,25 +217,11 @@ namespace __pyllars_internal {
 
             static member_t member;
 
-            static PyObject *call(PyObject *cls, PyObject *args, PyObject *kwds) {
-                (void) cls;
-		if (PyTuple_Size(args) > 0 || kwds){
-		  PyErr_SetString(PyExc_ValueError, "C++: const static members cannot change value");
-		  return nullptr;		
-		}
-                return toPyObject<T>(*member, false, ArraySize<T>::size);
-            }
+            static PyObject *call(PyObject *cls, PyObject *args, PyObject *kwds);
 
         };
 
-
     };
-
-    template<class CClass>
-    template<const char *const name, typename T>
-    typename ConstClassMemberContainer<CClass>::template Container<name, T>::member_t
-            ConstClassMemberContainer<CClass>::Container<name, T>::member;
-
 
 }
 

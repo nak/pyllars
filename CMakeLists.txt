@@ -26,7 +26,7 @@ set(SOURCE_FILES
         /usr/include/python2.7/Python.h
         /usr/include/python2.7/object.h
         /usr/include/python2.7/tupleobject.h
-        pyllars/pyllars/pyllars_callbacks.cpp pyllars/pyllars/pyllars_conversions.cpp pyllars/pyllars/pyllars_constmethodcallsemantics.cpp pyllars/pyllars/pyllars_globalmembersemantics.cpp pyllars/pyllars/pyllars_methodcallsemantics.cpp pyllars/pyllars/pyllars_pointer.cpp)
+        pyllars/pyllars/pyllars_callbacks.cpp pyllars/pyllars/pyllars_conversions.cpp pyllars/pyllars/pyllars_constmethodcallsemantics.cpp pyllars/pyllars/pyllars_globalmembersemantics.cpp pyllars/pyllars/pyllars_methodcallsemantics.cpp pyllars/pyllars/pyllars_pointer.cpp pyllars/pyllars/pyllars_classmethodsemantics.cpp)
 add_definitions(-DMAIN)
 add_executable(Pyllars ${SOURCE_FILES})
 target_link_libraries(Pyllars  python2.7 )

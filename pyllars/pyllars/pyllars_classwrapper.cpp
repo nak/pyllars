@@ -7,7 +7,7 @@
 #include "pyllars_classwrapper.hpp"
 
 #include "pyllars_utils.hpp"
-#include "pyllars_classmethodsemantics.hpp"
+#include "pyllars_classmethodsemantics.cpp"
 #include "pyllars_constmethodcallsemantics.cpp"
 #include "pyllars_methodcallsemantics.cpp"
 #include "pyllars_object_lifecycle.hpp"

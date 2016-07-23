@@ -38,7 +38,6 @@ namespace __pyllars_internal {
         typedef PythonClassWrapper<typename std::remove_reference<T>::type> NoRefWrapper;
         typedef PythonClassWrapper<typename extent_as_pointer<T>::type> AsPtrWrapper;
 
-
         static Py_ssize_t _size(PyObject *self);
 
         static PyObject *_inplace_concat(PyObject *self, PyObject *other) {
