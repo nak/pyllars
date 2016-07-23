@@ -27,17 +27,7 @@ namespace __pyllars_internal {
         /**
          * Used for regular methods:
          */
-        static PyObject *call(method_t method, CClass &self, PyObject *args, PyObject *kwds) {
-            try {
-                T result = call_methodBase(method, self, args, kwds, typename argGenerator<sizeof...(Args)>::type());
-                // const ssize_t type_size = Sizeof<T_base>::value;
-                const ssize_t array_size = ArraySize<T>::size;//type_size > 0 ? sizeof(result) / type_size : 1;
-                return toPyObject<T>(result, false, array_size);
-            } catch (const char *const msg) {
-                PyErr_SetString(PyExc_RuntimeError, msg);
-                return nullptr;
-            }
-        }
+        static PyObject *call(method_t method, CClass &self, PyObject *args, PyObject *kwds) ;
 
     private:
 
@@ -48,18 +38,7 @@ namespace __pyllars_internal {
         static typename extent_as_pointer<T>::type call_methodC(
                 typename extent_as_pointer<T>::type  (CClass::*method)(Args...),
                 typename std::remove_reference<CClass>::type &self,
-                PyObject *args, PyObject *kwds, PyO *...pyargs) {
-            static char format[sizeof...(Args) + 1] = {0};
-            if (sizeof...(Args) > 0)
-                memset(format, 'O', sizeof...(Args));
-
-            if (!PyArg_ParseTupleAndKeywords(args, kwds, format, (char **) kwlist, &pyargs...)) {
-                PyErr_Print();
-                throw "Invalid arguments to method call";
-            }
-            T retval = (self.*method)(*toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)...);
-            return retval;
-        }
+                PyObject *args, PyObject *kwds, PyO *...pyargs);
 
         /**
          * call that converts python given arguments to make C call:
@@ -68,19 +47,9 @@ namespace __pyllars_internal {
         static typename extent_as_pointer<T>::type call_methodBase(
                 typename extent_as_pointer<T>::type  (CClass::*method)(Args...),
                 typename std::remove_reference<CClass>::type &self,
-                PyObject *args, PyObject *kwds, container<S...> s) {
-            (void) s;
-            PyObject pyobjs[sizeof...(Args) + 1];
-            (void) pyobjs;
-            return call_methodC(method, self, args, kwds, &pyobjs[S]...);
-
-        }
+                PyObject *args, PyObject *kwds, container<S...> s);
 
     };
-
-    template<class CClass, typename ReturnType, typename ...Args>
-    const char *const *
-            MethodCallSemantics<CClass, ReturnType, Args...>::kwlist;
 
 
     /**
@@ -93,15 +62,9 @@ namespace __pyllars_internal {
 
         static const char *const *kwlist;
 
-        static PyObject *toPyObj(CClass &self) {
-            (void) self;
-            return Py_None;
-        }
+        static PyObject *toPyObj(CClass &self) ;
 
-        static PyObject *call(method_t method, CClass &self, PyObject *args, PyObject *kwds) {
-            call_methodBase(method, self, args, kwds, typename argGenerator<sizeof...(Args)>::type());
-            return Py_None;
-        }
+        static PyObject *call(method_t method, CClass &self, PyObject *args, PyObject *kwds);
 
     private:
 
@@ -109,35 +72,15 @@ namespace __pyllars_internal {
         static void call_methodC(void (CClass::*method)(Args...),
                                  typename std::remove_reference<CClass>::type &self,
                                  PyObject *args, PyObject *kwds,
-                                 PyO *...pyargs) {
-
-            char format[sizeof...(Args) + 1] = {0};
-            if (sizeof...(Args) > 0)
-                memset(format, 'O', sizeof...(Args));
-            if (!PyArg_ParseTupleAndKeywords(args, kwds, format, (char **) kwlist, &pyargs...)) {
-                PyErr_SetString(PyExc_RuntimeError, "Failed to parse argument on method call");
-            } else {
-                (self.*method)(*toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)...);
-            }
-        }
+                                 PyO *...pyargs);
 
         template<int ...S>
         static void call_methodBase(void (CClass::*method)(Args...),
                                     typename std::remove_reference<CClass>::type &self,
                                     PyObject *args, PyObject *kwds,
-                                    container<S...> unused) {
-            (void) unused;
-            PyObject pyobjs[sizeof...(Args) + 1];
-            call_methodC(method, self, args, kwds, &pyobjs[S]...);
-            (void) pyobjs;
-        }
+                                    container<S...> unused) ;
 
     };
-
-
-    template<class CClass, typename ...Args>
-    const char *const *
-            MethodCallSemantics<CClass, void, Args...>::kwlist;
 
 
     /**
@@ -206,9 +149,9 @@ namespace __pyllars_internal {
     template<typename CClass>
     template<const char *const name, typename ReturnType, typename ...Args>
     typename MethodContainer<CClass, typename std::enable_if<std::is_class<CClass>::value &&
-                                                                         !std::is_const<CClass>::value>::type>::template Container<name, ReturnType, Args...>::method_t
+                                                             !std::is_const<CClass>::value>::type>::template Container<name, ReturnType, Args...>::method_t
             MethodContainer<CClass, typename std::enable_if<std::is_class<CClass>::value &&
-                                                                        !std::is_const<CClass>::value>::type>::Container<name, ReturnType, Args...>::method;
+                                                            !std::is_const<CClass>::value>::type>::Container<name, ReturnType, Args...>::method;
 
 
     /**
@@ -250,9 +193,9 @@ namespace __pyllars_internal {
     template<class CClass>
     template<const char *const name, typename ReturnType, typename ...Args>
     typename MethodContainer<CClass, typename std::enable_if<std::is_class<CClass>::value &&
-                                                                         std::is_const<CClass>::value>::type>::template Container<name, ReturnType, Args...>::method_t
+                                                             std::is_const<CClass>::value>::type>::template Container<name, ReturnType, Args...>::method_t
             MethodContainer<CClass, typename std::enable_if<std::is_class<CClass>::value &&
-                                                                        std::is_const<CClass>::value>::type>::Container<name, ReturnType, Args...>::method;
+                                                            std::is_const<CClass>::value>::type>::Container<name, ReturnType, Args...>::method;
 
 
     /**
@@ -342,7 +285,7 @@ namespace __pyllars_internal {
         };
 
         //C++ forces this since T[0] is not an array type
-         template<const char *const name, typename T>
+        template<const char *const name, typename T>
         class Container<name, T, typename std::enable_if<
                 !std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value == 0>::type> {
         public:
@@ -389,7 +332,7 @@ namespace __pyllars_internal {
 
 
         template<const char *const name, typename T>
-        class Container<name, T,  typename std::enable_if<
+        class Container<name, T, typename std::enable_if<
                 std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value != 0>::type> {
         public:
             typedef typename std::remove_reference<CClass>::type CClass_NoRef;
@@ -437,64 +380,67 @@ namespace __pyllars_internal {
             static size_t array_size;
 
             static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds) {
-	      try{
-                if (!self) return nullptr;
-                PythonClassWrapper<CClass> *_this = (PythonClassWrapper<CClass> *) self;
+                try {
+                    if (!self) return nullptr;
+                    PythonClassWrapper<CClass> *_this = (PythonClassWrapper<CClass> *) self;
 
-                if ((!args || PyTuple_Size(args) == 0) && (!kwds || PyDict_Size(kwds) == 0)) {
-                    if (array_size != size) {
-                        static char msg[250];
-                        snprintf(msg, 250, "Mismatched array sizes (static)%lld!=%lld", (long long)array_size, (long long)size);
-                        PyErr_SetString(PyExc_TypeError, msg);
-                        return nullptr;
-                    }
-                    if (_this->template get_CObject<CClass>()) {
-                        const ssize_t base_size = ArrayHelper<T_array>::base_sizeof();
-                        const ssize_t array_size =
-                                base_size > 0 ? sizeof(_this->template get_CObject<CClass>()->*member) / base_size
-                                              : UNKNOWN_SIZE;
-                        return toPyObject<T_array>(_this->template get_CObject<CClass>()->*member, false,
-                                                         array_size);
-                    }
-                    PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
-                    return nullptr;
-                } else if (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "set_to")) {
-                    PyObject *pyVal = PyDict_GetItemString(kwds, "set_to");
-                    if (pyVal == Py_None) {
-                        PyErr_SetString(PyExc_SyntaxError, "Unexpcted None value in member setter");
-                        return nullptr;
-                    }
-                    if (PyTuple_Check(pyVal)) {
-                        if (PyTuple_Size(pyVal) == size) {
-                           for (size_t i = 0; i < size; ++i)
-                                (_this->template get_CObject<CClass_NoRef>()->*
-                                 member)[i] = *toCObject<T, false, PythonClassWrapper<T> >(
-                                        *PyTuple_GetItem(pyVal, i));
-                        } else {
+                    if ((!args || PyTuple_Size(args) == 0) && (!kwds || PyDict_Size(kwds) == 0)) {
+                        if (array_size != size) {
                             static char msg[250];
-                            snprintf(msg, 250, "Mismatched array sizes (tuple)%lld!=%lld", (long long)PyTuple_Size(pyVal),
-                                     (long long)size);
-                            PyErr_SetString(PyExc_IndexError, msg);
+                            snprintf(msg, 250, "Mismatched array sizes (static)%lld!=%lld", (long long) array_size,
+                                     (long long) size);
+                            PyErr_SetString(PyExc_TypeError, msg);
                             return nullptr;
                         }
-                    } else if (PythonClassWrapper<T_array>::checkType(pyVal)) {
-                        T_array *val = ((PythonClassWrapper<T_array> *) pyVal)->template get_CObject<T_array>();
-                        for (size_t i = 0; i < size; ++i)
-                            (_this->template get_CObject<T_array>()->*member)[i] = (*val)[i];
+                        if (_this->template get_CObject<CClass>()) {
+                            const ssize_t base_size = ArrayHelper<T_array>::base_sizeof();
+                            const ssize_t array_size =
+                                    base_size > 0 ? sizeof(_this->template get_CObject<CClass>()->*member) / base_size
+                                                  : UNKNOWN_SIZE;
+                            return toPyObject<T_array>(_this->template get_CObject<CClass>()->*member, false,
+                                                       array_size);
+                        }
+                        PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
+                        return nullptr;
+                    } else if (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "set_to")) {
+                        PyObject *pyVal = PyDict_GetItemString(kwds, "set_to");
+                        if (pyVal == Py_None) {
+                            PyErr_SetString(PyExc_SyntaxError, "Unexpcted None value in member setter");
+                            return nullptr;
+                        }
+                        if (PyTuple_Check(pyVal)) {
+                            if (PyTuple_Size(pyVal) == size) {
+                                for (size_t i = 0; i < size; ++i)
+                                    (_this->template get_CObject<CClass_NoRef>()->*
+                                     member)[i] = *toCObject<T, false, PythonClassWrapper<T> >(
+                                            *PyTuple_GetItem(pyVal, i));
+                            } else {
+                                static char msg[250];
+                                snprintf(msg, 250, "Mismatched array sizes (tuple)%lld!=%lld",
+                                         (long long) PyTuple_Size(pyVal),
+                                         (long long) size);
+                                PyErr_SetString(PyExc_IndexError, msg);
+                                return nullptr;
+                            }
+                        } else if (PythonClassWrapper<T_array>::checkType(pyVal)) {
+                            T_array *val = ((PythonClassWrapper<T_array> *) pyVal)->template get_CObject<T_array>();
+                            for (size_t i = 0; i < size; ++i)
+                                (_this->template get_CObject<T_array>()->*member)[i] = (*val)[i];
 
+                        } else {
+                            PyErr_SetString(PyExc_TypeError, "Invalid argument type when setting array attribute");
+                            return nullptr;
+                        }
                     } else {
-                        PyErr_SetString(PyExc_TypeError, "Invalid argument type when setting array attribute");
+                        PyErr_SetString(PyExc_SyntaxError,
+                                        "Invalid arguments to set class instance member variable in C");
                         return nullptr;
                     }
-                } else {
-                    PyErr_SetString(PyExc_SyntaxError, "Invalid arguments to set class instance member variable in C");
+                    return Py_None;
+                } catch (const char *const msg) {
+                    PyErr_SetString(PyExc_SystemError, msg);
                     return nullptr;
                 }
-                return Py_None;
-	      } catch(const char* const msg){
-		PyErr_SetString(PyExc_SystemError, msg);
-		return nullptr;
-	      }
             }
 
             static void setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj) {
@@ -564,7 +510,7 @@ namespace __pyllars_internal {
 
             static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds) {
                 if (!self) return nullptr;
-                PythonClassWrapper<CClass> *_this = (PythonClassWrapper<CClass>  *) self;
+                PythonClassWrapper<CClass> *_this = (PythonClassWrapper<CClass> *) self;
 
                 if ((!args || PyTuple_Size(args) == 0) && (!kwds || PyDict_Size(kwds) == 0)) {
                     if (_this->template get_CObject<CClass>()) {
@@ -594,8 +540,9 @@ namespace __pyllars_internal {
                                         *PyTuple_GetItem(pyVal, i));
                         } else {
                             static char msg[250];
-                            snprintf(msg, 250, "Mismatched array sizes (tuple)%lld!=%lld", (long long)PyTuple_Size(pyVal),
-                                     (long long)array_size);
+                            snprintf(msg, 250, "Mismatched array sizes (tuple)%lld!=%lld",
+                                     (long long) PyTuple_Size(pyVal),
+                                     (long long) array_size);
                             PyErr_SetString(PyExc_IndexError, msg);
                             return nullptr;
                         }
@@ -679,7 +626,7 @@ namespace __pyllars_internal {
             MemberContainer<CClass>::Container<name, T, typename std::enable_if<
                     !std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value != 0>::type>::member;
 
-    template<class CClass >
+    template<class CClass>
     template<const char *const name, ssize_t size, typename T>
     typename MemberContainer<CClass>::template Container<name, T[size], void>::member_t
             MemberContainer<CClass>::Container<name, T[size], void>::member;
@@ -698,7 +645,7 @@ namespace __pyllars_internal {
 
     template<class CClass>
     template<const char *const name, typename T>
-    typename MemberContainer<CClass>::template Container<name, T[],  typename std::enable_if<!std::is_const<T>::value>::type>::member_t
+    typename MemberContainer<CClass>::template Container<name, T[], typename std::enable_if<!std::is_const<T>::value>::type>::member_t
             MemberContainer<CClass>::Container<name, T[], typename std::enable_if<!std::is_const<T>::value>::type>::member;
 
     template<class CClass>
@@ -724,7 +671,7 @@ namespace __pyllars_internal {
     template<class CClass>
     template<const char *const name, ssize_t size, typename T>
     size_t
-            MemberContainer<CClass>::Container<name, T[size],  void>::array_size = 0;
+            MemberContainer<CClass>::Container<name, T[size], void>::array_size = 0;
 
     template<class CClass>
     template<const char *const name, ssize_t size, typename T>

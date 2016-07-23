@@ -3,7 +3,7 @@
 #include <pyllars/pyllars_function_wrapper.hpp>
 #include <pyllars/pyllars_conversions.hpp>
 #include <pyllars/pyllars_callbacks.hpp>
-#include <pyllars/pyllars_globalmembersemantics.hpp>
+#include <pyllars/pyllars_globalmembersemantics.cpp>
 
 typedef const char *cstring;
 
