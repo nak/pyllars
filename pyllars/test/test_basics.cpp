@@ -1,5 +1,5 @@
 #include <pyllars/pyllars_classwrapper.hpp>
-#include <pyllars/pyllars_pointer.hpp>
+#include <pyllars/pyllars_pointer.cpp>
 #include <pyllars/pyllars_function_wrapper.hpp>
 #include <pyllars/pyllars_conversions.hpp>
 #include <pyllars/pyllars_callbacks.hpp>

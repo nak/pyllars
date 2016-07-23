@@ -6,6 +6,7 @@
 
 #include "pyllars_conversions.hpp"
 #include "pyllars_callbacks.cpp"
+#include "pyllars_pointer.cpp"
 
 namespace __pyllars_internal {
 
