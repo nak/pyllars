@@ -122,19 +122,28 @@ class ResultsProcessor(object):
                     eval(codetext)
                     codetext = ""
 
-if __name__ == "__main__":
-    import sys
-    items = ResultsProcessor.process(sys.argv[1])
-    for item in items.itervalues():
+
+def process(castxml_file, build_dir):
+    from pyllars.generation.elements import Function
+    items = ResultsProcessor.process(castxml_file)
+    compilables = []
+    for item in [i for i in items.itervalues() if not(isinstance(i,Function)) and os.path.basename((i.get_header_filename() or '.hpp'))!='.hpp']:
+        if item.get_body_filename().split('/')[-1]==".cpp": raise Exception(item.name +">>" + str(os.path.basename(item.get_header_filename() or '.hpp')=='.hpp'))
         code = item.generate_code(".")
         if code is not None and item.name != "":
             print "ITEM %s:  %s %s"%(item.id_,item.name, item.get_header_filename())
             header, body = code
-            if not os.path.exists(item.get_include_parent_path().replace(" ","_").replace("<", "__").replace(">", "__").replace("::", "____").replace(", ", "__")):
-                os.makedirs(item.get_include_parent_path().replace(" ","_").replace("<","__").replace(">","__").replace("::", "____").replace(", ","__"))
-            with open(item.get_header_filename().replace("<", "__").replace(" ","_").replace(">","__").replace("::", "____").replace(", ", "__"), 'w') as f:
+            if not os.path.exists(os.path.join(build_dir,item.get_include_parent_path().replace(" ","_").replace("<", "__").replace(">", "__").replace("::", "____").replace(", ", "__"))):
+                os.makedirs(os.path.join(build_dir,item.get_include_parent_path().replace(" ","_").replace("<","__").replace(">","__").replace("::", "____").replace(", ","__")))
+            with open(os.path.join(build_dir, item.get_header_filename().replace("<", "__").replace(" ","_").replace(">","__").replace("::", "____").replace(", ", "__")), 'w') as f:
                 f.write(header)
                 print "Wrote header: %s"%f.name
-            with open(item.get_body_filename().replace("<", "__").replace(" ","_").replace(">", "__").replace("::","____").replace(", ", "__"), 'w') as f:
+            with open(os.path.join(build_dir,item.get_body_filename().replace("<", "__").replace(" ","_").replace(">", "__").replace("::","____").replace(", ", "__")), 'w') as f:
                 f.write(body)
+                compilables.append((item.get_full_module_name().split('.')[0], f.name))
                 print "Wrote body: %s"%f.name
+    return compilables
+
+if __name__ == "__main__":
+    import sys
+    process(sys.argv[1], "./build")

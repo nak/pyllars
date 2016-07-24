@@ -5,7 +5,7 @@ Created on Jun 23, 2015
 '''
 import os.path
 
-from generation import elements
+from pyllars.generation import elements
 
 
 class CPPParser(object):
@@ -212,6 +212,7 @@ class CPPParser(object):
                                  context=self.get_context(element),
                                  scope=element.attrib.get('access'),
                                  arguments=arguments,
+                                 header_filename=self.get_file(element),
                                 )
 
     def process_union_type(self, element):

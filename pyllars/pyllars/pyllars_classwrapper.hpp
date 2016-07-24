@@ -140,7 +140,7 @@ namespace __pyllars_internal {
             static const char *const doc = "Get attribute ";
             char *doc_string = new char[strlen(name) + strlen(doc) + 1];
             snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
-            static const char *const getter_prefix = "get_";
+            //static const char *const getter_prefix = "get_";
             //char *getter_name = new char[strlen(name) +strlen(getter_prefix)+1];
             //snprintf(getter_name, strlen(name) +strlen(getter_prefix)+1, "%s%s_",getter_prefix,name);
             MemberContainer<T_NoRef>::template Container<name, Type[size]>::member = member;
@@ -159,7 +159,20 @@ namespace __pyllars_internal {
         template<const char *const name, typename Type, const size_t bits>
         static void addBitField(
                 typename BitFieldContainer<T_NoRef>::template Container<name, Type, bits>::getter_t &getter,
-                typename BitFieldContainer<T_NoRef>::template Container<name, Type,  bits>::setter_t &setter) ;
+                typename BitFieldContainer<T_NoRef>::template Container<name, Type,  bits>::setter_t &setter){
+            static const char *const doc = "Get bit-field attribute ";
+            char *doc_string = new char[strlen(name) + strlen(doc) + 1];
+            snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
+            BitFieldContainer<T_NoRef>::template Container<name, Type, bits>::_getter = getter;
+            BitFieldContainer<T_NoRef>::template Container<name, Type, bits>::_setter = setter;
+            PyMethodDef pyMeth = {name,
+                                  (PyCFunction) BitFieldContainer<T_NoRef>::template Container<name, Type, bits>::call,
+                                  METH_KEYWORDS,
+                                  doc_string
+            };
+            _addMethod(pyMeth);
+            _memberSettersDict[name] = BitFieldContainer<T>::template Container<name, Type, bits>::setFromPyObject;
+        }
 
         /**
          * Add a constant bit field to this Python type definition
@@ -231,10 +244,10 @@ namespace __pyllars_internal {
             static const char *const doc = "Get attribute ";
             char *doc_string = new char[strlen(name) + strlen(doc) + 1];
             snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
-            static const char *const getter_prefix = "get_";
+            //static const char *const getter_prefix = "get_";
             //char *getter_name = new char[strlen(name) +strlen(getter_prefix)+1];
             //snprintf(getter_name, strlen(name) +strlen(getter_prefix)+1, "%s%s_",getter_prefix,name);
-            static const char *const kwlist[] = {"value", nullptr};
+            //static const char *const kwlist[] = {"value", nullptr};
 	    //            ClassMemberContainer<T_NoRef>::template Container<name, Type>::kwlist = kwlist;
             ClassMemberContainer<T_NoRef>::template Container<name, Type>::member = member;
             PyMethodDef pyMeth = {name,
@@ -256,10 +269,10 @@ namespace __pyllars_internal {
             static const char *const doc = "Get attribute ";
             char *doc_string = new char[strlen(name) + strlen(doc) + 1];
             snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
-            static const char *const getter_prefix = "get_";
+            //static const char *const getter_prefix = "get_";
             //char *getter_name = new char[strlen(name) +strlen(getter_prefix)+1];
             //snprintf(getter_name, strlen(name) +strlen(getter_prefix)+1, "%s%s_",getter_prefix,name);
-            static const char *const kwlist[] = {"value", nullptr};
+            //static const char *const kwlist[] = {"value", nullptr};
             //ConstClassMemberContainer<T_NoRef>::template Container<name, Type>::kwlist = kwlist;
             ConstClassMemberContainer<T_NoRef>::template Container<name, Type>::member = member;
             PyMethodDef pyMeth = {name,

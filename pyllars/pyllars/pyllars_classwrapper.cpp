@@ -713,7 +713,6 @@ createPy
     static PyObject *kwds = PyDict_New();
     static PyObject *emptyargs = PyTuple_New(0);
     PyDict_SetItemString(kwds, "__internal_allow_null", Py_True);
-    typedef PythonClassWrapper<T> PyWrapper;
     PyTypeObject* type_ = &Type;
 
     if (!type_->tp_name){
