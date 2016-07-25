@@ -14,13 +14,13 @@ def get_files_to_convert(path):
     return headers
 
 files_to_convert = get_files_to_convert("./to_convert")
+outdir = os.path.join("build", "gen")
 
 def generate_code():
     import os.path
     import subprocess
     import sys
     from pyllars.generation import processor
-    outdir = os.path.join("build", "gen")
     try:
         os.makedirs(outdir)
     except:
@@ -47,16 +47,19 @@ for base_mod_name in sources:
 print "==========> %s" % sources
 modules=[]
 for mod, compilables in sources.iteritems():
+    #module_path = os.path.join(outdir,"pyllars", mod,"module.cpp")
+    #if os.path.exists(module_path):
+    #    compilables += [module_path]
     module = Extension(mod,
-                       include_dirs = ['.','../pyllars'],
+                       include_dirs = ['.','../pyllars', outdir, ],
                        language='c++',
                        extra_compile_args=["-std=c++14",
                                            "-fPIC",
-                                        "-O%s" % opt_level,
-                                         "-Wall",
+                                           "-O%s" % opt_level,
+                                           "-Wall",
                                          ],
                        extra_link_args=["-Wl,--no-undefined", "-fPIC", "-lpython2.7"],
-                       sources=compilables +["../pyllars/pyllars.cpp"],
+                       sources=compilables +["../pyllars/pyllars.cpp", ],
                        )
     modules.append(module)
     try:

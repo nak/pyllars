@@ -165,11 +165,18 @@ class Namespace(BaseElement):
        'parent_init': "pyllars%s::init();" % self.context.get_qualified_name()
        if self.context and self.context.full_name != "::" else ""}
         code += """
+%(indent)s      Initializer::init();
 %(indent)s   } else {
 %(indent)s      status = -1;
 %(indent)s   }
 %(indent)s   return status;
 %(indent)s}
+
+extern "C"{
+   status_t init%(name)s(){
+      return init();
+   }
+}
 
 %(indent)s//add init to methods to be called on intiailization
 %(indent)sstatic pyllars::Initializer __initializer( init );
@@ -488,7 +495,7 @@ typedef const char c_string[];
         for member in [m for m in self.members if m.scope == 'public' and
                        m.type.get_core_type() != self and
                        m.type.get_core_type().name == "" and
-                       (isinstance(m.type.get_core_type(), Type) and not isinstance(m.type.get_core_type(), Union) and
+                       (isinstance(m.type.get_core_type(), Type) and not m.name == "" and
                         not isinstance(m.type.get_core_type(), FundamentalType))]:
             child = member.type.get_core_type()
             name = "_anonymous%s" % child.id_
@@ -530,7 +537,7 @@ constexpr c_string %s_name = "%s";
 
         def add_member_att_names(from_, code2):
             for member_ in set([m_ for m_ in from_.members if m_.scope == 'public']):
-                if member_.name == "" and (isinstance(member_.type, Union) or isinstance(member_.type, Class)):
+                if member_.name == "" and isinstance(member_.type, Class):
                     code2 = add_member_att_names(member_.type, code2)
                     continue
                 code2 += """
@@ -552,7 +559,7 @@ static inline status_t initialize_type%(suffix)s(){
       return 0;
    }
    inited = true;
-   status_t status = pyllars::%(parent_init)s();
+   status_t status = 0;//pyllars::%(parent_init)s();
    if (status != 0) return status;
 """ % {'class_name': class_name, 'name': self.name, 'pyname': self.name,
        'module_name': "%s_mod" % (parent_mod.name or "pyllars"), 'full_name': self.full_name,
@@ -562,12 +569,12 @@ static inline status_t initialize_type%(suffix)s(){
 
         def add_members(from_, code2, is_const, is_static):
             for member_ in [m_ for m_ in from_.members if m_.scope == 'public']:
+                print "=============== ADDING MEMBER %s to %s" % (member_.name, self.name)
                 if member_.name == "" and (isinstance(member_.type, Class)):
                     # recursively add anonymous members
                     code2 = add_members(member_.type, code2, member_.is_const(), member_.is_static)
                     continue
-                if member_.type.get_core_type().name == "" and isinstance(member_.type.get_core_type(), Class) and \
-                        not isinstance(member_.type.get_core_type(), Union):
+                if member_.type.get_core_type().name == "" and isinstance(member_.type.get_core_type(), Class):
                     if member_.type != member_.type.get_core_type():
                         code2 += """
        PythonClassWrapper< decltype(%(class_name)s::%(member_name)s) >::initialize
@@ -692,7 +699,7 @@ static inline status_t initialize_type%(suffix)s(){
     """ % {'full_class_name': elem.get_qualified_name(), 'child_name': enum, 'value': value,
            'indent': indent}
                     continue
-                if child_.name == "" and (isinstance(child_, Union) or isinstance(child_, Class)):
+                if child_.name == "" and  isinstance(child_, Class):
                     # recursively add anonymous union's children
                     add_children(elem, child_, code2)
                     continue
@@ -735,7 +742,7 @@ static inline status_t initialize_type%(suffix)s(){
 """ % {'class_name': class_name, 'name': self.name or "_anonymous%s" % self.id_,
        'pyname': self.name or "_anonymous%s" % self.id_,
        'module_name': module_name,
-       'full_name': self.full_name.replace("::::", "::") + ("_anaonymous%s" % self.id_ if self.name == "" else ""),
+       'full_name': self.full_name.replace("::::", "::") + ("_anonymous%s" % self.id_ if self.name == "" else ""),
        'parent_init': parent_init if not parent_init.startswith("::") else parent_init[2:],
        'indent': "   ", 'namespace_name': parent_mod.get_qualified_name()}
         code += """
@@ -967,7 +974,7 @@ using namespace __pyllars_internal;
       return 0;
    }
    inited = true;
-   status_t status = pyllars::%(parent_init)s();
+   status_t status = 0;//// pyllars::%(parent_init)s();
    if (status != 0) return status;
 """ % {'class_name': class_name, 'name': self.name, 'pyname': self.name,
        'module_name': "%s_mod" % (self.module_name or "pyllars"), 'full_name': self.full_name,
@@ -1021,7 +1028,7 @@ static pyllars::Initializer _initializer(%(namespace_name)s::initialize_type);
 
 
 class Union(Class):
-    def generate_code(self, path, suffix="", class_name=None):
+    #def generate_code(self, path, suffix="", class_name=None):
         pass
 
 

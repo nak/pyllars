@@ -289,7 +289,7 @@ namespace __pyllars_internal {
         PyObject *pyobj = (PyObject *) ClassWrapper::createPy(array_size, ref, !asReference, false, nullptr, depth);
         if (!pyobj || !ClassWrapper::checkType(pyobj)) {
             PyErr_Format(PyExc_TypeError, "Unable to convert C type object to Python object %s: %s",
-                         pyobj->ob_type->tp_name, ClassWrapper::get_name().c_str());
+                         pyobj?pyobj->ob_type->tp_name:"NULL OBJ", ClassWrapper::get_name().c_str());
             pyobj = nullptr;
         }
         return pyobj;
