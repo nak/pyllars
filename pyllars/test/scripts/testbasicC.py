@@ -41,10 +41,10 @@ class Test_BasicC(unittest.TestCase):
 
     def testTestStructAlloc(self):
         t = test_pyllars.TestStruct.new([(), ("Second Instance",)])
-        self.assertEqual( t[0].str_member(), "Default constructed  TestStruct")
-        self.assertEqual( t[1].str_member(), "Second Instance")
-        self.assertEqual( t[-2].str_member(), "Default constructed  TestStruct")
-        self.assertEqual( t[-1].str_member(), "Second Instance")
+        self.assertEqual(t[0].str_member(), "Default constructed  TestStruct")
+        self.assertEqual(t[1].str_member(), "Second Instance")
+        self.assertEqual(t[-2].str_member(), "Default constructed  TestStruct")
+        self.assertEqual(t[-1].str_member(), "Second Instance")
         try:
             t[2]
             self.assertTrue( false, "Failed to raise index error")
@@ -96,6 +96,29 @@ class Test_BasicC(unittest.TestCase):
         # taddr holds reference to t
         del(t)
         self.assertEqual(taddr[0].str_member(), "TakeMyAddress")
+
+    def testBitFields(self):
+        b = test_pyllars.BitFields()
+        self.assertEqual(b.bitfield1_unsigned_size1(), 0)
+        self.assertEqual(b.bitfield3_anon_union_size4(), 15)
+        self.assertEqual(b.const_bitfield2_signed_size3(), -1)
+        try:
+            b.const_bitfield2_signed_size3(set_to=1)
+            self.assertTrue(False)
+        except SyntaxError:
+            self.assertEqual(b.const_bitfield2_signed_size3(), -1)
+        self.assertEqual(b.bitfield3_anon_union_size4(), 15)
+        self.assertEqual(b.bitfield_deeep_inner_anonymous(), 0x7FFF)
+        try:
+            b.bitfield_deeep_inner_anonymous(set_to=0xFFFFFFFF00000000)
+            self.assertTrue(False, "Value error should have been raised")
+        except ValueError:
+            self.assertEqual(b.bitfield_deeep_inner_anonymous(), 0x7FFF)
+        self.assertEqual(b.entry()._field(), -22)
+        self.assertEqual(b.entry()._field2(), 22)
+        self.assertEqual(b._subfields().bitfield4_named_field_size7(), 0x7F)
+        b._subfields(as_ref=True).bitfield4_named_field_size7(set_to=0x3A)
+        self.assertEqual(b._subfields().bitfield4_named_field_size7(), 0x3A)
 
 if __name__ == "__main__":
     unittest.main()

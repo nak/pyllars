@@ -600,7 +600,7 @@ namespace __pyllars_internal {
                 return nullptr;
             }
         } else {
-            PyErr_SetString(PyExc_SyntaxError, "Invalid argsuments to set class instance member variable in C");
+            PyErr_SetString(PyExc_SyntaxError, "Invalid arguments to set class instance member variable in C");
             return nullptr;
         }
         return Py_None;
@@ -723,7 +723,7 @@ namespace __pyllars_internal {
             }
             smart_ptr<T> value = toCObject<T, false, PythonClassWrapper<T> >(*pyVal);
             if (!BitFieldLimits<T, bits>::is_in_bounds(*value)) {
-                PyErr_SetString(PyExc_TypeError, "Value out of bounds");
+                PyErr_SetString(PyExc_ValueError, "Value out of bounds");
                 return nullptr;
             }
             _setter(*(_this->template get_CObject<CClass_NoRef>()), *value);

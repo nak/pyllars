@@ -37,16 +37,22 @@ typedef struct{
 
 struct BitFields{
   BitFields():const_bitfield2_signed_size3(-1){
+    this->bitfield1_unsigned_size1 = 0;
+    this->bitfield3_anon_union_size4 = 2;
+    this->bitfield_deeep_inner_anonymous=0x7FFF;
+      this->_subfields.bitfield5_named_field_size17=0xFF;
+      this->entry._field = -22;
+      this->entry._field2= +22;
   }
     unsigned int bitfield1_unsigned_size1:1;
-    signed int const_bitfield2_signed_size3:3;
+    const signed int const_bitfield2_signed_size3:3;
     union{
         unsigned char bitfield3_anon_union_size4:4;
         union{
             unsigned char bitfield_inner_union_anonymous4:4;
-	  union{
-	    unsigned long long bitfield_deeep_innter_anonymouts:31;
-	  };
+	        union{
+	            unsigned long long bitfield_deeep_inner_anonymous:31;
+            };
         };
     };
     union{
@@ -56,7 +62,7 @@ struct BitFields{
     } _subfields;
 
   struct {
-    unsigned _field;
+    signed _field;
     unsigned short _field2;
   } entry;
 };
