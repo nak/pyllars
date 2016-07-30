@@ -39,7 +39,7 @@ struct BitFields{
   BitFields():const_bitfield2_signed_size3(-1){
   }
     unsigned int bitfield1_unsigned_size1:1;
-     signed int const_bitfield2_signed_size3:3;
+    signed int const_bitfield2_signed_size3:3;
     union{
         unsigned char bitfield3_anon_union_size4:4;
         union{
@@ -51,7 +51,7 @@ struct BitFields{
     };
     union{
      
-        unsigned short const_bitfield4_named_field_size7:7;
+        unsigned short bitfield4_named_field_size7:7;
         unsigned long bitfield5_named_field_size17:17;
     } _subfields;
 

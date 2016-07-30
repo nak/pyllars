@@ -57,9 +57,9 @@ class Test_BasicC(unittest.TestCase):
             pass
         taddr = t.this()
 
-        return
         for i in range(100):
            self.assertEqual(taddr[0][0].str_member(), "Default constructed  TestStruct")
+        return
         tptr = taddr[0]
         titem = tptr[0]
         del taddr
@@ -72,29 +72,29 @@ class Test_BasicC(unittest.TestCase):
         self.assertEqual( titem.str_member(), "Default constructed  TestStruct")
 
     def testArrayElements( self):
-         t = test_pyllars.TestStruct.new([(), ("Second Instance",)])
-         titemcopy = t.at(1)
-         titemref = t[1]
-         for i in range(100):print titemcopy.double_member()==2.3456789
+        t = test_pyllars.TestStruct.new([(), ("Second Instance",)])
+        titemcopy = t.at(1)
+        titemref = t[1]
+        for i in range(100):print titemcopy.double_member()==2.3456789
 
-         self.assertAlmostEqual( titemref.double_member(), 2.3456789, delta=0.000000000000001)
-         self.assertAlmostEqual( titemcopy.double_member(), 2.3456789, delta= 0.000000000000001)
-         # set copy, and see that ref has not changed
-         titemcopy.double_member(set_to=-5.4321)
-         self.assertAlmostEqual( titemcopy.double_member(),-5.4321, delta= 0.000000000000001)
-         self.assertAlmostEqual( titemref.double_member(),2.3456789,delta=  0.000000000000001)
-         # set ref to new value and see that copy has not changed
-         titemref.double_member( set_to=99.99999493)
-         self.assertAlmostEqual( titemcopy.double_member(),-5.4321,delta=  0.000000000000001)
-         self.assertAlmostEqual( titemref.double_member(),99.99999493, delta= 0.000000000000001)
+        self.assertAlmostEqual( titemref.double_member(), 2.3456789, delta=0.000000000000001)
+        self.assertAlmostEqual( titemcopy.double_member(), 2.3456789, delta= 0.000000000000001)
+        # set copy, and see that ref has not changed
+        titemcopy.double_member(set_to=-5.4321)
+        self.assertAlmostEqual( titemcopy.double_member(),-5.4321, delta= 0.000000000000001)
+        self.assertAlmostEqual( titemref.double_member(),2.3456789,delta=  0.000000000000001)
+        # set ref to new value and see that copy has not changed
+        titemref.double_member( set_to=99.99999493)
+        self.assertAlmostEqual( titemcopy.double_member(),-5.4321,delta=  0.000000000000001)
+        self.assertAlmostEqual( titemref.double_member(),99.99999493, delta= 0.000000000000001)
 
 
     def testAddressAndDereference(self):
         t = test_pyllars.TestStruct("TakeMyAddress")
         taddr = t.this()
-        #del t and see that C object is still arround since
-        #taddr hold reference to t
-        #del(t)
+        # del t and see that C object is still arround since
+        # taddr holds reference to t
+        del(t)
         self.assertEqual(taddr[0].str_member(), "TakeMyAddress")
 
 if __name__ == "__main__":

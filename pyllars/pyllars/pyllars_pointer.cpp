@@ -256,6 +256,7 @@ namespace __pyllars_internal {
         while (status.size() < depth + 1) {
             status.push_back(-2);
         }
+	_full_name = fullname?fullname:(name?name:"NONAME");
         PyTypeObject *type = getType(depth, fullname);
         if (!type) {
             return -1;
@@ -301,7 +302,7 @@ namespace __pyllars_internal {
               PyObject *referencing,
               const size_t depth ) {
 
-        return createPy( arraySize, new ObjContainerProxy<T, T>(*cobj), isAllocated, inPlace, referencing);
+      return createPy( arraySize, new ObjContainerProxy<T, T>(*cobj), isAllocated, inPlace, referencing, depth);
     }
 
     template<typename T>
@@ -498,7 +499,8 @@ namespace __pyllars_internal {
     PyObject * PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
             !std::is_function<typename std::remove_pointer<T>::type>::value &&
             (std::is_pointer<T>::value || std::is_array<T>::value)>::type>::
-    _addr(PythonClassWrapper *self, PyObject *args) {
+    _addr(PyObject* self_, PyObject *args) {
+      PythonClassWrapper * self = (PythonClassWrapper*)self_;
         if (!self->_CObject || !*self->_CObject) {
             PyErr_SetString(PyExc_RuntimeError, "Found null object when taking address!");
             return nullptr;
@@ -711,7 +713,7 @@ namespace __pyllars_internal {
     PyMethodDef PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
             !std::is_function<typename std::remove_pointer<T>::type>::value &&
             (std::is_pointer<T>::value || std::is_array<T>::value)>::type>::_methods[] =
-            {{address_name, nullptr, METH_KEYWORDS, nullptr},
+            {{address_name,  (PyCFunction)_addr, METH_KEYWORDS, nullptr},
              {"at",         nullptr, METH_KEYWORDS, nullptr},
              {nullptr,      nullptr, 0,             nullptr} /*sentinel*/
             };
@@ -720,6 +722,10 @@ namespace __pyllars_internal {
     PySequenceMethods PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
             !std::is_function<typename std::remove_pointer<T>::type>::value &&
             (std::is_pointer<T>::value || std::is_array<T>::value)>::type>::_seqmethods;
+    template<typename T>
+    std::string PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
+            !std::is_function<typename std::remove_pointer<T>::type>::value &&
+            (std::is_pointer<T>::value || std::is_array<T>::value)>::type>::_full_name;
 
 }
 

@@ -95,15 +95,19 @@ namespace __pyllars_internal{
     template<typename T, size_t size>
     ObjContainer <T[size]> *ObjectLifecycleHelpers::Copy<T[size], typename std::enable_if<(size > 0)>::type>::
     new_copy(const T_array &value) {
-        T_array *new_value = new T_array[1];
-        memcpy(*new_value, value, sizeof(T[size]));
-        return new ObjContainerPtrProxy<T_array, true>(new_value, true);
+      typedef typename std::remove_const<T>::type T_nonconst_array[size];
+      T_nonconst_array *new_value = new T_nonconst_array[1];
+      for(size_t i = 0; i < size; ++i) new_value[0][i] = value[i];
+      return new ObjContainerPtrProxy<T_array, true>((T_array*)(new_value), true);
     }
 
     template<typename T, size_t size>
     ObjContainer <T[size]> *ObjectLifecycleHelpers::Copy<T[size], typename std::enable_if<(size > 0)>::type>::
     new_copy(T_array *const value) {
-        return new ObjContainerPtrProxy<T_array, true>(value, false);
+      typedef typename std::remove_const<T>::type T_nonconst_array[size];
+      T_nonconst_array *new_value = new T_nonconst_array[1];
+      for(size_t i = 0; i < size; ++i) new_value[0][i] = (*value)[i];
+      return new ObjContainerPtrProxy<T_array, true>((T_array*)(new_value), true);
     }
 
     template<typename T, size_t size>

@@ -190,7 +190,7 @@ namespace __pyllars_internal {
             if (_this->template get_CObject<CClass>()) {
                 return toPyObject<T>(_this->template get_CObject<CClass>()->*member, false, array_size);
             }
-            PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
+            PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
             return nullptr;
         } else if (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "set_to")) {
             PyObject *pyVal = PyDict_GetItemString(kwds, "set_to");
@@ -224,7 +224,7 @@ namespace __pyllars_internal {
                     }
 		    return obj;
                 }
-                PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
+                PyErr_SetString(PyExc_RuntimeError, "Internal error: No C Object found to get member attribute value!");
                 return nullptr;
             }
         } else {
@@ -259,7 +259,7 @@ namespace __pyllars_internal {
             if (_this->template get_CObject<CClass>()) {
                 return toPyObject<T>(_this->template get_CObject<CClass>()->*member, false, array_size);
             }
-            PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
+            PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
             return nullptr;
         } else if (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "set_to")) {
             PyObject *pyVal = PyDict_GetItemString(kwds, "set_to");
@@ -292,7 +292,7 @@ namespace __pyllars_internal {
                     }
 		    return obj;
                 }
-                PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
+                PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
                 return nullptr;
             }
         } else {
@@ -327,7 +327,7 @@ namespace __pyllars_internal {
                                       : UNKNOWN_SIZE;
                 return toPyObject<T>(_this->template get_CObject<CClass_NoRef>()->*member, false, array_size);
             }
-            PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
+            PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
             return nullptr;
         } else if (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "set_to")) {
             PyErr_SetString(PyExc_RuntimeError, "Attempt to set constant attribute!");
@@ -356,7 +356,7 @@ namespace __pyllars_internal {
                     }
 		    return obj;
                 }
-                PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
+                PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
                 return nullptr;
             }
         }  else {
@@ -397,7 +397,7 @@ namespace __pyllars_internal {
                     return toPyObject<T_array>(_this->template get_CObject<CClass>()->*member, false,
                                                array_size);
                 }
-                PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
+                PyErr_SetString(PyExc_RuntimeError, "Internal Error:No C Object found to get member attribute value!");
                 return nullptr;
             } else if (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "set_to")) {
                 PyObject *pyVal = PyDict_GetItemString(kwds, "set_to");
@@ -449,7 +449,7 @@ namespace __pyllars_internal {
                             }
 			    return obj;
                         }
-                        PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
+                        PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
                         return nullptr;
                     }
                 }else {
@@ -500,7 +500,7 @@ namespace __pyllars_internal {
                 return toPyObject<T_array, size>(*(_this->template get_CObject<CClass>()->*member), false,
                                                  array_size);
             }
-            PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
+            PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
             return nullptr;
         } else {
             PyErr_SetString(PyExc_SyntaxError, "Cannot set const array elements!");
@@ -536,7 +536,7 @@ namespace __pyllars_internal {
                                       : UNKNOWN_SIZE;
                 return toPyObject<T[]>(*(_this->template get_CObject<CClass>()->*member), false, array_size);
             }
-            PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
+            PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
             return nullptr;
         } else if (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "set_to")) {
             PyObject *pyVal = PyDict_GetItemString(kwds, "set_to");
@@ -592,7 +592,7 @@ namespace __pyllars_internal {
                         }
 			return obj;
                     }
-                    PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
+                    PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
                     return nullptr;
                 }
             }  else {
@@ -713,7 +713,7 @@ namespace __pyllars_internal {
             if (_this->template get_CObject<CClass>()) {
                 return toPyObject<T>(_getter(*(_this->template get_CObject<CClass>())), false, 1);
             }
-            PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
+            PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
             return nullptr;
         } else if (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "set_to")) {
             PyObject *pyVal = PyDict_GetItemString(kwds, "set_to");
@@ -761,7 +761,7 @@ namespace __pyllars_internal {
             if (_this->template get_CObject<CClass>()) {
                 return toPyObject<T>(_getter(*(_this->template get_CObject<CClass>())), false, 1);
             }
-            PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
+            PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
             return nullptr;
         } else if (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "set_to")) {
             PyErr_SetString(PyExc_SyntaxError, "Cannot set const bit field");
