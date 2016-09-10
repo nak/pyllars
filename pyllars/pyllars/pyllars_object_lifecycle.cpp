@@ -19,7 +19,8 @@ namespace __pyllars_internal{
 
     template<typename T>
     typename std::remove_pointer<typename extent_as_pointer<T>::type>::type  &
-    ObjectLifecycleHelpers::Array<T, typename std::enable_if<!is_complete<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value>::type> ::
+    ObjectLifecycleHelpers::Array<T, typename std::enable_if<!std::is_void<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value &&
+                                                             !is_complete<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value>::type> ::
     at(T array, size_t index) {
             throw "Cannot dereference incomplete type";
     }
@@ -66,7 +67,7 @@ namespace __pyllars_internal{
             (!std::is_assignable<typename std::remove_reference<T>::type, typename std::remove_reference<T>::type>::value ||
              !std::is_destructible<typename std::remove_reference<T>::type>::value) &&
             std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type>::
-    new_copy(const T &value) {
+    new_copy(const T_NoRef &value) {
         return new ObjContainerProxy<T_NoRef, const T &>(value);
     }
 
@@ -93,7 +94,8 @@ namespace __pyllars_internal{
 
 
     template<typename T, size_t size>
-    ObjContainer <T[size]> *ObjectLifecycleHelpers::Copy<T[size], typename std::enable_if<(size > 0)>::type>::
+    ObjContainer <T[size]> *ObjectLifecycleHelpers::Copy<T[size], typename std::enable_if<(size > 0) &&
+                                                                                          std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type>::
     new_copy(const T_array &value) {
       typedef typename std::remove_const<T>::type T_nonconst_array[size];
       T_nonconst_array *new_value = new T_nonconst_array[1];
@@ -102,7 +104,8 @@ namespace __pyllars_internal{
     }
 
     template<typename T, size_t size>
-    ObjContainer <T[size]> *ObjectLifecycleHelpers::Copy<T[size], typename std::enable_if<(size > 0)>::type>::
+    ObjContainer <T[size]> *ObjectLifecycleHelpers::Copy<T[size], typename std::enable_if<(size > 0) &&
+                                                                                          std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type>::
     new_copy(T_array *const value) {
       typedef typename std::remove_const<T>::type T_nonconst_array[size];
       T_nonconst_array *new_value = new T_nonconst_array[1];
@@ -111,7 +114,8 @@ namespace __pyllars_internal{
     }
 
     template<typename T, size_t size>
-    void ObjectLifecycleHelpers::Copy<T[size], typename std::enable_if<(size > 0)>::type>::
+    void ObjectLifecycleHelpers::Copy<T[size], typename std::enable_if<(size > 0) &&
+                                                                       std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type>::
     inplace_copy(T_array *const to, const Py_ssize_t index, const T_array *const from,
                              const bool in_place) {
         for (ssize_t i = 0; i < size; ++i) {

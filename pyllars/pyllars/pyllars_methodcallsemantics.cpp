@@ -6,6 +6,7 @@
 #define __PYLLARS_INTERNAL__METHODCALLSEMANTICS_CPP_
 
 #include "pyllars_methodcallsemantics.hpp"
+#include "pyllars_classwrapper.cpp"
 
 namespace __pyllars_internal {
 
@@ -721,7 +722,7 @@ namespace __pyllars_internal {
                 PyErr_SetString(PyExc_SyntaxError, "Unexpected None value in member setter");
                 return nullptr;
             }
-            smart_ptr<T> value = toCObject<T, false, PythonClassWrapper<T> >(*pyVal);
+            smart_ptr<T, false> value = toCObject<T, false, PythonClassWrapper<T> >(*pyVal);
             if (!BitFieldLimits<T, bits>::is_in_bounds(*value)) {
                 PyErr_SetString(PyExc_ValueError, "Value out of bounds");
                 return nullptr;
@@ -742,7 +743,7 @@ namespace __pyllars_internal {
     template<const char *const name, typename T, const size_t bits>
     void BitFieldContainer<CClass>::Container<name, T, bits>::
     setFromPyObject(CClass_NoRef *self, PyObject *pyobj) {
-        smart_ptr<T> value = toCObject<T, false, PythonClassWrapper<T> >(*pyobj);
+        smart_ptr<T, false> value = toCObject<T, false, PythonClassWrapper<T> >(*pyobj);
         if (!BitFieldLimits<T, bits>::is_in_bounds(*value)) {
             throw "Value out of bounds";
         }

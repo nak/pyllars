@@ -42,7 +42,7 @@ namespace __pyllars_internal {
                 T &cobj = *self_->template get_CObject<T>();
                 ObjectLifecycleHelpers::Copy<T_base>::inplace_copy(
                         values, i, ObjectLifecycleHelpers::Copy<T_base>::new_copy(
-                                ObjectLifecycleHelpers::Array<T_base *>::at(cobj, i))->ptr(), true);
+                                ObjectLifecycleHelpers::Array<T_base *>::at(cobj, i) )->ptr(), true);
             }
         }
         return nullptr;
@@ -125,7 +125,7 @@ namespace __pyllars_internal {
     template<typename T>
     PyObject * PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
             !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            (std::is_pointer<T>::value || std::is_array<T>::value)>::type>::
+             (std::is_pointer<T>::value || std::is_array<T>::value)>::type>::
     _get_item2(PyObject *self, Py_ssize_t index, const bool make_copy) {
         PythonClassWrapper *self_ = (PythonClassWrapper *) self;
         if (!self_ || !self_->_CObject) {
@@ -150,8 +150,8 @@ namespace __pyllars_internal {
 
             PyObject *result;
             if (make_copy) {
-                ObjContainer<T_base> *new_copy = ObjectLifecycleHelpers::Copy<T_base>::new_copy(
-                        ObjectLifecycleHelpers::Array<T>::at(*self_->_CObject, index));
+                typename ObjectLifecycleHelpers::Array<T>::T_base& var = ObjectLifecycleHelpers::Array<T>::at(*self_->_CObject->ptr(), index);
+                ObjContainer<T_base> *new_copy = ObjectLifecycleHelpers::Copy<T_base>::new_copy(var);
                 PythonClassWrapper<T_base> *res = PythonClassWrapper<T_base>::createPy(element_array_size, new_copy,
                                                                                        true, false, nullptr);
                 result = (PyObject *) res;

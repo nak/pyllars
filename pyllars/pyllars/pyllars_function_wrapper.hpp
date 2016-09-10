@@ -189,7 +189,7 @@ namespace __pyllars_internal {
             PythonFunctionWrapper &wrapper = *reinterpret_cast<PythonFunctionWrapper *const>(callable_object);
             typedef typename std::remove_pointer<typename extent_as_pointer<ReturnType>::type>::type BaseType;
             ReturnType result = wrapper.callFunc(args, kw, typename argGenerator<sizeof...(Args)>::type());
-            const ssize_t array_size = Sizeof<BaseType>::value?sizeof(result) / Sizeof<BaseType>::value:1;
+            const ssize_t array_size = Sizeof<BaseType>::value?Sizeof<ReturnType>::value / Sizeof<BaseType>::value:1;
             return toPyObject<ReturnType>(result, false, array_size);
         } catch (const char *const msg) {
             PyErr_SetString(PyExc_RuntimeError, msg);
@@ -251,6 +251,34 @@ namespace __pyllars_internal {
                 }
                 return pyfuncobj;
             }
+        }
+
+        /**
+         * create a python object of this class type
+         **/
+        static PythonFunctionWrapper *createPy(const ssize_t arraySize,
+					                        ObjContainer<func_type> *const cobj, const bool isAllocated,
+                                            const bool inPlace,
+                                            PyObject *referencing = nullptr, const size_t depth = 0) {
+            static PyObject *kwds = PyDict_New();
+            static PyObject *emptyargs = PyTuple_New(0);
+            PyDict_SetItemString(kwds, "__internal_allow_null", Py_True);
+            PyTypeObject* type_ = &Type;
+
+            if (!type_->tp_name){
+              PyErr_SetString(PyExc_RuntimeError, "Uninitialized type when creating object");
+              return nullptr;
+            }
+            PythonFunctionWrapper *pyobj = (PythonFunctionWrapper *) PyObject_Call((PyObject *) &Type, emptyargs, kwds);
+            pyobj->_cfunc = *cobj->ptr();//new ObjContainerPtrProxy<T_NoRef>(cobj, isAllocated);
+
+            //if (referencing) pyobj->_referenced = referencing;
+            return pyobj;
+         }
+
+
+        static bool checkType(PyObject *const obj) {
+            return PyObject_TypeCheck(obj, &Type);
         }
 
     private:

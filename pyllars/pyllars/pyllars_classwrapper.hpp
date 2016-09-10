@@ -21,6 +21,8 @@
 #include "pyllars_methodcallsemantics.hpp"
 #include "pyllars_object_lifecycle.hpp"
 //#include "pyllars_conversions.hpp"
+typedef const char cstring[];
+static constexpr cstring operatormapname = "operator[]";
 
 namespace __pyllars_internal {
 
@@ -68,7 +70,7 @@ namespace __pyllars_internal {
          * create a python object of this class type
          **/
         static PythonClassWrapper *createPy(const ssize_t arraySize, 
-					    ObjContainer<T_NoRef> *const cobj, const bool isAllocated,
+					                        ObjContainer<T_NoRef> *const cobj, const bool isAllocated,
                                             const bool inPlace,
                                             PyObject *referencing = nullptr, const size_t depth = 0) ;
 
@@ -111,6 +113,12 @@ namespace __pyllars_internal {
         static void addConstMethod(
                 typename ConstMethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
                 const char *const kwlist[]);
+
+        template< typename KeyType, typename ValueType>
+        static void addMapOperatorMethod( typename MethodContainer<T_NoRef>::template Container<operatormapname, ValueType, KeyType>::method_t method);
+
+        template< typename KeyType, typename ValueType>
+        static void addMapOperatorMethodConst( typename ConstMethodContainer<T_NoRef>::template Container<operatormapname, ValueType, KeyType>::method_t method);
 
         /**
          * add a class-wide (static) member
@@ -344,6 +352,9 @@ namespace __pyllars_internal {
          **/
         static void _addMethod(PyMethodDef method);
 
+        static PyObject* _mapGet(PyObject* self, PyObject* key);
+        static int _mapSet(PyObject* self, PyObject* key, PyObject* value);
+
         static bool _findMemberSetter(const char *const name) ;
 
         static std::string _name;
@@ -352,6 +363,10 @@ namespace __pyllars_internal {
         static std::vector<ConstructorContainer> _constructors;
         static std::map<std::string, typename MethodContainer<T>::setter_t> _memberSettersDict;
         static std::vector<PyMethodDef> _methodCollection;
+        static std::map<std::string, std::pair<std::function<PyObject*(PyObject*, PyObject*)>,
+                                     std::function<int(PyObject*, PyObject*, PyObject*)>
+                                     >
+                          >_mapMethodCollection;
         static std::vector<PyTypeObject *> _baseClasses;
         size_t _arraySize;
         bool _allocated;

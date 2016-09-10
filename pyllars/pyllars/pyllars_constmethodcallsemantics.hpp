@@ -5,6 +5,7 @@
 
 #include "pyllars_defns.hpp"
 #include "pyllars_utils.hpp"
+#include "pyllars_conversions.hpp"
 /**
 * This unit defines template classes needed to contain CONSTANT method  and member pointers and
 * define Python-to-C call semantics for invoking class instance methods
@@ -111,6 +112,31 @@ namespace __pyllars_internal {
     template<const char *const name, typename ReturnType, typename ...Args>
     typename ConstMethodContainer<CClass>::template Container<name, ReturnType, Args...>::method_t
             ConstMethodContainer<CClass>::Container<name, ReturnType, Args...>::method;
+
+    template<class CClass>
+    class ConstMethodNoExceptContainer {
+    public:
+
+        template<const char *const name, typename ReturnType, typename ...Args>
+        class Container {
+        public:
+            typedef typename extent_as_pointer<ReturnType>::type(CClass::*method_t)(Args...) const ;
+
+            typedef const char *const *kwlist_t;
+            static constexpr kwlist_t &kwlist = ConstMethodCallSemantics<CClass, ReturnType, Args...>::kwlist;
+            static method_t method;
+
+            static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds) ;
+
+        };
+    };
+
+
+    template<class CClass>
+    template<const char *const name, typename ReturnType, typename ...Args>
+    typename ConstMethodNoExceptContainer<CClass>::template Container<name, ReturnType, Args...>::method_t
+            ConstMethodNoExceptContainer<CClass>::Container<name, ReturnType, Args...>::method;
+
 
 
     /////////////////////////////////////////////////////////

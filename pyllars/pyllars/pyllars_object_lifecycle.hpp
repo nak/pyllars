@@ -64,11 +64,34 @@ namespace __pyllars_internal {
         };
 
         template<typename T>
-        struct Array<T, typename std::enable_if<!is_complete<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value>::type> {
+        struct Array<T, typename std::enable_if<!std::is_void<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value &&
+                                                !is_complete<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value>::type> {
             typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
 
             static T_base &at(T array, size_t index);
         };
+
+
+        template<typename T>
+        struct Array<T, typename std::enable_if<std::is_const<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value &&
+                                                std::is_void <typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value>::type> {
+            typedef const unsigned char T_base;
+
+            static T_base &at(const void* array, size_t index){
+                return ((const unsigned char*)array)[index];
+            }
+        };
+
+        template<typename T>
+        struct Array<T, typename std::enable_if<!std::is_const<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value &&
+                                                std::is_void <typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value >::type> {
+            typedef unsigned char T_base;
+
+            static T_base &at(void* array, size_t index){
+                return ((unsigned char*)array)[index];
+            }
+        };
+
 
     public:
         template<typename T, typename Z = void>
@@ -79,7 +102,6 @@ namespace __pyllars_internal {
                                                std::is_assignable<typename std::remove_reference<T>::type, typename std::remove_reference<T>::type>::value &&
                                                std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type> {
             typedef typename std::remove_reference<T>::type T_NoRef;
-
             static ObjContainer <T_NoRef> *new_copy(const T &value) ;
 
             static T_NoRef *new_copy(T_NoRef *const value);
@@ -95,7 +117,7 @@ namespace __pyllars_internal {
                 std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type> {
             typedef typename std::remove_reference<T>::type T_NoRef;
 
-            static ObjContainer <T_NoRef> *new_copy(const T &value) ;
+            static ObjContainer <T_NoRef> *new_copy(const T_NoRef &value) ;
 
             static ObjContainer <T_NoRef> *new_copy(T_NoRef *const value) ;
 
@@ -104,8 +126,12 @@ namespace __pyllars_internal {
         };
 
         template<typename T>
-        struct Copy<T, typename std::enable_if<std::is_void<T>::value>::type> {
-            static ObjContainer<void> *new_copy(T *const value) {
+        struct Copy<T, typename std::enable_if<std::is_void<T>::value >::type> {
+             static ObjContainer<T> *new_copy(T *const value) {
+                throw "Attempt to copy void object";
+            }
+
+            static ObjContainer<T> *new_copy(const unsigned char& value) {
                 throw "Attempt to copy void object";
             }
 
@@ -115,8 +141,9 @@ namespace __pyllars_internal {
         };
 
         template<typename T, size_t size>
-        struct Copy<T[size], typename std::enable_if<(size > 0)>::type> {
+        struct Copy<T[size], typename std::enable_if<(size > 0) && std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type > {
             typedef T T_array[size];
+            typedef typename std::remove_reference<T>::type T_NoRef;
 
             static ObjContainer <T_array> *new_copy(const T_array &value) ;
 
@@ -131,6 +158,7 @@ namespace __pyllars_internal {
                                                (!std::is_array<T>::value || ArraySize<T>::size <= 0) &&
                                                !std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type> {
             typedef typename std::remove_reference<T>::type T_NoRef;
+            typedef typename std::remove_pointer<T_NoRef>::type& T_baseref;
 
             static ObjContainer <T_NoRef> *new_copy(const T_NoRef &value);
 
@@ -139,6 +167,22 @@ namespace __pyllars_internal {
             static void inplace_copy(T_NoRef *const to, const Py_ssize_t index, const T_NoRef *const from,
                                      const bool in_place);
         };
+
+
+        template<typename T, size_t size>
+        struct Copy<T[size], typename std::enable_if<(size > 0) && !std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type > {
+            typedef T T_array[size];
+            typedef typename std::remove_reference<T>::type T_NoRef;
+            typedef typename std::remove_pointer<T_NoRef>::type& T_baseref;
+
+            static ObjContainer <T_array> *new_copy(const T_array &value) { throw "cannot copy oobject : is not copy construcftible";}
+
+            static ObjContainer <T_array> *new_copy(T_array *const value){ throw "cannot copy oobject : is not copy construcftible";}
+
+            static void inplace_copy(T_array *const to, const Py_ssize_t index, const T_array *const from,
+                                     const bool in_place){ throw "cannot copy oobject : is not copy construcftible";}
+        };
+
 
     private:
         template<typename To, typename From, typename Z = void>

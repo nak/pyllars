@@ -7,6 +7,7 @@
 
 #include "pyllars_utils.hpp"
 #include "pyllars_defns.hpp"
+#include "pyllars_conversions.hpp"
 
 /**
 * This unit defines template classes needed to contain method pointers and

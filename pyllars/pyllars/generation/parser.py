@@ -24,6 +24,11 @@ class CPPParser(object):
         self.root_item = None
         self.processed = {}
         self.element_lookup = {}
+        self.element_name_lookup = {}
+        self.class_filter = []
+
+    def filter_class(self, classname):
+        self.class_filter.append(classname)
 
     def parse_xml(self):
         import xml.etree.ElementTree as et
@@ -32,15 +37,21 @@ class CPPParser(object):
         # construct a lookup table based on id
         for child in root:
             self.element_lookup[child.attrib['id']] = child
-        for child in root:
+            if child.attrib.get('name') is not None:
+                self.element_name_lookup.get(child.attrib.get('name'),[]).append(child)
+        for child in [c for c in root if c.tag=="File"]:
+            self.process_xml_element(child)
+        for child in [c for c in root if c.tag!="File"]:
             self.process_xml_element(child)
 
     def process_xml_element(self, child):
         context = child.attrib.get('context')
         if context is not None and not context in self.processed:
             self.process_xml_element(self.element_lookup[context])
-        item = {"Namespace": self.process_namespace,
+        try:
+            item = {"Namespace": self.process_namespace,
                 "Typedef":self.process_typedef,
+                "TypeAlias": self.process_typedef,
                 "FundamentalType": self.process_fundamental_type,
                 "ArrayType": self.process_array_type,
                 "Struct": self.process_struct,
@@ -56,7 +67,14 @@ class CPPParser(object):
                 "Method": self.process_method,
                 "Constructor": self.process_constructor,
                 "Function": self.process_function,
+                "OperatorMethod": self.process_operator_method,
+                "Unimplemented": self.process_unimplemented,
+                "File": self.process_file,
+
                 }.get(child.tag, self.process_unknown)(child)
+        except:
+            print "!!!!!!!! ERROR IN ELEMENT %s" %child.attrib.get('id')
+            raise
         #  for anonymous definitions, traverse the typedefs...
         if item is not None and item.name == "":
             for k, e in self.element_lookup.iteritems():
@@ -77,14 +95,66 @@ class CPPParser(object):
                 self.processed[context].children.append(item)
         return item
 
+    def process_alias(self, alias, name, context=None):
+        if self.processed.get(alias):
+            return self.processed[alias]
+        aliased_elem = None
+        if '::' in name:
+            names = name.split('::')
+            try:
+                ids = self.element_name_lookup[names[0]].attib.get('id')
+                foundid=None
+                for id_ in ids:
+                    for namespace in names[1:-1]:
+                        ns = [e for e in self.element_name_lookup[namespace] if e.attrib.get('context')==id_]
+                        if len(ns)!=1:
+                            break
+                        id_ = ns[0].attrib('id')
+                        foundid = id_
+                if foundid is not None:
+                    aliased_elem = [e for e in self.element_name_lookup.get(names[-1]) or [] if e.attrib.get('context') == foundid]
+            except:
+                pass
+        if aliased_elem is None:
+            aliased_elem = self.element_name_lookup.get(name)
+        if aliased_elem is not None:
+            alias_obj = self.process_xml_element(aliased_elem)
+            self.processed[alias] = elements.get_alias(alias, alias_obj)
+        if self.processed.get(alias) is None and context is not None:
+            self.processed[alias] = elements.TypeAlias()
+        return self.processed.get(alias)
+
+    def process_file(self, element):
+        filename = element.attrib.get('name')
+        if filename is not None and os.path.exists(filename):
+            with open(filename,'r') as file_:
+                for linefull in file_:
+                    for line in linefull.split(';'):
+                        if (not line.strip().startswith('/') and not line.strip().startswith('*')) and \
+                                line.strip().startswith('using') and '=' in line:
+                            elements=line.replace('using','').replace('\t',' ').split('=')
+                            if len(elements) is 2:
+                                self.process_alias(elements[0].strip(), elements[1].strip(), element.get('context'))
+
+    def process_unimplemented(self, element):
+        #if element.attrib.get('type_class') == "Decltype":
+        #    return elements.FundamentalType("void",
+        #                                    element.attrib['id'], element.attrib.get('size'),
+        #                                    element.attrib.get('align'))
+        print("UNIMPLEMENTED IN CAST XML: %s" % element.attrib.get("kind"))
+        return None # elements.TypeAlias(element.attrib.get('id'))
+
     def process_namespace(self, element):
-        assert(self.get_file(element) is not None)
+        if self.get_file(element) is None:
+            return None
         return elements.Namespace(element.attrib['name'],
                                   element.attrib['id'],
                                   header_filename=self.get_file(element),
                                   context=self.get_context(element))
 
     def process_typedef(self, element):
+        if self.get_base_type(element) is None:
+            return None
         return elements.Typedef(base_type=self.get_base_type(element),
                                 id_=element.attrib['id'],
                                 header_filename=self.get_file(element),
@@ -120,13 +190,21 @@ class CPPParser(object):
                                 scope=element.attrib.get('access'))
 
     def process_struct(self, element):
-        return elements.Struct(name=element.attrib['name'], id_=element.attrib['id'],
+        # workaround for bug in castxml or internal gnu inconsistency which should not instantiate these:
+        name = element.attrib['name']
+        if name in ["__numeric_traits_integer<float>", "__numeric_traits_integer<double>", "__numeric_traits_integer<long double>"] :
+            return None
+        name = name.replace("__numeric_traits_integer<float>", "__numeric_traits_floating<float>")
+        name = name.replace("__numeric_traits_integer<double>", "__numeric_traits_floating<double>")
+        name = name.replace("__numeric_traits_integer<long double>", "__numeric_traits_floating<long double>")
+        return elements.Struct(name=name,
+                               id_=element.attrib['id'],
                                header_filename=self.get_file(element),
                                is_incomplete=element.attrib.get('incomplete')!='1',
                                is_absrtact=element.attrib.get('abstract')=='1',
                                inherited_from=self.get_bases(element),
                                context=self.get_context(element),
-                                scope=element.attrib.get('access'))
+                               scope=element.attrib.get('access'))
 
     def process_pointer_type(self, element):
         return elements.Pointer(base_type=self.get_base_type(element),
@@ -136,6 +214,8 @@ class CPPParser(object):
                                 scope=element.attrib.get('access'))
 
     def process_reference_type(self, element):
+        if self.get_base_type(element) is None:
+            return None
         return elements.Reference(base_type=self.get_base_type(element),
                                   id_=element.attrib['id'],
                                   header_filename=self.get_file(element),
@@ -152,6 +232,8 @@ class CPPParser(object):
                               scope=element.attrib.get('access'))
 
     def process_cvqualified_type(self, element):
+        if self.get_base_type(element) is None:
+            return None
         qualifiers=[]
         if element.attrib.get('const'):
             qualifiers.append('const')
@@ -165,6 +247,8 @@ class CPPParser(object):
                                         scope=element.attrib.get('access'))
 
     def process_function_type(self, element):
+        if 'Ellipsis' in [c.tag for c in element]:
+            return None
         typeid=element.attrib.get('returns')
         if typeid is None:
             type_=None
@@ -187,15 +271,22 @@ class CPPParser(object):
                 if elem.attrib.get('type') == id_:
                     parent = elem
                     break
+            break
+        qualifiers = []
+        if element.attrib.get('const') == '1':
+            qualifiers.append('const')
         return elements.FunctionType(id_=element.attrib['id'],
                                      context = self.get_context(parent) if parent is not None else None,
                                      return_type=type_,
                                      header_filename=self.get_file(element),
                                      arguments=arguments,
-                                     name=parent.attrib.get('name') or "func%s"%element.attrib['id'],
+                                     name=parent.attrib.get('name'),
+                                     qualifiers=qualifiers,
                                      scope=element.attrib.get('access'))
 
     def process_function(self, element):
+        if 'Ellipsis' in [c.tag for c in element]:
+            return None
         typeid=element.attrib.get('returns')
         if typeid is None:
             type_=None
@@ -205,9 +296,11 @@ class CPPParser(object):
             type_ = self.processed[typeid]
         arguments = []
         for child in [c for c in element if c.tag == 'Argument']:
-            arguments.append((child.attrib.get('name'), self.get_type_from(child.attrib['type'])))
+            arguments.append((child.attrib.get('name'), self.get_type_from(child.attrib['type'], child.attrib.get('id'))))
+        if not all(a[1] is not None for a in arguments):
+            return None # have a type of argument using an unimplemented feature in castxml
         return elements.Function(id_=element.attrib['id'],
-                                 name=element.attrib.get('name') or 'func%s'%element.attrib['id'],
+                                 name=element.attrib.get('name'),
                                  return_type=type_,
                                  context=self.get_context(element),
                                  scope=element.attrib.get('access'),
@@ -229,20 +322,25 @@ class CPPParser(object):
         print "UNKNOWN ELEMENT: " + element.tag
 
     def process_field(self, element, qualifiers=None):
-        parent = self.get_type_from(element.attrib['context'])
+        parent = self.get_type_from(element.attrib['context'], element.attrib['id'])
+        if self.get_type_from(element.attrib['type'], element.attrib['id']) is None:
+            return None
         parent.add_member(member_name=element.attrib['name'],
-                          type_=self.get_type_from(element.attrib['type']),
+                          id_=element.attrib['id'],
+                          type_=self.get_type_from(element.attrib['type'], element.attrib.get('id')),
                           member_scope=element.attrib.get('access') or 'private',
                           qualifiers=qualifiers,
                           bit_field_size=element.attrib.get('bits'))
 
     def process_variable(self, element):
-        context = self.get_type_from(element.attrib['context'])
+        context = self.get_type_from(element.attrib['context'], element.attrib['id'])
         if not isinstance(context, elements.Namespace):
             self.process_field(element, ["static"])
 
     def process_method(self, element):
-        parent = self.get_type_from(element.attrib['context'])
+        parent = self.get_type_from(element.attrib['context'], element.attrib['id'])
+        if parent.name in self.class_filter:
+            return None
         qualifiers = []
         if element.attrib.get('const') == '1':
             qualifiers.append('const')
@@ -250,8 +348,16 @@ class CPPParser(object):
             qualifiers.append('static')
         arguments = []
         for child in [c for c in element if c.tag == 'Argument']:
-            arguments.append( (child.attrib.get('name'), self.get_type_from(child.attrib['type'])))
-        return_type = self.get_type_from(element.attrib.get('returns')) if element.attrib.get('returns') else None
+            if self.get_type_from(child.attrib['type'], child.attrib.get('id')) is None:
+                print "Unable to determine type for argument in method %s" % element.attrib.get('name')
+                return None
+            arguments.append((child.attrib.get('name'), self.get_type_from(child.attrib['type'], child.attrib.get('id'))))
+        if 'Ellipsis' in [c.tag for c in element]:
+            if element.attrib.get('access') == 'public':
+                parent.mark_method_tainted(method_name=element.attrib['name'], qualifiers=qualifiers)
+            return None
+        return_id = element.attrib.get('returns')
+        return_type = self.get_type_from(return_id, element.attrib.get('id')) if return_id else None
         parent.add_method(method_name=element.attrib['name'],
                           method_scope=element.attrib.get('access') or 'private',
                           qualifiers=qualifiers,
@@ -259,16 +365,42 @@ class CPPParser(object):
                           method_parameters=arguments)
 
     def process_constructor(self, element):
-        parent = self.get_type_from(element.attrib['context'])
+        if 'Ellipsis' in [c.tag for c in element]:
+            return None
+        parent = self.get_type_from(element.attrib['context'], element.attrib['id'])
         qualifiers = []
         if element.attrib.get('const') == '1':
             qualifiers.append('const')
         arguments = []
         for child in [c for c in element if c.tag == 'Argument']:
-            arguments.append( (child.attrib.get('name'), self.get_type_from(child.attrib['type'])))
+            if self.get_type_from(child.attrib['type'], child.attrib.get('id')) is None:
+                print "Unable to determine type for argument in method %s" % element.attrib.get('name')
+                return None
+            arguments.append( (child.attrib.get('name'), self.get_type_from(child.attrib['type'], child.attrib.get('id'))))
         parent.add_constructor( method_scope=element.attrib.get('access') or 'private',
                                 qualifiers=qualifiers,
                                 method_parameters=arguments)
+
+    def process_operator_method(self, element):
+        if 'Ellipsis' in [c.tag for c in element]:
+            return None
+        if element.attrib.get('name')=='[]':
+            parent = self.get_type_from(element.attrib['context'], element.attrib['id'])
+            return_type = self.get_type_from(element.attrib.get('returns'), element.attrib['id']) if element.attrib.get('returns') else None
+            arguments = []
+            qualifiers = []
+            if element.attrib.get('const') == '1':
+                qualifiers.append('const')
+            for child in [c for c in element if c.tag == 'Argument']:
+                if self.get_type_from(child.attrib['type'], child.attrib.get('id')) is None:
+                    print "Unable to determine type for argument in method %s" % element.attrib.get('name')
+                    return None
+                arguments.append((child.attrib.get('name'), self.get_type_from(child.attrib['type'], child.attrib.get('id'))))
+            assert(len(arguments)==1)
+            parent.add_operator_mapping(method_scope=element.attrib.get('access') or 'private',
+                                        qualifiers=qualifiers,
+                                        return_type=return_type,
+                                        method_parameter=arguments[0])
 
     def get_file(self, element):
         fileid = element.attrib.get('file')
@@ -307,13 +439,15 @@ class CPPParser(object):
 
     def get_base_type(self, element):
         typeid = element.attrib['type']
-        return self.get_type_from(typeid)
+        return self.get_type_from(typeid,  element.attrib.get('id'))
 
-    def get_type_from(self, typeid):
-        if typeid not in self.processed:
+    def get_type_from(self, typeid, parentid):
+        if typeid == '_0':
+            return None
+        elif typeid not in self.processed and self.element_lookup.get(typeid) is not None:
             base_type = self.process_xml_element( self.element_lookup[typeid] )
-        else:
-            if typeid not in self.processed:
-                self.process_xml_element(self.element_lookup[typeid])
+        elif self.element_lookup.get(typeid) is not None:
             base_type = self.processed[typeid]
+        else:
+            raise Exception("?? %s" % self.element_lookup.get(typeid))
         return base_type

@@ -120,5 +120,9 @@ class Test_BasicC(unittest.TestCase):
         b._subfields(as_ref=True).bitfield4_named_field_size7(set_to=0x3A)
         self.assertEqual(b._subfields().bitfield4_named_field_size7(), 0x3A)
 
+    def testMapOperator(self):
+        t = test_pyllars.TestStruct("TestMapOperatorMethod")
+        self.assertEqual(t[0.123], "0.123")
+
 if __name__ == "__main__":
     unittest.main()

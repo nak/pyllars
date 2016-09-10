@@ -28,8 +28,8 @@ namespace __pyllars_internal {
     template<typename T,  typename E = void>
     PyObject *toPyObject(const T &var, const bool asArgument, const ssize_t array_size, const size_t depth = ptr_depth<T>::value);
 
-    template<typename T, bool is_array, typename ClassWrapper>
-    smart_ptr<typename std::remove_reference<T>::type, is_array> toCObject(PyObject &pyobj);
+  //  template<typename T, bool array_allocated, typename ClassWrapper>
+  //  smart_ptr<typename std::remove_reference<T>::type, array_allocated> toCObject(PyObject &pyobj);
 
     struct ZERO_DEPTH;
 

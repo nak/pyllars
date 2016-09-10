@@ -11,8 +11,8 @@
 namespace __pyllars_internal {
 
 
-    template<typename T, bool is_array, typename ClassWrapper>
-    smart_ptr<typename std::remove_reference<T>::type, is_array> CObjectConversionHelper<T, is_array, ClassWrapper,
+    template<typename T, bool array_allocated, typename ClassWrapper>
+    smart_ptr<typename std::remove_reference<T>::type, array_allocated> CObjectConversionHelper<T, array_allocated, ClassWrapper,
             typename std::enable_if<!std::is_array<T>::value &&
                                     !std::is_function<typename std::remove_pointer<T>::type>::value &&
                                     !std::is_enum<typename std::remove_reference<T>::type>::value &&
@@ -24,11 +24,11 @@ namespace __pyllars_internal {
         //}
         // Check different pointer type matches
         if (ClassWrapper::checkType(&pyobj)) {
-            return smart_ptr<T_bare, is_array>((T_bare *)
+            return smart_ptr<T_bare, array_allocated>((T_bare *)
                                                        reinterpret_cast<ClassWrapper *>
                                                        (&pyobj)->template get_CObject<T_bare>(), PTR_IS_NOT_ALLOCATED);
         } else if (NoRefClassWrapper::checkType(&pyobj)) {
-            return smart_ptr<T_bare, is_array>(reinterpret_cast<NoRefClassWrapper *>(&pyobj)->
+            return smart_ptr<T_bare, array_allocated>(reinterpret_cast<NoRefClassWrapper *>(&pyobj)->
                     template get_CObject<typename std::remove_const<T_bare>::type>(), PTR_IS_NOT_ALLOCATED);
         } else if (ConstClassWrapper::checkType(&pyobj)) {
             //Must make copy of this item, since cast from const T to T requested
@@ -36,9 +36,9 @@ namespace __pyllars_internal {
             ConstClassWrapper *self = reinterpret_cast<ConstClassWrapper *>(&pyobj);
             T_bare *copy = (T_bare *) ObjectLifecycleHelpers::Copy<const T>::new_copy(
                     *self->template get_CObject<const T>());
-            return smart_ptr<T_bare, is_array>(copy, PTR_IS_ALLOCATED);
+            return smart_ptr<T_bare, array_allocated>(copy, PTR_IS_ALLOCATED);
         } else if (NonConstClassWrapper::checkType(&pyobj)) {
-            return smart_ptr<T_bare, is_array>(reinterpret_cast<NonConstClassWrapper *>(&pyobj)->
+            return smart_ptr<T_bare, array_allocated>(reinterpret_cast<NonConstClassWrapper *>(&pyobj)->
                     template get_CObject<typename std::remove_const<T_bare>::type>(), PTR_IS_NOT_ALLOCATED);
         } else {
             fprintf(stderr, "\n");
@@ -51,23 +51,23 @@ namespace __pyllars_internal {
     }
 
 
-    template<typename T, bool is_array, typename ClassWrapper>
-    smart_ptr<T, is_array> CObjectConversionHelper<T, is_array, ClassWrapper, typename std::enable_if<
+    template<typename T, bool array_allocated, typename ClassWrapper>
+    smart_ptr<T, array_allocated> CObjectConversionHelper<T, array_allocated, ClassWrapper, typename std::enable_if<
             std::is_integral<typename std::remove_reference<T>::type>::value
             || std::is_enum<typename std::remove_reference<T>::type>::value>::type>::
     toCObject(PyObject &pyobj) {
         typedef typename std::remove_reference<typename std::remove_const<T>::type>::type T_bare;
         if (PyInt_Check(&pyobj)) {
             T_bare *value = new T_bare((T_bare) PyInt_AsLong(&pyobj));
-            return smart_ptr<T, is_array>(value, PTR_IS_ALLOCATED);
+            return smart_ptr<T, array_allocated>(value, PTR_IS_ALLOCATED);
         } else if (PyLong_Check(&pyobj)) {
             T_bare *value = new T_bare((T_bare) PyLong_AsLongLong(&pyobj));
-            return smart_ptr<T, is_array>(value, PTR_IS_NOT_ALLOCATED);
+            return smart_ptr<T, array_allocated>(value, PTR_IS_NOT_ALLOCATED);
         } else if (ClassWrapper::checkType(&pyobj)) {
-            return smart_ptr<T, is_array>(reinterpret_cast<ClassWrapper * >(&pyobj)->template get_CObject<T_bare>(),
+            return smart_ptr<T, array_allocated>(reinterpret_cast<ClassWrapper * >(&pyobj)->template get_CObject<T_bare>(),
                                           PTR_IS_NOT_ALLOCATED);
         } else if (NoRefClassWrapper::checkType(&pyobj)) {
-            return smart_ptr<T, is_array>(
+            return smart_ptr<T, array_allocated>(
                     reinterpret_cast<NoRefClassWrapper * >(&pyobj)->template get_CObject<T_bare>(),
                     PTR_IS_NOT_ALLOCATED);
         } else if (ConstClassWrapper::checkType(&pyobj)) {
@@ -75,39 +75,39 @@ namespace __pyllars_internal {
             ConstClassWrapper *self = reinterpret_cast<ConstClassWrapper *>(&pyobj);
             T_bare *copy = (T_bare *) ObjectLifecycleHelpers::Copy<const T>::new_copy(
                     *self->template get_CObject<const T>());
-            return smart_ptr<T, is_array>(copy, PTR_IS_ALLOCATED);
+            return smart_ptr<T, array_allocated>(copy, PTR_IS_ALLOCATED);
         } else if (NonConstClassWrapper::checkType(&pyobj)) {
             //casting T to const T:
-            return smart_ptr<T, is_array>(
+            return smart_ptr<T, array_allocated>(
                     reinterpret_cast<NonConstClassWrapper * >(&pyobj)->template get_CObject<std::remove_const<T_bare> >(),
                     PTR_IS_NOT_ALLOCATED);
         }
         throw "Invalid type converting to C object";
     }
 
-    template<typename T, bool is_array, typename ClassWrapper>
-    smart_ptr<T>  CObjectConversionHelper<T, is_array, ClassWrapper,
+    template<typename T, bool array_allocated, typename ClassWrapper>
+    smart_ptr<T, array_allocated>  CObjectConversionHelper<T, array_allocated, ClassWrapper,
             typename std::enable_if<std::is_floating_point<typename std::remove_reference<T>::type>::value>::type>::
     toCObject(PyObject &pyobj) {
         typedef typename std::remove_reference<T>::type T_bare;
 
         if (PyFloat_Check(&pyobj)) {
-            return smart_ptr<T>(new T_bare(PyFloat_AsDouble(&pyobj)), PTR_IS_ALLOCATED);
+            return smart_ptr<T, array_allocated>(new T_bare(PyFloat_AsDouble(&pyobj)), PTR_IS_ALLOCATED);
         } else if (ClassWrapper::checkType(&pyobj)) {
             T_bare *retval = (reinterpret_cast<ClassWrapper * >(&pyobj)->template get_CObject<T_bare>());
-            return smart_ptr<T>(retval, PTR_IS_NOT_ALLOCATED);
+            return smart_ptr<T, array_allocated>(retval, PTR_IS_NOT_ALLOCATED);
         } else if (NoRefClassWrapper::checkType(&pyobj)) {
             T_bare *retval = (reinterpret_cast<NoRefClassWrapper * >(&pyobj)->template get_CObject<T_bare>());
-            return smart_ptr<T>(retval, PTR_IS_NOT_ALLOCATED);
+            return smart_ptr<T, array_allocated>(retval, PTR_IS_NOT_ALLOCATED);
         } else if (NonConstClassWrapper::checkType(&pyobj)) {
             T_bare *retval = (reinterpret_cast<NonConstClassWrapper * >(&pyobj)->template get_CObject<T_bare>());
-            return smart_ptr<T>(retval, PTR_IS_NOT_ALLOCATED);
+            return smart_ptr<T, array_allocated>(retval, PTR_IS_NOT_ALLOCATED);
         } else if (ConstClassWrapper::checkType(&pyobj)) {
             //Attempting to cast const T to T  which requires a copy
             ConstClassWrapper *self = reinterpret_cast<ConstClassWrapper *>(&pyobj);
             T_bare *copy = (T_bare *) ObjectLifecycleHelpers::Copy<const T>::new_copy(
                     *self->template get_CObject<const T>());
-            return smart_ptr<T>(copy, PTR_IS_ALLOCATED);
+            return smart_ptr<T, array_allocated>(copy, PTR_IS_ALLOCATED);
         }
         PyObject_Print(&pyobj, stderr, 0);
         throw "Invalid type converting to C object";
@@ -137,9 +137,9 @@ namespace __pyllars_internal {
         return smart_ptr<callback_t, false>(retval, PTR_IS_ALLOCATED);
     }
 
-    template<typename ClassWrapper>
-    typename CObjectConversionHelper<const char *&, false, ClassWrapper>::ptr_t
-    CObjectConversionHelper<const char *&, false, ClassWrapper>::
+    template<typename ClassWrapper, bool array_allocated>
+    smart_ptr<const char *, false>
+    CObjectConversionHelper<const char *&, array_allocated, ClassWrapper>::
     toCObject(PyObject &pyobj) {
         const char *name = nullptr;
         if (ConstClassWrapper::checkType(&pyobj)) {
@@ -162,9 +162,9 @@ namespace __pyllars_internal {
         return smart_ptr<const char *, false>(new (const char *)(name), PTR_IS_ALLOCATED);
     }
 
-    template<typename ClassWrapper>
-    typename CObjectConversionHelper<const char *const, false, ClassWrapper>::ptr_t
-    CObjectConversionHelper<const char *const, false, ClassWrapper>::
+    template<typename ClassWrapper, bool array_allocated>
+    typename CObjectConversionHelper<const char *const, array_allocated, ClassWrapper>::ptr_t
+    CObjectConversionHelper<const char *const, array_allocated, ClassWrapper>::
     toCObject(PyObject &pyobj) {
         const char *name = nullptr;
         if (NonConstClassWrapper::checkType(&pyobj)) {
@@ -186,9 +186,9 @@ namespace __pyllars_internal {
         return smart_ptr<const char *const, false>(new (const char *)(name), PTR_IS_ALLOCATED);
     }
 
-    template<typename ClassWrapper>
-    typename CObjectConversionHelper<char *const, true, ClassWrapper>::ptr_t
-    CObjectConversionHelper<char *const, true, ClassWrapper>::
+    template<typename ClassWrapper, bool array_allocated>
+    typename CObjectConversionHelper<char *const, array_allocated, ClassWrapper>::ptr_t
+    CObjectConversionHelper<char *const, array_allocated, ClassWrapper>::
     toCObject(PyObject &pyobj) {
         const char *name = nullptr;
         if (PyString_Check(&pyobj)) {
@@ -199,32 +199,32 @@ namespace __pyllars_internal {
         if (!name) { throw "Error converting string: null pointer encountered"; }
         //since char * contents are mutable, must make copy
         //on return
-        char *new_name = new char[strlen(name) + 1];
+        char *new_name = new char[strlen(name) + 1]{0};
         strcpy(new_name, name);
-        return smart_ptr<char *const, true>(&new_name, PTR_IS_ALLOCATED);
+        return smart_ptr<char *const, false>(&new_name, false);//PTR_IS_ALLOCATED);
     }
 
-    template<typename ClassWrapper>
-    typename CObjectConversionHelper<char *, true, ClassWrapper>::ptr_t
-    CObjectConversionHelper<char *, true, ClassWrapper>::
+    template< typename ClassWrapper, bool array_allocated>
+    typename CObjectConversionHelper<char *, array_allocated, ClassWrapper>::ptr_t
+    CObjectConversionHelper<char *, array_allocated, ClassWrapper>::
     toCObject(PyObject &pyobj) {
         const char *name = nullptr;
         if (PyString_Check(&pyobj)) {
             name = (const char *) PyString_AS_STRING(&pyobj);
         } else {
-            throw "Conversiont o C stgring from non-string Python object!";
+            throw "Conversion o C string from non-string Python object!";
         }
         if (!name) { throw "Error converting string: null pointer encountered"; }
         //since char * contents are mutable, must make copy
         //on return
-        char *new_name = new char[strlen(name) + 1];
+        char *new_name = new char[strlen(name) + 1]{0};
         strcpy(new_name, name);
-        return smart_ptr<char *, true>(&new_name, PTR_IS_ALLOCATED);
+        return smart_ptr<char *, true>(&new_name, false);// PTR_IS_ALLOCATED);
     }
 
-    template<typename T, const size_t size, const bool is_array, typename ClassWrapper>
-    typename CObjectConversionHelper<T[size], is_array, ClassWrapper>::ptr_t
-    CObjectConversionHelper<T[size], is_array, ClassWrapper>::
+    template<typename T, const size_t size, const bool array_allocated, typename ClassWrapper>
+    typename CObjectConversionHelper<T[size], array_allocated, ClassWrapper>::ptr_t
+    CObjectConversionHelper<T[size], array_allocated, ClassWrapper>::
     toCObject(PyObject &pyobj) {
 
         if (PtrWrapper::checkType(&pyobj)) {
@@ -234,15 +234,15 @@ namespace __pyllars_internal {
             }
             T *val_ = *self->template get_CObject<T *>();
             T_array *val = (T_array *) &val_;
-            return smart_ptr<T[size], is_array>(val, PTR_IS_ALLOCATED);
+            return smart_ptr<T[size], array_allocated>(val, PTR_IS_ALLOCATED);
         } else if (ClassWrapper::checkType(&pyobj)) {
-            return smart_ptr<T_array, is_array>(
+            return smart_ptr<T_array, array_allocated>(
                     reinterpret_cast<ClassWrapper * >(&pyobj)->template get_CObject<T_array>(),
                     PTR_IS_NOT_ALLOCATED);
         } else if (NonConstArrayWrapper::checkType(&pyobj)) {
             ConstArrayWrapper *self = reinterpret_cast<ConstArrayWrapper * >(&pyobj);
             T_array *val = (T_array *) self->template get_CObject<Const_T_array>();
-            return smart_ptr<T_array, is_array>(val, PTR_IS_NOT_ALLOCATED);
+            return smart_ptr<T_array, array_allocated>(val, PTR_IS_NOT_ALLOCATED);
         } else if (ConstArrayWrapper::checkType(&pyobj)) {
             //cannot cast away const-ness so make copy on return:
             ConstArrayWrapper *self = reinterpret_cast<ConstArrayWrapper * >(&pyobj);
@@ -251,15 +251,11 @@ namespace __pyllars_internal {
             for (size_t i = 0; i < size; ++i) {
                 (*val)[i] = (*self_value)[i];
             }
-            return smart_ptr<T_array, is_array>(val, PTR_IS_ALLOCATED);
+            return smart_ptr<T_array, array_allocated>(val, PTR_IS_ALLOCATED);
         } else if (PyList_Check(&pyobj)) {
             if (PyList_Size(&pyobj) != size) {
                 throw "Inconsistent sizes in array assignment";
             }
-            //if (!is_array) {
-            //    throw "Invalid attempt on non-array allocation of fixed-size array";
-            //}
-            //return a copy generated from the elements of the Python list:
             NonConst_T_array *val = new NonConst_T_array[1];
             for (size_t i = 0; i < size; ++i) {
                 PyObject *listitem = PyList_GetItem(&pyobj, i);
@@ -271,7 +267,7 @@ namespace __pyllars_internal {
                 }
             }
 
-            return smart_ptr<T_array, is_array>(val, PTR_IS_ALLOCATED);
+            return smart_ptr<T_array, array_allocated>(val, PTR_IS_ALLOCATED);
         }
         throw "Conversion to C-string from non-string Python object!";
 

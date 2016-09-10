@@ -26,15 +26,14 @@ def generate_code():
     except:
         pass
     output_path = os.path.join(outdir, module_name+'.xml')
-    args = ["castxml", "--castxml-gccxml", "--castxml-cc-gnu",
-                        "(", "g++", "-std=c++11", ")",
-                        "-o", output_path, 
+    args = ["/usr/local/bin/castxml", "--castxml-gccxml", "--std=c++11",
+                        "-o", output_path,
                         " ".join(files_to_convert)]
     print("Executing: '%s'"% " ".join(args))
     p = subprocess.Popen(args)
     if p.wait() != 0:
       sys.exit(1)
-    return processor.process(output_path, outdir)
+    return processor.process(output_path, outdir, class_filters=["__do_is_default_constructible_impl", ])
 
         
 compilables = generate_code()
@@ -47,9 +46,8 @@ for base_mod_name in sources:
 print "==========> %s" % sources
 modules=[]
 for mod, compilables in sources.iteritems():
-    #module_path = os.path.join(outdir,"pyllars", mod,"module.cpp")
-    #if os.path.exists(module_path):
-    #    compilables += [module_path]
+    if mod != "__gnu_cxx":
+        continue
     module = Extension(mod,
                        include_dirs = ['.','../pyllars', outdir, ],
                        language='c++',

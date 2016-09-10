@@ -83,6 +83,7 @@ namespace __pyllars_internal {
     };
 
 
+
     /**
      * This class is needed to prevent ambiguities and compiler issues in add_method
      * It holds the method call and allows specialization based on
@@ -94,7 +95,8 @@ namespace __pyllars_internal {
         typedef void (*setter_t)(typename std::remove_reference<CClass>::type *, PyObject *);
 
         template<const char *const name, typename ReturnType, typename ...Args>
-        class Container {
+        class Container{
+        public:
             typedef typename extent_as_pointer<ReturnType>::type TrueReturnType;
 
             typedef TrueReturnType(CClass::*method_t)(Args...);
@@ -103,7 +105,6 @@ namespace __pyllars_internal {
             static constexpr kwlist_t &kwlist = MethodCallSemantics<CClass, ReturnType, Args...>::kwlist;
 
             static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);
-
         };
     };
 
@@ -118,7 +119,7 @@ namespace __pyllars_internal {
         typedef void (*setter_t)(typename std::remove_reference<CClass>::type *, PyObject *);
 
         template<const char *const name, typename ReturnType, typename ...Args>
-        class Container {
+        class Container{
         public:
             typedef typename extent_as_pointer<ReturnType>::type(CClass::*method_t)(Args...);
 
@@ -127,7 +128,6 @@ namespace __pyllars_internal {
             static method_t method;
 
             static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);
-
         };
 
     };
@@ -143,7 +143,7 @@ namespace __pyllars_internal {
         typedef void (*setter_t)(typename std::remove_reference<CClass>::type *, PyObject *);
 
         template<const char *const name, typename ReturnType, typename ...Args>
-        class Container {
+        class Container{
         public:
             typedef typename extent_as_pointer<ReturnType>::type(CClass::*method_t)(Args...);
 

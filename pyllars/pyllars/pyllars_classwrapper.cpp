@@ -148,6 +148,13 @@ namespace __pyllars_internal{
     std::string PythonClassWrapper<T,
             typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::_full_name;
     template<typename T>
+    std::map<std::string, std::pair<std::function<PyObject*(PyObject*, PyObject*)>,
+                                     std::function<int(PyObject*, PyObject*, PyObject*)>
+                                     >
+                          >
+    PythonClassWrapper<T,
+            typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::_mapMethodCollection;
+    template<typename T>
     PyTypeObject PythonClassWrapper<T,
             typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
             Type = {
@@ -278,7 +285,7 @@ int  __pyllars_internal::InitHelper<T, typename std::enable_if<
     for (auto it = PythonClassWrapper<T>::_constructors.begin();
          it != PythonClassWrapper<T>::_constructors.end(); ++it) {
         try {
-            if ((*it)(args, kwds, self->_CObject)) {
+            if ((*it)(args, kwds, self->_CObject, false)) {
                 break;
             }
         } catch (...) {
@@ -325,7 +332,7 @@ int __pyllars_internal::InitHelper<T, typename std::enable_if<std::is_void<T>::v
     for (auto it = PythonClassWrapper<T>::_constructors.begin();
          it != PythonClassWrapper<T>::_constructors.end(); ++it) {
         try {
-            if ((*it)(args, kwds, self->_CObject)) {
+            if ((*it)(args, kwds, self->_CObject, false)) {
                 break;
             }
         } catch (...) {
@@ -375,7 +382,7 @@ int __pyllars_internal::InitHelper<T,  typename std::enable_if<!std::is_void<T>:
     for (auto it = PythonClassWrapper<T>::_constructors.begin();
          it != PythonClassWrapper<T>::_constructors.end(); ++it) {
         try {
-            if ((*it)(args, kwds, self->_CObject)) {
+            if ((*it)(args, kwds, self->_CObject, false)) {
                 break;
             }
         } catch (...) {
@@ -464,7 +471,7 @@ int __pyllars_internal::InitHelper<T, typename std::enable_if<
     for (auto it = PythonClassWrapper<T>::_constructors.begin();
          it != PythonClassWrapper<T>::_constructors.end(); ++it) {
         try {
-            if ((*it)(args, kwds, self->_CObject)) {
+            if ((*it)(args, kwds, self->_CObject, false)) {
                 break;
             }
         } catch (...) {
@@ -822,6 +829,121 @@ addMethod(
 }
 
 template<typename T>
+PyObject*
+__pyllars_internal::PythonClassWrapper<T,
+        typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+_mapGet(PyObject* self, PyObject* key){
+    PyObject* value = nullptr;
+    for( auto method = _mapMethodCollection.begin(); method != _mapMethodCollection.end(); ++method){
+        if((value = method->second.first(self, key))){
+            PyErr_Clear();
+            break;
+        }
+    }
+    return value;
+}
+
+
+template<typename T>
+int __pyllars_internal::PythonClassWrapper<T,
+        typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+_mapSet(PyObject* self, PyObject* key, PyObject* value){
+    int status = -1;
+    for( auto method = _mapMethodCollection.begin(); method != _mapMethodCollection.end(); ++method){
+        if((status = method->second.second(self, key, value)) == 0){
+            PyErr_Clear();
+            break;
+        }
+    }
+    return status;
+};
+
+namespace {
+
+
+    template< typename K, typename V>
+    class Name{
+    public:
+        static const std::string name ;
+    };
+
+    template<typename K, typename V>
+    const std::string
+    Name<K,V>::name = std::string(typeid(K).name()) + std::string(typeid(V).name());
+}
+
+
+#include <functional>
+template<typename T>
+template< typename KeyType, typename ValueType>
+void __pyllars_internal::PythonClassWrapper<T,
+        typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+addMapOperatorMethod( typename MethodContainer<T_NoRef>::template Container<operatormapname, ValueType, KeyType>::method_t method){
+    std::function<PyObject*(PyObject*, PyObject*)> getter =  [method](PyObject* self, PyObject* item)->PyObject*{
+                                     PythonClassWrapper*  self_ = (PythonClassWrapper*) self;
+                                     try{
+                                          auto c_key = toCObject<KeyType, defaults_to_string<KeyType>::value, PythonClassWrapper<KeyType> >(*item);
+                                          return toPyObject((self_->get_CObject()->*method)(*c_key), false, 1);
+                                     } catch(const char* const msg){
+                                        PyErr_SetString(PyExc_TypeError, msg);
+                                        return nullptr;
+                                     }
+                                     };
+    std::function<int(PyObject*, PyObject*, PyObject*)> setter = [method](PyObject* self, PyObject* item, PyObject* value)->int {
+                                    PythonClassWrapper*  self_ = (PythonClassWrapper*) self;
+                                     try{
+                                        auto c_value = toCObject<ValueType, defaults_to_string<ValueType>::value, PythonClassWrapper<ValueType>>(*value);
+                                        auto c_key = toCObject<KeyType,  defaults_to_string<KeyType>::value, PythonClassWrapper<KeyType> >(*item);
+                                        (self_->get_CObject()->*method)(*c_key) = *c_value;
+                                     } catch (const char* const msg){
+				                        PyErr_SetString(PyExc_TypeError, "Cannot assign to value of unrelated type.");
+                                        return -1;
+                                    }
+                                     return 0;
+                                 };
+
+    const std::string name = Name<ValueType, KeyType>::name;
+    _mapMethodCollection[name] = std::pair<std::function<PyObject*(PyObject*, PyObject*)>,
+                                             std::function<int(PyObject*, PyObject*, PyObject*)>
+                                            >(getter, setter);
+
+    static PyMappingMethods methods = {nullptr, _mapGet, _mapSet};
+    Type.tp_as_mapping = &methods;
+}
+
+template<typename T>
+template< typename KeyType, typename ValueType>
+void __pyllars_internal::PythonClassWrapper<T,
+        typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+addMapOperatorMethodConst( typename ConstMethodContainer<T_NoRef>::template Container<operatormapname, ValueType, KeyType>::method_t method){
+    std::function<PyObject*(PyObject*, PyObject*)> getter =  [method](PyObject* self, PyObject* item)->PyObject*{
+        PythonClassWrapper*  self_ = (PythonClassWrapper*) self;
+        try{
+            auto c_key = toCObject<KeyType, defaults_to_string<KeyType>::value, PythonClassWrapper<KeyType> >(*item);
+            return toPyObject((self_->get_CObject()->*method)(*c_key), false, 1);
+        } catch(const char* const msg){
+            PyErr_SetString(PyExc_TypeError, msg);
+            return nullptr;
+        }
+    };
+
+    std::function<int(PyObject*, PyObject*, PyObject*)> setter = [method](PyObject* self, PyObject* item, PyObject* value)->int {
+        PyErr_SetString(PyExc_TypeError, "Unable to set value of const mapping");
+        return 1;
+    };
+
+    const std::string name = Name<ValueType, KeyType>::name;
+    //do not override a non-const with const version of operator[]
+    if (!_mapMethodCollection.count(name)) {
+        _mapMethodCollection[name] = std::pair < std::function < PyObject * (PyObject * , PyObject *) >,
+                std::function < int(PyObject * , PyObject * , PyObject * ) >
+                > (getter, setter);
+    }
+    static PyMappingMethods methods = {nullptr, _mapGet, _mapSet};
+    Type.tp_as_mapping = &methods;
+}
+
+template<typename T>
 template<const char *const name, typename ReturnType, typename ...Args>
 void __pyllars_internal::PythonClassWrapper<T, 
         typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
@@ -1032,7 +1154,7 @@ _createBase( ObjContainer<T_NoRef> *&cobj, PyObject *args, PyObject *kwds,
     }
 
     return _createBaseBase<Args...>(cobj,
-                                    *toCObject<Args, false, PythonClassWrapper<Args> >(*pyobjs[S])...);
+                                    *toCObject<Args, defaults_to_string<Args>::value, PythonClassWrapper<Args> >(*pyobjs[S])...);
 }
 
 template<typename T>

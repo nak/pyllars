@@ -136,11 +136,11 @@ namespace __pyllars_internal {
      *  Types used to define a smart pointer that knows if contained
      *  element is dynamically allocated and should be deleted (or not)
      */
-    template<typename T, bool is_array = false, typename E = void>
+    template<typename T, bool array_allocated, typename E = void>
     struct smart_delete;
 
-    template<typename T, bool is_array>
-    struct smart_delete<T, is_array, typename std::enable_if<!std::is_destructible<T>::value>::type> {
+    template<typename T, bool array_allocated>
+    struct smart_delete<T, array_allocated, typename std::enable_if<!std::is_destructible<T>::value>::type> {
 
         typedef typename std::remove_reference<T>::type T_base;
 
@@ -156,7 +156,7 @@ namespace __pyllars_internal {
 
 
     template<typename T>
-    struct smart_delete<T, false, typename std::enable_if<std::is_destructible<T>::value && !std::is_array<typename std::remove_reference<T>::type>::value>::type> {
+    struct smart_delete<T, false, typename std::enable_if<std::is_destructible<T>::value>::type> {
 
         typedef typename std::remove_reference<T>::type T_base;
 
@@ -173,7 +173,7 @@ namespace __pyllars_internal {
     };
 
     template<typename T>
-    struct smart_delete<T, false, typename std::enable_if<std::is_destructible<T>::value && std::is_array<typename std::remove_reference<T>::type>::value>::type> {
+    struct smart_delete<T, true, typename std::enable_if<std::is_destructible<T>::value > ::type >{
 
         typedef typename std::remove_reference<T>::type T_base;
 
@@ -181,7 +181,7 @@ namespace __pyllars_internal {
         }
 
         void operator()(T_base *ptr) const {
-            if (_deleteable) {
+             if(_deleteable){
                 delete[] ptr;
             }
         }
@@ -189,23 +189,9 @@ namespace __pyllars_internal {
         const bool _deleteable;
     };
 
-    template<typename T>
-    struct smart_delete<T, true, typename std::enable_if<std::is_destructible<T>::value>::type> {
 
-        typedef typename std::remove_reference<T>::type T_base;
-
-        smart_delete(const bool deleteable) : _deleteable(deleteable) {
-        }
-
-        void operator()(T_base *ptr) const {
-            if (_deleteable) delete[] ptr;
-        }
-
-        const bool _deleteable;
-    };
-
-    template<typename T, bool is_array = false>
-    using smart_ptr = std::unique_ptr<typename std::remove_reference<T>::type, smart_delete<T, is_array> >;
+    template<typename T, bool array_allocated>
+    using smart_ptr = std::unique_ptr<typename std::remove_reference<T>::type, smart_delete<T, array_allocated> >;
 
 
     /**
@@ -533,6 +519,31 @@ namespace __pyllars_internal {
 
     private:
         t contained2[size];
+    };
+
+    template<typename Type>
+    struct defaults_to_string{
+        static constexpr bool value = std::is_array<Type>::value;
+    };
+
+    template<>
+    struct defaults_to_string<char*>{
+        static constexpr bool value = false;
+    };
+
+    template<>
+    struct defaults_to_string<const char*>{
+        static constexpr bool value = false;
+    };
+
+    template<>
+    struct defaults_to_string<char* const>{
+        static constexpr bool value = false;
+    };
+
+    template<>
+    struct defaults_to_string<const char* const>{
+        static constexpr bool value = false;
     };
 }
 
