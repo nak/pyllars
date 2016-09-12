@@ -57,7 +57,8 @@ namespace __pyllars_internal {
         struct Array;
 
         template<typename T>
-        struct Array<T, typename std::enable_if<is_complete<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value>::type> {
+        struct Array<T, typename std::enable_if<is_complete<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value&&
+                                                !std::is_void <typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value>::type> {
             typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
 
             static T_base &at(T array, size_t index);

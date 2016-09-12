@@ -1,22 +1,39 @@
 import os
 from abc import abstractmethod
 
+system_mapping = {'bits/waitlist.h': '/usr/include/wait.h',
+                  'bits/waitstatus.h': '/usr/include/wait.h'}
+
+def system_patch(path):
+    if path and path.startswith('/usr/include'):
+        for mapped_path, patched in system_mapping.items():
+            if path.endswith(mapped_path):
+                return patched
+    return path
+
+def sanitize(name):
+    if name == "::":
+        return "pyllars"
+    return  name.replace("<", "__").replace(">", "__").replace(",", "___").replace(" ", "_"). \
+        replace('::::','::').replace("::", "____").replace('&','_and_').replace("*","_star_").replace('c++', 'cxx').\
+        replace('+', 'X').replace('-', '_').replace('&','_and_').replace('*','_start_')
 
 class BaseElement(object):
 
+    PSEUDO_ID = "PSEUDO"
+    KEYWORDS = ['errno', 'wait', 'obstack']
+
     def __init__(self, name, id_, header_filename, context):
         assert (context is None or isinstance(context, Namespace) or isinstance(context, Type))
-        assert (id is not None)
+        assert (id_ is not None)
         assert (name is not None)
         nameparts = name.split('<')
         nameparts[0] = nameparts[0].replace('::',"")
         self.name = "<".join(nameparts)
         self.id_ = id_
-        assert(self != context and (name not in FundamentalType.TYPES and (name == "::" or context is not None)), "Context for %s is %s"%(name, context))
         self.context = context
-        self.header_filename = header_filename
-        self.sanitized_name = name.replace("<", "__").replace(">", "__").replace(",", "___").replace(" ", "_"). \
-            replace('::::','::').replace("::", "____").replace('&','_and_').replace("*","_star_")
+        self.header_filename = system_patch(header_filename) or header_filename
+        self.sanitized_name = sanitize(name)
         self.children = []
         fallback_name = os.path.basename(self.header_filename).split('.')[0] if self.header_filename else None
         if context:
@@ -24,23 +41,45 @@ class BaseElement(object):
             while not isinstance(parent_mod, Namespace):
                 parent_mod = parent_mod.context
             parent_mod.is_global_namespace = (parent_mod.name == "::" or parent_mod.name =="")
-            self.module_name = parent_mod.name if not parent_mod.is_global_namespace or not fallback_name else fallback_name
+            self.module_name = parent_mod.name if (not parent_mod.is_global_namespace or not fallback_name) else fallback_name
         else:
-            self.module_name = "pyllars"
+            parent_mod = Namespace.global_ns or self if name == "" or name == "pyllars" else Namespace("", "_1", None, None)
+            parent_mod.is_global_namespace = True
+            self.module_name = "pyllars" if isinstance(self, Namespace) else ( fallback_name or "pyllars")
+        if self.module_name in BaseElement.KEYWORDS:
+            self.module_name += "_"
+        self.pseudo_context = context if id_ == "_1" or id_==BaseElement.PSEUDO_ID or (parent_mod and not parent_mod.is_global_namespace) else \
+            (Namespace.namespaces.get(self.module_name) or Namespace( name=self.module_name,
+                                                                      id_=BaseElement.PSEUDO_ID,
+                                                                      header_filename=header_filename,
+                                                                      context=Namespace.global_ns or Namespace("","_1",None,None)))
 
     def get_full_module_name(self):
         context = self.context
-        if context is None:
+        if context is None or context.id_ == BaseElement.PSEUDO_ID:
             return self.module_name
         while not isinstance(context, Namespace):
             context = context.context
         if context.is_global_namespace:
             return self.module_name
+        elif context.context and context.context.name:
+            return ".".join([context.context.get_full_module_name(), self.module_name])
         else:
-            return ".".join([context.get_full_module_name(), self.module_name])
+            return self.module_name
+
+    def get_top_module_name(self):
+        if self.context and self.id_ == BaseElement.PSEUDO_ID:
+            return self.name
+        top = self
+        while top.context and top.context.name not in ["::","","pyllars"]:
+            top = top.context
+        return top.module_name
 
     def get_name(self):
         return self.name
+
+    def empty(self):
+        return len(self.children) == 0
 
 # noinspection PyUnusedLocal
 class Namespace(BaseElement):
@@ -49,11 +88,14 @@ class Namespace(BaseElement):
     """
 
     namespaces = {}
+    global_ns = None
 
     def __init__(self, name, id_, header_filename, context):
         BaseElement.__init__(self, name, id_, header_filename, context)
         assert (context is None or isinstance(context, Namespace))
         self.is_global_namespace = (self.name == "::" or self.name =="")
+        if self.is_global_namespace:
+            Namespace.global_ns = self
         if context and context.full_name != "::":
             self.full_name = context.full_name + "::" + name
         else:
@@ -80,17 +122,25 @@ class Namespace(BaseElement):
             return "__".join([self.context.mod_object_name(), self.name])
 
     def get_include_parent_path(self):
-        if self.context is None or self.context.name == "::":
-            return "pyllars"
+        if self.context is None or self.name == "::" or self.name == "":
+            path = "pyllars"
         else:
-            return os.path.join(self.context.get_include_parent_path(), self.name or "pyllars").replace(" ", "_"). \
-                replace("<", "__").replace(">", "__").replace("::::", "::").replace("::", "____").replace(", ", "__").replace('&','_and_').replace("*","_star_")
+            path = sanitize(os.path.join(self.context.get_include_parent_path(), self.name or "pyllars").replace(" ", "_"))#. \
+                ###replace("<", "__").replace(">", "__").replace("::::", "::").replace("::", "____").replace(", ", "__").replace('&','_and_').replace("*","_star_")
+
+        return path
 
     def get_header_filename(self, path=None):
+        if self.id_ == BaseElement.PSEUDO_ID and self.name != "pyllars":
+            return os.path.join(self.get_include_parent_path(), "%s_module.hpp" % self.name) if path is None else \
+                os.path.join(path, self.get_include_parent_path(), "%s_module.hpp" % self.name)
         return os.path.join(self.get_include_parent_path(), "module.hpp") if path is None else \
             os.path.join(path, self.get_include_parent_path(), "module.hpp")
 
     def get_body_filename(self, path=None):
+        if self.id_ == BaseElement.PSEUDO_ID and self.name != "pyllars":
+            return os.path.join(self.get_include_parent_path(), "%s_module.cpp" % self.name) if path is None else \
+                os.path.join(path, self.get_include_parent_path(), "%s_module.cpp" % self.name)
         return os.path.join(self.get_include_parent_path(), "module.cpp") if path is None else \
             os.path.join(path, self.get_include_parent_path(), "module.cpp")
 
@@ -105,15 +155,13 @@ class Namespace(BaseElement):
         depth = 0
         indent = "   "
         fullindent = indent
-        context_name = self.context.name + "::" + self.context.name + "_mod" if not self.is_global_namespace else \
-            "::pyllars_mod"
+        context_name = self.context.name + "::" + self.context.name + "_mod" if self.context and self.context.name and not self.is_global_namespace else \
+            "pyllars::pyllars_mod"
         precode = ""
         precode += """
 %(indent)sstatic status_t init_functions(PyObject *%(name)s_mod){
 %(indent)s   int status = 0;
-""" % {'name': self.name, 'indent': indent, 'fullname': self.full_name,
-       'parent_init': "pyllars%s::init();" % self.context.get_qualified_name()
-       if self.context and self.context.full_name != "::" else ""}
+""" % {'name': self.sanitized_name, 'indent': indent, 'fullname': self.full_name}
         headers = []
         for func in [f for f in self.children if isinstance(f, Function)]:
             if func.header_filename is not None:
@@ -128,7 +176,7 @@ class Namespace(BaseElement):
 %(indent)s                 is_complete< %(return_type)s >::value, %(return_type)s %(arguments)s>::
 %(indent)s                 create("%(func_name)s", %(context)s::%(func_name)s, argumentnames));
 %(indent)s      }""" % {'indent': indent,
-                        'name': self.name.replace("::::", "::"),
+                        'name': self.sanitized_name,
                         'func_name': func.name,
                         'context': self.get_qualified_name(),
                         'return_type': func.return_type.get_qualified_name(),
@@ -144,21 +192,22 @@ class Namespace(BaseElement):
 """ % {'indent': indent}
         while p is not None and p.name != "" and p.name != "::":
             code = """%(indent)snamespace %(name)s{
-%(indent)s""" % {'name': p.name or "pyllars", 'indent': indent} + code
+%(indent)s""" % {'name': p.sanitized_name, 'indent': indent} + code
             p = p.context
             depth += 1
             fullindent += indent
-        if self.name != "" and self.name != "::":
+
+        if self.name != "" and self.name != "::" and self.name != "pyllars":
             code = "namespace pyllars{\n" + code
         indent = fullindent[3:]
         header_code = header_code + code + """
 %(indent)sextern PyObject* %(name)s_mod;
 
 %(indent)sstatus_t init();
-""" % {'name': self.name, 'indent': indent}
+""" % {'name': self.sanitized_name, 'indent': indent}
         code += """
 %(indent)sPyObject* %(name)s_mod;
-""" % {'name': self.name, 'indent': indent}
+""" % {'name': self.sanitized_name, 'indent': indent}
         for header in headers + ["iostream"]:
             precode = "#include <%s>\n" % header + precode
         precode += "\n// MUST INCLUDE IOSTREAM DUE TO NON_FWD DECLARATION IN GNU C++ FOR std::getline THAT NEEDS COMPLETE TYPE DEFINITION AS AND WHERE DEFINED\n\n"
@@ -171,13 +220,13 @@ class Namespace(BaseElement):
 %(indent)s   %(name)s_mod = Py_InitModule3("%(name)s", nullptr,"Module corresponding to C++ namespace %(fullname)s");
 %(indent)s   if( %(name)s_mod ){
 %(indent)s      status |= init_functions(%(name)s_mod);
-""" % {'name': self.name, 'indent': indent, 'fullname': self.full_name or "pyllars",
-       'parent_init': "pyllars%s::init();" % self.context.get_qualified_name()
-       if self.context and self.context.full_name != "::" else ""}
-        if self.context is not None and self.context.context is not None:
+""" % {'name': self.sanitized_name, 'indent': indent, 'fullname': self.full_name or "pyllars",
+       'parent_init': ("pyllars%s::init();" % self.context.get_qualified_name())
+       if self.context and self.context.name and self.context.full_name != "::" else ""}#######
+        if self.context or (self.context is not None and self.context.context is not None):
             code += """
 %(indent)s      status |= PyModule_AddObject( %(contextname)s, "%(name)s", %(name)s_mod );
-""" % {'name': self.name, 'indent': indent, 'contextname': context_name, 'fullname': self.full_name or "pyllars",
+""" % {'name': self.sanitized_name, 'indent': indent, 'contextname': context_name, 'fullname': self.full_name or "pyllars",
        'parent_init': "pyllars%s::init();" % self.context.get_qualified_name()
        if self.context and self.context.full_name != "::" else ""}
         code += """
@@ -197,24 +246,21 @@ extern "C"{
 %(indent)s//add init to methods to be called on intiailization
 %(indent)sstatic pyllars::Initializer __initializer( init );
 
-""" % {'name': self.name, 'indent': indent, 'contextname': context_name, 'fullname': self.full_name or "pyllars",
-       'parent_init': "pyllars%s::init();" % self.context.get_qualified_name()
-       if self.context and self.context.full_name != "::" else ""}
+""" % {'name': self.sanitized_name, 'indent': indent, 'contextname': context_name, 'fullname': self.full_name or "pyllars",
+       'parent_init': ("pyllars%s::init();" % self.context.get_qualified_name())
+       if self.context and self.get_qualified_name() and self.context.full_name != "::" else ""}
 
         #  closing brackets:
         for i in range(depth):
             indent = indent[:-3]
             code += indent + '}\n'
             header_code += indent + '}\n'
-        if self.name != "" and self.name != "::":
-            code += "}\n"
-        if self.name != "" or self.name != "::":
-            header_code += "\n}"
+        if self.name != "" and self.name != "::" and self.name != "pyllars":
+            code += "}//ENDNS\n"
+        if self.name != "" and self.name != "::" and self.name != "pyllars":
+            header_code += "\n}//ENDns '%s'" % self.sanitized_name
         code += "// END %s" % self.full_name
-        if include_path.startswith('.'):
-            guard = include_path[1:].replace('/', '__')
-        else:
-            guard = include_path.replace('/', '__')
+        guard = sanitize(include_path[1:].replace('/', '__').replace('.',''))
         mod_header_path = os.path.dirname(self.get_include_parent_path())
         if mod_header_path == '/' or mod_header_path == "":
             mod_header_path = "pyllars.hpp"
@@ -229,25 +275,34 @@ extern "C"{
 
 #endif
 """
-        my_header_path = self.get_header_filename(
-            path)  # os.path.join(self.get_include_parent_path(), self.name + ".hpp")
         if suffix == "":
+            top_context = self.context
+            while top_context and top_context.context and top_context.context.name and top_context.context.name != "":
+                top_context = top_context.context
+            if top_context and top_context.name == "std":
+                code += """using namespace std; \n"""
             code = """
 #include <Python.h>
-#include <%(path)s/module.hpp>
+#include <%(path)s/%(prefix)smodule.hpp>
 #include <pyllars_classwrapper.cpp>
 #include <pyllars_function_wrapper.hpp>
-#include "%(header)s"
-""" % {'header': self.header_filename, 'path': self.get_include_parent_path()} + code
+%(header_include)s
+""" % {'header_include': ("#include \"%s\"" % self.header_filename) if self.header_filename else "",
+       'path': self.get_include_parent_path(),
+       'prefix': self.name+"_" if self.id_ == BaseElement.PSEUDO_ID  and self.name != "pyllars" else ""} + code
         return header_code, code
 
     def get_qualified_name(self, iterative=False):
-        if self.context is not None:
-            return "::".join([self.context.get_qualified_ns_name(True), self.sanitized_name])
+        name = ""
+        if self.id_ == BaseElement.PSEUDO_ID:
+            name = "::" + self.name
+        elif self.context is not None:
+            name = "::".join([self.context.get_qualified_ns_name(True), self.sanitized_name])
         elif not iterative:
-            return self.get_name().replace('  ',' ').replace('const const', 'const')
+            name = self.get_name().replace('  ',' ').replace('const const', 'const')
         else:
             return ""
+        return name
 
     def get_qualified_ns_name(self, sanitized=False):
         return self.get_qualified_name(sanitized)
@@ -312,7 +367,8 @@ class Type(BaseElement):
     def get_include_parent_path(self):
         if self.context is None:
             return None
-        return os.path.join(self.context.get_include_parent_path(), self.sanitized_name) if self.context is not None else None
+        path = os.path.join(self.context.get_include_parent_path(), self.sanitized_name) if self.context is not None else None
+        return path
 
     def get_header_filename(self, path=None):
         if self.scope in ['private', 'protected']:
@@ -337,19 +393,27 @@ class Type(BaseElement):
         else:
             nsid = self.context.id_
         my_header_path = self.get_header_filename(path)
+
+        top_context = self.context
+        while top_context.context and top_context.context.name and top_context.context.name != "":
+            top_context = top_context.context
+        if top_context.name == "std":
+            code += """using namespace std;\n"""
+
         code += """
 #include <Python.h>
 #include <pyllars.hpp>
 #include <pyllars_classwrapper.cpp>
 #include <pyllars_function_wrapper.hpp>
-//#include <%(headername)s>
 #include "%(myheader)s"
+//parent module header: %(id)s
 #include "%(myparentheader)s"
 
 using namespace __pyllars_internal;
 
-""" % {'myheader': my_header_path, 'headername': self._header_filename, 'namespace_id': nsid,
-       'myparentheader': self.context.get_header_filename(path)}
+""" % {'id': self.pseudo_context.id_,
+       'myheader': my_header_path, 'headername': self._header_filename, 'namespace_id': nsid,
+       'myparentheader': self.pseudo_context.get_header_filename(path)}
         for child in [c for c in self.children if isinstance(c, Type) if c.name != ""]:
             if child.get_header_filename(path):
                 code += """
@@ -501,24 +565,26 @@ class Class(Type):
             guard = include_path[1:].replace('/', '__')
         else:
             guard = include_path.replace('/', '__')
-        parent = self.context
+        parent = self.pseudo_context
         while parent is not None and not isinstance(self.context, Namespace):
             parent = parent.context
-        mod_header_path = parent.get_header_filename() if parent is not None else "pyllars.hpp"
+        mod_header_path = parent.get_header_filename() if parent is not None and parent.name != "<builtin>" else "pyllars.hpp"
         assert (not mod_header_path.startswith('/'))
         indent = ""
         p = self
         namespace_decls = ""
         level = 0
         while p.context is not None:
-            level += 1
             if isinstance(p.context, Namespace):
-                namespace_decls = "\nnamespace %s{" % (p.context.name or "pyllars") + namespace_decls.\
+                namespace_decls = "\nnamespace %s{" % (p.context.sanitized_name or "pyllars") + namespace_decls.\
                     replace('\n', '\n' + indent)
-            else:
+                level += 1
+                indent += "   "
+            elif p.context.sanitized_name:
                 namespace_decls = "\nnamespace %s___ns{" % p.context.sanitized_name + namespace_decls.\
                     replace('\n', '\n' + indent)
-            indent += "   "
+                level += 1
+                indent += "   "
             p = p.context
         namespace_decls += "\n%snamespace %s___ns{\n" % (indent, self.sanitized_name)
         level += 1
@@ -527,11 +593,14 @@ class Class(Type):
 #define %(guard)s
 #include <pyllars_classwrapper.hpp>
 #include <%(path)s>
+#ifndef _%(CLASSHEADER)s
 #include <%(classheader)s>
+#endif
 
 typedef %(full_class_name)s %(sname)s_Target_Type;
 
     """ % {'path': mod_header_path, 'classheader': self.header_filename, 'guard': guard,
+           'CLASSHEADER': os.path.basename(self.header_filename).upper().replace('.', '_'),
            'full_class_name': class_name, 'sname': self.sanitized_name or self.id_} + namespace_decls
         header_code += """
 %(indent)sstatus_t initialize_type%(suffix)s();
@@ -568,7 +637,7 @@ typedef const char c_string[];
             parent_init = self.context.get_qualified_name() + "::init"
         else:
             parent_init = self.context.get_qualified_ns_name() + "::initialize_type"
-        parent_mod = self.context
+        parent_mod = self.pseudo_context
         while not isinstance(parent_mod, Namespace):
             parent_mod = parent_mod.context
 
@@ -1084,14 +1153,15 @@ typedef %(full_class_name)s %(sname)s_Target_Type;
 #include <pyllars.hpp>
 #include <pyllars_classwrapper.cpp>
 #include <pyllars_function_wrapper.hpp>
-//#include <%(headername)s>
 #include "%(myheader)s"
+//parent module header: %(id)s
 #include "%(myparentheader)s"
 
 using namespace __pyllars_internal;
 
-""" % {'myheader': my_header_path, 'headername': self._header_filename, 'namespace_id': nsid,
-           'myparentheader': self.context.get_header_filename(path)}
+""" % {'id': self.pseudo_context.id_,
+       'myheader': my_header_path, 'headername': self._header_filename, 'namespace_id': nsid,
+           'myparentheader': self.pseudo_context.get_header_filename(path)}
         code += """static inline status_t initialize_type(){
    static bool inited = false;
    if (inited){
@@ -1112,7 +1182,7 @@ using namespace __pyllars_internal;
         code += """
    status |= PythonClassWrapper< %(fullname)s >::initialize("%(fullname)s", "%(name)s", %(parent_mod)s,"%(fullname)s");
 """ % {'fullname': self.get_qualified_name(True).replace('<',"__").replace('>','__').replace(',','__').replace('&','_and_').replace("*","_star_"),
-       'name': self.name, 'parent_mod': ("pyllars%s::%s_mod" % (self.context.get_qualified_ns_name(),
+       'name': self.name, 'parent_mod': ("pyllars%s::%s_mod" % (self.pseudo_context.get_qualified_ns_name(),
                                                                 self.module_name))
         if isinstance(self.context, Namespace) else "nullptr"}
         if not isinstance(self.context, Namespace):
@@ -1201,7 +1271,7 @@ class Function(object):
     def __init__(self, id_, name, return_type, context, header_filename, arguments=None, scope=None):
         assert (isinstance(return_type, Type))
         assert (isinstance(context, Namespace) or isinstance(context, Type))
-        self.header_filename = header_filename
+        self.header_filename = system_patch(header_filename) or header_filename
         for argument in arguments or []:
             assert (isinstance(argument, tuple))
             assert (len(argument) == 2)

@@ -1,5 +1,4 @@
 from distutils.core import setup, Extension
-import lxml.etree as et
 import os
 
 opt_level=os.getenv("OPTIMIZATION_LEVEL") or "3"
@@ -32,7 +31,7 @@ def generate_code():
     print("Executing: '%s'"% " ".join(args))
     p = subprocess.Popen(args)
     if p.wait() != 0:
-      sys.exit(1)
+        sys.exit(1)
     return processor.process(output_path, outdir, class_filters=["__do_is_default_constructible_impl", ])
 
         
@@ -43,22 +42,23 @@ for mod_name, compilable in compilables:
     sources.setdefault(base_mod_name, []).append(compilable)
 for base_mod_name in sources:
     sources[base_mod_name] += addl_sources_by_module_name.get(base_mod_name) or []
-print "==========> %s" % sources
+print "==========> %s" % sources.keys()
 modules=[]
 for mod, compilables in sources.iteritems():
-    if mod != "__gnu_cxx":
-        continue
+    #print mod
+    #if mod != "libio":
+    #    continue
     module = Extension(mod,
-                       include_dirs = ['.','../pyllars', outdir, ],
-                       language='c++',
-                       extra_compile_args=["-std=c++14",
-                                           "-fPIC",
-                                           "-O%s" % opt_level,
-                                           "-Wall",
-                                         ],
-                       extra_link_args=["-Wl,--no-undefined", "-fPIC", "-lpython2.7"],
-                       sources=compilables +["../pyllars/pyllars.cpp", ],
-                       )
+                   include_dirs = ['.','../pyllars', outdir, ],
+                   language='c++',
+                   extra_compile_args=["-std=c++14",
+                                       "-fPIC",
+                                       "-O%s" % opt_level,
+                                       "-Wall",
+                                     ],
+                   extra_link_args=["-Wl,--no-undefined", "-fPIC", "-lpython2.7"],
+                   sources=list(set(compilables +["../pyllars/pyllars.cpp", "build/gen/pyllars/pyllars/module.cpp" ])),
+                   )
     modules.append(module)
     try:
         setup (name = 'PyllarsBasicCTest',

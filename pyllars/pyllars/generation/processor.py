@@ -35,25 +35,33 @@ class ResultsProcessor(object):
 
 
 def process(castxml_file, build_dir, class_filters = None):
-    from pyllars.generation.elements import Function
+    from pyllars.generation.elements import Function, Namespace, BaseElement
     items = ResultsProcessor.process(castxml_file, class_filters)
     compilables = []
-    for item in [i for i in items.itervalues() if i.get_body_filename() is not None and not(isinstance(i,Function)) and os.path.basename((i.get_header_filename() or '.hpp'))!='.hpp']:
+
+    def process_item(item):
         if item.get_body_filename().split('/')[-1]==".cpp": raise Exception(item.name +">>" + str(os.path.basename(item.get_header_filename() or '.hpp')=='.hpp'))
         code = item.generate_code(".")
         if code is not None and item.name != "":
-            print "ITEM %s:  %s %s"%(item.id_,item.name, item.get_header_filename())
             header, body = code
             if not os.path.exists(os.path.join(build_dir,item.get_include_parent_path().replace(" ","_").replace("<", "__").replace(">", "__").replace("::", "____").replace(", ", "__"))):
                 os.makedirs(os.path.join(build_dir,item.get_include_parent_path().replace(" ","_").replace("<","__").replace(">","__").replace("::", "____").replace(", ","__")))
             with open(os.path.join(build_dir, item.get_header_filename().replace("<", "__").replace(" ","_").replace(">","__").replace("::", "____").replace(", ", "__")), 'w') as f:
                 f.write(header)
-                print "Wrote header: %s"%f.name
             with open(os.path.join(build_dir,item.get_body_filename().replace("<", "__").replace(" ","_").replace(">", "__").replace("::","____").replace(", ", "__")), 'w') as f:
                 f.write(body)
-                compilables.append((item.get_full_module_name().split('.')[0], f.name))
-                print "Wrote body: %s"%f.name
-    return compilables
+                if item.get_body_filename() == "libio":
+                    raise Exception()
+                compilables.append((item.get_top_module_name().split('.')[0], f.name))
+
+    for item in [i for i in items.itervalues() if i.get_body_filename() is not None and
+                    not(isinstance(i,Function)) and os.path.basename((i.get_header_filename() or '.hpp'))!='.hpp']:
+        process_item(item)
+    # Also process any newly added pseudo namespace modules
+    for item in [n for n in Namespace.namespaces.values() if n.id_ == BaseElement.PSEUDO_ID]:
+        process_item(item)
+
+    return [c for c in compilables if c[0]!="<builtin>" and c[0] != "__builtin__"]
 
 if __name__ == "__main__":
     import sys

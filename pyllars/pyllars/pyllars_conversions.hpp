@@ -107,7 +107,7 @@ namespace __pyllars_internal {
     };
 
     /**
-    * Specialization for cosnt char*
+    * Specialization for const char*
     **/
     template<typename ClassWrapper, bool array_allocated>
     class CObjectConversionHelper<const char *, array_allocated, ClassWrapper> {
@@ -115,7 +115,7 @@ namespace __pyllars_internal {
 
         typedef typename ClassWrapper::NonConstWrapper NonConstClassWrapper;
         typedef typename ClassWrapper::ConstWrapper ConstClassWrapper;
-        typedef  smart_ptr<const char *, false> ptr_t;
+        typedef  smart_ptr<const char *, array_allocated> ptr_t;
         static ptr_t toCObject(PyObject &pyobj);
     };
 
@@ -128,7 +128,7 @@ namespace __pyllars_internal {
 
         typedef typename ClassWrapper::NonConstWrapper NonConstClassWrapper;
         typedef typename ClassWrapper::ConstWrapper ConstClassWrapper;
-        typedef smart_ptr<const char *, false> ptr_t;
+        typedef smart_ptr<const char *, array_allocated> ptr_t;
         static ptr_t toCObject(PyObject &pyobj);
     };
 
@@ -141,7 +141,7 @@ namespace __pyllars_internal {
 
         typedef typename ClassWrapper::NonConstWrapper NonConstClassWrapper;
         typedef typename ClassWrapper::ConstWrapper ConstClassWrapper;
-        typedef smart_ptr<const char *const, false> ptr_t;
+        typedef smart_ptr<const char *const, array_allocated> ptr_t;
         static ptr_t toCObject(PyObject &pyobj);
     };
 
@@ -162,7 +162,7 @@ namespace __pyllars_internal {
     template<typename ClassWrapper, bool array_allocated>
     class CObjectConversionHelper<char *, array_allocated, ClassWrapper> {
     public:
-        typedef smart_ptr<char *, true> ptr_t;
+        typedef smart_ptr<char *, array_allocated> ptr_t;
         static ptr_t toCObject(PyObject &pyobj) ;
     };
 

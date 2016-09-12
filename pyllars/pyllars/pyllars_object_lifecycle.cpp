@@ -11,7 +11,8 @@ namespace __pyllars_internal{
 
     template<typename T>
     typename std::remove_pointer<typename extent_as_pointer<T>::type>::type  &
-    ObjectLifecycleHelpers::Array<T, typename std::enable_if<is_complete<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value>::type>::
+    ObjectLifecycleHelpers::Array<T, typename std::enable_if<is_complete<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value&&
+                                                             !std::is_void <typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value>::type>::
     at(T array, size_t index) {
             return array[index];
     }
@@ -66,9 +67,9 @@ namespace __pyllars_internal{
         Copy<T, typename std::enable_if<
             (!std::is_assignable<typename std::remove_reference<T>::type, typename std::remove_reference<T>::type>::value ||
              !std::is_destructible<typename std::remove_reference<T>::type>::value) &&
-            std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type>::
+             std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type>::
     new_copy(const T_NoRef &value) {
-        return new ObjContainerProxy<T_NoRef, const T &>(value);
+        return new ObjContainerProxy<T_NoRef, const T_NoRef &>(value);
     }
 
     template<typename T>
@@ -371,8 +372,7 @@ namespace __pyllars_internal{
             !std::is_destructible<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value>::type>::
     _free(PtrWrapper *self) {
             if (self->_raw_storage) {
-                // No class type here, so no need to call inline destructor
-                delete[] self->_raw_storage;
+                // //Not destructible, so no delete call
             } else if (self->_allocated) {
                 //Not destructible, so no delete call
             }

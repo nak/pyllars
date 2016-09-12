@@ -9,7 +9,7 @@ typedef int status_t;
 
 namespace pyllars{
 
-
+  extern PyObject *pyllars_mod;
 
   class Initializer{
   public:

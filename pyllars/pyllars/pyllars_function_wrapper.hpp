@@ -16,7 +16,7 @@ namespace __pyllars_internal {
      **/
 
     template<bool is_base_return_complete, typename ReturnType, typename ...Args>
-    struct PythonFunctionWrapper {
+    struct PythonFunctionWrapper: public CommonBaseWrapper {
         PyObject_HEAD
 
         typedef ReturnType(*func_type)(Args...);
@@ -200,7 +200,7 @@ namespace __pyllars_internal {
 
     /** specialize for void returns **/
     template<typename ...Args>
-    struct PythonFunctionWrapper<true, void, Args...> {
+    struct PythonFunctionWrapper<true, void, Args...> : public CommonBaseWrapper{
         PyObject_HEAD
 
         typedef void(*func_type)(Args...);

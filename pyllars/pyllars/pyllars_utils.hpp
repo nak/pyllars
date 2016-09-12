@@ -453,8 +453,8 @@ namespace __pyllars_internal {
     struct ObjContainerPtrProxy<void, b> : public ObjContainer<void> {
 
       ObjContainerPtrProxy(void *const ptr, const size_t size, const bool isAllocated = false) :
-	ObjContainer<void>(ptr, 0, isAllocated){
-      }
+	    ObjContainer<void>(ptr, 0, isAllocated){
+        }
 
         virtual ~ObjContainerPtrProxy() {
         }
@@ -495,8 +495,8 @@ namespace __pyllars_internal {
     struct ObjContainerProxy : ObjContainer<T> {
 
         ObjContainerProxy(Args ...args) :
-	  ObjContainer<T>(contained2, 0, false),
-                contained2(args...) {
+	        ObjContainer<T>(contained2, 0, false),
+            contained2(args...) {
         }
 
 
@@ -508,7 +508,7 @@ namespace __pyllars_internal {
     struct ObjContainerProxy<t[size], t[size]> : ObjContainer<t[size]> {
 
         ObjContainerProxy(t arg[size]) :
-	  ObjContainer<t[size]>(contained2, size, false),
+	     ObjContainer<t[size]>(contained2, size, false),
                 contained2{arg[0]} {
             typedef typename std::remove_const<t>::type unconst_t;
             unconst_t *unconst_contained = const_cast<unconst_t *>(arg);

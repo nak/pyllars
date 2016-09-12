@@ -66,6 +66,7 @@ class CPPParser(object):
                 "Variable": self.process_variable,
                 "Method": self.process_method,
                 "Constructor": self.process_constructor,
+                "Destructor" : self.do_nothing,
                 "Function": self.process_function,
                 "OperatorMethod": self.process_operator_method,
                 "Unimplemented": self.process_unimplemented,
@@ -94,6 +95,9 @@ class CPPParser(object):
             if context in self.processed:
                 self.processed[context].children.append(item)
         return item
+
+    def do_nothing(self, *args):
+        pass
 
     def process_alias(self, alias, name, context=None):
         if self.processed.get(alias):
@@ -141,7 +145,7 @@ class CPPParser(object):
         #    return elements.FundamentalType("void",
         #                                    element.attrib['id'], element.attrib.get('size'),
         #                                    element.attrib.get('align'))
-        print("UNIMPLEMENTED IN CAST XML: %s" % element.attrib.get("kind"))
+        print("UNIMPLEMENTED IN CAST XML: %s" % (element.attrib.get("kind") or "not specified"))
         return None # elements.TypeAlias(element.attrib.get('id'))
 
     def process_namespace(self, element):
@@ -280,7 +284,7 @@ class CPPParser(object):
                                      return_type=type_,
                                      header_filename=self.get_file(element),
                                      arguments=arguments,
-                                     name=parent.attrib.get('name'),
+                                     name=element.attrib.get('name'),
                                      qualifiers=qualifiers,
                                      scope=element.attrib.get('access'))
 

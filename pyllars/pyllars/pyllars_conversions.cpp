@@ -138,8 +138,8 @@ namespace __pyllars_internal {
     }
 
     template<typename ClassWrapper, bool array_allocated>
-    smart_ptr<const char *, false>
-    CObjectConversionHelper<const char *&, array_allocated, ClassWrapper>::
+    smart_ptr<const char *, array_allocated>
+    CObjectConversionHelper<const char *, array_allocated, ClassWrapper>::
     toCObject(PyObject &pyobj) {
         const char *name = nullptr;
         if (ConstClassWrapper::checkType(&pyobj)) {
@@ -201,7 +201,7 @@ namespace __pyllars_internal {
         //on return
         char *new_name = new char[strlen(name) + 1]{0};
         strcpy(new_name, name);
-        return smart_ptr<char *const, false>(&new_name, false);//PTR_IS_ALLOCATED);
+        return smart_ptr<char *const, false>(&new_name, array_allocated);//PTR_IS_ALLOCATED);
     }
 
     template< typename ClassWrapper, bool array_allocated>
@@ -219,7 +219,7 @@ namespace __pyllars_internal {
         //on return
         char *new_name = new char[strlen(name) + 1]{0};
         strcpy(new_name, name);
-        return smart_ptr<char *, true>(&new_name, false);// PTR_IS_ALLOCATED);
+        return smart_ptr<char *, false>(&new_name, false);// PTR_IS_ALLOCATED);
     }
 
     template<typename T, const size_t size, const bool array_allocated, typename ClassWrapper>
