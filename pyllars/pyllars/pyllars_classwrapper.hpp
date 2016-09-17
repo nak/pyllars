@@ -26,17 +26,26 @@ static constexpr cstring operatormapname = "operator[]";
 
 namespace __pyllars_internal {
 
-    static PyMethodDef emptyMethods[] = {{nullptr, nullptr, 0, nullptr}};
-
     template<typename T, typename E=void>
     class InitHelper;
 
+    template<class CClass>
+    class ConstMethodContainer;
+
+    template<class CClass>
+    class ConstMemberContainer;
+
+    template<class CClass>
+    class ClassMemberContainer;
+
+    template<class CClass>
+    class ConstClassMemberContainer;
 
     /**
      * Class to define Python wrapper to C class/type
      **/
     template<typename T>
-    struct PythonClassWrapper<T, 
+    struct PythonClassWrapper<T,
             typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>
             : public CommonBaseWrapper {
 
@@ -312,6 +321,8 @@ namespace __pyllars_internal {
         template<typename C, typename E>
         friend
         class InitHelper;
+
+        constexpr PythonClassWrapper(): _CObject(nullptr), _arraySize(0), _allocated(false), _inPlace(false), _depth(0){}
 
     protected:
 

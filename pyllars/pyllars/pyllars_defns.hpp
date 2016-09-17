@@ -6,6 +6,7 @@
 #include <Python.h>
 
 #include "pyllars_utils.hpp"
+#include <map>
 
 namespace __pyllars_internal {
 
@@ -62,7 +63,7 @@ namespace __pyllars_internal {
 
         } baseClass;
 
-        CommonBaseWrapper() : _referenced(nullptr) {
+        constexpr CommonBaseWrapper() : baseClass(), _referenced(nullptr) {
         }
 
         void make_reference(PyObject *obj) {
@@ -74,7 +75,8 @@ namespace __pyllars_internal {
         PyObject *getReferenced() {
             return _referenced;
         }
-
+        static std::map<std::string, size_t > *classes;
+        static std::map<std::string, size_t> *functions;
     protected:
         PyObject *_referenced;
 

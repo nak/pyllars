@@ -1,7 +1,10 @@
 from distutils.core import setup, Extension
 import os
 
-opt_level=os.getenv("OPTIMIZATION_LEVEL") or "3"
+import sys
+sys.path += [os.path.join(os.getcwd(), "..")]
+
+opt_level=os.getenv("OPTIMIZATION_LEVEL") or "0"
 module_name = "test_pyllars"
 addl_sources_by_module_name={"test_pyllars": ["./to_convert/testbasic_C.cpp"]}
 def get_files_to_convert(path):
@@ -46,8 +49,8 @@ print "==========> %s" % sources.keys()
 modules=[]
 for mod, compilables in sources.iteritems():
     #print mod
-    #if mod != "libio":
-    #    continue
+    if mod != "test_pyllars":
+        continue
     module = Extension(mod,
                    include_dirs = ['.','../pyllars', outdir, ],
                    language='c++',
@@ -56,7 +59,7 @@ for mod, compilables in sources.iteritems():
                                        "-O%s" % opt_level,
                                        "-Wall",
                                      ],
-                   extra_link_args=["-Wl,--no-undefined", "-fPIC", "-lpython2.7"],
+                   extra_link_args=["-lffi", "-Wl,--no-undefined", "-fPIC", "-lpython2.7"],
                    sources=list(set(compilables +["../pyllars/pyllars.cpp", "build/gen/pyllars/pyllars/module.cpp" ])),
                    )
     modules.append(module)

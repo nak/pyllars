@@ -5,7 +5,6 @@
 #include <pyllars/pyllars_callbacks.hpp>
 #include <pyllars/pyllars_globalmembersemantics.cpp>
 
-typedef const char *cstring;
 
 using namespace __pyllars_internal;
 
@@ -140,7 +139,7 @@ initmod() {
     PythonClassWrapper<ctype **>::initialize("char_extent_ptr", "char_extent_ptr", m, "char_extent");
     PythonClassWrapper<int *>::initialize("int_ptr", "int_ptr", m, "init_ptr");
     PythonClassWrapper<const char *>::initialize("const_char_ptr", "const_char_ptr", m);
-    wrapper = (PyObject *) PythonFunctionWrapper<true, int16_t, int, double, int &, TestClass &, TestClass *, callback_t>::create(
+    wrapper = (PyObject *) PythonFunctionWrapper<true, false, int16_t, int, double, int &, TestClass &, TestClass *, callback_t>::create(
             funcname, testFunction, names);
     PyModule_AddObject(m, "testFunction", (PyObject *) wrapper);
 }
@@ -209,14 +208,14 @@ int main()
     auto pArgs = PyTuple_New(1);
     PyTuple_SetItem(pArgs, 0, obj);
     //PythonClassWrapper<int>::addType("Pointer", &PythonCPointerWrapper<int>::Type);
-    int *intval = new int(99);
-    PyObject *o = (PyObject*) PythonClassWrapper<int*>::createPy(1, &intval, false);
+//    int *intval = new int(99);
+//    PyObject *o = (PyObject*) PythonClassWrapper<int*>::createPy(1, &intval, false, false);
 //            PyObject_CallObject((PyObject *) &PythonClassWrapper<int *, true>::Type, nullptr);
-    if (o == nullptr) {
-        printf("nullptr O\n");
-    }
+ //   if (o == nullptr) {
+ //       printf("nullptr O\n");
+  //  }
     TestClass dumm1, dumm2;
-    auto message_me_py = PythonFunctionWrapper<true, const char *, double>::create(funcname2, &message_me, names2);
+    auto message_me_py = PythonFunctionWrapper<true, false, const char *, double>::create(funcname2, &message_me, names2);
     PyObject *arg = PyTuple_New(1);
     PyTuple_SetItem(arg, 0, (PyObject *) message_me_py);
     PyObject_CallObject((PyObject *) &PythonClassWrapper<TestClass>::Type, arg);
@@ -264,5 +263,6 @@ int main()
     PyErr_Clear();
 
     return SUCCESS;
+
 #endif
 }

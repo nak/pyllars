@@ -19,6 +19,8 @@
 
 namespace __pyllars_internal {
 
+    class ObjectLifecycleHelpers;
+
     template<typename T>
     struct PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
             !std::is_function<typename std::remove_pointer<T>::type>::value &&

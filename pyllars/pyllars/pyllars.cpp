@@ -20,3 +20,11 @@ status_t pyllars::Initializer::init(){
     }
     return status;
 }
+
+
+#include <map>
+#include "pyllars_utils.hpp"
+#include "pyllars_defns.hpp"
+
+std::map<std::string, size_t> *__pyllars_internal::CommonBaseWrapper::classes;
+std::map<std::string, size_t> *__pyllars_internal::CommonBaseWrapper::functions;

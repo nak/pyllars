@@ -119,7 +119,7 @@ namespace __pyllars_internal{
                                                                        std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type>::
     inplace_copy(T_array *const to, const Py_ssize_t index, const T_array *const from,
                              const bool in_place) {
-        for (ssize_t i = 0; i < size; ++i) {
+        for (size_t i = 0; i < size; ++i) {
             (*to)[i] = (*from)[i];
         }
     }

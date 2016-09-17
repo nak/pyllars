@@ -122,7 +122,10 @@ class Test_BasicC(unittest.TestCase):
 
     def testMapOperator(self):
         t = test_pyllars.TestStruct("TestMapOperatorMethod")
-        self.assertEqual(t[0.123], "0.123")
+        self.assertEqual(t[0.123], "0.123000")
+
+    def testVarArgFunction(self):
+        s = test_pyllars.function_var_args(2.3, 1, int(2), long(12345), 2.1234892, "last")
 
 if __name__ == "__main__":
     unittest.main()

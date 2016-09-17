@@ -15,7 +15,10 @@
 
 constexpr int UNKNOWN_SIZE = __pyllars_internal::UNKNOWN_SIZE;
 namespace __pyllars_internal{
-    template<typename T, typename E>
+
+    static PyMethodDef emptyMethods[] = {{nullptr, nullptr, 0, nullptr}};
+
+        template<typename T, typename E>
     class InitHelper {
     public:
         static int init(PythonClassWrapper<T> *self, PyObject *args, PyObject *kwds);
@@ -663,7 +666,8 @@ int __pyllars_internal::PythonClassWrapper<T,
     char *tp_name = new char[strlen(fullname ? fullname : name) + 1];
     strcpy(tp_name, fullname ? fullname : name);
     Type.tp_name = tp_name;
-
+    if(!classes)classes = new std::map<std::string, size_t>();
+    (*classes)[std::string(Type.tp_name)] = offset_of<ObjContainer<T_NoRef>*, PythonClassWrapper>(&PythonClassWrapper::_CObject);
     PyMethodDef pyMeth = {
             address_name,
             addr,

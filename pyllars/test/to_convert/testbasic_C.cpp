@@ -33,3 +33,23 @@ const char* test_pyllars::copy_string( const char* const s){
   strcpy(retval, s);
   return (const char*) retval;
 }
+
+//function with var args
+int test_pyllars::function_var_args( float first_explicit, int second_explicit, ...){
+  va_list argp;
+  va_start(argp, second_explicit);
+  int ival = va_arg(argp, int);
+  long lval = va_arg(argp, long);
+  double dval = va_arg(argp, double);
+  const char*  stringval = va_arg(argp, const char*);
+  const TestStruct* tsval = va_arg(argp, TestStruct*);
+  va_end(argp);
+  char return_string[120] = {0};
+  snprintf(return_string, 120, "%d %ld %f %s %f", ival, lval, dval, stringval, tsval->double_member );
+  return 9;
+}
+
+
+float test_pyllars::function_anon_fcn_param( float(*operation)(float, float), const float value1, const float value2){
+  return operation(value1, value2);
+}

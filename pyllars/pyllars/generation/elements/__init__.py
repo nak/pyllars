@@ -1,3 +1,4 @@
+import hashlib
 import os
 from abc import abstractmethod
 
@@ -128,19 +129,25 @@ class Namespace(BaseElement):
             path = sanitize(os.path.join(self.context.get_include_parent_path(), self.name or "pyllars").replace(" ", "_"))#. \
                 ###replace("<", "__").replace(">", "__").replace("::::", "::").replace("::", "____").replace(", ", "__").replace('&','_and_').replace("*","_star_")
 
+        if len(path) > 80:
+            hashlib.md5(path).hexdigest
         return path
 
     def get_header_filename(self, path=None):
+        sname = self.name if len(self.name) <= 80 else hashlib.md5(self.name).hexdigest()
         if self.id_ == BaseElement.PSEUDO_ID and self.name != "pyllars":
-            return os.path.join(self.get_include_parent_path(), "%s_module.hpp" % self.name) if path is None else \
-                os.path.join(path, self.get_include_parent_path(), "%s_module.hpp" % self.name)
-        return os.path.join(self.get_include_parent_path(), "module.hpp") if path is None else \
-            os.path.join(path, self.get_include_parent_path(), "module.hpp")
+            path = os.path.join(self.get_include_parent_path(), "%s_module.hpp" % sname) if path is None else \
+                os.path.join(path, self.get_include_parent_path(), "%s_module.hpp" % sname)
+        else:
+            path = os.path.join(self.get_include_parent_path(), "module.hpp") if path is None else \
+                   os.path.join(path, self.get_include_parent_path(), "module.hpp")
+        return path
 
     def get_body_filename(self, path=None):
+        sname = self.name if len(self.name) <= 80 else hashlib.md5(self.name).hexdigest()
         if self.id_ == BaseElement.PSEUDO_ID and self.name != "pyllars":
-            return os.path.join(self.get_include_parent_path(), "%s_module.cpp" % self.name) if path is None else \
-                os.path.join(path, self.get_include_parent_path(), "%s_module.cpp" % self.name)
+            return os.path.join(self.get_include_parent_path(), "%s_module.cpp" % sname) if path is None else \
+                os.path.join(path, self.get_include_parent_path(), "%s_module.cpp" % sname)
         return os.path.join(self.get_include_parent_path(), "module.cpp") if path is None else \
             os.path.join(path, self.get_include_parent_path(), "module.cpp")
 
@@ -170,14 +177,15 @@ class Namespace(BaseElement):
             precode += """\n//ID IS %s""" % func.id_
             precode += """%(indent)s
 %(indent)s      {
-%(indent)s         static const char* const argumentnames[] = {%(argument_names)s};
+%(indent)s         static const char* const argumentnames[] = {%(argument_names)s, nullptr};
 %(indent)s         status |= PyModule_AddObject( %(name)s_mod, "%(func_name)s",
 %(indent)s              (PyObject*)__pyllars_internal::PythonFunctionWrapper<__pyllars_internal::
-%(indent)s                 is_complete< %(return_type)s >::value, %(return_type)s %(arguments)s>::
+%(indent)s                 is_complete< %(return_type)s >::value, %(has_varargs)s, %(return_type)s %(arguments)s>::
 %(indent)s                 create("%(func_name)s", %(context)s::%(func_name)s, argumentnames));
 %(indent)s      }""" % {'indent': indent,
                         'name': self.sanitized_name,
                         'func_name': func.name,
+                        'has_varargs' : str(func.has_varargs).lower(),
                         'context': self.get_qualified_name(),
                         'return_type': func.return_type.get_qualified_name(),
                         'arguments': (',' if len(func.arguments) > 0 else "") + ','.join([t.get_qualified_name()
@@ -222,8 +230,8 @@ class Namespace(BaseElement):
 %(indent)s      status |= init_functions(%(name)s_mod);
 """ % {'name': self.sanitized_name, 'indent': indent, 'fullname': self.full_name or "pyllars",
        'parent_init': ("pyllars%s::init();" % self.context.get_qualified_name())
-       if self.context and self.context.name and self.context.full_name != "::" else ""}#######
-        if self.context or (self.context is not None and self.context.context is not None):
+       if self.context and self.context.name and self.context.full_name != "::" else "//pyllars::init();" if self.sanitized_name != 'pyllars' else ""}#######
+        if (self.context or (self.context is not None and self.context.context is not None)) and self.sanitized_name != 'pyllars' and context_name != "pyllars::pyllars_mod":
             code += """
 %(indent)s      status |= PyModule_AddObject( %(contextname)s, "%(name)s", %(name)s_mod );
 """ % {'name': self.sanitized_name, 'indent': indent, 'contextname': context_name, 'fullname': self.full_name or "pyllars",
@@ -368,21 +376,25 @@ class Type(BaseElement):
         if self.context is None:
             return None
         path = os.path.join(self.context.get_include_parent_path(), self.sanitized_name) if self.context is not None else None
+        if len(path) > 80:
+            path = hashlib.md5(path).hexdigest()
         return path
 
     def get_header_filename(self, path=None):
         if self.scope in ['private', 'protected']:
             return None
         if self.sanitized_name == '' or self.header_filename is None or self.get_include_parent_path() is None: return None
-        return os.path.join(self.get_include_parent_path(), self.sanitized_name + ".hpp") if path is None else \
-            os.path.join(path, self.get_include_parent_path(), self.sanitized_name + ".hpp")
+        sname = self.sanitized_name if len(self.sanitized_name) <= 80 else hashlib.md5(self.sanitized_name).hexdigest()
+        return os.path.join(self.get_include_parent_path(), sname + ".hpp") if path is None else \
+            os.path.join(path, self.get_include_parent_path(), sname + ".hpp")
 
     def get_body_filename(self, path=None):
         if self.scope in ['private', 'protected']:
             return None
         if self.sanitized_name == '' or self.header_filename is None or self.get_include_parent_path() is None: return None
-        return os.path.join(self.get_include_parent_path(), self.sanitized_name + ".cpp") if path is None else \
-            os.path.join(path, self.get_include_parent_path(), self.sanitized_name + ".cpp")
+        sname = self.sanitized_name if len(self.sanitized_name) <= 80 else hashlib.md5(self.sanitized_name).hexdigest()
+        return os.path.join(self.get_include_parent_path(), sname + ".cpp") if path is None else \
+            os.path.join(path, self.get_include_parent_path(), sname + ".cpp")
 
     def get_core_type(self):
         return self
@@ -680,7 +692,8 @@ static inline status_t initialize_type%(suffix)s(){
       return 0;
    }
    inited = true;
-   status_t status = 0;//pyllars::%(parent_init)s();
+   status_t status = 0;
+   //pyllars::%(parent_init)s();
    if (status != 0) return status;
 """ % {'class_name': class_name, 'name': self.name, 'pyname': self.name,
        'module_name': "%s_mod" % (parent_mod.name or "pyllars"), 'full_name': self.full_name,
@@ -882,11 +895,12 @@ static inline status_t initialize_type%(suffix)s(){
         code = add_children(self, self, code)
         for base in self.bases:
             code += """
+   status |= pyllars%(base_class_full_name)s___ns::initialize_type();
    PythonClassWrapper<%(full_class_name)s>::addBaseClass
       (&PythonClassWrapper< %(base_class_full_name)s >::Type);
 """ % {'full_class_name': class_name, 'class_name': self.name,
        'base_class_name': base.get_qualified_ns_name(True),
-       'base_class_full_name': base.get_qualified_name(),
+       'base_class_full_name': base.get_qualified_name().strip(),
        'indent': indent}
         module_name = "pyllars%(namespace_name)s::%(module_name)s" % \
                       {'namespace_name': parent_mod.get_qualified_name(),
@@ -1228,7 +1242,8 @@ class Union(Class):
 
 
 class FunctionType(Type):
-    def __init__(self, id_, return_type, arguments, header_filename, qualifiers=None, context=None, name=None, scope=None):
+    def __init__(self, id_, return_type, arguments, header_filename, qualifiers=None, context=None, name=None,
+                 has_varargs=False, scope=None):
         assert (isinstance(return_type, Type))
         Type.__init__(self, name or self.generate_type_name(arguments, return_type, [] if not qualifiers else ("const" in qualifiers)),
                       id_, context, False, header_filename, scope)
@@ -1245,6 +1260,7 @@ class FunctionType(Type):
         if not name:
             self.sanitized_name = self.generate_type_name(arguments, return_type, [] if not qualifiers else ("const" in qualifiers))
         self.is_anon = name is None or name is ""
+        self.has_varargs = has_varargs
 
     def generate_code(self, path):
         pass
@@ -1268,7 +1284,7 @@ class FunctionType(Type):
 
 class Function(object):
 
-    def __init__(self, id_, name, return_type, context, header_filename, arguments=None, scope=None):
+    def __init__(self, id_, name, return_type, context, header_filename, arguments=None, has_varargs=False, scope=None):
         assert (isinstance(return_type, Type))
         assert (isinstance(context, Namespace) or isinstance(context, Type))
         self.header_filename = system_patch(header_filename) or header_filename
@@ -1286,6 +1302,7 @@ class Function(object):
         self.context = context
         self.scope = scope
         self.context.children.append(self)
+        self.has_varargs = has_varargs
         self.id_ = id_
 
     def generate_code(self, path):

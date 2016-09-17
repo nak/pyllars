@@ -8,18 +8,225 @@
 #include <limits.h>
 
 #include "pyllars_utils.hpp"
+#include <ffi.h>
 
 namespace __pyllars_internal {
 
     /*********
      * Class to define Python wrapper to C class/type
      **/
+    static constexpr int COBJ_TYPE = 1;
+    static constexpr int FUNC_TYPE = 2;
+    static constexpr int STRING_TYPE = 3;
 
-    template<bool is_base_return_complete, typename ReturnType, typename ...Args>
-    struct PythonFunctionWrapper: public CommonBaseWrapper {
+    static int getType(PyObject *obj, ffi_type *&type) {
+        if (!CommonBaseWrapper::classes) CommonBaseWrapper::classes = new std::map<std::string, size_t>();
+        int subtype = 0;
+        PyTypeObject *pyType = (PyTypeObject *) PyObject_Type(obj);
+        if (PyInt_Check(obj)) {
+            type = &ffi_type_sint32;
+        } else if (PyLong_Check(obj)) {
+            type = &ffi_type_sint64;
+        } else if (PyFloat_Check(obj)) {
+            type = &ffi_type_double;
+        } else if (PyBool_Check(obj)) {
+            type = &ffi_type_uint8;
+        } else if (PyString_Check(obj)) {
+            type = &ffi_type_pointer;
+            subtype = STRING_TYPE;
+        } else if (CommonBaseWrapper::classes->count(std::string(pyType->tp_name)) ||
+                   CommonBaseWrapper::functions->count(std::string(pyType->tp_name))) {
+            type = &ffi_type_pointer;
+            if (CommonBaseWrapper::classes->count(std::string(pyType->tp_name))) {
+                subtype = COBJ_TYPE;
+            } else if (CommonBaseWrapper::functions->count(std::string(pyType->tp_name))) {
+                subtype = FUNC_TYPE;
+            }
+        } else {
+            throw "Cannot conver Python object to C Object";
+        }/*else if (PyList_Check(obj)){
+            const C_TYPE subtype = PyTuple_Size(obj)>0?getType(PyList_GetItem(obj,0)):C_TYPE::INT;
+            for(int i = 1; i < PyTuple_Size(obj); ++i){
+                if(getType(PyList_GetItem(obj, i)) != subtype){
+                    throw "Cannot convert mixed type list to C array";
+                }
+            }
+            type = C_TYPE::ARRAY;
+        }*/
+        return subtype;
+    }
+
+    template<typename T, typename Z = void>
+    struct FFIType {
+        static ffi_type *type() {
+            throw "Unsupport return type in var arg function";
+        }
+    };
+
+    template<>
+    struct FFIType <float, void> {
+        static ffi_type *type() {
+           return &ffi_type_float;
+        }
+    };
+
+    template<>
+    struct FFIType <double, void> {
+        static ffi_type *type() {
+            return &ffi_type_double;
+        }
+    };
+
+    template<typename T >
+    struct FFIType <T, typename std::enable_if<std::is_integral<T>::value>::type >{
+        static ffi_type *type() {
+            if(std::is_signed<T>::value){
+                switch((sizeof(T)+7)/8){
+                    case 1:
+                        return &ffi_type_sint8;
+                    case 2:
+                        return &ffi_type_sint16;
+                    case 3:
+                        return &ffi_type_sint32;
+                    case 4:
+                        return &ffi_type_sint64;
+                    default:
+                        throw "Unsupported return type in var arg function";
+                }
+            } else {
+                switch((sizeof(T)+7)/8){
+                    case 1:
+                        return &ffi_type_uint8;
+                    case 2:
+                        return &ffi_type_uint16;
+                    case 3:
+                        return &ffi_type_uint32;
+                    case 4:
+                        return &ffi_type_uint64;
+                    default:
+                        throw "Unsupported return type in var arg function";
+                }
+            }
+        }
+    };
+
+    template<bool is_base_return_complete, bool with_ellipsis, typename ReturnType, typename ...Args>
+    struct PythonFunctionWrapper : public CommonBaseWrapper {
         PyObject_HEAD
 
-        typedef ReturnType(*func_type)(Args...);
+
+        template<bool, int>
+        struct FuncDef;
+        template<int val>
+        struct FuncDef<false, val> {
+            typedef ReturnType(*func_type)(Args...);
+        };
+        template<int val>
+        struct FuncDef<true, val> {
+            typedef ReturnType(*func_type)(Args... ...);
+        };
+
+        struct FunctType {
+            typedef typename FuncDef<with_ellipsis, 0>::func_type func_type;
+
+
+            static ReturnType call(func_type func, Args... args, PyObject *extra_args) {
+                if (!CommonBaseWrapper::classes) CommonBaseWrapper::classes = new std::map<std::string, size_t>();
+                typedef typename std::remove_reference<ReturnType>::type ReturnType_NoRef;
+                if (!extra_args || PyTuple_Size(extra_args) == 0) {
+                    return func(args...);
+                } else {
+                    const ssize_t extra_args_size = PyTuple_Size(extra_args);
+
+                    ffi_cif cif;
+                    ffi_type *arg_types[sizeof...(Args) + extra_args_size] = {FFIType<Args>::type()...};
+                    void *arg_values[sizeof...(Args) + extra_args_size] = {(void*)&args...};
+                    ffi_status status;
+
+                    // Because the return value from foo() is smaller than sizeof(long), it
+                    // must be passed as ffi_arg or ffi_sarg.
+                    ffi_arg result_small;
+                    unsigned char result_big[sizeof(ReturnType_NoRef)];
+                    void *result = (sizeof(ReturnType_NoRef) >= sizeof(ffi_arg)) ? (void *) &result_big[0]
+                                                                                 : (void *) &result_small;
+
+                    // Specify the data type of each argument. Available types are defined
+                    // in <ffi/ffi.h>.
+                    union ArgType {
+                        int intvalue;
+                        long longvalue;
+                        double doublevalue;
+                        bool boolvalue;
+                        void *ptrvalue;
+                    };
+                    ArgType extra_arg_values[sizeof...(Args) + extra_args_size];
+                    for (size_t i = sizeof...(Args); i < sizeof...(Args) + extra_args_size; ++i) {
+                        PyObject *const nextArg = PyTuple_GetItem(extra_args, i - sizeof...(Args));
+                        const int subtype = getType(nextArg, arg_types[i]);
+                        switch (arg_types[i]->type) {
+                            case FFI_TYPE_SINT32:
+                                extra_arg_values[i].intvalue = PyInt_AsLong(nextArg);
+                                arg_values[i] = &extra_arg_values[i].intvalue;
+                                break;
+                            case FFI_TYPE_SINT64:
+                                extra_arg_values[i].longvalue = PyLong_AsLong(nextArg);
+                                arg_values[i] = &extra_arg_values[i].longvalue;
+                                break;
+                            case FFI_TYPE_UINT8:
+                                extra_arg_values[i].boolvalue = (nextArg == Py_True);
+                                arg_values[i] = &extra_arg_values[i].boolvalue;
+                                break;
+                            case FFI_TYPE_DOUBLE:
+                                extra_arg_values[i].doublevalue = PyFloat_AsDouble(nextArg);
+                                arg_values[i] = &extra_arg_values[i].doublevalue;
+                                break;
+                            case FFI_TYPE_POINTER:
+                                if (STRING_TYPE == subtype) {
+                                    extra_arg_values[i].ptrvalue = PyString_AsString(nextArg);
+                                    arg_values[i] = &extra_arg_values[i].ptrvalue;
+                                } else if (COBJ_TYPE == subtype) {
+                                    ObjContainer<void *> *ptrvalue = (ObjContainer<void *> *) (nextArg +
+                                                                                               CommonBaseWrapper::classes->at(
+                                                                                                       std::string(
+                                                                                                               ((PyTypeObject *) PyObject_Type(
+                                                                                                                       nextArg))->tp_name)));
+                                    extra_arg_values[i].ptrvalue = ptrvalue ? ptrvalue->ptr() : nullptr;
+                                } else if (FUNC_TYPE == subtype) {
+
+                                    void **ptrvalue = (void **) (nextArg + CommonBaseWrapper::classes->at(
+                                            std::string(((PyTypeObject *) PyObject_Type(nextArg))->tp_name)));
+                                    extra_arg_values[i].ptrvalue = *ptrvalue;
+                                } else {
+                                    throw "Unable to convert Python object to C Object";
+                                }
+                                arg_values[i] = &extra_arg_values[i].ptrvalue;
+                                break;
+                            default:
+                                throw "Python object cannot be converted to C object";
+                                break;
+                        }
+                    }
+
+                    ffi_type *return_type = FFIType<ReturnType>::type();
+                    // Prepare the ffi_cif structure.
+                    if ((status = ffi_prep_cif_var(&cif, FFI_DEFAULT_ABI,
+                                                   sizeof...(Args), sizeof...(Args) + extra_args_size,
+                                                   return_type, arg_types)) != FFI_OK) {
+                        throw "FFI error calling variadic function";
+                    }
+
+                    // Invoke the function.
+                    ffi_call(&cif, FFI_FN(func), result, arg_values);
+
+                    return *((ReturnType_NoRef *) result);
+
+                }
+            }
+        };
+
+
+        typedef typename FuncDef<with_ellipsis, 0>::func_type func_type;
+
 
         static PyTypeObject Type;
 
@@ -35,14 +242,16 @@ namespace __pyllars_internal {
             return (PyObject *) self;
         }
 
-        static void initialize_type(const char* const name){
+        static void initialize_type(const char *const name) {
             type_name = name;
-            char * newname =  new char[strlen(name)+1];
+            char *newname = new char[strlen(name) + 1];
             strcpy(newname, name);
             Type.tp_name = newname;
+            if (!CommonBaseWrapper::functions) CommonBaseWrapper::functions = new std::map<std::string, size_t>();
+            (*CommonBaseWrapper::functions)[std::string(Type.tp_name)] = offsetof(PythonFunctionWrapper, _cfunc);
         }
 
-        static std::string get_name(){
+        static std::string get_name() {
             return type_name.c_str();
         }
 
@@ -59,6 +268,10 @@ namespace __pyllars_internal {
                 char *name = new char[strlen(func_name) + 1];
                 strcpy(name, func_name);
                 type->tp_name = name;
+                if (!CommonBaseWrapper::functions) CommonBaseWrapper::functions = new std::map<std::string, size_t>();
+                std::string std_name = std::string(type->tp_name);
+                (*CommonBaseWrapper::functions)[std_name] =
+                        offset_of<func_type, PythonFunctionWrapper>(&PythonFunctionWrapper::_cfunc);
                 auto pyfuncobj = (PythonFunctionWrapper *) PyObject_CallObject((PyObject *) type, nullptr);
                 pyfuncobj->_cfunc = func;
                 while (names[index]) {
@@ -72,18 +285,17 @@ namespace __pyllars_internal {
             }
         }
 
-
-
-    private:
-
         PythonFunctionWrapper() : _cfunc(nullptr) { }
 
         ~PythonFunctionWrapper() { }
 
+    private:
+
+
         static std::string type_name;
 
         template<typename ...PyO>
-        ReturnType callFuncBase(PyObject *pytuple, PyObject *kwds, PyO *...pyargs) {
+        ReturnType callFuncBase(PyObject *args, PyObject *kwds, PyO *...pyargs) {
             if (!_cfunc) {
                 PyErr_SetString(PyExc_RuntimeError, "Uninitialized C callable!");
                 PyErr_Print();
@@ -91,11 +303,27 @@ namespace __pyllars_internal {
             }
             char format[sizeof...(Args) + 1] = {0};
             memset(format, 'O', sizeof...(Args));
-            if (!PyArg_ParseTupleAndKeywords(pytuple, kwds, format, (char **) _kwlist.data(), &pyargs...)) {
+            const size_t arg_count = kwds ? PyDict_Size(kwds) : 0 + args ? PyTuple_Size(args) : 0;
+            const size_t kwd_count = kwds ? PyDict_Size(kwds) : 0;
+            PyObject *extra_args = nullptr;
+            PyObject *tuple = nullptr;
+
+            if ((arg_count > sizeof...(Args)) && with_ellipsis) {
+                tuple = PyTuple_GetSlice(args, 0, sizeof...(Args) - kwd_count);
+                extra_args = PyTuple_GetSlice(args, sizeof...(Args) - kwd_count, arg_count);
+            } else {
+                tuple = args;
+            }
+            if (!PyArg_ParseTupleAndKeywords(tuple, kwds, format, (char **) _kwlist.data(), &pyargs...)) {
                 PyErr_Print();
                 throw "Illegal arumgnet(s)";
             }
-            return _cfunc(*toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)...);
+            if (sizeof...(Args) - kwd_count - arg_count) {
+                return FunctType::call(_cfunc, *toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)...,
+                                       extra_args);
+            } else {
+                return _cfunc(*toCObject<Args, false, PythonClassWrapper<Args> >(*tuple)...);
+            }
         }
 
         template<int ...S>
@@ -106,13 +334,13 @@ namespace __pyllars_internal {
             return callFuncBase(tuple, kw, &pyobjs[S]...);
         }
 
-        func_type _cfunc;
+        typename FuncDef<with_ellipsis, 0>::func_type _cfunc;
         std::vector<const char *> _kwlist;
     };
 
     //Python definition of Type for this function wrapper
-    template<bool is_base_return_complete, typename ReturnType, typename... Args>
-    PyTypeObject PythonFunctionWrapper<is_base_return_complete, ReturnType, Args...>::Type = {
+    template<bool is_base_return_complete, bool with_ellipsis, typename ReturnType, typename... Args>
+    PyTypeObject PythonFunctionWrapper<is_base_return_complete, with_ellipsis, ReturnType, Args...>::Type = {
             PyObject_HEAD_INIT(nullptr)
             0,                               /*ob_size*/
             nullptr,                         /*tp_name*/
@@ -163,12 +391,13 @@ namespace __pyllars_internal {
             0,                          /*tp_version_tag*/
     };
 
-    template<bool is_base_return_complete, typename ReturnType, typename... Args>
-    std::string PythonFunctionWrapper<is_base_return_complete, ReturnType, Args...>::type_name;
+    template<bool is_base_return_complete, bool with_ellipsis, typename ReturnType, typename... Args>
+    std::string PythonFunctionWrapper<is_base_return_complete, with_ellipsis, ReturnType, Args...>::type_name;
 
-    template<bool is_base_return_complete, typename ReturnType, typename... Args>
-    int PythonFunctionWrapper<is_base_return_complete, ReturnType, Args...>::_init(PyObject *self, PyObject *args,
-                                                                                   PyObject *kwds) {
+    template<bool is_base_return_complete, bool with_ellispsis, typename ReturnType, typename... Args>
+    int PythonFunctionWrapper<is_base_return_complete, with_ellispsis, ReturnType, Args...>::_init(PyObject *self,
+                                                                                                   PyObject *args,
+                                                                                                   PyObject *kwds) {
         //avoid compiler warnings (including reinterpret cast to avoid type-punned warning)
         (void) self;
         (void) args;
@@ -182,14 +411,16 @@ namespace __pyllars_internal {
         return 0;
     }
 
-    template<bool is_base_return_complete, typename ReturnType, typename... Args>
-    PyObject *PythonFunctionWrapper<is_base_return_complete, ReturnType, Args...>::_call(PyObject *callable_object,
-                                                                                         PyObject *args, PyObject *kw) {
+    template<bool is_base_return_complete, bool with_ellipsis, typename ReturnType, typename... Args>
+    PyObject *PythonFunctionWrapper<is_base_return_complete, with_ellipsis, ReturnType, Args...>::_call(
+            PyObject *callable_object,
+            PyObject *args, PyObject *kw) {
         try {
             PythonFunctionWrapper &wrapper = *reinterpret_cast<PythonFunctionWrapper *const>(callable_object);
             typedef typename std::remove_pointer<typename extent_as_pointer<ReturnType>::type>::type BaseType;
             ReturnType result = wrapper.callFunc(args, kw, typename argGenerator<sizeof...(Args)>::type());
-            const ssize_t array_size = Sizeof<BaseType>::value?Sizeof<ReturnType>::value / Sizeof<BaseType>::value:1;
+            const ssize_t array_size = Sizeof<BaseType>::value ? Sizeof<ReturnType>::value / Sizeof<BaseType>::value
+                                                               : 1;
             return toPyObject<ReturnType>(result, false, array_size);
         } catch (const char *const msg) {
             PyErr_SetString(PyExc_RuntimeError, msg);
@@ -199,8 +430,8 @@ namespace __pyllars_internal {
     }
 
     /** specialize for void returns **/
-    template<typename ...Args>
-    struct PythonFunctionWrapper<true, void, Args...> : public CommonBaseWrapper{
+    template<bool with_ellipsis, typename ...Args>
+    struct PythonFunctionWrapper<true, with_ellipsis, void, Args...> : public CommonBaseWrapper {
         PyObject_HEAD
 
         typedef void(*func_type)(Args...);
@@ -219,11 +450,11 @@ namespace __pyllars_internal {
             return (PyObject *) self;
         }
 
-        static void initialize_type(const char* const name){
+        static void initialize_type(const char *const name) {
             type_name = name;
         }
 
-        static std::string get_name(){
+        static std::string get_name() {
             return type_name.c_str();
         }
 
@@ -236,6 +467,8 @@ namespace __pyllars_internal {
             char *name = new char[strlen(func_name) + 1];
             strcpy(name, func_name);
             type->tp_name = name;
+            if (!CommonBaseWrapper::functions) CommonBaseWrapper::functions = new std::map<std::string, size_t>();
+            (*CommonBaseWrapper::functions)[std::string(type->tp_name)] = offsetof(PythonFunctionWrapper, _cfunc);
             if (!inited && (PyType_Ready(type) < 0)) {
                 throw "Unable to initialize python object for c function wrapper";
             } else {
@@ -257,24 +490,24 @@ namespace __pyllars_internal {
          * create a python object of this class type
          **/
         static PythonFunctionWrapper *createPy(const ssize_t arraySize,
-					                        ObjContainer<func_type> *const cobj, const bool isAllocated,
-                                            const bool inPlace,
-                                            PyObject *referencing = nullptr, const size_t depth = 0) {
+                                               ObjContainer <func_type> *const cobj, const bool isAllocated,
+                                               const bool inPlace,
+                                               PyObject *referencing = nullptr, const size_t depth = 0) {
             static PyObject *kwds = PyDict_New();
             static PyObject *emptyargs = PyTuple_New(0);
             PyDict_SetItemString(kwds, "__internal_allow_null", Py_True);
-            PyTypeObject* type_ = &Type;
+            PyTypeObject *type_ = &Type;
 
-            if (!type_->tp_name){
-              PyErr_SetString(PyExc_RuntimeError, "Uninitialized type when creating object");
-              return nullptr;
+            if (!type_->tp_name) {
+                PyErr_SetString(PyExc_RuntimeError, "Uninitialized type when creating object");
+                return nullptr;
             }
             PythonFunctionWrapper *pyobj = (PythonFunctionWrapper *) PyObject_Call((PyObject *) &Type, emptyargs, kwds);
             pyobj->_cfunc = *cobj->ptr();//new ObjContainerPtrProxy<T_NoRef>(cobj, isAllocated);
 
             //if (referencing) pyobj->_referenced = referencing;
             return pyobj;
-         }
+        }
 
 
         static bool checkType(PyObject *const obj) {
@@ -318,8 +551,8 @@ namespace __pyllars_internal {
     };
 
     //Python definition of Type for this function wrapper
-    template<typename... Args>
-    PyTypeObject PythonFunctionWrapper<true, void, Args...>::Type = {
+    template<bool with_ellipsis, typename... Args>
+    PyTypeObject PythonFunctionWrapper<true, with_ellipsis, void, Args...>::Type = {
             PyObject_HEAD_INIT(nullptr)
             0,                               /*ob_size*/
             nullptr,                         /*tp_name*/
@@ -370,12 +603,13 @@ namespace __pyllars_internal {
             0,                          /*tp_version_tag*/
     };
 
-    template<typename... Args>
-    std::string PythonFunctionWrapper<true, void, Args...>::type_name;
+    template<bool with_ellipsis, typename... Args>
+    std::string PythonFunctionWrapper<true, with_ellipsis, void, Args...>::type_name;
 
 
-            template<typename... Args>
-    int PythonFunctionWrapper<true, void, Args...>::_init(PyObject *self, PyObject *args, PyObject *kwds) {
+    template<bool with_ellipsis, typename... Args>
+    int PythonFunctionWrapper<true, with_ellipsis, void, Args...>::_init(PyObject *self, PyObject *args,
+                                                                         PyObject *kwds) {
         //avoid compiler warnings (including reinterpret cast to avoid type-punned warning)
         (void) self;
         (void) args;
@@ -389,9 +623,10 @@ namespace __pyllars_internal {
         return 0;
     }
 
-    template<typename... Args>
-    PyObject *PythonFunctionWrapper<true, void, Args...>::_call(PyObject *callable_object, PyObject *args,
-                                                                PyObject *kw) {
+    template<bool with_ellipsis, typename... Args>
+    PyObject *PythonFunctionWrapper<true, with_ellipsis, void, Args...>::_call(PyObject *callable_object,
+                                                                               PyObject *args,
+                                                                               PyObject *kw) {
         try {
             PythonFunctionWrapper &wrapper = *reinterpret_cast<PythonFunctionWrapper *const>(callable_object);
             wrapper.callFunc(args, kw, typename argGenerator<sizeof...(Args)>::type());
@@ -407,31 +642,40 @@ namespace __pyllars_internal {
     struct PythonFunctionWrapper2;
 
     template<typename function_type>
-    struct PythonFunctionWrapper2<function_type*>:public PythonFunctionWrapper2<function_type>{
+    struct PythonFunctionWrapper2<function_type *> : public PythonFunctionWrapper2<function_type> {
 
     };
 
     template<typename ReturnType, typename ...Args>
-    struct PythonFunctionWrapper2< ReturnType(Args...)>:
-       public PythonFunctionWrapper<is_complete<ReturnType>::value, ReturnType, Args...>{
+    struct PythonFunctionWrapper2<ReturnType(Args...)> :
+            public PythonFunctionWrapper<is_complete<ReturnType>::value, false, ReturnType, Args...> {
 
     };
 
     template<typename ...Args>
-    struct PythonFunctionWrapper2< void(Args...)>:
-            public PythonFunctionWrapper<true, void, Args...>{
+    struct PythonFunctionWrapper2<void(Args...)> :
+            public PythonFunctionWrapper<true, false, void, Args...> {
+
+    };
+
+    template<typename ReturnType, typename ...Args>
+    struct PythonFunctionWrapper2<ReturnType(Args... ...)> :
+            public PythonFunctionWrapper<is_complete<ReturnType>::value, true, ReturnType, Args...> {
+
+    };
+
+    template<typename ...Args>
+    struct PythonFunctionWrapper2<void(Args... ...)> :
+            public PythonFunctionWrapper<true, true, void, Args...> {
 
     };
 
     template<typename T>
-     struct PythonClassWrapper<T, typename std::enable_if<
-     std::is_function<typename std::remove_pointer<T>::type>::value >::type> :
-        public PythonFunctionWrapper2< typename std::remove_pointer<T>::type>{
+    struct PythonClassWrapper<T, typename std::enable_if<
+            std::is_function<typename std::remove_pointer<T>::type>::value>::type> :
+            public PythonFunctionWrapper2<typename std::remove_pointer<T>::type> {
 
     };
-
-
-
 
 
 }

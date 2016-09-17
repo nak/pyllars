@@ -3,7 +3,7 @@
 
 #include <structmember.h>
 #include <memory>
-
+#include <limits>
 
 #undef NULL
 #define NULL nullptr
@@ -246,8 +246,13 @@ namespace __pyllars_internal {
     struct Sizeof;
 
     template<typename T>
-    struct Sizeof<T, typename std::enable_if<is_complete<T>::value>::type> {
+    struct Sizeof<T, typename std::enable_if<is_complete<T>::value && !std::is_void<T>::value>::type> {
         static constexpr size_t value = sizeof(T);
+    };
+
+    template<>
+    struct Sizeof<void, void> {
+        static constexpr size_t value = 0;
     };
 
     template<typename T>
@@ -391,8 +396,12 @@ namespace __pyllars_internal {
 
     template<>
     struct ObjContainer<void> {
-      ObjContainer(void* const ptr, const size_t size, const bool isAllocated) :
-	containedP(ptr), _size(size),_isAllocated(isAllocated){
+        ObjContainer(void* const ptr, const size_t size, const bool isAllocated) :
+	    containedP(ptr), _size(size),_isAllocated(isAllocated){
+
+        }
+
+        virtual ~ObjContainer(){
 
         }
 
@@ -413,8 +422,11 @@ namespace __pyllars_internal {
 
     template<>
     struct ObjContainer<const void> {
-      ObjContainer(const void* ptr, const size_t size, const bool isAllocated) :containedP(ptr),_size(size), _isAllocated(isAllocated){
+        ObjContainer(const void* ptr, const size_t size, const bool isAllocated) :containedP(ptr),_size(size), _isAllocated(isAllocated){
 
+        }
+
+        virtual ~ObjContainer(){
         }
 
         virtual const void *ptr() {
@@ -545,6 +557,12 @@ namespace __pyllars_internal {
     struct defaults_to_string<const char* const>{
         static constexpr bool value = false;
     };
+
+    template <typename T1, typename T2>
+    inline size_t offset_of(T1 T2::*member) {
+        T2 object {};
+        return size_t(&(object.*member)) - size_t(&object);
+    }
 }
 
 

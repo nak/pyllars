@@ -212,6 +212,33 @@ namespace __pyllars_internal{
     typename ConstClassMemberContainer<CClass>::template Container<name, T>::member_t
             ConstClassMemberContainer<CClass>::Container<name, T>::member;
 
+    template<class CClass>
+    template<const char *const name, size_t size, typename T>
+    void ClassMemberContainer<CClass>::Container<name, T[size]>::setFromPyObject(PyObject* pyobj){
+        T val[] = *toCObject<T[size], false, PythonClassWrapper<T[size]>>(*pyobj);
+        for (size_t i = 0; i < size; ++i)member[i] = val[i];
+    }
+
+    template<class CClass>
+    template<const char *const name, size_t size, typename T>
+    PyObject * ClassMemberContainer<CClass>::Container<name, T[size]>::call(PyObject *cls, PyObject *args, PyObject *kwds){
+        (void) cls;
+        static const char *kwlist[] = {"value", nullptr};
+        static char format[2] = {'O', 0};
+        PyObject *pyarg = nullptr;
+        if (PyTuple_Size(args) > 0) {
+            PyErr_SetString(PyExc_ValueError,
+                            "Only one value with explicit keyword 'value' allowed to this method");
+            return nullptr;
+        } else if (kwds && !PyArg_ParseTupleAndKeywords(args, kwds, format, (char **) kwlist, &pyarg)) {
+            PyErr_SetString(PyExc_ValueError, "Invalid argument keyword name or type to method call");
+            return nullptr;
+        } else if (kwds) {
+            setFromPyObject(pyarg);
+            return Py_None;
+        }
+        return toPyObject<T>(member, false);
+    }
 }
 
 #endif

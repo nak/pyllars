@@ -9,7 +9,7 @@
 
 #include "pyllars_defns.hpp"
 //#include "pyllars_pointer.hpp"
-#include "pyllars_classwrapper.hpp"
+//#include "pyllars_classwrapper.hpp"
 
 /***********************************
 * One's head hurts thinking of all the different types of types in C++:

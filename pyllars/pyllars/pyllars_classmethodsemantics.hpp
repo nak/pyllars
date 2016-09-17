@@ -177,29 +177,9 @@ namespace __pyllars_internal {
 
             static member_t member;
 
-            static PyObject *call(PyObject *cls, PyObject *args, PyObject *kwds) {
-                (void) cls;
-                static const char *kwlist[] = {"value", nullptr};
-                static char format[2] = {'O', 0};
-                PyObject *pyarg = nullptr;
-                if (PyTuple_Size(args) > 0) {
-                    PyErr_SetString(PyExc_ValueError,
-                                    "Only one value with explicit keyword 'value' allowed to this method");
-                    return nullptr;
-                } else if (kwds && !PyArg_ParseTupleAndKeywords(args, kwds, format, (char **) kwlist, &pyarg)) {
-                    PyErr_SetString(PyExc_ValueError, "Invalid argument keyword name or type to method call");
-                    return nullptr;
-                } else if (kwds) {
-                    setFromPyObject(pyarg);
-                    return Py_None;
-                }
-                return toPyObject<T>(member, false);
-            }
+            static PyObject *call(PyObject *cls, PyObject *args, PyObject *kwds);
 
-            static void setFromPyObject(PyObject *pyobj) {
-                T val[] = *toCObject<T[size], false, PythonClassWrapper<T[size]>>(*pyobj);
-                for (size_t i = 0; i < size; ++i)member[i] = val[i];
-            }
+            static void setFromPyObject(PyObject *pyobj) ;
         };
     };
 

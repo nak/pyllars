@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.3)
 project(Pyllars)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror -Wall -std=c++11")
+set(CMAKE_VERBOSE_MAKEFILE  on)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=c++14  -Werror -Wall -std=c++11")
 
 include_directories(/usr/include/python2.7)
 include_directories(/usr/include)
@@ -22,13 +23,12 @@ set(SOURCE_FILES
         pyllars/pyllars/pyllars_classwrapper.hpp
         pyllars/pyllars/pyllars_classmethodsemantics.hpp
         pyllars/pyllars/pyllars_callbacks.hpp
-
         /usr/include/python2.7/Python.h
         /usr/include/python2.7/object.h
         /usr/include/python2.7/tupleobject.h
         pyllars/pyllars/pyllars_callbacks.cpp pyllars/pyllars/pyllars_conversions.cpp pyllars/pyllars/pyllars_constmethodcallsemantics.cpp pyllars/pyllars/pyllars_globalmembersemantics.cpp pyllars/pyllars/pyllars_methodcallsemantics.cpp pyllars/pyllars/pyllars_pointer.cpp pyllars/pyllars/pyllars_classmethodsemantics.cpp pyllars/pyllars/pyllars_object_lifecycle.cpp)
 add_definitions(-DMAIN)
-add_executable(Pyllars ${SOURCE_FILES})
-target_link_libraries(Pyllars  python2.7 )
+add_library(Pyllars ${SOURCE_FILES})
+target_link_libraries(Pyllars  python2.7 ffi )
 
-add_custom_target(build_module ALL python setup_basic_C.py build_ext WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/pyllars/test  DEPENDS ${PROJECT_SOURCE_DIR}/pyllars/test/to_convert/testbasic_C.hpp ${PROJECT_SOURCE_DIR}/pyllars/pyllars/xslt/cpp2pyllars.xslt)
+add_custom_target(build_module ALL bash ./do_setup.sh WORKING_DIRECTORY  ${PROJECT_SOURCE_DIR}/pyllars/test  DEPENDS ${PROJECT_SOURCE_DIR}/pyllars/test/to_convert/testbasic_C.hpp ${PROJECT_SOURCE_DIR}/pyllars/pyllars/xslt/cpp2pyllars.xslt)

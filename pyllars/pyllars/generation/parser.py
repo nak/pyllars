@@ -251,8 +251,7 @@ class CPPParser(object):
                                         scope=element.attrib.get('access'))
 
     def process_function_type(self, element):
-        if 'Ellipsis' in [c.tag for c in element]:
-            return None
+        has_varargs = 'Ellipsis' in [c.tag for c in element]
         typeid=element.attrib.get('returns')
         if typeid is None:
             type_=None
@@ -286,11 +285,11 @@ class CPPParser(object):
                                      arguments=arguments,
                                      name=element.attrib.get('name'),
                                      qualifiers=qualifiers,
+                                     has_varargs=has_varargs,
                                      scope=element.attrib.get('access'))
 
     def process_function(self, element):
-        if 'Ellipsis' in [c.tag for c in element]:
-            return None
+        has_varargs = 'Ellipsis' in [c.tag for c in element]
         typeid=element.attrib.get('returns')
         if typeid is None:
             type_=None
@@ -310,6 +309,7 @@ class CPPParser(object):
                                  scope=element.attrib.get('access'),
                                  arguments=arguments,
                                  header_filename=self.get_file(element),
+                                 has_varargs=has_varargs
                                 )
 
     def process_union_type(self, element):
@@ -420,18 +420,7 @@ class CPPParser(object):
         return file_element.attrib['name']
 
     def get_bases(self, element):
-        bases_string = element.attrib.get('bases')
-        return self.parse_types_from(bases_string)
-
-    def parse_types_from(self, bases_string):
-        if bases_string is None: return None
-        base_ids = bases_string.split(' ')
-        bases = []
-        for baseid in base_ids:
-            if baseid not in self.processed:
-                self.process_xml_element(self.element_lookup[baseid])
-            bases.append(self.processed[baseid])
-        return bases
+        return [self.get_type_from(base.attrib.get('type')) for base in [c for c in element if c.tag == "Base"] if base.attrib.get('type')]
 
     def get_context(self, element):
         context_id = element.attrib.get('context')
@@ -445,7 +434,7 @@ class CPPParser(object):
         typeid = element.attrib['type']
         return self.get_type_from(typeid,  element.attrib.get('id'))
 
-    def get_type_from(self, typeid, parentid):
+    def get_type_from(self, typeid, parentid=None):
         if typeid == '_0':
             return None
         elif typeid not in self.processed and self.element_lookup.get(typeid) is not None:
