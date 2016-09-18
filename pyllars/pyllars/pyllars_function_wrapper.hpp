@@ -12,6 +12,13 @@
 
 namespace __pyllars_internal {
 
+    namespace{
+        struct Arbitrary{
+            float fdata;
+            int idata;
+        };
+    }
+
     /*********
      * Class to define Python wrapper to C class/type
      **/
@@ -20,7 +27,6 @@ namespace __pyllars_internal {
     static constexpr int STRING_TYPE = 3;
 
     static int getType(PyObject *obj, ffi_type *&type) {
-        if (!CommonBaseWrapper::classes) CommonBaseWrapper::classes = new std::map<std::string, size_t>();
         int subtype = 0;
         PyTypeObject *pyType = (PyTypeObject *) PyObject_Type(obj);
         if (PyInt_Check(obj)) {
@@ -34,14 +40,12 @@ namespace __pyllars_internal {
         } else if (PyString_Check(obj)) {
             type = &ffi_type_pointer;
             subtype = STRING_TYPE;
-        } else if (CommonBaseWrapper::classes->count(std::string(pyType->tp_name)) ||
-                   CommonBaseWrapper::functions->count(std::string(pyType->tp_name))) {
+        } else if (CommonBaseWrapper::IsClassType(obj)){
             type = &ffi_type_pointer;
-            if (CommonBaseWrapper::classes->count(std::string(pyType->tp_name))) {
-                subtype = COBJ_TYPE;
-            } else if (CommonBaseWrapper::functions->count(std::string(pyType->tp_name))) {
-                subtype = FUNC_TYPE;
-            }
+            subtype = COBJ_TYPE;
+        } else if (CommonBaseWrapper::functions->count(std::string(pyType->tp_name))) {
+            subtype = FUNC_TYPE;
+            type = &ffi_type_pointer;
         } else {
             throw "Cannot conver Python object to C Object";
         }/*else if (PyList_Check(obj)){
@@ -145,7 +149,6 @@ namespace __pyllars_internal {
 
 
             static ReturnType call(func_type func, Args... args, PyObject *extra_args) {
-                if (!CommonBaseWrapper::classes) CommonBaseWrapper::classes = new std::map<std::string, size_t>();
                 typedef typename std::remove_reference<ReturnType>::type ReturnType_NoRef;
                 if (!extra_args || PyTuple_Size(extra_args) == 0) {
                     return func(args...);
@@ -199,11 +202,10 @@ namespace __pyllars_internal {
                                     extra_arg_values[i].ptrvalue = PyString_AsString(nextArg);
                                     arg_values[i] = &extra_arg_values[i].ptrvalue;
                                 } else if (COBJ_TYPE == subtype) {
-                                    ObjContainer<void *> **ptrvalue = (ObjContainer<void *> **) (((char *) nextArg) +
-                                                                                                 CommonBaseWrapper::classes->at(
-                                                                                                         std::string(
-                                                                                                                 ((PyTypeObject *) PyObject_Type(
-                                                                                                                         nextArg))->tp_name)));
+                                    static const size_t offset = offset_of<ObjContainer<Arbitrary>*, PythonClassWrapper<Arbitrary> >
+                                            (&PythonClassWrapper<Arbitrary>::_CObject);
+                                    ObjContainer<void *> **ptrvalue =
+                                       (ObjContainer<void *> **) (((char *) nextArg) + offset);
                                     extra_arg_values[i].ptrvalue = ptrvalue ? (*ptrvalue)->ptr() : nullptr;
                                 } else if (FUNC_TYPE == subtype) {
                                     static const size_t offset =
@@ -551,7 +553,6 @@ namespace __pyllars_internal {
 
 
             static void call(func_type func, Args... args, PyObject *extra_args) {
-                if (!CommonBaseWrapper::classes) CommonBaseWrapper::classes = new std::map<std::string, size_t>();
                 if (!extra_args || PyTuple_Size(extra_args) == 0) {
                     return func(args...);
                 } else {
@@ -596,13 +597,10 @@ namespace __pyllars_internal {
                                     extra_arg_values[i].ptrvalue = PyString_AsString(nextArg);
                                     arg_values[i] = &extra_arg_values[i].ptrvalue;
                                 } else if (COBJ_TYPE == subtype) {
+                                    static const size_t offset = offset_of<ObjContainer<Arbitrary>*, PythonClassWrapper<Arbitrary> >
+                                            (&PythonClassWrapper<Arbitrary>::_CObject);
                                     ObjContainer<int *> **ptrvalue =
-                                            (ObjContainer<int *> **) (((char *) nextArg) +
-                                                                      CommonBaseWrapper::classes->at
-                                                                              (std::string(
-                                                                                      ((PyTypeObject *) PyObject_Type(
-                                                                                              nextArg))->tp_name))
-                                            );
+                                            (ObjContainer<int *> **) (((char *) nextArg) + offset);
                                     extra_arg_values[i].ptrvalue = ptrvalue ? (*ptrvalue)->ptr() : nullptr;
                                 } else if (FUNC_TYPE == subtype) {
 

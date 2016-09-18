@@ -663,11 +663,10 @@ int __pyllars_internal::PythonClassWrapper<T,
     _module_entry_name = module_entry_name;
     _full_name = fullname;
     if (Type.tp_name) {/*already initialized*/ return status; }
-    char *tp_name = new char[strlen(fullname ? fullname : name) + 1];
-    strcpy(tp_name, fullname ? fullname : name);
+    char *tp_name = new char[strlen(fullname ? fullname : name) + 1 + tp_name_prefix_len];
+    strcpy(tp_name, tp_name_prefix);
+    strcpy(tp_name + strlen(tp_name_prefix), fullname ? fullname : name);
     Type.tp_name = tp_name;
-    if(!classes)classes = new std::map<std::string, size_t>();
-    (*classes)[std::string(Type.tp_name)] = offset_of<ObjContainer<T_NoRef>*, PythonClassWrapper>(&PythonClassWrapper::_CObject);
     PyMethodDef pyMeth = {
             address_name,
             addr,

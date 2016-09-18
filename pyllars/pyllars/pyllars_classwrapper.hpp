@@ -41,6 +41,8 @@ namespace __pyllars_internal {
     template<class CClass>
     class ConstClassMemberContainer;
 
+    template<bool is_base_return_complete, bool with_ellipsis, typename ReturnType, typename ...Args>
+    struct PythonFunctionWrapper;
     /**
      * Class to define Python wrapper to C class/type
      **/
@@ -323,6 +325,9 @@ namespace __pyllars_internal {
         class InitHelper;
 
         constexpr PythonClassWrapper(): _CObject(nullptr), _arraySize(0), _allocated(false), _inPlace(false), _depth(0){}
+
+        template<bool is_base_return_complete, bool with_ellipsis, typename ReturnType, typename ...Args>
+        friend struct PythonFunctionWrapper;
 
     protected:
 

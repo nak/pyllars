@@ -26,5 +26,4 @@ status_t pyllars::Initializer::init(){
 #include "pyllars_utils.hpp"
 #include "pyllars_defns.hpp"
 
-std::map<std::string, size_t> *__pyllars_internal::CommonBaseWrapper::classes;
 std::map<std::string, size_t> *__pyllars_internal::CommonBaseWrapper::functions;

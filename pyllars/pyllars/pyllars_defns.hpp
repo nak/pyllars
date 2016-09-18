@@ -65,6 +65,14 @@ namespace __pyllars_internal {
 
         constexpr CommonBaseWrapper() : baseClass(), _referenced(nullptr) {
         }
+        typedef const char* const cstring;
+        static constexpr cstring tp_name_prefix = "[*pyllars*] ";
+        static constexpr size_t tp_name_prefix_len = strlen(tp_name_prefix);
+
+        static bool IsClassType( PyObject* obj){
+            PyTypeObject* pytype = (PyTypeObject*) PyObject_Type(obj);
+            return strncmp( pytype->tp_name, tp_name_prefix, tp_name_prefix_len) == 0;
+        }
 
         void make_reference(PyObject *obj) {
             if (_referenced) { Py_DECREF(_referenced); }
@@ -75,7 +83,6 @@ namespace __pyllars_internal {
         PyObject *getReferenced() {
             return _referenced;
         }
-        static std::map<std::string, size_t > *classes;
         static std::map<std::string, size_t> *functions;
     protected:
         PyObject *_referenced;
