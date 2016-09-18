@@ -64,24 +64,38 @@ namespace __pyllars_internal {
     };
 
     template<>
-    struct FFIType <float, void> {
+    struct FFIType<float, void> {
         static ffi_type *type() {
-           return &ffi_type_float;
+            return &ffi_type_float;
         }
     };
 
     template<>
-    struct FFIType <double, void> {
+    struct FFIType<double, void> {
         static ffi_type *type() {
             return &ffi_type_double;
         }
     };
 
-    template<typename T >
-    struct FFIType <T, typename std::enable_if<std::is_integral<T>::value>::type >{
+    template<>
+    struct FFIType<void, void> {
         static ffi_type *type() {
-            if(std::is_signed<T>::value){
-                switch((sizeof(T)+7)/8){
+            return nullptr;
+        }
+    };
+
+    template<typename T>
+    struct FFIType<T, typename std::enable_if<std::is_pointer<T>::value>::type> {
+        static ffi_type *type() {
+            return &ffi_type_pointer;
+        }
+    };
+
+    template<typename T>
+    struct FFIType<T, typename std::enable_if<std::is_integral<T>::value>::type> {
+        static ffi_type *type() {
+            if (std::is_signed<T>::value) {
+                switch ((sizeof(T) + 7) / 8) {
                     case 1:
                         return &ffi_type_sint8;
                     case 2:
@@ -94,7 +108,7 @@ namespace __pyllars_internal {
                         throw "Unsupported return type in var arg function";
                 }
             } else {
-                switch((sizeof(T)+7)/8){
+                switch ((sizeof(T) + 7) / 8) {
                     case 1:
                         return &ffi_type_uint8;
                     case 2:
@@ -140,7 +154,7 @@ namespace __pyllars_internal {
 
                     ffi_cif cif;
                     ffi_type *arg_types[sizeof...(Args) + extra_args_size] = {FFIType<Args>::type()...};
-                    void *arg_values[sizeof...(Args) + extra_args_size] = {(void*)&args...};
+                    void *arg_values[sizeof...(Args) + extra_args_size] = {(void *) &args...};
                     ffi_status status;
 
                     // Because the return value from foo() is smaller than sizeof(long), it
@@ -185,16 +199,16 @@ namespace __pyllars_internal {
                                     extra_arg_values[i].ptrvalue = PyString_AsString(nextArg);
                                     arg_values[i] = &extra_arg_values[i].ptrvalue;
                                 } else if (COBJ_TYPE == subtype) {
-                                    ObjContainer<void *> *ptrvalue = (ObjContainer<void *> *) (nextArg +
-                                                                                               CommonBaseWrapper::classes->at(
-                                                                                                       std::string(
-                                                                                                               ((PyTypeObject *) PyObject_Type(
-                                                                                                                       nextArg))->tp_name)));
-                                    extra_arg_values[i].ptrvalue = ptrvalue ? ptrvalue->ptr() : nullptr;
+                                    ObjContainer<void *> **ptrvalue = (ObjContainer<void *> **) (((char *) nextArg) +
+                                                                                                 CommonBaseWrapper::classes->at(
+                                                                                                         std::string(
+                                                                                                                 ((PyTypeObject *) PyObject_Type(
+                                                                                                                         nextArg))->tp_name)));
+                                    extra_arg_values[i].ptrvalue = ptrvalue ? (*ptrvalue)->ptr() : nullptr;
                                 } else if (FUNC_TYPE == subtype) {
-
-                                    void **ptrvalue = (void **) (nextArg + CommonBaseWrapper::classes->at(
-                                            std::string(((PyTypeObject *) PyObject_Type(nextArg))->tp_name)));
+                                    static const size_t offset =
+                                            offset_of<typename PythonFunctionWrapper<true, with_ellipsis, int, int>::template FuncDef<with_ellipsis,0>::func_type , PythonFunctionWrapper<true, with_ellipsis, int, int> >(&PythonFunctionWrapper<true, with_ellipsis, int, int> ::_cfunc);
+                                    void **ptrvalue = (void **) (((char *) nextArg) + offset);
                                     extra_arg_values[i].ptrvalue = *ptrvalue;
                                 } else {
                                     throw "Unable to convert Python object to C Object";
@@ -333,8 +347,9 @@ namespace __pyllars_internal {
             (void) pyobjs;
             return callFuncBase(tuple, kw, &pyobjs[S]...);
         }
-
+    public:
         typename FuncDef<with_ellipsis, 0>::func_type _cfunc;
+    private:
         std::vector<const char *> _kwlist;
     };
 
@@ -433,8 +448,18 @@ namespace __pyllars_internal {
     template<bool with_ellipsis, typename ...Args>
     struct PythonFunctionWrapper<true, with_ellipsis, void, Args...> : public CommonBaseWrapper {
         PyObject_HEAD
+        template<bool, int>
+        struct FuncDef;
+        template<int val>
+        struct FuncDef<false, val> {
+            typedef void(*func_type)(Args...);
+        };
+        template<int val>
+        struct FuncDef<true, val> {
+            typedef void(*func_type)(Args... ...);
+        };
 
-        typedef void(*func_type)(Args...);
+        typedef typename FuncDef<with_ellipsis, 0>::func_type func_type;
 
         static PyTypeObject Type;
 
@@ -468,7 +493,8 @@ namespace __pyllars_internal {
             strcpy(name, func_name);
             type->tp_name = name;
             if (!CommonBaseWrapper::functions) CommonBaseWrapper::functions = new std::map<std::string, size_t>();
-            (*CommonBaseWrapper::functions)[std::string(type->tp_name)] = offsetof(PythonFunctionWrapper, _cfunc);
+            (*CommonBaseWrapper::functions)[std::string(type->tp_name)] = offset_of<func_type, PythonFunctionWrapper>(
+                    &PythonFunctionWrapper::_cfunc);
             if (!inited && (PyType_Ready(type) < 0)) {
                 throw "Unable to initialize python object for c function wrapper";
             } else {
@@ -514,14 +540,106 @@ namespace __pyllars_internal {
             return PyObject_TypeCheck(obj, &Type);
         }
 
+        template<typename T1, typename T2>
+        friend size_t offset_of(T1 T2::*member);
+
     private:
+
+
+        struct FunctType {
+            typedef typename FuncDef<with_ellipsis, 0>::func_type func_type;
+
+
+            static void call(func_type func, Args... args, PyObject *extra_args) {
+                if (!CommonBaseWrapper::classes) CommonBaseWrapper::classes = new std::map<std::string, size_t>();
+                if (!extra_args || PyTuple_Size(extra_args) == 0) {
+                    return func(args...);
+                } else {
+                    const ssize_t extra_args_size = PyTuple_Size(extra_args);
+
+                    ffi_cif cif;
+                    ffi_type *arg_types[sizeof...(Args) + extra_args_size] = {FFIType<Args>::type()...};
+                    void *arg_values[sizeof...(Args) + extra_args_size] = {(void *) &args...};
+
+                    // Specify the data type of each argument. Available types are defined
+                    // in <ffi/ffi.h>.
+                    union ArgType {
+                        int intvalue;
+                        long longvalue;
+                        double doublevalue;
+                        bool boolvalue;
+                        void *ptrvalue;
+                    };
+                    ArgType extra_arg_values[sizeof...(Args) + extra_args_size];
+                    for (size_t i = sizeof...(Args); i < sizeof...(Args) + extra_args_size; ++i) {
+                        PyObject *const nextArg = PyTuple_GetItem(extra_args, i - sizeof...(Args));
+                        const int subtype = getType(nextArg, arg_types[i]);
+                        switch (arg_types[i]->type) {
+                            case FFI_TYPE_SINT32:
+                                extra_arg_values[i].intvalue = PyInt_AsLong(nextArg);
+                                arg_values[i] = &extra_arg_values[i].intvalue;
+                                break;
+                            case FFI_TYPE_SINT64:
+                                extra_arg_values[i].longvalue = PyLong_AsLong(nextArg);
+                                arg_values[i] = &extra_arg_values[i].longvalue;
+                                break;
+                            case FFI_TYPE_UINT8:
+                                extra_arg_values[i].boolvalue = (nextArg == Py_True);
+                                arg_values[i] = &extra_arg_values[i].boolvalue;
+                                break;
+                            case FFI_TYPE_DOUBLE:
+                                extra_arg_values[i].doublevalue = PyFloat_AsDouble(nextArg);
+                                arg_values[i] = &extra_arg_values[i].doublevalue;
+                                break;
+                            case FFI_TYPE_POINTER:
+                                if (STRING_TYPE == subtype) {
+                                    extra_arg_values[i].ptrvalue = PyString_AsString(nextArg);
+                                    arg_values[i] = &extra_arg_values[i].ptrvalue;
+                                } else if (COBJ_TYPE == subtype) {
+                                    ObjContainer<int *> **ptrvalue =
+                                            (ObjContainer<int *> **) (((char *) nextArg) +
+                                                                      CommonBaseWrapper::classes->at
+                                                                              (std::string(
+                                                                                      ((PyTypeObject *) PyObject_Type(
+                                                                                              nextArg))->tp_name))
+                                            );
+                                    extra_arg_values[i].ptrvalue = ptrvalue ? (*ptrvalue)->ptr() : nullptr;
+                                } else if (FUNC_TYPE == subtype) {
+
+                                    void **ptrvalue = (void **) (((char *) nextArg) + CommonBaseWrapper::functions->at(
+                                            std::string(((PyTypeObject *) PyObject_Type(nextArg))->tp_name)));
+                                    extra_arg_values[i].ptrvalue = *ptrvalue;
+                                } else {
+                                    throw "Unable to convert Python object to C Object";
+                                }
+                                arg_values[i] = &extra_arg_values[i].ptrvalue;
+                                break;
+                            default:
+                                throw "Python object cannot be converted to C object";
+                                break;
+                        }
+                    }
+
+                    // Prepare the ffi_cif structure.
+                    if ((ffi_prep_cif_var(&cif, FFI_DEFAULT_ABI, sizeof...(Args), sizeof...(Args) + extra_args_size,
+                                          &ffi_type_sint, arg_types)) != FFI_OK) {
+                        throw "FFI error calling variadic function";
+                    }
+
+                    // Invoke the function.
+                    ffi_arg result_small;
+                    ffi_call(&cif, FFI_FN(func), &result_small, arg_values);
+
+                }
+            }
+        };
 
         PythonFunctionWrapper() : _cfunc(nullptr) { }
 
         ~PythonFunctionWrapper() { }
 
         template<typename ...PyO>
-        void callFuncBase(PyObject *pytuple, PyObject *kwds, PyO *...pyargs) {
+        void callFuncBase(PyObject *args, PyObject *kwds, PyO *...pyargs) {
             if (!_cfunc) {
                 PyErr_SetString(PyExc_RuntimeError, "Uninitialized C callable!");
                 PyErr_Print();
@@ -529,11 +647,27 @@ namespace __pyllars_internal {
             }
             char format[sizeof...(Args) + 1] = {0};
             memset(format, 'O', sizeof...(Args));
-            if (!PyArg_ParseTupleAndKeywords(pytuple, kwds, format, (char **) _kwlist.data(), &pyargs...)) {
+            const size_t arg_count = kwds ? PyDict_Size(kwds) : 0 + args ? PyTuple_Size(args) : 0;
+            const size_t kwd_count = kwds ? PyDict_Size(kwds) : 0;
+            PyObject *extra_args = nullptr;
+            PyObject *tuple = nullptr;
+
+            if ((arg_count > sizeof...(Args)) && with_ellipsis) {
+                tuple = PyTuple_GetSlice(args, 0, sizeof...(Args) - kwd_count);
+                extra_args = PyTuple_GetSlice(args, sizeof...(Args) - kwd_count, arg_count);
+            } else {
+                tuple = args;
+            }
+            if (!PyArg_ParseTupleAndKeywords(tuple, kwds, format, (char **) _kwlist.data(), &pyargs...)) {
                 PyErr_Print();
                 throw "Illegal arumgnet(s)";
             }
-            _cfunc(*toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)...);
+            if (sizeof...(Args) - kwd_count - arg_count) {
+                FunctType::call(_cfunc, *toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)...,
+                                extra_args);
+            } else {
+                _cfunc(*toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)...);
+            }
         }
 
         template<int ...S>
@@ -544,7 +678,7 @@ namespace __pyllars_internal {
             callFuncBase(tuple, kw, &pyobjs[S]...);
         }
 
-
+    private:
         func_type _cfunc;
         std::vector<const char *> _kwlist;
         static std::string type_name;

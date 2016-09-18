@@ -196,7 +196,7 @@ namespace __pyllars_internal {
         } else if (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "set_to")) {
             PyObject *pyVal = PyDict_GetItemString(kwds, "set_to");
             if (pyVal == Py_None) {
-                PyErr_SetString(PyExc_SyntaxError, "Unexpcted None value in member setter");
+                PyErr_SetString(PyExc_ValueError, "Unexpcted None value in member setter");
                 return nullptr;
             }
             (_this->template get_CObject<CClass_NoRef>()->*member) =
@@ -208,7 +208,7 @@ namespace __pyllars_internal {
             if (PyDict_Size(kwds)==1) {
                 PyObject *pyVal = PyDict_GetItemString(kwds, "as_ref");
                 if (pyVal == Py_None) {
-                    PyErr_SetString(PyExc_SyntaxError, "Unexpected None value in member setter");
+                    PyErr_SetString(PyExc_ValueError, "Unexpected None value in member setter");
                     return nullptr;
                 }
                 if (PyBool_Check(pyVal)) {
@@ -229,7 +229,7 @@ namespace __pyllars_internal {
                 return nullptr;
             }
         } else {
-            PyErr_SetString(PyExc_SyntaxError, "Invalid argsuments to set class instance member variable in C");
+            PyErr_SetString(PyExc_ValueError, "Invalid argsuments to set class instance member variable in C");
             return nullptr;
         }
         return Py_None;
@@ -265,7 +265,7 @@ namespace __pyllars_internal {
         } else if (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "set_to")) {
             PyObject *pyVal = PyDict_GetItemString(kwds, "set_to");
             if (pyVal == Py_None) {
-                PyErr_SetString(PyExc_SyntaxError, "Unexpcted None value in member setter");
+                PyErr_SetString(PyExc_ValueError, "Unexpcted None value in member setter");
                 return nullptr;
             }
 
@@ -276,7 +276,7 @@ namespace __pyllars_internal {
             if (PyDict_Size(kwds)==1) {
                 PyObject *pyVal = PyDict_GetItemString(kwds, "as_ref");
                 if (pyVal == Py_None) {
-                    PyErr_SetString(PyExc_SyntaxError, "Unexpected None value in member setter");
+                    PyErr_SetString(PyExc_ValueError, "Unexpected None value in member setter");
                     return nullptr;
                 }
                 if (PyBool_Check(pyVal)) {
@@ -297,7 +297,7 @@ namespace __pyllars_internal {
                 return nullptr;
             }
         } else {
-            PyErr_SetString(PyExc_SyntaxError, "Invalid argsuments to set class instance member variable in C");
+            PyErr_SetString(PyExc_ValueError, "Invalid argsuments to set class instance member variable in C");
             return nullptr;
         }
         return Py_None;
@@ -340,7 +340,7 @@ namespace __pyllars_internal {
             if (PyDict_Size(kwds)==1) {
                 PyObject *pyVal = PyDict_GetItemString(kwds, "as_ref");
                 if (pyVal == Py_None) {
-                    PyErr_SetString(PyExc_SyntaxError, "Unexpected None value in member setter");
+                    PyErr_SetString(PyExc_ValueError, "Unexpected None value in member setter");
                     return nullptr;
                 }
                 if (PyBool_Check(pyVal)) {
@@ -361,7 +361,7 @@ namespace __pyllars_internal {
                 return nullptr;
             }
         }  else {
-            PyErr_SetString(PyExc_SyntaxError, "Invalid argsuments to set class instance member variable in C");
+            PyErr_SetString(PyExc_ValueError, "Invalid argsuments to set class instance member variable in C");
             return nullptr;
         }
     }
@@ -403,7 +403,7 @@ namespace __pyllars_internal {
             } else if (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "set_to")) {
                 PyObject *pyVal = PyDict_GetItemString(kwds, "set_to");
                 if (pyVal == Py_None) {
-                    PyErr_SetString(PyExc_SyntaxError, "Unexpcted None value in member setter");
+                    PyErr_SetString(PyExc_ValueError, "Unexpcted None value in member setter");
                     return nullptr;
                 }
                 if (PyTuple_Check(pyVal)) {
@@ -432,7 +432,7 @@ namespace __pyllars_internal {
                     if (PyDict_Size(kwds)==1) {
                         PyObject *pyVal = PyDict_GetItemString(kwds, "as_ref");
                         if (pyVal == Py_None) {
-                            PyErr_SetString(PyExc_SyntaxError, "Unexpected None value in member setter");
+                            PyErr_SetString(PyExc_ValueError, "Unexpected None value in member setter");
                             return nullptr;
                         }
                         if (PyBool_Check(pyVal)) {
@@ -458,7 +458,7 @@ namespace __pyllars_internal {
                     return nullptr;
                 }
             } else {
-                PyErr_SetString(PyExc_SyntaxError,
+                PyErr_SetString(PyExc_ValueError,
                                 "Invalid arguments to set class instance member variable in C");
                 return nullptr;
             }
@@ -504,7 +504,7 @@ namespace __pyllars_internal {
             PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
             return nullptr;
         } else {
-            PyErr_SetString(PyExc_SyntaxError, "Cannot set const array elements!");
+            PyErr_SetString(PyExc_ValueError, "Cannot set const array elements!");
             return nullptr;
         }
         return Py_None;
@@ -576,7 +576,7 @@ namespace __pyllars_internal {
                 if (PyDict_Size(kwds)==1) {
                     PyObject *pyVal = PyDict_GetItemString(kwds, "as_ref");
                     if (pyVal == Py_None) {
-                        PyErr_SetString(PyExc_SyntaxError, "Unexpected None value in member setter");
+                        PyErr_SetString(PyExc_ValueError, "Unexpected None value in member setter");
                         return nullptr;
                     }
                     if (PyBool_Check(pyVal)) {
@@ -601,7 +601,7 @@ namespace __pyllars_internal {
                 return nullptr;
             }
         } else {
-            PyErr_SetString(PyExc_SyntaxError, "Invalid arguments to set class instance member variable in C");
+            PyErr_SetString(PyExc_ValueError, "Invalid arguments to set class instance member variable in C");
             return nullptr;
         }
         return Py_None;
@@ -719,7 +719,7 @@ namespace __pyllars_internal {
         } else if (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "set_to")) {
             PyObject *pyVal = PyDict_GetItemString(kwds, "set_to");
             if (pyVal == Py_None) {
-                PyErr_SetString(PyExc_SyntaxError, "Unexpected None value in member setter");
+                PyErr_SetString(PyExc_ValueError, "Unexpected None value in member setter");
                 return nullptr;
             }
             smart_ptr<T, false> value = toCObject<T, false, PythonClassWrapper<T> >(*pyVal);
@@ -730,10 +730,10 @@ namespace __pyllars_internal {
             _setter(*(_this->template get_CObject<CClass_NoRef>()), *value);
         }  else if ((std::is_reference<T>::value && (!kwds || PyDict_Size(kwds)==0))||
                    (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "as_ref"))) {
-            PyErr_SetString(PyExc_SyntaxError, "Cannot get reference to bit field by reference");
+            PyErr_SetString(PyExc_TypeError, "Cannot get reference to bit field by reference");
             return nullptr;
         } else {
-            PyErr_SetString(PyExc_SyntaxError, "Invalid arguments to set class instance member variable in C");
+            PyErr_SetString(PyExc_ValueError, "Invalid arguments to set class instance member variable in C");
             return nullptr;
         }
         return Py_None;
@@ -765,7 +765,7 @@ namespace __pyllars_internal {
             PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
             return nullptr;
         } else if (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "set_to")) {
-            PyErr_SetString(PyExc_SyntaxError, "Cannot set const bit field");
+            PyErr_SetString(PyExc_ValueError, "Cannot set const bit field");
             return nullptr;
         }
         return Py_None;

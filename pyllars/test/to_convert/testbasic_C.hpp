@@ -204,8 +204,13 @@ namespace test_pyllars {
     int test_function(char *const *const out_msg, const size_t length);
 
 
+    int var_arg_param_func(int val);
+
     //function with var args
-    int function_var_args( float first_explicit, int second_explicit, ...);
+    const char* function_var_args( float first_explicit, int second_explicit, ...);
+
+    //function with var args and void return
+    void function_var_args_void_return( float first_explicit, int second_explicit, ...);
 
 }
 

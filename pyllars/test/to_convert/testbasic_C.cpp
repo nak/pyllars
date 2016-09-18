@@ -35,7 +35,29 @@ const char* test_pyllars::copy_string( const char* const s){
 }
 
 //function with var args
-int test_pyllars::function_var_args( float first_explicit, int second_explicit, ...){
+const char* test_pyllars::function_var_args( float first_explicit, int second_explicit, ...){
+  static char return_string[120] = {0};
+  typedef int (*var_arg_func_t)(int);
+  va_list argp;
+  va_start(argp, second_explicit);
+  int ival = va_arg(argp, int);
+  long lval = va_arg(argp, long);
+  double dval = va_arg(argp, double);
+  const char*  stringval = va_arg(argp, const char*);
+  const var_arg_func_t func = va_arg(argp, var_arg_func_t);
+  va_end(argp);
+  snprintf(return_string, 120, "%d %ld %f %s %d", ival, lval, dval, stringval, func(951) );
+  return return_string;
+}
+
+
+int test_pyllars::var_arg_param_func(int val){
+  return 2*val;
+}
+
+
+//function with var args
+void test_pyllars::function_var_args_void_return( float first_explicit, int second_explicit, ...){
   va_list argp;
   va_start(argp, second_explicit);
   int ival = va_arg(argp, int);
@@ -44,9 +66,7 @@ int test_pyllars::function_var_args( float first_explicit, int second_explicit, 
   const char*  stringval = va_arg(argp, const char*);
   const TestStruct* tsval = va_arg(argp, TestStruct*);
   va_end(argp);
-  char return_string[120] = {0};
-  snprintf(return_string, 120, "%d %ld %f %s %f", ival, lval, dval, stringval, tsval->double_member );
-  return 9;
+  printf("\n%d %ld %f %s %f\n", ival, lval, dval, stringval, tsval->double_member );
 }
 
 
