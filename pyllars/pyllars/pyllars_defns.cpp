@@ -1,5 +1,4 @@
 #include "pyllars_pointer.cpp"
-
 PyObject* __pyllars_internal::PtrWrapperBaseBase::parent_module = nullptr;
 
 namespace __pyllars_internal{

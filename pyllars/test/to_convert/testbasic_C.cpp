@@ -73,3 +73,25 @@ void test_pyllars::function_var_args_void_return( float first_explicit, int seco
 float test_pyllars::function_anon_fcn_param( float(*operation)(float, float), const float value1, const float value2){
   return operation(value1, value2);
 }
+
+
+int test_pyllars::InheritedStruct::method_with_varargs(int first_arg, ...) {
+  va_list argp;
+  va_start(argp, first_arg);
+  int ival = va_arg(argp, int);
+  va_end(argp);
+  return first_arg* ival;
+}
+
+
+void test_pyllars::InheritedStruct::method_with_varargs_with_void_return(int first_arg, ...) {
+  va_list argp;
+  va_start(argp, first_arg);
+  int ival = va_arg(argp, int);
+  long lval = va_arg(argp, long);
+  double dval = va_arg(argp, double);
+  const char*  stringval = va_arg(argp, const char*);
+  va_end(argp);
+  printf("\nMethod: %d %ld %f %s\n", ival, lval, dval, stringval );
+}
+

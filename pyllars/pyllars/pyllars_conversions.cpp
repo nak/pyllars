@@ -62,7 +62,7 @@ namespace __pyllars_internal {
             return smart_ptr<T, array_allocated>(value, PTR_IS_ALLOCATED);
         } else if (PyLong_Check(&pyobj)) {
             T_bare *value = new T_bare((T_bare) PyLong_AsLongLong(&pyobj));
-            return smart_ptr<T, array_allocated>(value, PTR_IS_NOT_ALLOCATED);
+            return smart_ptr<T, array_allocated>(value, PTR_IS_ALLOCATED);
         } else if (ClassWrapper::checkType(&pyobj)) {
             return smart_ptr<T, array_allocated>(reinterpret_cast<ClassWrapper * >(&pyobj)->template get_CObject<T_bare>(),
                                           PTR_IS_NOT_ALLOCATED);

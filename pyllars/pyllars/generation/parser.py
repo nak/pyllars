@@ -356,17 +356,16 @@ class CPPParser(object):
                 print "Unable to determine type for argument in method %s" % element.attrib.get('name')
                 return None
             arguments.append((child.attrib.get('name'), self.get_type_from(child.attrib['type'], child.attrib.get('id'))))
-        if 'Ellipsis' in [c.tag for c in element]:
-            if element.attrib.get('access') == 'public':
-                parent.mark_method_tainted(method_name=element.attrib['name'], qualifiers=qualifiers)
-            return None
+        has_varags = 'Ellipsis' in [c.tag for c in element]
+
         return_id = element.attrib.get('returns')
         return_type = self.get_type_from(return_id, element.attrib.get('id')) if return_id else None
         parent.add_method(method_name=element.attrib['name'],
                           method_scope=element.attrib.get('access') or 'private',
                           qualifiers=qualifiers,
                           return_type=return_type,
-                          method_parameters=arguments)
+                          method_parameters=arguments,
+                          with_ellipsis=has_varags)
 
     def process_constructor(self, element):
         if 'Ellipsis' in [c.tag for c in element]:

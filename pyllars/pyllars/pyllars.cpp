@@ -1,5 +1,7 @@
 #include "pyllars.hpp"
 
+#include "pyllars_varargs.cpp"
+
 std::vector< pyllars::Initializer::initializer_t> *pyllars::Initializer::_initializers = nullptr;
 
 pyllars::Initializer::Initializer(const initializer_t initializer) {

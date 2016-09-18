@@ -109,6 +109,9 @@ namespace __pyllars_internal {
         template<const char *const name, typename ReturnType, typename ...Args>
         static void addClassMethod(ReturnType(*method)(Args...), const char *const kwlist[]);
 
+        template<const char *const name, typename ReturnType, typename ...Args>
+        static void addClassMethodVarargs(ReturnType(*method)(Args... ...), const char *const kwlist[]);
+
         /**
          * add a method with given compile-time-known name to the contained collection
          **/

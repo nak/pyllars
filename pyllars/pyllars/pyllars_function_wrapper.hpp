@@ -9,123 +9,11 @@
 
 #include "pyllars_utils.hpp"
 #include <ffi.h>
+#include "pyllars_varargs.hpp"
 
 namespace __pyllars_internal {
 
-    namespace{
-        struct Arbitrary{
-            float fdata;
-            int idata;
-        };
-    }
 
-    /*********
-     * Class to define Python wrapper to C class/type
-     **/
-    static constexpr int COBJ_TYPE = 1;
-    static constexpr int FUNC_TYPE = 2;
-    static constexpr int STRING_TYPE = 3;
-
-    static int getType(PyObject *obj, ffi_type *&type) {
-        int subtype = 0;
-        if (PyInt_Check(obj)) {
-            type = &ffi_type_sint32;
-        } else if (PyLong_Check(obj)) {
-            type = &ffi_type_sint64;
-        } else if (PyFloat_Check(obj)) {
-            type = &ffi_type_double;
-        } else if (PyBool_Check(obj)) {
-            type = &ffi_type_uint8;
-        } else if (PyString_Check(obj)) {
-            type = &ffi_type_pointer;
-            subtype = STRING_TYPE;
-        } else if (CommonBaseWrapper::IsClassType(obj)){
-            type = &ffi_type_pointer;
-            subtype = COBJ_TYPE;
-        } else if (CommonBaseWrapper::IsCFunctionType(obj)) {
-            subtype = FUNC_TYPE;
-            type = &ffi_type_pointer;
-        } else {
-            throw "Cannot conver Python object to C Object";
-        }/*else if (PyList_Check(obj)){
-            const C_TYPE subtype = PyTuple_Size(obj)>0?getType(PyList_GetItem(obj,0)):C_TYPE::INT;
-            for(int i = 1; i < PyTuple_Size(obj); ++i){
-                if(getType(PyList_GetItem(obj, i)) != subtype){
-                    throw "Cannot convert mixed type list to C array";
-                }
-            }
-            type = C_TYPE::ARRAY;
-        }*/
-        return subtype;
-    }
-
-    template<typename T, typename Z = void>
-    struct FFIType {
-        static ffi_type *type() {
-            throw "Unsupport return type in var arg function";
-        }
-    };
-
-    template<>
-    struct FFIType<float, void> {
-        static ffi_type *type() {
-            return &ffi_type_float;
-        }
-    };
-
-    template<>
-    struct FFIType<double, void> {
-        static ffi_type *type() {
-            return &ffi_type_double;
-        }
-    };
-
-    template<>
-    struct FFIType<void, void> {
-        static ffi_type *type() {
-            return nullptr;
-        }
-    };
-
-    template<typename T>
-    struct FFIType<T, typename std::enable_if<std::is_pointer<T>::value>::type> {
-        static ffi_type *type() {
-            return &ffi_type_pointer;
-        }
-    };
-
-    template<typename T>
-    struct FFIType<T, typename std::enable_if<std::is_integral<T>::value>::type> {
-        static ffi_type *type() {
-            if (std::is_signed<T>::value) {
-                switch ((sizeof(T) + 7) / 8) {
-                    case 1:
-                        return &ffi_type_sint8;
-                    case 2:
-                        return &ffi_type_sint16;
-                    case 3:
-                        return &ffi_type_sint32;
-                    case 4:
-                        return &ffi_type_sint64;
-                    default:
-                        throw "Unsupported return type in var arg function";
-                }
-            } else {
-                switch ((sizeof(T) + 7) / 8) {
-                    case 1:
-                        return &ffi_type_uint8;
-                    case 2:
-                        return &ffi_type_uint16;
-                    case 3:
-                        return &ffi_type_uint32;
-                    case 4:
-                        return &ffi_type_uint64;
-                    default:
-                        throw "Unsupported return type in var arg function";
-                }
-            }
-        }
-    };
 
     template<bool is_base_return_complete, bool with_ellipsis, typename ReturnType, typename ...Args>
     struct PythonFunctionWrapper : public CommonBaseWrapper {
@@ -326,9 +214,11 @@ namespace __pyllars_internal {
             } else {
                 tuple = args;
             }
-            if (!PyArg_ParseTupleAndKeywords(tuple, kwds, format, (char **) _kwlist.data(), &pyargs...)) {
-                PyErr_Print();
-                throw "Illegal arumgnet(s)";
+            if (sizeof...(Args) > 0) {
+                if (!PyArg_ParseTupleAndKeywords(tuple, kwds, format, (char **) _kwlist.data(), &pyargs...)) {
+                    PyErr_Print();
+                    throw "Illegal arumgnet(s)";
+                }
             }
             if (sizeof...(Args) - kwd_count - arg_count) {
                 return FunctType::call(_cfunc, *toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)...,

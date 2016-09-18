@@ -122,5 +122,11 @@ class Test_BasicC:
         var = test_pyllars.TestStruct()
         test_pyllars.function_var_args_void_return(2.3, 1, int(2), long(12345), 2.1234892, "last", var);
 
-if __name__ == "__main__":
-    unittest.main()
+    def testClassMethodVarArg(self):
+        inst = test_pyllars.InheritedStruct()
+        res = inst.method_with_varargs(22, 96)
+        assert(res == 22*96)
+
+    def testClassMethodVarArgVoidReturn(self):
+        test_pyllars.InheritedStruct.method_with_varargs_with_void_return(1, int(2), long(12345), 2.1234892, "last");
+

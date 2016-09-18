@@ -196,13 +196,15 @@ namespace test_pyllars {
             return inherited_value;
         }
 
+        static int method_with_varargs(int first_arg, ...);
+        static void  method_with_varargs_with_void_return(int first_arg, ...);
+
     private:
         long inherited_value;
     };
 
     //function that manipulates its first parameter
     int test_function(char *const *const out_msg, const size_t length);
-
 
     int var_arg_param_func(int val);
 

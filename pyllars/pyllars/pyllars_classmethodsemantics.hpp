@@ -8,7 +8,8 @@
 #include "pyllars_utils.hpp"
 #include "pyllars_defns.hpp"
 #include "pyllars_conversions.hpp"
-
+#include "pyllars_varargs.hpp"
+#include <ffi.h>
 /**
 * This unit defines template classes needed to contain method pointers and
 * define Python-to-C call semantics for invoking class instance methods
@@ -21,10 +22,31 @@ namespace __pyllars_internal {
      * class to hold reference to a class method and define
      * method call semantics
      **/
-    template<typename CClass, typename T, typename ... Args>
+    template<bool with_ellipsis, typename CClass, typename ReturnType_, typename ... Args>
     class ClassMethodCallSemantics {
     public:
-        typedef typename extent_as_pointer<T>::type(*method_t)(Args...);
+
+        typedef typename extent_as_pointer<ReturnType_>::type ReturnType;
+
+        template<bool, int>
+        struct FuncDef;
+        template<int val>
+        struct FuncDef<false, val> {
+            typedef ReturnType(*func_type)(Args...);
+        };
+        template<int val>
+        struct FuncDef<true, val> {
+            typedef ReturnType(*func_type)(Args... ...);
+        };
+
+        struct FunctType {
+            typedef typename FuncDef<with_ellipsis, 0>::func_type func_type;
+
+            static ReturnType call(func_type func, Args... args, PyObject *extra_args);
+        };
+
+
+        typedef typename FuncDef<with_ellipsis, 0>::func_type method_t;
 
         static const char *const *kwlist;
 
@@ -39,15 +61,13 @@ namespace __pyllars_internal {
          * call that invokes method a la C:
          **/
         template<typename ...PyO>
-        static typename extent_as_pointer<T>::type call_methodC(typename extent_as_pointer<T>::type  (*method)(Args...),
-                                                                PyObject *args, PyObject *kwds, PyO *...pyargs);
+        static ReturnType call_methodC(typename FuncDef<with_ellipsis,0>::func_type method, PyObject *args, PyObject *kwds, PyO *...pyargs);
         /**
          * call that converts python given arguments to make C call:
          **/
         template<int ...S>
-        static typename extent_as_pointer<T>::type call_methodBase(
-                typename extent_as_pointer<T>::type  (*method)(Args...),
-                PyObject *args, PyObject *kwds, container<S...> s) ;
+        static ReturnType call_methodBase(typename FuncDef<with_ellipsis,0>::func_type ,
+                                          PyObject *args, PyObject *kwds, container<S...> s) ;
 
     };
 
@@ -55,10 +75,31 @@ namespace __pyllars_internal {
     /**
      * specialize for void returns:
      **/
-    template<typename CClass, typename ...Args>
-    class ClassMethodCallSemantics<CClass, void, Args...> {
+    template<bool with_ellipsis, typename CClass, typename ...Args>
+    class ClassMethodCallSemantics<with_ellipsis, CClass, void, Args...> {
     public:
-        typedef void(*method_t)(Args...);
+
+        template<bool, int>
+        struct FuncDef;
+
+        template<int val>
+        struct FuncDef<false, val> {
+            typedef void(*func_type)(Args...);
+        };
+        template<int val>
+        struct FuncDef<true, val> {
+            typedef void(*func_type)(Args... ...);
+        };
+
+        struct FunctType {
+            typedef typename FuncDef<with_ellipsis, 0>::func_type func_type;
+
+            static void call(func_type func, Args... args, PyObject *extra_args);
+        };
+
+
+        typedef typename FuncDef<with_ellipsis, 0>::func_type method_t;
+
 
         static const char *const *kwlist;
 
@@ -67,12 +108,12 @@ namespace __pyllars_internal {
     private:
 
         template<typename ...PyO>
-        static void call_methodC(void (*method)(Args...),
+        static void call_methodC(typename FuncDef<with_ellipsis,0>::func_type method,
                                  PyObject *args, PyObject *kwds,
                                  PyO *...pyargs) ;
 
         template<int ...S>
-        static void call_methodBase(void (*method)(Args...),
+        static void call_methodBase(typename FuncDef<with_ellipsis,0>::func_type ,
                                     PyObject *args, PyObject *kwds,
                                     container<S...> unused) ;
 
@@ -88,12 +129,12 @@ namespace __pyllars_internal {
     class ClassMethodContainer {
     public:
 
-        template<const char *const name, typename ReturnType, typename ...Args>
+        template<bool with_ellipsis, const char *const name, typename ReturnType, typename ...Args>
         class Container {
             typedef typename extent_as_pointer<ReturnType>::type (*method_t)(Args...);
 
             typedef const char *const *kwlist_t;
-            static constexpr kwlist_t &kwlist = ClassMethodCallSemantics<CClass, ReturnType, Args...>::kwlist;
+            static constexpr kwlist_t &kwlist = ClassMethodCallSemantics<with_ellipsis, CClass, ReturnType, Args...>::kwlist;
 
             static PyObject *call(PyObject *cls, PyObject *args, PyObject *kwds);
 
@@ -109,13 +150,14 @@ namespace __pyllars_internal {
             std::is_class<CClass>::value && !std::is_const<CClass>::value>::type> {
     public:
 
-        template<const char *const name, typename ReturnType, typename ...Args>
+        template<bool with_ellipsis, const char *const name, typename ReturnType, typename ...Args>
         class Container {
         public:
-            typedef typename extent_as_pointer<ReturnType>::type(*method_t)(Args...);
+            typedef typename ClassMethodCallSemantics<with_ellipsis, CClass, ReturnType, Args...>::method_t method_t;
+
 
             typedef const char *const *kwlist_t;
-            static constexpr kwlist_t &kwlist = ClassMethodCallSemantics<CClass, ReturnType, Args...>::kwlist;
+            static constexpr kwlist_t &kwlist = ClassMethodCallSemantics<with_ellipsis, CClass, ReturnType, Args...>::kwlist;
             static method_t method;
 
             static PyObject *call(PyObject *cls, PyObject *args, PyObject *kwds) ;
@@ -132,13 +174,13 @@ namespace __pyllars_internal {
             std::is_class<CClass>::value && std::is_const<CClass>::value>::type> {
     public:
 
-        template<const char *const name, typename ReturnType, typename ...Args>
+        template<bool with_ellipsis, const char *const name, typename ReturnType, typename ...Args>
         class Container {
         public:
-            typedef typename extent_as_pointer<ReturnType>::type(*method_t)(Args...);
+            typedef typename ClassMethodCallSemantics<with_ellipsis, CClass, ReturnType, Args...>::method_t method_t;
 
             typedef const char *const *kwlist_t;
-            static constexpr kwlist_t &kwlist = ClassMethodCallSemantics<CClass, ReturnType, Args...>::kwlist;
+            static constexpr kwlist_t &kwlist = ClassMethodCallSemantics<with_ellipsis, CClass, ReturnType, Args...>::kwlist;
             static method_t method;
 
             static PyObject *call(PyObject *cls, PyObject *args, PyObject *kwds);

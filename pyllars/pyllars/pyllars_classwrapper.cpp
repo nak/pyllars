@@ -798,13 +798,35 @@ addClassMethod(ReturnType(*method)(Args...), const char *const kwlist[]) {
 
     PyMethodDef pyMeth = {
             name,
-            (PyCFunction) ClassMethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::call,
+            (PyCFunction) ClassMethodContainer<T_NoRef>::template Container<false, name, ReturnType, Args...>::call,
             METH_KEYWORDS | METH_CLASS,
             doc_string
     };
 
-    ClassMethodContainer<T>::template Container<name, ReturnType, Args...>::method = method;
-    ClassMethodContainer<T>::template Container<name, ReturnType, Args...>::kwlist = kwlist;
+    ClassMethodContainer<T>::template Container<false, name, ReturnType, Args...>::method = method;
+    ClassMethodContainer<T>::template Container<false, name, ReturnType, Args...>::kwlist = kwlist;
+    _addMethod(pyMeth);
+}
+
+
+template<typename T>
+template<const char *const name, typename ReturnType, typename ...Args>
+void __pyllars_internal::PythonClassWrapper<T,
+        typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+addClassMethodVarargs(ReturnType(*method)(Args... ...), const char *const kwlist[]) {
+    static const char *const doc = "Call class method ";
+    char *doc_string = new char[strlen(name) + strlen(doc) + 1];
+    snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
+
+    PyMethodDef pyMeth = {
+            name,
+            (PyCFunction) ClassMethodContainer<T_NoRef>::template Container<true, name, ReturnType, Args...>::call,
+            METH_KEYWORDS | METH_CLASS,
+            doc_string
+    };
+
+    ClassMethodContainer<T>::template Container<true, name, ReturnType, Args...>::method = method;
+    ClassMethodContainer<T>::template Container<true, name, ReturnType, Args...>::kwlist = kwlist;
     _addMethod(pyMeth);
 }
 
@@ -812,9 +834,8 @@ template<typename T>
 template<const char *const name, typename ReturnType, typename ...Args>
 void __pyllars_internal::PythonClassWrapper<T, 
         typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
-addMethod(
-                typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
-                const char *const kwlist[]) {
+addMethod(typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+          const char *const kwlist[]) {
     static const char *const doc = "Call method ";
     char *doc_string = new char[strlen(name) + strlen(doc) + 1];
     snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);

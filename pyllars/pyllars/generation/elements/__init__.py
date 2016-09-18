@@ -441,7 +441,7 @@ class Class(Type):
 
         QUALIFIERS = ["static", "const"]
 
-        def __init__(self, name, scope, qualifiers, return_type, arguments):
+        def __init__(self, name, scope, qualifiers, return_type, arguments, with_ellipsis):
             assert (isinstance(return_type, Type) or return_type is None)
             assert (scope in Class.SCOPES or scope is None)
             self.name = name
@@ -456,13 +456,14 @@ class Class(Type):
             self.return_type = return_type
             self.arguments = arguments
             self.scope = scope
+            self.has_varargs = with_ellipsis
 
     # TODO: operator methods
 
     class Constructor(Method):
 
         def __init__(self, clazz, scope, qualifiers, arguments):
-            Class.Method.__init__(self, clazz, scope, qualifiers, None, arguments)
+            Class.Method.__init__(self, clazz, scope, qualifiers, None, arguments, False)
 
     class Member(object):
 
@@ -513,7 +514,7 @@ class Class(Type):
                 return self.name + ".cpp"
         return os.path.join(context.get_path(), self.name + ".cpp")
 
-    def add_method(self, method_name, method_scope, qualifiers, return_type, method_parameters):
+    def add_method(self, method_name, method_scope, qualifiers, return_type, method_parameters, with_ellipsis):
         """
         add method to this class
         :param qualifiers: list of qualifiers (const, static, ...)
@@ -523,7 +524,7 @@ class Class(Type):
         :param method_parameters: 2-tuples of type/name pairs
         """
         #assert(not(method_name == "back" and return_type == None))
-        self._methods.append(Class.Method(method_name, method_scope, qualifiers, return_type, method_parameters))
+        self._methods.append(Class.Method(method_name, method_scope, qualifiers, return_type, method_parameters, with_ellipsis))
 
     def mark_method_tainted(self, name, qualifiers):
         self._tainted_methods.append(name)
@@ -537,7 +538,7 @@ class Class(Type):
         :param method_scope: public, protected, private
         :param method_parameters: 2-tuples of type/name pairs
         """
-        self._operator_map_methods.append(Class.Method("operator_map", method_scope, qualifiers, return_type, [method_parameter]))
+        self._operator_map_methods.append(Class.Method("operator_map", method_scope, qualifiers, return_type, [method_parameter], False))
 
     def add_constructor(self, method_scope, qualifiers, method_parameters):
         """
@@ -774,6 +775,8 @@ static inline status_t initialize_type%(suffix)s(){
             if method.is_static:
                 call_method_name += 'Class'
             call_method_name += "Method"
+            if method.has_varargs:
+                call_method_name += "Varargs"
             args = []
             kwlist = []
             for arg_name, arg_type in method.arguments:
