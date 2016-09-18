@@ -74,6 +74,14 @@ namespace __pyllars_internal {
             return strncmp( pytype->tp_name, tp_name_prefix, tp_name_prefix_len) == 0;
         }
 
+        static constexpr cstring ptrtp_name_prefix = "[*pyllars:ptr*] ";
+        static constexpr size_t ptrtp_name_prefix_len = strlen(ptrtp_name_prefix);
+
+        static bool IsCFunctionType( PyObject* obj){
+            PyTypeObject* pytype = (PyTypeObject*) PyObject_Type(obj);
+            return strncmp( pytype->tp_name, ptrtp_name_prefix, ptrtp_name_prefix_len) == 0;
+        }
+
         void make_reference(PyObject *obj) {
             if (_referenced) { Py_DECREF(_referenced); }
             if (obj) { Py_INCREF(obj); }
@@ -83,7 +91,7 @@ namespace __pyllars_internal {
         PyObject *getReferenced() {
             return _referenced;
         }
-        static std::map<std::string, size_t> *functions;
+
     protected:
         PyObject *_referenced;
 

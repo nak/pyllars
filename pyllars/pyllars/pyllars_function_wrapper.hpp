@@ -28,7 +28,6 @@ namespace __pyllars_internal {
 
     static int getType(PyObject *obj, ffi_type *&type) {
         int subtype = 0;
-        PyTypeObject *pyType = (PyTypeObject *) PyObject_Type(obj);
         if (PyInt_Check(obj)) {
             type = &ffi_type_sint32;
         } else if (PyLong_Check(obj)) {
@@ -43,7 +42,7 @@ namespace __pyllars_internal {
         } else if (CommonBaseWrapper::IsClassType(obj)){
             type = &ffi_type_pointer;
             subtype = COBJ_TYPE;
-        } else if (CommonBaseWrapper::functions->count(std::string(pyType->tp_name))) {
+        } else if (CommonBaseWrapper::IsCFunctionType(obj)) {
             subtype = FUNC_TYPE;
             type = &ffi_type_pointer;
         } else {
@@ -260,11 +259,11 @@ namespace __pyllars_internal {
 
         static void initialize_type(const char *const name) {
             type_name = name;
-            char *newname = new char[strlen(name) + 1];
-            strcpy(newname, name);
+            char *newname = new char[strlen(name) + 1 + ptrtp_name_prefix_len];
+            strcpy(newname, ptrtp_name_prefix)
+                    ;
+            strcpy(newname+ptrtp_name_prefix_len, name);
             Type.tp_name = newname;
-            if (!CommonBaseWrapper::functions) CommonBaseWrapper::functions = new std::map<std::string, size_t>();
-            (*CommonBaseWrapper::functions)[std::string(Type.tp_name)] = offsetof(PythonFunctionWrapper, _cfunc);
         }
 
         static std::string get_name() {
@@ -281,13 +280,10 @@ namespace __pyllars_internal {
                 inited = true;
                 PyTypeObject *type = new PyTypeObject(Type);
                 Py_INCREF(type);
-                char *name = new char[strlen(func_name) + 1];
-                strcpy(name, func_name);
+                char *name = new char[strlen(func_name) + 1 + ptrtp_name_prefix_len];
+                strcpy(name, ptrtp_name_prefix);
+                strcpy(name+ptrtp_name_prefix_len, func_name);
                 type->tp_name = name;
-                if (!CommonBaseWrapper::functions) CommonBaseWrapper::functions = new std::map<std::string, size_t>();
-                std::string std_name = std::string(type->tp_name);
-                (*CommonBaseWrapper::functions)[std_name] =
-                        offset_of<func_type, PythonFunctionWrapper>(&PythonFunctionWrapper::_cfunc);
                 auto pyfuncobj = (PythonFunctionWrapper *) PyObject_CallObject((PyObject *) type, nullptr);
                 pyfuncobj->_cfunc = func;
                 while (names[index]) {
@@ -491,12 +487,10 @@ namespace __pyllars_internal {
             Py_ssize_t index = 0;
             PyTypeObject *type = new PyTypeObject(Type);
             Py_INCREF(type);
-            char *name = new char[strlen(func_name) + 1];
-            strcpy(name, func_name);
+            char *name = new char[strlen(func_name) + 1 + ptrtp_name_prefix_len];
+            strcpy(name, ptrtp_name_prefix);
+            strcpy(name + ptrtp_name_prefix_len, func_name);
             type->tp_name = name;
-            if (!CommonBaseWrapper::functions) CommonBaseWrapper::functions = new std::map<std::string, size_t>();
-            (*CommonBaseWrapper::functions)[std::string(type->tp_name)] = offset_of<func_type, PythonFunctionWrapper>(
-                    &PythonFunctionWrapper::_cfunc);
             if (!inited && (PyType_Ready(type) < 0)) {
                 throw "Unable to initialize python object for c function wrapper";
             } else {
@@ -603,9 +597,10 @@ namespace __pyllars_internal {
                                             (ObjContainer<int *> **) (((char *) nextArg) + offset);
                                     extra_arg_values[i].ptrvalue = ptrvalue ? (*ptrvalue)->ptr() : nullptr;
                                 } else if (FUNC_TYPE == subtype) {
-
-                                    void **ptrvalue = (void **) (((char *) nextArg) + CommonBaseWrapper::functions->at(
-                                            std::string(((PyTypeObject *) PyObject_Type(nextArg))->tp_name)));
+                                    static const size_t offset = offset_of<typename PythonFunctionWrapper<true, false, int, int>:: template FuncDef<false, 0>::func_type,
+                                                                           PythonFunctionWrapper<true, false, int, int> >
+                                                                                   (&PythonFunctionWrapper<true, false, int, int>::_cfunc);
+                                    void **ptrvalue = (void **) (((char *) nextArg) + offset);
                                     extra_arg_values[i].ptrvalue = *ptrvalue;
                                 } else {
                                     throw "Unable to convert Python object to C Object";
