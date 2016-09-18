@@ -5,8 +5,8 @@ print "### %s"%sys.path
 import test_pyllars
 import pytest
 
-class Test_BasicC:
 
+class Test_BasicC:
 
     def testGlobalData(self):
         t = test_pyllars.TestStruct()
@@ -25,33 +25,32 @@ class Test_BasicC:
     #    stringcopy = test_pyllars.copy_string("MAKE A COPY");
     #    assert( stringcopy == "MAKE A COPY")
 
-    def testTestStructMemberDouble(self):
-        t = test_pyllars.TestStruct()
-        assert(t.str_member() == "Default constructed  TestStruct")
-        assert( abs(t.double_member() - 1.23456789) <=  0.000000000000001)
+    @staticmethod
+    @pytest.mark.parameterized("test_struct, msg", [(test_pyllars.TestStruct(), None),
+                                                    (test_pyllars.TestStruct("My_Message"), "My Message"),
+                                                    (test_pyllars.InheritedStruct(), None)])
+    def testTestStructMembers(test_struct, msg):
+        assert( abs(test_struct.double_member() - 1.23456789) <=  0.000000000000001)
         t.double_member(set_to=9.87654321)
-        assert( abs(t.double_member() - 9.87654321) <=  0.000000000000001)
-
-    def testTestStructMemberCString(self):
-        t = test_pyllars.TestStruct("My_Message")
-        assert(type(t.str_member())== type("My_Message"))
-        assert(t.str_member() == "My_Message")
+        assert( abs(test_struct.double_member() - 9.87654321) <=  0.000000000000001)
+        assert(type(test_struct.str_member())== type(msg if msg else ""))
+        assert(test_struct.str_member() == (msg or "Default constructed  TestStruct"))
         with pytest.raises(RuntimeError):
-            t.str_member(set_to="New value")
+            test_struct.str_member(set_to="New value")
 
-    def testTestStructAlloc(self):
-        t = test_pyllars.TestStruct.new([(), ("Second Instance",)])
-        assert(t[0].str_member() == "Default constructed  TestStruct")
-        assert(t[1].str_member() =="Second Instance")
-        assert(t[-2].str_member() =="Default constructed  TestStruct")
-        assert(t[-1].str_member() == "Second Instance")
+    @staticmethod
+    @pytest.mark.parameterized("test_struct_array", [test_pyllars.TestStruct.new([(), ("Second Instance",)]),
+                                                     test_pyllars.InheritedStruct.new([(), ()])])
+    def testTestStructAlloc(test_struct_array):
+        assert(test_struct_array[0].str_member() == "Default constructed  TestStruct")
+        assert(test_struct_array[1].str_member() =="Second Instance")
+        assert(test_struct_array[-2].str_member() =="Default constructed  TestStruct")
+        assert(test_struct_array[-1].str_member() == "Second Instance")
         with pytest.raises(IndexError):
             t[2]
-
         with pytest.raises(IndexError):
             t[-3]
-
-        taddr = t.this()
+        taddr = test_struct_array.this()
 
         for i in range(100):
            assert(taddr[0][0].str_member() == "Default constructed  TestStruct")
@@ -61,16 +60,18 @@ class Test_BasicC:
         del taddr
         assert( tptr[0].str_member() == "Default constructed  TestStruct")
         del titem
-        del t
+        del test_struct_array
         assert( tptr[0].str_member() == "Default constructed  TestStruct")
         titem = tptr[0]
         del tptr
         assert( titem.str_member() == "Default constructed  TestStruct")
 
-    def testArrayElements( self):
-        t = test_pyllars.TestStruct.new([(), ("Second Instance",)])
-        titemcopy = t.at(1)
-        titemref = t[1]
+    @staticmethod
+    @pytest.mark.parameterized("test_struct_array", [test_pyllars.TestStruct.new([(), ("Second Instance",)]),
+                                                 test_pyllars.InheritedStruct.new([(), ()])])
+    def testArrayElements(self, test_struct_array):
+        titemcopy = test_struct_array.at(1)
+        titemref = test_struct_array[1]
         for i in range(100):print titemcopy.double_member()==2.3456789
 
         assert( abs(titemref.double_member() - 2.3456789) <= 0.000000000000001)
@@ -110,9 +111,12 @@ class Test_BasicC:
         b._subfields(as_ref=True).bitfield4_named_field_size7(set_to=0x3A)
         assert(b._subfields().bitfield4_named_field_size7() == 0x3A)
 
-    def testMapOperator(self):
-        t = test_pyllars.TestStruct("TestMapOperatorMethod")
-        assert(t[0.123] == "0.123000")
+    @staticmethod
+    @pytest.mark.parameterized("test_struct, msg", [(test_pyllars.TestStruct(), None),
+                                                    (test_pyllars.TestStruct("My_Message"), "My Message"),
+                                                    (test_pyllars.InheritedStruct(), None)])
+    def testMapOperator(self, test_struct, msg):
+        assert(test_struct[0.123] == "0.123000")
 
     def testVarArgFunction(self):
         s = test_pyllars.function_var_args(2.3, 1, int(2), long(12345), 2.1234892, "last", test_pyllars.var_arg_param_func)
@@ -128,5 +132,7 @@ class Test_BasicC:
         assert(res == 22*96)
 
     def testClassMethodVarArgVoidReturn(self):
-        test_pyllars.InheritedStruct.method_with_varargs_with_void_return(1, int(2), long(12345), 2.1234892, "last");
+        test_pyllars.InheritedStruct.method_with_varargs_with_void_return(1, int(2), long(12345), 2.1234892, "last")
 
+    def testInheritance(self):
+        assert(test_pyllars.InheritedStruct().inherited_value() == 214)

@@ -199,7 +199,6 @@ namespace test_pyllars {
         static int method_with_varargs(int first_arg, ...);
         static void  method_with_varargs_with_void_return(int first_arg, ...);
 
-    private:
         long inherited_value;
     };
 
