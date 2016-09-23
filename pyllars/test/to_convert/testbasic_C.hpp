@@ -127,6 +127,17 @@ namespace test_pyllars {
             mapping["second"] = "Jane";
         }
 
+        TestStruct(const TestStruct & t): str_member(copy_string(t.str_member)),
+        double_member(t.double_member){
+
+        }
+
+        TestStruct& operator=(const TestStruct& t){
+            //str_member = copy_string(t.str_member);
+            double_member = t.double_member;
+            return *this;
+        }
+
         ~TestStruct() {
             fprintf(stderr, "\n\n============>Deleted %s\n\n", str_member);
         }
@@ -202,6 +213,28 @@ namespace test_pyllars {
         long inherited_value;
     };
 
+    //test of template instantiation
+    template<typename type, type value>
+    class TemplatedClass{
+    public:
+        static constexpr type templated_type_element = value;
+
+    };
+
+    template<typename type>
+    class TemplatedClass2{
+    public:
+        TemplatedClass2():value("template2"){
+
+        }
+        type value;
+    };
+
+    template<typename type, type value> constexpr type
+    TemplatedClass<type, value>::templated_type_element;
+
+    typedef TemplatedClass<int, 641> ClassInstantationInt;
+
     //function that manipulates its first parameter
     int test_function(char *const *const out_msg, const size_t length);
 
@@ -214,5 +247,7 @@ namespace test_pyllars {
     void function_var_args_void_return( float first_explicit, int second_explicit, ...);
 
 }
-
+template class test_pyllars::TemplatedClass<int, 641>;
+template class test_pyllars::TemplatedClass2<std::string>;
+template class test_pyllars::TemplatedClass2<test_pyllars::TestStruct>;
 #endif

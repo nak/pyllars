@@ -136,3 +136,7 @@ class Test_BasicC:
 
     def testInheritance(self):
         assert(test_pyllars.InheritedStruct().inherited_value() == 214)
+
+    def testTemplates(self):
+        IntClass = test_pyllars.TemplatedClass((int, 'int'), 641)
+        assert(IntClass.templated_type_element() == 641)

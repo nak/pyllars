@@ -319,6 +319,8 @@ namespace __pyllars_internal {
 
         static PyObject *parent_module;
 
+        static bool isInitialized(){return _isInitialized;}
+
         template<typename C, const ssize_t size, typename depth>
         friend
         struct PythonCPointerWrapper;
@@ -387,6 +389,7 @@ namespace __pyllars_internal {
                                      >
                           >_mapMethodCollection;
         static std::vector<PyTypeObject *> _baseClasses;
+        static bool _isInitialized;
         size_t _arraySize;
         bool _allocated;
         bool _inPlace;

@@ -95,3 +95,9 @@ void test_pyllars::InheritedStruct::method_with_varargs_with_void_return(int fir
   printf("\nMethod: %d %ld %f %s\n", ival, lval, dval, stringval );
 }
 
+typedef const char c_string[];
+constexpr c_string param = "template_value";
+namespace test_pyllars {
+    using ClassInstantationDouble = TemplatedClass<const char *const, param>;
+}
+

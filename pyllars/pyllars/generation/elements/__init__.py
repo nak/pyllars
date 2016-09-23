@@ -122,7 +122,7 @@ class Namespace(BaseElement):
         else:
             return "__".join([self.context.mod_object_name(), self.name])
 
-    def get_include_parent_path(self):
+    def get_include_parent_path(self, path2=None):
         if self.context is None or self.name == "::" or self.name == "":
             path = "pyllars"
         else:
@@ -131,7 +131,7 @@ class Namespace(BaseElement):
 
         if len(path) > 80:
             hashlib.md5(path).hexdigest
-        return path
+        return os.path.join(path2, path) if path2 is not None else path
 
     def get_header_filename(self, path=None):
         sname = self.name if len(self.name) <= 80 else hashlib.md5(self.name).hexdigest()
@@ -372,13 +372,13 @@ class Type(BaseElement):
     def generate_code(self, path):
         pass
 
-    def get_include_parent_path(self):
+    def get_include_parent_path(self, path2=None):
         if self.context is None:
             return None
         path = os.path.join(self.context.get_include_parent_path(), self.sanitized_name) if self.context is not None else None
         if len(path) > 80:
             path = hashlib.md5(path).hexdigest()
-        return path
+        return os.path.join(path2, path) if path2 is not None else path
 
     def get_header_filename(self, path=None):
         if self.scope in ['private', 'protected']:
@@ -1076,7 +1076,7 @@ class FundamentalType(Type):
     def is_fundamental(self):
         return True
 
-    def get_include_parent_path(self):
+    def get_include_parent_path(self, _):
         return None
 
 
@@ -1307,6 +1307,7 @@ class Function(object):
         self.context.children.append(self)
         self.has_varargs = has_varargs
         self.id_ = id_
+        self.sanitized_name = sanitize(self.name)
 
     def generate_code(self, path):
         pass
@@ -1316,5 +1317,13 @@ class Function(object):
 
     def get_body_filename(self):
         return self.header_filename.replace('.h','.c')
+
+    def get_qualified_name(self, sanitized=False):
+        name = self.name if not sanitized else self.sanitized_name
+        if self.context is not None:
+            assert(self.context != self), "Context is same as self for %s" % self.id_
+            return "::".join([self.context.get_qualified_name(sanitized), name])
+        else:
+            return "::" + name
 
 # TODO: handle operator functions

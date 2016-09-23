@@ -31,15 +31,18 @@ class ResultsProcessor(object):
         for class_filter in class_filters:
             parser.filter_class(class_filter)
         parser.parse_xml()
-        return parser.processed
+        return parser.processed, parser.template_instantiations, parser.type_lookup
 
 
 def process(castxml_file, build_dir, class_filters = None):
-    from pyllars.generation.elements import Function, Namespace, BaseElement
-    items = ResultsProcessor.process(castxml_file, class_filters)
+    from pyllars.generation.elements import Function, Namespace, BaseElement, Struct, Class
+    from pyllars.generation.elements.templates import ClassTemplateInstantiation
+    items, template_instantiations, type_lookup = ResultsProcessor.process(castxml_file, class_filters)
     compilables = []
 
     def process_item(item):
+        if item.get_body_filename() is None:
+            return
         if item.get_body_filename().split('/')[-1]==".cpp": raise Exception(item.name +">>" + str(os.path.basename(item.get_header_filename() or '.hpp')=='.hpp'))
         code = item.generate_code(".")
         if code is not None and item.name != "":
@@ -50,8 +53,6 @@ def process(castxml_file, build_dir, class_filters = None):
                 f.write(header)
             with open(os.path.join(build_dir,item.get_body_filename().replace("<", "__").replace(" ","_").replace(">", "__").replace("::","____").replace(", ", "__")), 'w') as f:
                 f.write(body)
-                if item.get_body_filename() == "libio":
-                    raise Exception()
                 compilables.append((item.get_top_module_name().split('.')[0], f.name))
 
     for item in [i for i in items.itervalues() if i.get_body_filename() is not None and
@@ -60,6 +61,16 @@ def process(castxml_file, build_dir, class_filters = None):
     # Also process any newly added pseudo namespace modules
     for item in [n for n in Namespace.namespaces.values() if n.id_ == BaseElement.PSEUDO_ID]:
         process_item(item)
+
+    for item in [t for t in template_instantiations if t is not None and (isinstance(t, Struct) or isinstance(t, Class))]:
+        if item.get_name():
+            tmpl = ClassTemplateInstantiation(item, item.get_name(), type_lookup)
+            try:
+                process_item(tmpl)
+            except:
+                import traceback
+                traceback.print_exc()
+                print "!!Unable to process template %s" % item.get_name()
 
     return [c for c in compilables if c[0]!="<builtin>" and c[0] != "__builtin__"]
 

@@ -145,6 +145,9 @@ namespace __pyllars_internal{
     std::string PythonClassWrapper<T,
             typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::_name;
     template<typename T>
+    bool PythonClassWrapper<T,
+            typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::_isInitialized = false;
+    template<typename T>
     std::string PythonClassWrapper<T,
             typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::_module_entry_name;
     template<typename T>
@@ -611,6 +614,7 @@ int __pyllars_internal::InitHelper<T, typename std::enable_if<
             if ((*it)(args, kwds, self->_CObject, false)) {
                 self->_allocated = (self->_CObject != nullptr);
                 self->_inPlace = false;
+                self->_isInitialized = false;
                 self->_arraySize = 0;
 		self->_depth = 0;
                 return 0;
@@ -655,6 +659,7 @@ int __pyllars_internal::PythonClassWrapper<T,
                 typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::initialize
                 (const char *const name, const char *const module_entry_name,
                  PyObject *module, const char *const fullname) {
+    if (_isInitialized) return 0;
     if (!name || strlen(name) == 0) return -1;
     if (!module_entry_name || strlen(module_entry_name) == 0) return -1;
     if (!fullname || strlen(fullname) == 0) return -1;
@@ -708,6 +713,7 @@ int __pyllars_internal::PythonClassWrapper<T,
         }
     }
     onerror:
+        _isInitialized = (status ==0 );
     return status;
 }
 

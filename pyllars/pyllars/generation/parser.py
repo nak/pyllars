@@ -26,6 +26,8 @@ class CPPParser(object):
         self.element_lookup = {}
         self.element_name_lookup = {}
         self.class_filter = []
+        self.type_lookup = {}
+        self.template_instantiations = []
 
     def filter_class(self, classname):
         self.class_filter.append(classname)
@@ -85,6 +87,10 @@ class CPPParser(object):
                     break
         if item is not None:
             self.processed[child.attrib['id']] = item
+            qual_name = item.get_qualified_name().replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", '"').strip()
+            self.type_lookup[qual_name] = item
+            if "<" in item.get_qualified_name():
+               self.template_instantiations.append(item)
         if context is None and child.attrib['id'] == "_1":
             # top level
             assert(self.root_item is None) # only one top level!
