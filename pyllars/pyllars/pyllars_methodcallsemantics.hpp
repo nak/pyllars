@@ -220,11 +220,8 @@ namespace __pyllars_internal {
             static member_t member;
             static size_t array_size;
 
-            static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);
-
-            static PyObject *callAsBinaryFunc(PyObject *self, PyObject *args){
-                return call(self, Py_BuildValue("(O)", args), nullptr);
-            }
+            static int set(PyObject* o, PyObject* value);
+            static PyObject* get(PyObject* o);
 
             static void setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj);
 
@@ -241,11 +238,9 @@ namespace __pyllars_internal {
             static member_t member;
             static size_t array_size;
 
-            static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);
+            static int set(PyObject* o,  PyObject* value);
+            static PyObject* get(PyObject* o);
 
-            static PyObject *callAsBinaryFunc(PyObject *self, PyObject *args){
-                return call(self, Py_BuildValue("(O)", args), nullptr);
-            }
 
             static void setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj);
         };
@@ -261,11 +256,9 @@ namespace __pyllars_internal {
             static member_t member;
             static size_t array_size;
 
-            static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds) ;
+            static int set(PyObject* o, PyObject* value);
+            static PyObject* get(PyObject* o);
 
-            static PyObject *callAsBinaryFunc(PyObject *self, PyObject *args){
-                return call(self, Py_BuildValue("(O)", args), nullptr);
-            }
 
             static void setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj);
         };
@@ -280,11 +273,9 @@ namespace __pyllars_internal {
             static member_t member;
             static size_t array_size;
 
-            static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);
+            static int set(PyObject* o, PyObject* value);
+            static PyObject* get(PyObject* o);
 
-            static PyObject *callAsBinaryFunc(PyObject *self, PyObject *args){
-                return call(self, Py_BuildValue("(O)", args), nullptr);
-            }
             static void setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj);
 
         };
@@ -299,11 +290,9 @@ namespace __pyllars_internal {
             static member_t member;
             static size_t array_size;
 
-            static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds) ;
+            static int set(PyObject* o, PyObject* value);
+            static PyObject* get(PyObject* o);
 
-            static PyObject *callAsBinaryFunc(PyObject *self, PyObject *args){
-                return call(self, Py_BuildValue("(O)", args), nullptr);
-            }
             static void setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj);
 
         };
@@ -319,11 +308,9 @@ namespace __pyllars_internal {
             static member_t member;
             static size_t array_size;
 
-            static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);
+            static int set(PyObject* o, PyObject* value);
+            static PyObject* get(PyObject* o);
 
-            static PyObject *callAsBinaryFunc(PyObject *self, PyObject *args){
-                return call(self, Py_BuildValue("(O)", args), nullptr);
-            }
             static void setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj);
 
         };
@@ -338,11 +325,9 @@ namespace __pyllars_internal {
             static member_t member;
             static size_t array_size;
 
-            static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);
+            static int set(PyObject* o, PyObject* value);
+            static PyObject* get(PyObject* o);
 
-            static PyObject *callAsBinaryFunc(PyObject *self, PyObject *args){
-                return call(self, Py_BuildValue("(O)", args), nullptr);
-            }
 
             static void setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj);
         };
@@ -366,11 +351,9 @@ namespace __pyllars_internal {
             static getter_t _getter;
             static setter_t _setter;
 
-            static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);
+            static int set(PyObject* o, PyObject* value);
+            static PyObject* get(PyObject* o);
 
-            static PyObject *callAsBinaryFunc(PyObject *self, PyObject *args){
-                return call(self, Py_BuildValue("(O)", args), nullptr);
-            }
 
             static void setFromPyObject(CClass_NoRef *self, PyObject *pyobj);
 
@@ -386,11 +369,8 @@ namespace __pyllars_internal {
 
             static getter_t _getter;
 
-            static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);
-
-            static PyObject *callAsBinaryFunc(PyObject *self, PyObject *args){
-                return call(self, Py_BuildValue("(O)", args), nullptr);
-            }
+            static int set(PyObject* o, PyObject* value);
+            static PyObject* get(PyObject* o);
 
             static void setFromPyObject(CClass_NoRef *self, PyObject *pyobj);
 

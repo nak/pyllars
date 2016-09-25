@@ -102,7 +102,8 @@ namespace __pyllars_internal {
             static constexpr kwlist_t &kwlist = ConstMethodCallSemantics<CClass, ReturnType, Args...>::kwlist;
             static method_t method;
 
-            static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds) ;
+            static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);
+
 
         };
     };
@@ -126,7 +127,7 @@ namespace __pyllars_internal {
             static constexpr kwlist_t &kwlist = ConstMethodCallSemantics<CClass, ReturnType, Args...>::kwlist;
             static method_t method;
 
-            static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds) ;
+            static PyObject *call(method_t method, CClass &self, PyObject *args, PyObject *kwds);
 
         };
     };
@@ -156,7 +157,9 @@ namespace __pyllars_internal {
 
             static member_t member;
 
-            static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);
+            static int set(PyObject *self, PyObject* value);
+
+            static PyObject* get(PyObject* self);
 
         };
     };

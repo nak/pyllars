@@ -127,11 +127,7 @@ namespace __pyllars_internal{
     std::vector<PyTypeObject *> PythonClassWrapper<T,
             typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
             _baseClasses = std::vector<PyTypeObject *>();
-    template<typename T>
-    std::map<std::string, typename MethodContainer<T>::setter_t>
-            PythonClassWrapper<T,
-                    typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
-            _memberSettersDict = std::map<std::string, typename MethodContainer<T>::setter_t>();
+
     template<typename T>
     std::vector<typename PythonClassWrapper<T, typename std::enable_if<
             !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
@@ -140,6 +136,16 @@ namespace __pyllars_internal{
                     typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
             _constructors;
 
+    template<typename T>
+    std::map<std::string, _getattrfunc >
+            PythonClassWrapper<T,
+                    typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+            _member_getters;
+    template<typename T>
+    std::map<std::string, _setattrfunc >
+            PythonClassWrapper<T,
+                    typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+            _member_setters;
 
     template<typename T>
     std::string PythonClassWrapper<T,
@@ -173,8 +179,8 @@ namespace __pyllars_internal{
                     0,                         /*tp_itemsize*/
                     (destructor) PythonClassWrapper::_dealloc, /*tp_dealloc*/
                     nullptr,                         /*tp_print*/
-                    nullptr,                         /*tp_getattr*/
-                    nullptr,                         /*tp_setattr*/
+                    _pyGetAttr,                         /*tp_getattr*/
+                    _pySetAttr,                         /*tp_setattr*/
                     nullptr,                         /*tp_compare*/
                     nullptr,                         /*tp_repr*/
                     new PyNumberMethods{0},          /*tp_as_number*/
@@ -785,13 +791,6 @@ addr(PyObject *self, PyObject *args) {
      PyErr_Clear();
      obj->make_reference(self);
      return (PyObject*) obj;
-}
-
-template<typename T>
-bool __pyllars_internal::PythonClassWrapper<T, 
-        typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
-_findMemberSetter(const char *const name) {
-    return _memberSettersDict.find(name) != _memberSettersDict.end();
 }
 
 template<typename T>

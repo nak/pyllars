@@ -137,11 +137,8 @@ namespace __pyllars_internal {
     template<class CClass>
     template<const char *const name, typename T>
     PyObject *ConstMemberContainer<CClass>::Container<name, T>::
-    call(PyObject *self, PyObject *args, PyObject *kwds) {
-        if ((args && PyTuple_Size(args) != 0) || (kwds && PyDict_Size(kwds) != 0)) {
-            PyErr_SetString(PyExc_RuntimeError, "Expected no arguments");
-            return nullptr;
-        }
+    get(PyObject *self) {
+
         if (!self) return nullptr;
         typedef PythonClassWrapper<CClass> ClassWrapper;
         auto _this = reinterpret_cast<ClassWrapper *>(self);

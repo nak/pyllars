@@ -33,7 +33,7 @@ class Test_BasicC:
         assert( abs(test_struct.double_member() - 1.23456789) <=  0.000000000000001)
         t.double_member(set_to=9.87654321)
         assert( abs(test_struct.double_member() - 9.87654321) <=  0.000000000000001)
-        assert(type(test_struct.str_member())== type(msg if msg else ""))
+        assert(type(test_struct.str_member)== type(msg if msg else ""))
         assert(test_struct.str_member() == (msg or "Default constructed  TestStruct"))
         with pytest.raises(RuntimeError):
             test_struct.str_member(set_to="New value")
@@ -42,10 +42,10 @@ class Test_BasicC:
     @pytest.mark.parameterized("test_struct_array", [test_pyllars.TestStruct.new([(), ("Second Instance",)]),
                                                      test_pyllars.InheritedStruct.new([(), ()])])
     def testTestStructAlloc(test_struct_array):
-        assert(test_struct_array[0].str_member() == "Default constructed  TestStruct")
-        assert(test_struct_array[1].str_member() =="Second Instance")
-        assert(test_struct_array[-2].str_member() =="Default constructed  TestStruct")
-        assert(test_struct_array[-1].str_member() == "Second Instance")
+        assert(test_struct_array[0].str_member == "Default constructed  TestStruct")
+        assert(test_struct_array[1].str_member =="Second Instance")
+        assert(test_struct_array[-2].str_member =="Default constructed  TestStruct")
+        assert(test_struct_array[-1].str_member == "Second Instance")
         with pytest.raises(IndexError):
             t[2]
         with pytest.raises(IndexError):
@@ -53,18 +53,18 @@ class Test_BasicC:
         taddr = test_struct_array.this()
 
         for i in range(100):
-           assert(taddr[0][0].str_member() == "Default constructed  TestStruct")
+           assert(taddr[0][0].str_member == "Default constructed  TestStruct")
         return
         tptr = taddr[0]
         titem = tptr[0]
         del taddr
-        assert( tptr[0].str_member() == "Default constructed  TestStruct")
+        assert( tptr[0].str_member == "Default constructed  TestStruct")
         del titem
         del test_struct_array
-        assert( tptr[0].str_member() == "Default constructed  TestStruct")
+        assert( tptr[0].str_member == "Default constructed  TestStruct")
         titem = tptr[0]
         del tptr
-        assert( titem.str_member() == "Default constructed  TestStruct")
+        assert( titem.str_member == "Default constructed  TestStruct")
 
     @staticmethod
     @pytest.mark.parameterized("test_struct_array", [test_pyllars.TestStruct.new([(), ("Second Instance",)]),
@@ -92,24 +92,24 @@ class Test_BasicC:
         # del t and see that C object is still arround since
         # taddr holds reference to t
         del(t)
-        assert(taddr[0].str_member() ==  "TakeMyAddress")
+        assert(taddr[0].str_member ==  "TakeMyAddress")
 
     def testBitFields(self):
         b = test_pyllars.BitFields()
-        assert(b.bitfield1_unsigned_size1() == 0)
-        assert(b.bitfield3_anon_union_size4() == 15)
-        assert(b.const_bitfield2_signed_size3() == -1)
+        assert(b.bitfield1_unsigned_size1 == 0)
+        assert(b.bitfield3_anon_union_size4 == 15)
+        assert(b.const_bitfield2_signed_size3 == -1)
         with pytest.raises(ValueError):
-            b.const_bitfield2_signed_size3(set_to=1)
-        assert(b.bitfield3_anon_union_size4() == 15)
-        assert(b.bitfield_deeep_inner_anonymous() == 0x7FFF)
+            b.const_bitfield2_signed_size3=1
+        assert(b.bitfield3_anon_union_size4 == 15)
+        assert(b.bitfield_deeep_inner_anonymous == 0x7FFF)
         with pytest.raises(ValueError):
-            b.bitfield_deeep_inner_anonymous(set_to=0xFFFFFFFF00000000)
-        assert(b.entry()._field() == -22)
-        assert(b.entry()._field2() == 22)
-        assert(b._subfields().bitfield4_named_field_size7() == 0x7F)
-        b._subfields(as_ref=True).bitfield4_named_field_size7(set_to=0x3A)
-        assert(b._subfields().bitfield4_named_field_size7() == 0x3A)
+            b.bitfield_deeep_inner_anonymous =0xFFFFFFFF00000000
+        assert(b.entry._field == -22)
+        assert(b.entry._field2 == 22)
+        assert(b._subfields.bitfield4_named_field_size7 == 0x7F)
+        b._subfields.bitfield4_named_field_size7 = 0x3A
+        assert(b._subfields.bitfield4_named_field_size7 == 0x3A)
 
     @staticmethod
     @pytest.mark.parameterized("test_struct, msg", [(test_pyllars.TestStruct(), None),
@@ -156,11 +156,11 @@ class Test_BasicC:
         test_pyllars.InheritedStruct.method_with_varargs_with_void_return(1, int(2), long(12345), 2.1234892, "last")
 
     def testInheritance(self):
-        assert(test_pyllars.InheritedStruct().inherited_value() == 214)
+        assert(test_pyllars.InheritedStruct().inherited_value == 214)
 
     def testTemplates(self):
         IntClass = test_pyllars.TemplatedClass((int, 'int'), 641)
         assert(IntClass.templated_type_element() == 641)
         TClass = test_pyllars.TemplatedClass2(test_pyllars.TestStruct)
         t = TClass()
-        assert(abs(t.value().double_member() - 2.3456789) < 0.00000001)
+        assert(abs(t.value.double_member - 2.3456789) < 0.00000001)

@@ -179,66 +179,51 @@ namespace __pyllars_internal {
             MethodContainer<CClass, typename std::enable_if<std::is_class<CClass>::value &&
                                                             std::is_const<CClass>::value>::type>::Container<name, ReturnType, Args...>::method;
 
+/////////////////////////////////////////////
+
 
     template<class CClass>
     template<const char *const name, typename T>
     PyObject *MemberContainer<CClass>::Container<name, T, typename std::enable_if<
             !std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value != 0>::type>::
-    call(PyObject *self, PyObject *args, PyObject *kwds) {
+    get(PyObject *self) {
         if (!self) return nullptr;
         typedef PythonClassWrapper<CClass> Wrapper;
         Wrapper *_this = (Wrapper *) self;
-
-        if (!std::is_reference<T>::value &&(!args || PyTuple_Size(args) == 0) && (!kwds || PyDict_Size(kwds) == 0)) {
-            const ssize_t base_size = ArrayHelper<T>::base_sizeof();
-            const ssize_t array_size =
-                    base_size > 0 ? sizeof(_this->template get_CObject<CClass>()->*member) / base_size
-                                  : UNKNOWN_SIZE;
-            if (_this->template get_CObject<CClass>()) {
-                return toPyObject<T>(_this->template get_CObject<CClass>()->*member, false, array_size);
-            }
-            PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
-            return nullptr;
-        } else if (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "set_to")) {
-            PyObject *pyVal = PyDict_GetItemString(kwds, "set_to");
-            if (pyVal == Py_None) {
-                PyErr_SetString(PyExc_ValueError, "Unexpcted None value in member setter");
-                return nullptr;
-            }
-            Assign<T>::assign((_this->template get_CObject<CClass_NoRef>()->*member),
-                    *toCObject<T, false, PythonClassWrapper<T> >(*pyVal));
-        } else if ((std::is_reference<T>::value && (!kwds || PyDict_Size(kwds)==0))||
-                   (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "as_ref"))) {
-            //handle case if oject is to be returned by reference
-            bool asRef = std::is_reference<T>::value ;
-            if (PyDict_Size(kwds)==1) {
-                PyObject *pyVal = PyDict_GetItemString(kwds, "as_ref");
-                if (pyVal == Py_None) {
-                    PyErr_SetString(PyExc_ValueError, "Unexpected None value in member setter");
-                    return nullptr;
-                }
-                if (PyBool_Check(pyVal)) {
-                    asRef = (pyVal == Py_True);
-                } else {
-                    PyErr_SetString(PyExc_TypeError, "Expected boolean value for 'as_ref'");
-                    return nullptr;
-                }
-                if (_this->template get_CObject<CClass>()) {
-                    asRef = asRef && !std::is_fundamental<T>::value;
-                    PyObject *obj = toPyObject<T>(_this->template get_CObject<CClass>()->*member, asRef, array_size);;
-                    if (asRef) {
-                        ((PythonClassWrapper<T> *) obj)->make_reference(self);
-                    }
-		    return obj;
-                }
-                PyErr_SetString(PyExc_RuntimeError, "Internal error: No C Object found to get member attribute value!");
-                return nullptr;
-            }
-        } else {
-            PyErr_SetString(PyExc_ValueError, "Invalid argsuments to set class instance member variable in C");
-            return nullptr;
+        const ssize_t base_size = ArrayHelper<T>::base_sizeof();
+        const ssize_t array_size = base_size > 0 ? sizeof(_this->template get_CObject<CClass>()->*member) / base_size
+                                                 : UNKNOWN_SIZE;
+        if (_this->template get_CObject<CClass>()) {
+            return toPyObject<T>(_this->template get_CObject<CClass>()->*member, true, array_size);
         }
-        return Py_None;
+        PyErr_SetString(PyExc_RuntimeError, "Internal Pyllars Error: No C Object found to get member attribute value!");
+        return nullptr;
+    }
+
+
+    template<class CClass>
+    template<const char *const name, typename T>
+    int MemberContainer<CClass>::Container<name, T, typename std::enable_if<
+            !std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value != 0>::type>::
+    set(PyObject *self, PyObject* pyVal) {
+        if (!self) {
+            PyErr_SetString(PyExc_RuntimeError, "Unexpcted nullptr value for self");
+            return -1;
+        }
+        typedef PythonClassWrapper<CClass> Wrapper;
+        Wrapper *_this = (Wrapper *) self;
+        if (pyVal == Py_None) {
+            PyErr_SetString(PyExc_ValueError, "Unexpcted None value in member setter");
+            return -1;
+        }
+        try {
+            Assign<T>::assign((_this->template get_CObject<CClass_NoRef>()->*member),
+                              *toCObject<T, false, PythonClassWrapper<T> >(*pyVal));
+        }catch(const char* const msg){
+            PyErr_SetString(PyExc_RuntimeError, msg);
+            return -1;
+        }
+        return 0;
     }
 
     template<class CClass>
@@ -253,60 +238,29 @@ namespace __pyllars_internal {
     template<const char *const name, typename T>
     PyObject *MemberContainer<CClass>::Container<name, T, typename std::enable_if<
             !std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value == 0>::type>::
-    call(PyObject *self, PyObject *args, PyObject *kwds) {
+    get(PyObject *self) {
         if (!self) return nullptr;
         typedef PythonClassWrapper<CClass> Wrapper;
         Wrapper *_this = (Wrapper *) self;
-
-        if (!std::is_reference<T>::value && (!args || PyTuple_Size(args) == 0) && (!kwds || PyDict_Size(kwds) == 0)) {
-            const ssize_t base_size = ArrayHelper<T>::base_sizeof();
-            const ssize_t array_size =
-                    base_size > 0 ? sizeof(_this->template get_CObject<CClass>()->*member) / base_size
-                                  : UNKNOWN_SIZE;
-            if (_this->template get_CObject<CClass>()) {
-                return toPyObject<T>(_this->template get_CObject<CClass>()->*member, false, array_size);
-            }
-            PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
-            return nullptr;
-        } else if (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "set_to")) {
-            PyObject *pyVal = PyDict_GetItemString(kwds, "set_to");
-            if (pyVal == Py_None) {
-                PyErr_SetString(PyExc_ValueError, "Unexpcted None value in member setter");
-                return nullptr;
-            }
-
-        }  else if ((std::is_reference<T>::value && (!kwds || PyDict_Size(kwds)==0))||
-                    (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "as_ref"))) {
-            //handle case if oject is to be returned by reference
-            bool asRef = std::is_reference<T>::value ;
-            if (PyDict_Size(kwds)==1) {
-                PyObject *pyVal = PyDict_GetItemString(kwds, "as_ref");
-                if (pyVal == Py_None) {
-                    PyErr_SetString(PyExc_ValueError, "Unexpected None value in member setter");
-                    return nullptr;
-                }
-                if (PyBool_Check(pyVal)) {
-                    asRef = (pyVal == Py_True);
-                } else {
-                    PyErr_SetString(PyExc_TypeError, "Expected boolean value for 'as_ref'");
-                    return nullptr;
-                }
-                if (_this->template get_CObject<CClass>()) {
-                    asRef = asRef && !std::is_fundamental<T>::value;
-                    PyObject* obj = toPyObject<T>(*(_this->template get_CObject<CClass>()), asRef, 1);
-                    if (asRef) {
-                        ((PythonClassWrapper<T>*)obj)->make_reference(self);
-                    }
-		    return obj;
-                }
-                PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
-                return nullptr;
-            }
-        } else {
-            PyErr_SetString(PyExc_ValueError, "Invalid argsuments to set class instance member variable in C");
-            return nullptr;
+        const ssize_t base_size = ArrayHelper<T>::base_sizeof();
+        const ssize_t array_size =
+                base_size > 0 ? sizeof(_this->template get_CObject<CClass>()->*member) / base_size
+                              : UNKNOWN_SIZE;
+        if (_this->template get_CObject<CClass>()) {
+            return toPyObject<T>(_this->template get_CObject<CClass>()->*member, false, array_size);
         }
-        return Py_None;
+        PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
+        return nullptr;
+    }
+
+    template<class CClass>
+    template<const char *const name, typename T>
+    int MemberContainer<CClass>::Container<name, T, typename std::enable_if<
+            !std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value == 0>::type>::
+    set(PyObject *self, PyObject *pyVal) {
+       //nothing to do for zero size item
+        return 0;
+
     }
 
     template<class CClass>
@@ -322,54 +276,19 @@ namespace __pyllars_internal {
     template<const char *const name, typename T>
     PyObject *MemberContainer<CClass>::Container<name, T, typename std::enable_if<
             std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value != 0>::type>::
-    call(PyObject *self, PyObject *args, PyObject *kwds) {
+    get(PyObject *self) {
         if (!self) return nullptr;
         typedef PythonClassWrapper<CClass> Wrapper;
         Wrapper *_this = (Wrapper *) self;
-        if (!std::is_reference<T>::value && (!args || PyTuple_Size(args) == 0) && (!kwds || PyDict_Size(kwds) == 0)) {
-            if (_this->template get_CObject<CClass_NoRef>()) {
-                const ssize_t base_size = ArrayHelper<T>::base_sizeof();
-                const ssize_t array_size =
-                        base_size > 0 ? sizeof(_this->template get_CObject<CClass>()->*member) / base_size
-                                      : UNKNOWN_SIZE;
-                return toPyObject<T>(_this->template get_CObject<CClass_NoRef>()->*member, false, array_size);
-            }
-            PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
-            return nullptr;
-        } else if (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "set_to")) {
-            PyErr_SetString(PyExc_RuntimeError, "Attempt to set constant attribute!");
-            return nullptr;
-        }else if ((std::is_reference<T>::value && (!kwds || PyDict_Size(kwds)==0))||
-                  (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "as_ref"))) {
-            //handle case if oject is to be returned by reference
-            bool asRef = std::is_reference<T>::value ;
-            if (PyDict_Size(kwds)==1) {
-                PyObject *pyVal = PyDict_GetItemString(kwds, "as_ref");
-                if (pyVal == Py_None) {
-                    PyErr_SetString(PyExc_ValueError, "Unexpected None value in member setter");
-                    return nullptr;
-                }
-                if (PyBool_Check(pyVal)) {
-                    asRef = (pyVal == Py_True);
-                } else {
-                    PyErr_SetString(PyExc_TypeError, "Expected boolean value for 'as_ref'");
-                    return nullptr;
-                }
-                if (_this->template get_CObject<CClass>()) {
-                    asRef = asRef && !std::is_fundamental<T>::value;
-                    PyObject* obj = toPyObject<T>(*(_this->template get_CObject<CClass>()), asRef, 1);
-                    if (asRef) {
-                        ((PythonClassWrapper<T>*)obj)->make_reference(self);
-                    }
-		    return obj;
-                }
-                PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
-                return nullptr;
-            }
-        }  else {
-            PyErr_SetString(PyExc_ValueError, "Invalid argsuments to set class instance member variable in C");
-            return nullptr;
+        if (_this->template get_CObject<CClass_NoRef>()) {
+            const ssize_t base_size = ArrayHelper<T>::base_sizeof();
+            const ssize_t array_size =
+                    base_size > 0 ? sizeof(_this->template get_CObject<CClass>()->*member) / base_size
+                                  : UNKNOWN_SIZE;
+            return toPyObject<T>(_this->template get_CObject<CClass_NoRef>()->*member, true, array_size);
         }
+        PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
+        return nullptr;
     }
 
     template<class CClass>
@@ -383,96 +302,72 @@ namespace __pyllars_internal {
     template<class CClass>
     template<const char *const name, ssize_t size, typename T>
     PyObject *MemberContainer<CClass>::Container<name, T[size], void>::
-    call(PyObject *self, PyObject *args, PyObject *kwds) {
+    get(PyObject *self) {
         try {
             if (!self) return nullptr;
             PythonClassWrapper<CClass> *_this = (PythonClassWrapper<CClass> *) self;
 
-            if (!std::is_reference<T>::value &&(!args || PyTuple_Size(args) == 0) && (!kwds || PyDict_Size(kwds) == 0)) {
-                if (array_size != size) {
-                    static char msg[250];
-                    snprintf(msg, 250, "Mismatched array sizes (static)%lld!=%lld", (long long) array_size,
-                             (long long) size);
-                    PyErr_SetString(PyExc_TypeError, msg);
-                    return nullptr;
-                }
-                if (_this->template get_CObject<CClass>()) {
-                    const ssize_t base_size = ArrayHelper<T_array>::base_sizeof();
-                    const ssize_t array_size =
-                            base_size > 0 ? sizeof(_this->template get_CObject<CClass>()->*member) / base_size
-                                          : UNKNOWN_SIZE;
-                    return toPyObject<T_array>(_this->template get_CObject<CClass>()->*member, false,
-                                               array_size);
-                }
-                PyErr_SetString(PyExc_RuntimeError, "Internal Error:No C Object found to get member attribute value!");
-                return nullptr;
-            } else if (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "set_to")) {
-                PyObject *pyVal = PyDict_GetItemString(kwds, "set_to");
-                if (pyVal == Py_None) {
-                    PyErr_SetString(PyExc_ValueError, "Unexpcted None value in member setter");
-                    return nullptr;
-                }
-                if (PyTuple_Check(pyVal)) {
-                    if (PyTuple_Size(pyVal) == size) {
-                        for (size_t i = 0; i < size; ++i)
-                            Assign<T>::assign((_this->template get_CObject<CClass_NoRef>()->*
-                             member)[i],  *toCObject<T, false, PythonClassWrapper<T> >(
-                                    *PyTuple_GetItem(pyVal, i)));
-                    } else {
-                        static char msg[250];
-                        snprintf(msg, 250, "Mismatched array sizes (tuple)%lld!=%lld",
-                                 (long long) PyTuple_Size(pyVal),
-                                 (long long) size);
-                        PyErr_SetString(PyExc_IndexError, msg);
-                        return nullptr;
-                    }
-                } else if (PythonClassWrapper<T_array>::checkType(pyVal)) {
-                    T_array *val = ((PythonClassWrapper<T_array> *) pyVal)->template get_CObject<T_array>();
-                    for (size_t i = 0; i < size; ++i)
-                        Assign<T>::assign((_this->template get_CObject<T_array>()->*member)[i] , (*val)[i]);
-
-                } else if ((std::is_reference<T>::value && (!kwds || PyDict_Size(kwds)==0))||
-                           (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "as_ref"))) {
-                    //handle case if oject is to be returned by reference
-                    bool asRef = std::is_reference<T>::value ;
-                    if (PyDict_Size(kwds)==1) {
-                        PyObject *pyVal = PyDict_GetItemString(kwds, "as_ref");
-                        if (pyVal == Py_None) {
-                            PyErr_SetString(PyExc_ValueError, "Unexpected None value in member setter");
-                            return nullptr;
-                        }
-                        if (PyBool_Check(pyVal)) {
-                            asRef = (pyVal == Py_True);
-                        } else {
-                            PyErr_SetString(PyExc_TypeError, "Expected boolean value for 'as_ref'");
-                            return nullptr;
-                        }
-                        if (_this->template get_CObject<CClass>()) {
-                            asRef = asRef && !std::is_fundamental<T>::value;
-                            PyObject* obj = toPyObject<T_array>(_this->template get_CObject<CClass>()->*member, asRef,
-                                                               array_size);
-                            if (asRef) {
-                                ((PythonClassWrapper<T>*)obj)->make_reference(self);
-                            }
-			    return obj;
-                        }
-                        PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
-                        return nullptr;
-                    }
-                }else {
-                    PyErr_SetString(PyExc_TypeError, "Invalid argument type when setting array attribute");
-                    return nullptr;
-                }
-            } else {
-                PyErr_SetString(PyExc_ValueError,
-                                "Invalid arguments to set class instance member variable in C");
+            if (array_size != size) {
+                static char msg[250];
+                snprintf(msg, 250, "Mismatched array sizes (static)%lld!=%lld", (long long) array_size,
+                         (long long) size);
+                PyErr_SetString(PyExc_TypeError, msg);
                 return nullptr;
             }
-            return Py_None;
+            if (_this->template get_CObject<CClass>()) {
+                const ssize_t base_size = ArrayHelper<T_array>::base_sizeof();
+                const ssize_t array_size =
+                        base_size > 0 ? sizeof(_this->template get_CObject<CClass>()->*member) / base_size
+                                      : UNKNOWN_SIZE;
+
+               PyObject* obj = toPyObject<T_array>(_this->template get_CObject<CClass>()->*member, false,
+                                            array_size);
+                ((PythonClassWrapper<T> *) obj)->make_reference(self);
+                return obj;
+            }
+            PyErr_SetString(PyExc_RuntimeError, "Internal Error:No C Object found to get member attribute value!");
+            return nullptr;
         } catch (const char *const msg) {
-            PyErr_SetString(PyExc_SystemError, msg);
+            PyErr_SetString(PyExc_RuntimeError, msg);
             return nullptr;
         }
+    }
+
+    template<class CClass>
+    template<const char *const name, ssize_t size, typename T>
+    int MemberContainer<CClass>::Container<name, T[size], void>::
+    set(PyObject *self, PyObject* pyVal) {
+        PythonClassWrapper<CClass> *_this = (PythonClassWrapper<CClass> *) self;
+        try{
+            if (pyVal == Py_None) {
+                PyErr_SetString(PyExc_ValueError, "Unexpcted None value in member setter");
+                return -1;
+            }
+            if (PyTuple_Check(pyVal)) {
+                if (PyTuple_Size(pyVal) == size) {
+                    for (size_t i = 0; i < size; ++i)
+                        Assign<T>::assign((_this->template get_CObject<CClass_NoRef>()->*
+                         member)[i],  *toCObject<T, true, PythonClassWrapper<T> >(
+                                *PyTuple_GetItem(pyVal, i)));
+                } else {
+                    static char msg[250];
+                    snprintf(msg, 250, "Mismatched array sizes (tuple)%lld!=%lld",
+                             (long long) PyTuple_Size(pyVal),
+                             (long long) size);
+                    PyErr_SetString(PyExc_IndexError, msg);
+                    return -1;
+                }
+            } else if (PythonClassWrapper<T_array>::checkType(pyVal)) {
+                T_array *val = ((PythonClassWrapper<T_array> *) pyVal)->template get_CObject<T_array>();
+                for (size_t i = 0; i < size; ++i)
+                    Assign<T>::assign((_this->template get_CObject<T_array>()->*member)[i] , (*val)[i]);
+
+            }
+        } catch (const char *const msg) {
+            PyErr_SetString(PyExc_RuntimeError, msg);
+            return -1;
+        }
+        return 0;
     }
 
     template<class CClass>
@@ -490,30 +385,26 @@ namespace __pyllars_internal {
     template<class CClass>
     template<const char *const name, ssize_t size, typename T>
     PyObject *MemberContainer<CClass>::Container<name, const T[size], void>::
-    call(PyObject *self, PyObject *args, PyObject *kwds) {
+    get(PyObject *self) {
         if (!self) return nullptr;
         PythonClassWrapper<CClass> *_this = (PythonClassWrapper<CClass> *) self;
 
-        if ((!args || PyTuple_Size(args) == 0) && (!kwds || PyDict_Size(kwds) == 0)) {
-            const ssize_t base_size = ArrayHelper<T_array>::base_sizeof();
-            const ssize_t array_size =
-                    base_size > 0 ? sizeof(_this->template get_CObject<CClass>()->*member) / base_size
-                                  : UNKNOWN_SIZE;
-            if (array_size != size) {
-                PyErr_SetString(PyExc_TypeError, "Mismatched array sizes");
-                return nullptr;
-            }
-            if (_this->template get_CObject<CClass>()) {
-                return toPyObject<T_array, size>(*(_this->template get_CObject<CClass>()->*member), false,
-                                                 array_size);
-            }
-            PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
-            return nullptr;
-        } else {
-            PyErr_SetString(PyExc_ValueError, "Cannot set const array elements!");
+        const ssize_t base_size = ArrayHelper<T_array>::base_sizeof();
+        const ssize_t array_size =
+                base_size > 0 ? sizeof(_this->template get_CObject<CClass>()->*member) / base_size
+                              : UNKNOWN_SIZE;
+        if (array_size != size) {
+            PyErr_SetString(PyExc_TypeError, "Mismatched array sizes");
             return nullptr;
         }
-        return Py_None;
+        if (_this->template get_CObject<CClass>()) {
+            return toPyObject<T_array, size>(*(_this->template get_CObject<CClass>()->*member), true,
+                                             array_size);
+        }
+
+        PyErr_SetString(PyExc_RuntimeError, "Cannot set object element!");
+        return nullptr;
+
     }
 
     template<class CClass>
@@ -531,22 +422,27 @@ namespace __pyllars_internal {
     template<class CClass>
     template<const char *const name, typename T>
     PyObject *MemberContainer<CClass>::Container<name, T[], typename std::enable_if<!std::is_const<T>::value>::type>::
-    call(PyObject *self, PyObject *args, PyObject *kwds) {
+    get(PyObject *self) {
         if (!self) return nullptr;
         PythonClassWrapper<CClass> *_this = (PythonClassWrapper<CClass> *) self;
 
-        if (!std::is_reference<T>::value && (!args || PyTuple_Size(args) == 0) && (!kwds || PyDict_Size(kwds) == 0)) {
-            if (_this->template get_CObject<CClass>()) {
-                const ssize_t base_size = ArrayHelper<T[]>::base_sizeof();
-                const ssize_t array_size =
-                        base_size > 0 ? sizeof(_this->template get_CObject<CClass>()->*member) / base_size
-                                      : UNKNOWN_SIZE;
-                return toPyObject<T[]>(*(_this->template get_CObject<CClass>()->*member), false, array_size);
-            }
-            PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
-            return nullptr;
-        } else if (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "set_to")) {
-            PyObject *pyVal = PyDict_GetItemString(kwds, "set_to");
+        if (_this->template get_CObject<CClass>()) {
+            PyObject *obj = toPyObject<T[]>(*(_this->template get_CObject<CClass>()->*member), true, array_size);
+            ((PythonClassWrapper<T> *) obj)->make_reference(self);
+            return obj;
+        }
+        PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
+        return nullptr;
+    }
+
+
+    template<class CClass>
+    template<const char *const name, typename T>
+    int MemberContainer<CClass>::Container<name, T[], typename std::enable_if<!std::is_const<T>::value>::type>::
+    set(PyObject *self, PyObject* pyVal) {
+        if (!self) return nullptr;
+        PythonClassWrapper<CClass> *_this = (PythonClassWrapper<CClass> *) self;
+        try{
             if (pyVal == Py_None) {
                 PyErr_SetString(PyExc_RuntimeError, "Unexpcted None value in member setter");
                 return nullptr;
@@ -559,7 +455,7 @@ namespace __pyllars_internal {
                 if (PyTuple_Size(pyVal) == array_size) {
                     for (size_t i = 0; i < array_size; ++i)
                         Assign<T>::assign((_this->template get_CObject<CClass_NoRef>()->*
-                         member)[i], *toCObject<T, false, PythonClassWrapper<T> >(
+                                           member)[i], *toCObject<T, false, PythonClassWrapper<T> >(
                                 *PyTuple_GetItem(pyVal, i)));
                 } else {
                     static char msg[250];
@@ -575,42 +471,15 @@ namespace __pyllars_internal {
                 for (size_t i = 0; i < array_size; ++i)
                     Assign<T>::assign((_this->template get_CObject<T_array>()->*member)[i], (*val)[i]);
 
-            } else if ((std::is_reference<T>::value && (!kwds || PyDict_Size(kwds)==0))||
-                      (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "as_ref"))) {
-                //handle case if oject is to be returned by reference
-                bool asRef = std::is_reference<T>::value ;
-                if (PyDict_Size(kwds)==1) {
-                    PyObject *pyVal = PyDict_GetItemString(kwds, "as_ref");
-                    if (pyVal == Py_None) {
-                        PyErr_SetString(PyExc_ValueError, "Unexpected None value in member setter");
-                        return nullptr;
-                    }
-                    if (PyBool_Check(pyVal)) {
-                        asRef = (pyVal == Py_True);
-                    } else {
-                        PyErr_SetString(PyExc_TypeError, "Expected boolean value for 'as_ref'");
-                        return nullptr;
-                    }
-                    if (_this->template get_CObject<CClass>()) {
-                        asRef = asRef && !std::is_fundamental<T>::value;
-                        PyObject* obj = toPyObject<T[]>(*(_this->template get_CObject<CClass>()->*member), asRef, array_size);
-                        if (asRef) {
-                            ((PythonClassWrapper<T>*)obj)->make_reference(self);
-                        }
-			return obj;
-                    }
-                    PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
-                    return nullptr;
-                }
-            }  else {
-                PyErr_SetString(PyExc_TypeError, "Invalid argument type when setting array attribute");
-                return nullptr;
+            } else {
+                PyErr_SetString(PyExc_ValueError, "Invalid argument type when setting attribute");
+                return -1;
             }
-        } else {
-            PyErr_SetString(PyExc_ValueError, "Invalid arguments to set class instance member variable in C");
-            return nullptr;
+        } catch( const char* const msg){
+            PyErr_SetString(PyExc_RuntimeError, msg);
+            return -1;
         }
-        return Py_None;
+        return 0;
     }
 
     template<class CClass>
@@ -711,38 +580,39 @@ namespace __pyllars_internal {
     template<typename CClass>
     template<const char *const name, typename T, const size_t bits>
     PyObject *BitFieldContainer<CClass>::Container<name, T, bits>::
-    call(PyObject *self, PyObject *args, PyObject *kwds) {
+    get(PyObject *self) {
         if (!self) return nullptr;
         typedef PythonClassWrapper<CClass> Wrapper;
         Wrapper *_this = (Wrapper *) self;
 
-        if (!std::is_reference<T>::value && (!args || PyTuple_Size(args) == 0) && (!kwds || PyDict_Size(kwds) == 0)) {
-            if (_this->template get_CObject<CClass>()) {
-                return toPyObject<T>(_getter(*(_this->template get_CObject<CClass>())), false, 1);
-            }
-            PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
-            return nullptr;
-        } else if (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "set_to")) {
-            PyObject *pyVal = PyDict_GetItemString(kwds, "set_to");
-            if (pyVal == Py_None) {
-                PyErr_SetString(PyExc_ValueError, "Unexpected None value in member setter");
-                return nullptr;
-            }
-            smart_ptr<T, false> value = toCObject<T, false, PythonClassWrapper<T> >(*pyVal);
-            if (!BitFieldLimits<T, bits>::is_in_bounds(*value)) {
-                PyErr_SetString(PyExc_ValueError, "Value out of bounds");
-                return nullptr;
-            }
-            _setter(*(_this->template get_CObject<CClass_NoRef>()), *value);
-        }  else if ((std::is_reference<T>::value && (!kwds || PyDict_Size(kwds)==0))||
-                   (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "as_ref"))) {
-            PyErr_SetString(PyExc_TypeError, "Cannot get reference to bit field by reference");
-            return nullptr;
-        } else {
-            PyErr_SetString(PyExc_ValueError, "Invalid arguments to set class instance member variable in C");
-            return nullptr;
+        if (_this->template get_CObject<CClass>()) {
+            return toPyObject<T>(_getter(*(_this->template get_CObject<CClass>())), false, 1);
         }
-        return Py_None;
+        PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
+        return nullptr;
+    }
+
+    template<typename CClass>
+    template<const char *const name, typename T, const size_t bits>
+    int BitFieldContainer<CClass>::Container<name, T, bits>::
+    set(PyObject *self, PyObject* pyVal) {
+        if (!self) {
+            PyErr_SetString(PyExc_RuntimeError, "Unexpected null value for self");
+            return -1;
+        }
+        typedef PythonClassWrapper<CClass> Wrapper;
+        Wrapper *_this = (Wrapper *) self;
+        if (pyVal == Py_None) {
+            PyErr_SetString(PyExc_ValueError, "Unexpected None value in member setter");
+            return -1;
+        }
+        smart_ptr<T, false> value = toCObject<T, false, PythonClassWrapper<T> >(*pyVal);
+        if (!BitFieldLimits<T, bits>::is_in_bounds(*value)) {
+            PyErr_SetString(PyExc_ValueError, "Value out of bounds");
+            return -1;
+        }
+        _setter(*(_this->template get_CObject<CClass_NoRef>()), *value);
+        return 0;
     }
 
     template<typename CClass>
@@ -759,22 +629,16 @@ namespace __pyllars_internal {
     template<typename CClass>
     template<const char *const name, typename T, const size_t bits>
     PyObject *BitFieldContainer<CClass>::ConstContainer<name, T, bits>::
-    call(PyObject *self, PyObject *args, PyObject *kwds) {
+    get(PyObject *self) {
         if (!self) return nullptr;
         typedef PythonClassWrapper<CClass> Wrapper;
         Wrapper *_this = (Wrapper *) self;
 
-        if ((!args || PyTuple_Size(args) == 0) && (!kwds || PyDict_Size(kwds) == 0)) {
-            if (_this->template get_CObject<CClass>()) {
-                return toPyObject<T>(_getter(*(_this->template get_CObject<CClass>())), false, 1);
-            }
-            PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
-            return nullptr;
-        } else if (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "set_to")) {
-            PyErr_SetString(PyExc_ValueError, "Cannot set const bit field");
-            return nullptr;
+        if (_this->template get_CObject<CClass>()) {
+            return toPyObject<T>(_getter(*(_this->template get_CObject<CClass>())), false, 1);
         }
-        return Py_None;
+        PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
+        return nullptr;
     }
 
     template<typename CClass>

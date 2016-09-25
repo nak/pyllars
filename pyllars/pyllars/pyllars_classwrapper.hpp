@@ -25,6 +25,8 @@ typedef const char cstring[];
 static constexpr cstring operatormapname = "operator[]";
 
 namespace __pyllars_internal {
+    typedef int (*_setattrfunc)(PyObject*, PyObject*);
+    typedef PyObject* (*_getattrfunc)(PyObject*);
 
     template<typename T, typename E=void>
     class InitHelper;
@@ -266,15 +268,21 @@ namespace __pyllars_internal {
             //char *getter_name = new char[strlen(name) +strlen(getter_prefix)+1];
             //snprintf(getter_name, strlen(name) +strlen(getter_prefix)+1, "%s%s_",getter_prefix,name);
             MemberContainer<T_NoRef>::template Container<name, Type[size]>::member = member;
-            PyMethodDef pyMeth = {name,
-                                  (PyCFunction) MemberContainer<T_NoRef>::template Container<name, Type[size]>::call,
-                                  METH_KEYWORDS,
-                                  doc_string
-            };
-            _addMethod(pyMeth);
-            _memberSettersDict[name] = MemberContainer<T>::template Container<name, Type[size]>::setFromPyObject;
+            _member_getters[name] = MemberContainer<T_NoRef>::template Container<name, Type[size]>::get;
+            _member_setters[name] = MemberContainer<T_NoRef>::template Container<name, Type[size]>::set;
         }
 
+        template<const char *const name, ssize_t size, typename Type>
+        static void addConstAttribute(
+                typename MemberContainer<T_NoRef>::template Container<name, Type[size]>::member_t member,
+                const ssize_t array_size){
+            assert(array_size == size);
+            static const char *const doc = "Get attribute ";
+            char *doc_string = new char[strlen(name) + strlen(doc) + 1];
+            snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
+            MemberContainer<T_NoRef>::template Container<name, Type[size]>::member = member;
+            _member_getters[name] = MemberContainer<T_NoRef>::template Container<name, Type[size]>::get;
+        }
         /**
          * Add a mutable bit field to this Python type definition
          **/
@@ -287,13 +295,9 @@ namespace __pyllars_internal {
             snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
             BitFieldContainer<T_NoRef>::template Container<name, Type, bits>::_getter = getter;
             BitFieldContainer<T_NoRef>::template Container<name, Type, bits>::_setter = setter;
-            PyMethodDef pyMeth = {name,
-                                  (PyCFunction) BitFieldContainer<T_NoRef>::template Container<name, Type, bits>::call,
-                                  METH_KEYWORDS,
-                                  doc_string
-            };
-            _addMethod(pyMeth);
-            _memberSettersDict[name] = BitFieldContainer<T>::template Container<name, Type, bits>::setFromPyObject;
+            _member_getters[name] =  BitFieldContainer<T_NoRef>::template Container<name, Type, bits>::get;
+            _member_setters[name] =  BitFieldContainer<T_NoRef>::template Container<name, Type, bits>::set;
+
         }
 
         /**
@@ -306,13 +310,7 @@ namespace __pyllars_internal {
             char *doc_string = new char[strlen(name) + strlen(doc) + 1];
             snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
             BitFieldContainer<T_NoRef>::template ConstContainer<name, Type, bits>::_getter = getter;
-            PyMethodDef pyMeth = {name,
-                                  (PyCFunction) BitFieldContainer<T_NoRef>::template ConstContainer<name, Type, bits>::call,
-                                  METH_KEYWORDS,
-                                  doc_string
-            };
-            _addMethod(pyMeth);
-            _memberSettersDict[name] = BitFieldContainer<T>::template ConstContainer<name, Type, bits>::setFromPyObject;
+            _member_getters[name] = BitFieldContainer<T_NoRef>::template ConstContainer<name, Type, bits>::get;
         }
 
         /**
@@ -327,13 +325,8 @@ namespace __pyllars_internal {
             const ssize_t array_size = ArraySize<Type>::size;
             MemberContainer<T_NoRef>::template Container<name, Type>::member = member;
             MemberContainer<T_NoRef>::template Container<name, Type>::array_size = array_size;
-            PyMethodDef pyMeth = {name,
-                                  (PyCFunction) MemberContainer<T_NoRef>::template Container<name, Type>::call,
-                                  METH_KEYWORDS,
-                                  doc_string
-            };
-            _addMethod(pyMeth);
-            _memberSettersDict[name] = MemberContainer<T>::template Container<name, Type>::setFromPyObject;
+            _member_getters[name] =  MemberContainer<T_NoRef>::template Container<name, Type>::get;
+            _member_setters[name] =   MemberContainer<T_NoRef>::template Container<name, Type>::set;
         }
 
 
@@ -348,12 +341,7 @@ namespace __pyllars_internal {
             char *doc_string = new char[strlen(name) + strlen(doc) + 1];
             snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
             ConstMemberContainer<T_NoRef>::template Container<name, Type>::member = member;
-            PyMethodDef pyMeth = {name,
-                                  (PyCFunction) ConstMemberContainer<T_NoRef>::template Container<name, Type>::call,
-                                  METH_KEYWORDS,
-                                  doc_string
-            };
-            _addMethod(pyMeth);
+            _member_getters[name] = ConstMemberContainer<T_NoRef>::template Container<name, Type>::get;
         }
 
 
@@ -443,6 +431,21 @@ namespace __pyllars_internal {
         ObjContainer<T_NoRef> *_CObject;
 
     private:
+        static int
+        _pySetAttr(PyObject* self,  char* attrname, PyObject* value){
+            if (!_member_setters.count(attrname)){
+                PyErr_SetString(PyExc_ValueError, "No such attribute or attempt to set const attribute");
+                return -1;
+            }
+            return _member_setters[attrname](self, value);
+        }
+
+        static PyObject* _pyGetAttr(PyObject* self,  char* attrname){
+            if (!_member_getters.count(attrname)){
+              return PyObject_GenericGetAttr(self, PyString_FromString(attrname));
+            }
+            return _member_getters[attrname](self);
+        }
 
         static int
         _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds);
@@ -473,21 +476,22 @@ namespace __pyllars_internal {
          **/
         static void _addMethod(PyMethodDef method);
 
+
+
         static PyObject* _mapGet(PyObject* self, PyObject* key);
         static int _mapSet(PyObject* self, PyObject* key, PyObject* value);
-
-        static bool _findMemberSetter(const char *const name) ;
 
         static std::string _name;
         static std::string _module_entry_name;
         static std::string _full_name;
         static std::vector<ConstructorContainer> _constructors;
-        static std::map<std::string, typename MethodContainer<T>::setter_t> _memberSettersDict;
         static std::vector<PyMethodDef> _methodCollection;
         static std::map<std::string, std::pair<std::function<PyObject*(PyObject*, PyObject*)>,
                                      std::function<int(PyObject*, PyObject*, PyObject*)>
                                      >
                           >_mapMethodCollection;
+        static std::map<std::string, _getattrfunc > _member_getters;
+        static std::map<std::string, _setattrfunc > _member_setters;
         static std::vector<PyTypeObject *> _baseClasses;
         static bool _isInitialized;
         size_t _arraySize;
