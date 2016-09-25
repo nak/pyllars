@@ -75,7 +75,6 @@ def process(castxml_file, build_dir, class_filters = None):
         tmpl = ClassTemplateInstantiation(class_type, k, item, type_lookup)
         try:
             process_item(tmpl)
-            print "============================= processed %s" % k
         except:
             import traceback
             traceback.print_exc()

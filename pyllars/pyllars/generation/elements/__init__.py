@@ -441,10 +441,12 @@ class Class(Type):
 
         QUALIFIERS = ["static", "const"]
 
-        def __init__(self, name, scope, qualifiers, return_type, arguments, with_ellipsis):
+        def __init__(self, name, scope, qualifiers, return_type, arguments, with_ellipsis,
+                     alt_name=None):
             assert (isinstance(return_type, Type) or return_type is None)
             assert (scope in Class.SCOPES or scope is None)
             self.name = name
+            self.namePy = alt_name
             for qualifier in qualifiers or []:
                 assert (qualifier in Class.Method.QUALIFIERS)
             self.is_const = 'const' in qualifiers
@@ -514,7 +516,8 @@ class Class(Type):
                 return self.name + ".cpp"
         return os.path.join(context.get_path(), self.name + ".cpp")
 
-    def add_method(self, method_name, method_scope, qualifiers, return_type, method_parameters, with_ellipsis):
+    def add_method(self, method_name, method_scope, qualifiers, return_type, method_parameters, with_ellipsis,
+                   alt_name=None):
         """
         add method to this class
         :param qualifiers: list of qualifiers (const, static, ...)
@@ -524,7 +527,8 @@ class Class(Type):
         :param method_parameters: 2-tuples of type/name pairs
         """
         #assert(not(method_name == "back" and return_type == None))
-        self._methods.append(Class.Method(method_name, method_scope, qualifiers, return_type, method_parameters, with_ellipsis))
+        self._methods.append(Class.Method(method_name, method_scope, qualifiers, return_type, method_parameters, with_ellipsis,
+                                          alt_name=alt_name))
 
     def mark_method_tainted(self, name, qualifiers):
         self._tainted_methods.append(name)
@@ -663,7 +667,7 @@ typedef const char c_string[];
            'baseheader': base.get_header_filename(path)
            }
 
-        for method_name in set([m.name for m in self._methods if m.scope == 'public' and
+        for method_name in set([m.namePy or m.name for m in self._methods if m.scope == 'public' and
                         m.name not in self._tainted_methods]):
             code += """
 constexpr c_string %s_methodname = "%s";
@@ -768,6 +772,7 @@ static inline status_t initialize_type%(suffix)s(){
        'key_type': method.arguments[0][1].get_qualified_name(),
        'indent': indent,
        'qual': qual}
+
         for method in [m for m in self._methods if m.scope == 'public']:
             call_method_name = "add"
             if method.is_const:
@@ -782,23 +787,38 @@ static inline status_t initialize_type%(suffix)s(){
             for arg_name, arg_type in method.arguments:
                 args.append(arg_type.get_qualified_name().replace('  ', ' ').replace("const const", "const"))
                 kwlist.append('"%s"' % arg_name)
-            if len(kwlist) > 0:
+
+            if method.name in ['+', '-', '*', '/', '%']:
                 code += """
+   {
+      PythonClassWrapper< %(class_name)s >::%(callable)s< %(method_name2)s_methodname, %(return_type)s %(args)s >
+         ( &%(class_name)s::operator %(method_name)s, nullptr);
+   }
+""" % {'class_name': class_name,
+       'method_name': method.name,
+       'method_name2': method.namePy,
+       'return_type': method.return_type.get_qualified_name() if method.return_type else "void",
+       'callable': call_method_name + method.namePy,
+       'args': (", " if len(args) else "") + ", ".join(args),
+       'indent': indent}
+            else:
+                if len(kwlist) > 0:
+                    code += """
    {
       static const char* const kwlist[] = {%(kwlist)s, nullptr};
 """ % {'indent': indent, 'kwlist': ", ".join(kwlist), }
-            else:
-                code += """
+                else:
+                    code += """
    {
       static const char* const *kwlist = {nullptr};
 """
-            code += """
+                code += """
       PythonClassWrapper< %(class_name)s >::%(callable)s< %(method_name2)s_methodname, %(return_type)s %(args)s >
          ( &%(class_name)s::%(method_name)s, kwlist);
    }
 """ % {'class_name': class_name,
        'method_name': method.name,
-       'method_name2': method.name,
+       'method_name2': method.namePy or method.name,
        'return_type': method.return_type.get_qualified_name() if method.return_type else "void",
        'callable': call_method_name,
        'args': (", " if len(args) else "") + ", ".join(args),

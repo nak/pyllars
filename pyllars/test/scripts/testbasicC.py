@@ -117,6 +117,27 @@ class Test_BasicC:
                                                     (test_pyllars.InheritedStruct(), None)])
     def testMapOperator(self, test_struct, msg):
         assert(test_struct[0.123] == "0.123000")
+        assert(test_struct[3] == 9)
+
+    def testOperatorPlus(self):
+        test_struct = test_pyllars.TestStruct()
+        assert(abs((test_struct +1.234) - 1.23456789-1.234) < 0.0000001)
+
+    def testOperatorMul(self):
+        test_struct = test_pyllars.TestStruct()
+        assert(abs((test_struct * 1.234) - 1.23456789*1.234) < 0.0000001)
+
+    def testOperatorSubtract(self):
+        test_struct = test_pyllars.TestStruct()
+        assert(abs((test_struct -  1.234) - 1.23456789 + 1.234) < 0.0000001)
+
+    def testOperatorDiv(self):
+        test_struct = test_pyllars.TestStruct()
+        assert(abs((test_struct / 1.234) - 1.23456789/1.234) < 0.0000001)
+
+    def testOperatorDiv(self):
+        test_struct = test_pyllars.TestStruct()
+        assert(int(test_struct*10.0) % 5 == 12 % 5)
 
     def testVarArgFunction(self):
         s = test_pyllars.function_var_args(2.3, 1, int(2), long(12345), 2.1234892, "last", test_pyllars.var_arg_param_func)

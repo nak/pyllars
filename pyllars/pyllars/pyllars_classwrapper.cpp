@@ -160,6 +160,7 @@ namespace __pyllars_internal{
                           >
     PythonClassWrapper<T,
             typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::_mapMethodCollection;
+
     template<typename T>
     PyTypeObject PythonClassWrapper<T,
             typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
@@ -176,7 +177,7 @@ namespace __pyllars_internal{
                     nullptr,                         /*tp_setattr*/
                     nullptr,                         /*tp_compare*/
                     nullptr,                         /*tp_repr*/
-                    nullptr,                         /*tp_as_number*/
+                    new PyNumberMethods{0},          /*tp_as_number*/
                     nullptr,                         /*tp_as_sequence*/
                     nullptr,                         /*tp_as_mapping*/
                     nullptr,                         /*tp_hash */
@@ -185,7 +186,7 @@ namespace __pyllars_internal{
                     nullptr,                         /*tp_getattro*/
                     nullptr,                         /*tp_setattro*/
                     nullptr,                         /*tp_as_buffer*/
-                    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /*tp_flags*/
+                    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_CHECKTYPES, /*tp_flags*/
                     "PythonClassWrapper object",           /* tp_doc */
                     nullptr,                       /* tp_traverse */
                     nullptr,                       /* tp_clear */
@@ -858,6 +859,582 @@ addMethod(typename MethodContainer<T_NoRef>::template Container<name, ReturnType
     _addMethod(pyMeth);
 }
 
+
+template<typename T>
+template<const char *const name, typename ReturnType, typename ...Args>
+void __pyllars_internal::PythonClassWrapper<T,
+        typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+addMethod__inv__(typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+          const char *const kwlist[]) {
+    static const char *const doc = "Call method ";
+    char *doc_string = new char[strlen(name) + strlen(doc) + 1];
+    snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
+
+    if (sizeof...(Args) > 1) {
+        PyMethodDef pyMeth = {
+                name,
+                (PyCFunction) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::call,
+                METH_KEYWORDS,
+                doc_string
+        };
+
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::method = method;
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::kwlist = kwlist;
+        _addMethod(pyMeth);
+    } else if (sizeof...(Args) == 0){
+        MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method = method;
+        Type.tp_as_number->nb_invert = (unaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+    }
+}
+
+
+
+template<typename T>
+template<const char *const name, typename ReturnType, typename ...Args>
+void __pyllars_internal::PythonClassWrapper<T,
+        typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+addMethod__add__(typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                 const char *const kwlist[]) {
+    static const char *const doc = "Call method ";
+    char *doc_string = new char[strlen(name) + strlen(doc) + 1];
+    snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
+
+    if (sizeof...(Args) > 1) {
+        PyMethodDef pyMeth = {
+                name,
+                (PyCFunction) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::call,
+                METH_KEYWORDS,
+                doc_string
+        };
+
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::method = method;
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::kwlist = kwlist;
+        _addMethod(pyMeth);
+    } else if (sizeof...(Args) == 1){
+        MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method = method;
+        Type.tp_as_number->nb_add = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+    }else if (sizeof...(Args) == 0){
+        MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method = method;
+        Type.tp_as_number->nb_positive = (unaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+    }
+}
+
+
+template<typename T>
+template<const char *const name, typename ReturnType, typename ...Args>
+void __pyllars_internal::PythonClassWrapper<T,
+        typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+addMethod__sub__(typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                 const char *const kwlist[]) {
+    static const char *const doc = "Call method ";
+    char *doc_string = new char[strlen(name) + strlen(doc) + 1];
+    snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
+
+    if (sizeof...(Args) > 1) {
+        PyMethodDef pyMeth = {
+                name,
+                (PyCFunction) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::call,
+                METH_KEYWORDS,
+                doc_string
+        };
+
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::method = method;
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::kwlist = kwlist;
+        _addMethod(pyMeth);
+    } else if (sizeof...(Args) == 1){
+        MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method = method;
+        Type.tp_as_number->nb_subtract = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+    }else if (sizeof...(Args) == 0){
+        MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method = method;
+        Type.tp_as_number->nb_negative = (unaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+    }
+}
+
+
+template<typename T>
+template<const char *const name, typename ReturnType, typename ...Args>
+void __pyllars_internal::PythonClassWrapper<T,
+        typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+addMethod__mul__(typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                 const char *const kwlist[]) {
+    static const char *const doc = "Call method ";
+    char *doc_string = new char[strlen(name) + strlen(doc) + 1];
+    snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
+
+    if (sizeof...(Args) > 1) {
+        PyMethodDef pyMeth = {
+                name,
+                (PyCFunction) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::call,
+                METH_KEYWORDS,
+                doc_string
+        };
+
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::method = method;
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::kwlist = kwlist;
+        _addMethod(pyMeth);
+    } else if (sizeof...(Args) == 1){
+        MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method = method;
+        Type.tp_as_number->nb_multiply = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+    }
+}
+
+
+template<typename T>
+template<const char *const name, typename ReturnType, typename ...Args>
+void __pyllars_internal::PythonClassWrapper<T,
+        typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+addMethod__div__(typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                 const char *const kwlist[]) {
+    static const char *const doc = "Call method ";
+    char *doc_string = new char[strlen(name) + strlen(doc) + 1];
+    snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
+
+    if (sizeof...(Args) > 1) {
+        PyMethodDef pyMeth = {
+                name,
+                (PyCFunction) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::call,
+                METH_KEYWORDS,
+                doc_string
+        };
+
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::method = method;
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::kwlist = kwlist;
+        _addMethod(pyMeth);
+    } else if (sizeof...(Args) == 1){
+        MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method = method;
+        Type.tp_as_number->nb_divide = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+    }
+}
+
+
+template<typename T>
+template<const char *const name, typename ReturnType, typename ...Args>
+void __pyllars_internal::PythonClassWrapper<T,
+        typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+addMethod__mod__(typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                 const char *const kwlist[]) {
+    static const char *const doc = "Call method ";
+    char *doc_string = new char[strlen(name) + strlen(doc) + 1];
+    snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
+
+    if (sizeof...(Args) > 1) {
+        PyMethodDef pyMeth = {
+                name,
+                (PyCFunction) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::call,
+                METH_KEYWORDS,
+                doc_string
+        };
+
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::method = method;
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::kwlist = kwlist;
+        _addMethod(pyMeth);
+    } else if (sizeof...(Args) == 1){
+        MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method = method;
+        Type.tp_as_number->nb_remainder = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+    }
+}
+
+
+
+template<typename T>
+template<const char *const name, typename ReturnType, typename ...Args>
+void __pyllars_internal::PythonClassWrapper<T,
+        typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+addMethod__lshift__(typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                 const char *const kwlist[]) {
+    static const char *const doc = "Call method ";
+    char *doc_string = new char[strlen(name) + strlen(doc) + 1];
+    snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
+
+    if (sizeof...(Args) > 1) {
+        PyMethodDef pyMeth = {
+                name,
+                (PyCFunction) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::call,
+                METH_KEYWORDS,
+                doc_string
+        };
+
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::method = method;
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::kwlist = kwlist;
+        _addMethod(pyMeth);
+    } else if (sizeof...(Args) == 1){
+        MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method = method;
+        Type.tp_as_number->nb_lshift = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+    }
+}
+
+
+
+template<typename T>
+template<const char *const name, typename ReturnType, typename ...Args>
+void __pyllars_internal::PythonClassWrapper<T,
+        typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+addMethod__rshift__(typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                 const char *const kwlist[]) {
+    static const char *const doc = "Call method ";
+    char *doc_string = new char[strlen(name) + strlen(doc) + 1];
+    snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
+
+    if (sizeof...(Args) > 1) {
+        PyMethodDef pyMeth = {
+                name,
+                (PyCFunction) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::call,
+                METH_KEYWORDS,
+                doc_string
+        };
+
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::method = method;
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::kwlist = kwlist;
+        _addMethod(pyMeth);
+    } else if (sizeof...(Args) == 1){
+        MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method = method;
+        Type.tp_as_number->nb_rshift = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+    }
+}
+
+
+template<typename T>
+template<const char *const name, typename ReturnType, typename ...Args>
+void __pyllars_internal::PythonClassWrapper<T,
+        typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+addMethod__and__(typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                    const char *const kwlist[]) {
+    static const char *const doc = "Call method ";
+    char *doc_string = new char[strlen(name) + strlen(doc) + 1];
+    snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
+
+    if (sizeof...(Args) > 1) {
+        PyMethodDef pyMeth = {
+                name,
+                (PyCFunction) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::call,
+                METH_KEYWORDS,
+                doc_string
+        };
+
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::method = method;
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::kwlist = kwlist;
+        _addMethod(pyMeth);
+    } else if (sizeof...(Args) == 1){
+        MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method = method;
+        Type.tp_as_number->nb_and = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+    }
+}
+
+
+template<typename T>
+template<const char *const name, typename ReturnType, typename ...Args>
+void __pyllars_internal::PythonClassWrapper<T,
+        typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+addMethod__or__(typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                    const char *const kwlist[]) {
+    static const char *const doc = "Call method ";
+    char *doc_string = new char[strlen(name) + strlen(doc) + 1];
+    snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
+
+    if (sizeof...(Args) > 1) {
+        PyMethodDef pyMeth = {
+                name,
+                (PyCFunction) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::call,
+                METH_KEYWORDS,
+                doc_string
+        };
+
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::method = method;
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::kwlist = kwlist;
+        _addMethod(pyMeth);
+    } else if (sizeof...(Args) == 1){
+        MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method = method;
+        Type.tp_as_number->nb_or = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+    }
+}
+
+
+template<typename T>
+template<const char *const name, typename ReturnType, typename ...Args>
+void __pyllars_internal::PythonClassWrapper<T,
+        typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+addMethod__xor__(typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                    const char *const kwlist[]) {
+    static const char *const doc = "Call method ";
+    char *doc_string = new char[strlen(name) + strlen(doc) + 1];
+    snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
+
+    if (sizeof...(Args) > 1) {
+        PyMethodDef pyMeth = {
+                name,
+                (PyCFunction) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::call,
+                METH_KEYWORDS,
+                doc_string
+        };
+
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::method = method;
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::kwlist = kwlist;
+        _addMethod(pyMeth);
+    } else if (sizeof...(Args) == 1){
+        MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method = method;
+        Type.tp_as_number->nb_xor = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+    }
+}
+
+
+
+
+
+
+template<typename T>
+template<const char *const name, typename ReturnType, typename ...Args>
+void __pyllars_internal::PythonClassWrapper<T,
+        typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+addMethod__iadd__(typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                 const char *const kwlist[]) {
+    static const char *const doc = "Call method ";
+    char *doc_string = new char[strlen(name) + strlen(doc) + 1];
+    snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
+
+    if (sizeof...(Args) > 1) {
+        PyMethodDef pyMeth = {
+                name,
+                (PyCFunction) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::call,
+                METH_KEYWORDS,
+                doc_string
+        };
+
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::method = method;
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::kwlist = kwlist;
+        _addMethod(pyMeth);
+    } else if (sizeof...(Args) == 1){
+        MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method = method;
+        Type.tp_as_number->nb_inplace_add = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+    }
+}
+
+
+
+template<typename T>
+template<const char *const name, typename ReturnType, typename ...Args>
+void __pyllars_internal::PythonClassWrapper<T,
+        typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+addMethod__isub__(typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                 const char *const kwlist[]) {
+    static const char *const doc = "Call method ";
+    char *doc_string = new char[strlen(name) + strlen(doc) + 1];
+    snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
+
+    if (sizeof...(Args) > 1) {
+        PyMethodDef pyMeth = {
+                name,
+                (PyCFunction) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::call,
+                METH_KEYWORDS,
+                doc_string
+        };
+
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::method = method;
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::kwlist = kwlist;
+        _addMethod(pyMeth);
+    } else if (sizeof...(Args) == 1){
+        MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method = method;
+        Type.tp_as_number->nb_inplace_subtract = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+    }
+}
+
+
+template<typename T>
+template<const char *const name, typename ReturnType, typename ...Args>
+void __pyllars_internal::PythonClassWrapper<T,
+        typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+addMethod__imul__(typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                 const char *const kwlist[]) {
+    static const char *const doc = "Call method ";
+    char *doc_string = new char[strlen(name) + strlen(doc) + 1];
+    snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
+
+    if (sizeof...(Args) > 1) {
+        PyMethodDef pyMeth = {
+                name,
+                (PyCFunction) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::call,
+                METH_KEYWORDS,
+                doc_string
+        };
+
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::method = method;
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::kwlist = kwlist;
+        _addMethod(pyMeth);
+    } else if (sizeof...(Args) == 1){
+        MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method = method;
+        Type.tp_as_number->nb_inplace_multiply = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+    }
+}
+
+
+template<typename T>
+template<const char *const name, typename ReturnType, typename ...Args>
+void __pyllars_internal::PythonClassWrapper<T,
+        typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+addMethod__imod__(typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                  const char *const kwlist[]) {
+    static const char *const doc = "Call method ";
+    char *doc_string = new char[strlen(name) + strlen(doc) + 1];
+    snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
+
+    if (sizeof...(Args) > 1) {
+        PyMethodDef pyMeth = {
+                name,
+                (PyCFunction) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::call,
+                METH_KEYWORDS,
+                doc_string
+        };
+
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::method = method;
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::kwlist = kwlist;
+        _addMethod(pyMeth);
+    } else if (sizeof...(Args) == 1){
+        MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method = method;
+        Type.tp_as_number->nb_inplace_remainder = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+    }
+}
+
+
+template<typename T>
+template<const char *const name, typename ReturnType, typename ...Args>
+void __pyllars_internal::PythonClassWrapper<T,
+        typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+addMethod__ilshift__(typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                  const char *const kwlist[]) {
+    static const char *const doc = "Call method ";
+    char *doc_string = new char[strlen(name) + strlen(doc) + 1];
+    snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
+
+    if (sizeof...(Args) > 1) {
+        PyMethodDef pyMeth = {
+                name,
+                (PyCFunction) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::call,
+                METH_KEYWORDS,
+                doc_string
+        };
+
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::method = method;
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::kwlist = kwlist;
+        _addMethod(pyMeth);
+    } else if (sizeof...(Args) == 1){
+        MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method = method;
+        Type.tp_as_number->nb_inplace_lshift = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+    }
+}
+
+
+template<typename T>
+template<const char *const name, typename ReturnType, typename ...Args>
+void __pyllars_internal::PythonClassWrapper<T,
+        typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+addMethod__irshift__(typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                  const char *const kwlist[]) {
+    static const char *const doc = "Call method ";
+    char *doc_string = new char[strlen(name) + strlen(doc) + 1];
+    snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
+
+    if (sizeof...(Args) > 1) {
+        PyMethodDef pyMeth = {
+                name,
+                (PyCFunction) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::call,
+                METH_KEYWORDS,
+                doc_string
+        };
+
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::method = method;
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::kwlist = kwlist;
+        _addMethod(pyMeth);
+    } else if (sizeof...(Args) == 1){
+        MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method = method;
+        Type.tp_as_number->nb_inplace_rshift = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+    }
+}
+
+
+template<typename T>
+template<const char *const name, typename ReturnType, typename ...Args>
+void __pyllars_internal::PythonClassWrapper<T,
+        typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+addMethod__iand__(typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                     const char *const kwlist[]) {
+    static const char *const doc = "Call method ";
+    char *doc_string = new char[strlen(name) + strlen(doc) + 1];
+    snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
+
+    if (sizeof...(Args) > 1) {
+        PyMethodDef pyMeth = {
+                name,
+                (PyCFunction) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::call,
+                METH_KEYWORDS,
+                doc_string
+        };
+
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::method = method;
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::kwlist = kwlist;
+        _addMethod(pyMeth);
+    } else if (sizeof...(Args) == 1){
+        MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method = method;
+        Type.tp_as_number->nb_inplace_and = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+    }
+}
+
+
+template<typename T>
+template<const char *const name, typename ReturnType, typename ...Args>
+void __pyllars_internal::PythonClassWrapper<T,
+        typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+addMethod__ior__(typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                     const char *const kwlist[]) {
+    static const char *const doc = "Call method ";
+    char *doc_string = new char[strlen(name) + strlen(doc) + 1];
+    snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
+
+    if (sizeof...(Args) > 1) {
+        PyMethodDef pyMeth = {
+                name,
+                (PyCFunction) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::call,
+                METH_KEYWORDS,
+                doc_string
+        };
+
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::method = method;
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::kwlist = kwlist;
+        _addMethod(pyMeth);
+    } else if (sizeof...(Args) == 1){
+        MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method = method;
+        Type.tp_as_number->nb_inplace_or = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+    }
+}
+
+
+
+template<typename T>
+template<const char *const name, typename ReturnType, typename ...Args>
+void __pyllars_internal::PythonClassWrapper<T,
+        typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+addMethod__ixor__(typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                     const char *const kwlist[]) {
+    static const char *const doc = "Call method ";
+    char *doc_string = new char[strlen(name) + strlen(doc) + 1];
+    snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
+
+    if (sizeof...(Args) > 1) {
+        PyMethodDef pyMeth = {
+                name,
+                (PyCFunction) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::call,
+                METH_KEYWORDS,
+                doc_string
+        };
+
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::method = method;
+        MethodContainer<T>::template Container<name, ReturnType, Args...>::kwlist = kwlist;
+        _addMethod(pyMeth);
+    } else if (sizeof...(Args) == 1){
+        MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method = method;
+        Type.tp_as_number->nb_inplace_xor = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+    }
+}
+
+
 template<typename T>
 PyObject*
 __pyllars_internal::PythonClassWrapper<T,
@@ -924,7 +1501,7 @@ addMapOperatorMethod( typename MethodContainer<T_NoRef>::template Container<oper
                                      try{
                                         auto c_value = toCObject<ValueType, defaults_to_string<ValueType>::value, PythonClassWrapper<ValueType>>(*value);
                                         auto c_key = toCObject<KeyType,  defaults_to_string<KeyType>::value, PythonClassWrapper<KeyType> >(*item);
-                                        (self_->get_CObject()->*method)(*c_key) = *c_value;
+                                         AssignValue<ValueType>::assign((self_->get_CObject()->*method)(*c_key),*c_value);
                                      } catch (const char* const msg){
 				                        PyErr_SetString(PyExc_TypeError, "Cannot assign to value of unrelated type.");
                                         return -1;

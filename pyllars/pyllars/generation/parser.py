@@ -367,6 +367,7 @@ class CPPParser(object):
         return_id = element.attrib.get('returns')
         return_type = self.get_type_from(return_id, element.attrib.get('id')) if return_id else None
         parent.add_method(method_name=element.attrib['name'],
+                          alt_name=element.attrib.get('namePy'),
                           method_scope=element.attrib.get('access') or 'private',
                           qualifiers=qualifiers,
                           return_type=return_type,
@@ -410,6 +411,66 @@ class CPPParser(object):
                                         qualifiers=qualifiers,
                                         return_type=return_type,
                                         method_parameter=arguments[0])
+        elif element.attrib.get('name') == "+":
+            element.attrib['namePy'] = "__add__"  # rename to Python equivalent
+            self.process_method(element)
+        elif element.attrib.get('name') == "-":
+            element.attrib['namePy'] = "__sub__"  # rename to Python equivalent
+            self.process_method(element)
+        elif element.attrib.get('name') == "*":
+            element.attrib['namePy'] = "__mul__"  # rename to Python equivalent
+            self.process_method(element)
+        elif element.attrib.get('name') == "/":
+            element.attrib['namePy'] = "__div__"  # rename to Python equivalent
+            self.process_method(element)
+        elif element.attrib.get('name') == "%":
+            element.attrib['namePy'] = "__mod__"
+            self.process_method(element)
+        elif element.attrib.get('name') == "&":
+            element.attrib['namePy'] = "__and__"
+            self.process_method(element)
+        elif element.attrib.get('name') == "|":
+            element.attrib['namePy'] = "__or__"
+            self.process_method(element)
+        elif element.attrib.get('name') == "^":
+            element.attrib['namePy'] = "__xor__"
+            self.process_method(element)
+        elif element.attrib.get('name') == ">>":
+            element.attrib['namePy'] = "__rshift__"
+            self.process_method(element)
+        elif element.attrib.get('name') == "<<":
+            element.attrib['namePy'] = "__lshift__"
+            self.process_method(element)
+        elif element.attrib.get('name') == "++":
+            element.attrib['namePy'] = "__iadd__"  # rename to Python equivalent
+            self.process_method(element)
+        elif element.attrib.get('name') == "-=":
+            element.attrib['namePy'] = "__isub__"  # rename to Python equivalent
+            self.process_method(element)
+        elif element.attrib.get('name') == "*=":
+            element.attrib['namePy'] = "__imul__"  # rename to Python equivalent
+            self.process_method(element)
+        elif element.attrib.get('name') == "%=":
+            element.attrib['namePy'] = "__imod__"  # rename to Python equivalent
+            self.process_method(element)
+        elif element.attrib.get('name') == ">>=":
+            element.attrib['namePy'] = "__irshift__"
+            self.process_method(element)
+        elif element.attrib.get('name') == "<<=":
+            element.attrib['namePy'] = "__ilshift__"
+            self.process_method(element)
+        elif element.attrib.get('name') == "&=":
+            element.attrib['namePy'] = "__iand__"
+            self.process_method(element)
+        elif element.attrib.get('name') == "|=":
+            element.attrib['namePy'] = "__ior__"
+            self.process_method(element)
+        elif element.attrib.get('name') == "^=":
+            element.attrib['namePy'] = "__ixor__"
+            self.process_method(element)
+        elif element.attrib.get('name') == "~":
+            element.attrib['namePy'] = "__inv__"
+            self.process_method(element)
 
     def get_file(self, element):
         fileid = element.attrib.get('file')

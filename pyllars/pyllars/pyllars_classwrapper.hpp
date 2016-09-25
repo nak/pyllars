@@ -120,6 +120,106 @@ namespace __pyllars_internal {
                 typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
                 const char *const kwlist[]);
 
+        template<const char *const name, typename ReturnType, typename ...Args>
+        static void addMethod__inv__(
+                typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                const char *const kwlist[]);
+
+        template<const char *const name, typename ReturnType, typename ...Args>
+        static void addMethod__add__(
+                typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                const char *const kwlist[]);
+
+        template<const char *const name, typename ReturnType, typename ...Args>
+        static void addMethod__sub__(
+                typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                const char *const kwlist[]);
+
+        template<const char *const name, typename ReturnType, typename ...Args>
+        static void addMethod__mul__(
+                typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                const char *const kwlist[]);
+
+        template<const char *const name, typename ReturnType, typename ...Args>
+        static void addMethod__div__(
+                typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                const char *const kwlist[]);
+
+        template<const char *const name, typename ReturnType, typename ...Args>
+        static void addMethod__and__(
+                typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                const char *const kwlist[]);
+
+        template<const char *const name, typename ReturnType, typename ...Args>
+        static void addMethod__or__(
+                typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                const char *const kwlist[]);
+
+        template<const char *const name, typename ReturnType, typename ...Args>
+        static void addMethod__xor__(
+                typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                const char *const kwlist[]);
+
+        template<const char *const name, typename ReturnType, typename ...Args>
+        static void addMethod__lshift__(
+                typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                const char *const kwlist[]);
+
+        template<const char *const name, typename ReturnType, typename ...Args>
+        static void addMethod__rshift__(
+                typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                const char *const kwlist[]);
+
+        template<const char *const name, typename ReturnType, typename ...Args>
+        static void addMethod__mod__(
+                typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                const char *const kwlist[]);
+
+        template<const char *const name, typename ReturnType, typename ...Args>
+        static void addMethod__iadd__(
+                typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                const char *const kwlist[]);
+
+        template<const char *const name, typename ReturnType, typename ...Args>
+        static void addMethod__isub__(
+                typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                const char *const kwlist[]);
+
+        template<const char *const name, typename ReturnType, typename ...Args>
+        static void addMethod__imul__(
+                typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                const char *const kwlist[]);
+
+        template<const char *const name, typename ReturnType, typename ...Args>
+        static void addMethod__imod__(
+                typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                const char *const kwlist[]);
+
+        template<const char *const name, typename ReturnType, typename ...Args>
+        static void addMethod__ilshift__(
+                typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                const char *const kwlist[]);
+
+        template<const char *const name, typename ReturnType, typename ...Args>
+        static void addMethod__irshift__(
+                typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                const char *const kwlist[]);
+
+        template<const char *const name, typename ReturnType, typename ...Args>
+        static void addMethod__iand__(
+                typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                const char *const kwlist[]);
+
+        template<const char *const name, typename ReturnType, typename ...Args>
+        static void addMethod__ior__(
+                typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                const char *const kwlist[]);
+
+        template<const char *const name, typename ReturnType, typename ...Args>
+        static void addMethod__ixor__(
+                typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                const char *const kwlist[]);
+
         /**
          * add a method with given compile-time-known name to the contained collection
          **/

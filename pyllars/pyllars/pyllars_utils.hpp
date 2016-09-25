@@ -586,6 +586,32 @@ namespace __pyllars_internal {
         }
     };
 
+
+
+
+
+    template<typename T, typename Z=void>
+    class AssignValue{
+    public:
+
+    };
+
+    template<typename T>
+    class AssignValue< T, typename std::enable_if< std::is_assignable<T, T>::value >::type >{
+    public:
+        static T assign(T v1, const T& v2){
+            return v1 = v2;
+        }
+    };
+
+    template<typename T>
+    class AssignValue< T, typename std::enable_if< !std::is_assignable<T, T>::value >::type >{
+    public:
+        static T assign(T v1, const T& v2){
+            throw "Unable to assign new value; type is not copy-assignable";
+        }
+    };
+
 }
 
 

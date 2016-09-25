@@ -36,11 +36,14 @@ namespace __pyllars_internal {
         static char format[sizeof...(Args) + 1] = {0};
         if (sizeof...(Args) > 0)
             memset(format, 'O', sizeof...(Args));
-
-        if (!PyArg_ParseTupleAndKeywords(args, kwds, format, (char **) kwlist, &pyargs...)) {
+        if (kwds && !PyArg_ParseTupleAndKeywords(args, kwds, format, (char **) kwlist, &pyargs...)) {
             PyErr_Print();
             throw "Invalid arguments to method call";
-        }
+        } else if (!kwds && !PyArg_ParseTuple(args, format, &pyargs...) ){
+	        PyErr_Print();
+	        throw "Invalid arguments to method call";
+	    }
+
         T retval = (self.*method)(*toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)...);
         return retval;
     }
@@ -59,6 +62,9 @@ namespace __pyllars_internal {
         (void) s;
         PyObject pyobjs[sizeof...(Args) + 1];
         (void) pyobjs;
+	if(!method){
+	  throw "Null method pointer encountered";
+	}
         return call_methodC(method, self, args, kwds, &pyobjs[S]...);
 
     }

@@ -137,11 +137,35 @@ namespace test_pyllars {
             fprintf(stderr, "\n\n============>Deleted %s\n\n", str_member);
         }
 
+        int operator[](const int & index){
+            return index*index;
+        }
+
         //non-const mapping operator
         char *&operator[](const double &value) {
             static char *value_image = new char[1024];
             snprintf(value_image, 1024, "%f", value);
             return value_image;
+        }
+
+        double operator+(const double & value){
+            return double_member + value;
+        }
+
+        double operator-(const double & value){
+            return double_member - value;
+        }
+
+        double operator*(const double & value){
+            return double_member*value;
+        }
+
+        double operator/(const double & value){
+            return double_member/value;
+        }
+
+        int operator %(const long & value){
+            return ((int) (double_member*10.0)) % value;
         }
 
         //const mapping operator
