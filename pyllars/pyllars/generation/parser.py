@@ -89,7 +89,7 @@ class CPPParser(object):
             self.processed[child.attrib['id']] = item
             qual_name = item.get_qualified_name().replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", '"').strip()
             self.type_lookup[qual_name] = item
-            if "<" in item.get_qualified_name():
+            if "<" in item.get_qualified_name() and item.get_qualified_name().replace('*', '').replace('&', '').strip().endswith('>'):
                self.template_instantiations.append(item)
         if context is None and child.attrib['id'] == "_1":
             # top level

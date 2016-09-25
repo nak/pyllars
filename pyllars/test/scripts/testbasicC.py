@@ -140,3 +140,6 @@ class Test_BasicC:
     def testTemplates(self):
         IntClass = test_pyllars.TemplatedClass((int, 'int'), 641)
         assert(IntClass.templated_type_element() == 641)
+        TClass = test_pyllars.TemplatedClass2(test_pyllars.TestStruct)
+        t = TClass()
+        assert(abs(t.value().double_member() - 2.3456789) < 0.00000001)

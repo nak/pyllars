@@ -61,17 +61,26 @@ def process(castxml_file, build_dir, class_filters = None):
     # Also process any newly added pseudo namespace modules
     for item in [n for n in Namespace.namespaces.values() if n.id_ == BaseElement.PSEUDO_ID]:
         process_item(item)
-
+    grouped ={}
+    class_types = {}
     for item in [t for t in template_instantiations if t is not None and (isinstance(t, Struct) or isinstance(t, Class))]:
         if item.get_name():
-            tmpl = ClassTemplateInstantiation(item, item.get_name(), type_lookup)
-            try:
-                process_item(tmpl)
-            except:
-                import traceback
-                traceback.print_exc()
-                print "!!Unable to process template %s" % item.get_name()
-
+            base_name = item.full_name.split('<')[0]
+            grouped.setdefault(base_name, []).append(item)
+            class_types[base_name] = item
+    for k, item in grouped.items():
+        class_type = class_types[k]
+        if class_type is None:
+            continue
+        tmpl = ClassTemplateInstantiation(class_type, k, item, type_lookup)
+        try:
+            process_item(tmpl)
+            print "============================= processed %s" % k
+        except:
+            import traceback
+            traceback.print_exc()
+            print "!!Unable to process template %s" % k
+            raise
     return [c for c in compilables if c[0]!="<builtin>" and c[0] != "__builtin__"]
 
 if __name__ == "__main__":

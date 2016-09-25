@@ -118,7 +118,7 @@ namespace __pyllars_internal {
     PythonClassTemplate::create(const char *const name, const char *const short_name,
                                              PyObject *const module,
                                              std::map<std::string, PythonClassTemplate*> & map) {
-        static PyTypeObject Type{
+        PyTypeObject* Type = new PyTypeObject{
                 PyObject_HEAD_INIT(nullptr)
                 0,                               /*ob_size*/
                 name,                         /*tp_name*/
@@ -169,10 +169,10 @@ namespace __pyllars_internal {
                 0,                          /*tp_version_tag*/
 
         };
-        if (PyType_Ready(&Type) < 0) {
+        if (PyType_Ready(Type) < 0) {
             throw("Unable to initialize Pyllars python-type");
         }
-        PyObject *const type = reinterpret_cast<PyObject *>(&Type);
+        PyObject *const type = reinterpret_cast<PyObject *>(Type);
         Py_INCREF(type);
         PythonClassTemplate* obj = (PythonClassTemplate*)PyObject_Call(type, PyTuple_New(0), nullptr);
         PyModule_AddObject(module, short_name, (PyObject*)obj);

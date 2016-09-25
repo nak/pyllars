@@ -132,11 +132,6 @@ namespace test_pyllars {
 
         }
 
-        TestStruct& operator=(const TestStruct& t){
-            //str_member = copy_string(t.str_member);
-            double_member = t.double_member;
-            return *this;
-        }
 
         ~TestStruct() {
             fprintf(stderr, "\n\n============>Deleted %s\n\n", str_member);

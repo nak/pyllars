@@ -13,13 +13,20 @@ def sanitize(name):
 
 class TemplateInstantiation(object):
 
-    def __init__(self, type, full_name, type_lookup):
-        self._name, self._params = self.parse(full_name.replace('&lt;', '<').replace('&gt;', '>').replace('&quot;', '"'),
-                                              type_lookup)
-        self._full_name = type.context.get_qualified_name() + "::" + full_name
-        self._type = type
-        self.context = type.context
-        self.sanitized_name = sanitize(self._full_name)
+    def __init__(self, type_, name, params_list, type_lookup):
+        self._params_list = {}
+        self._type = type_
+        self._name = name
+        for item in params_list:
+            full_name = item.full_name
+            name2, params = self.parse(full_name.replace('&lt;', '<').replace('&gt;', '>').replace('&quot;', '"'),
+                                       type_lookup)
+            if params is None:
+                continue
+            self._params_list[full_name] = params
+            assert(name2 == name)
+        self.context = type_.context
+        self._full_name = self.context.get_qualified_name() + "::" + self._name
 
     @property
     def full_name(self):
@@ -34,8 +41,8 @@ class TemplateInstantiation(object):
         return self._type
 
     @property
-    def params(self):
-        return self._params
+    def params_list(self):
+        return self._params_list
 
     @classmethod
     def split(cls, text):
@@ -51,11 +58,12 @@ class TemplateInstantiation(object):
                 params.append(text[:index].strip())
                 text = text[index+1:]
                 index = 0
-            assert(depth >= 0)
+            if depth < 0:
+                return None
             index += 1
             if (index == len(text)) and text:
                 params.append(text.strip())
-        print "************************ %s" % params
+        #print "************************ %s" % params
         return params
 
     @classmethod
@@ -64,6 +72,9 @@ class TemplateInstantiation(object):
         index = full_name.find('<', 0)
         name = full_name[:index]
         params = cls.split(full_name[index+1:-1])
+        if params is None:
+            return None, None
+
         def get_param_value(param):
             if param[0] in ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']:
                 if '.' in param:
@@ -98,26 +109,27 @@ class TemplateInstantiation(object):
         return name, [item for item in [get_param_value(param) for param in params] ]
 
     def get_include_parent_path(self, path=None):
-        return self.type.get_include_parent_path( os.path.join(path or ".", "templates%s" % self.type.id_))
+        return self.type.get_include_parent_path( os.path.join(path or ".", "templates%s" % sanitize(self.name)))
 
     def get_header_filename(self, path=None):
-        return self.type.get_header_filename( os.path.join(path or ".", "templates%s" % self.type.id_))
+        return self.type.get_header_filename( os.path.join(path or ".", "templates%s" % sanitize(self.name)))
 
     def get_body_filename(self, path=None):
-        return self.type.get_body_filename( os.path.join(path or ".", "templates%s" % self.type.id_))
+        return self.type.get_body_filename( os.path.join(path or ".", "templates%s" % sanitize(self.name)))
 
     def get_top_module_name(self):
-        return self.type.get_top_module_name()
+        return self._type.get_top_module_name()
 
 
 class ClassTemplateInstantiation(TemplateInstantiation):
 
-    def __init__(self, type, full_name, type_lookup):
-        super(ClassTemplateInstantiation, self).__init__(type, full_name, type_lookup)
+    def __init__(self, type_, name,  params_list, type_lookup):
+        super(ClassTemplateInstantiation, self).__init__(type_, name, params_list, type_lookup)
 
     def generate_code(self, path):
+
         def gen_code(param):
-            if  isinstance(param, FunctionType):
+            if isinstance(param, FunctionType):
                 return "&PythonFunctionWrapper2<%s>::Type" % param.get_qualified_name()
             elif isinstance(param,Type) or isinstance(param, FundamentalType):
                 return "&PythonClassWrapper<%s>::Type" % param.full_name
@@ -136,10 +148,11 @@ class ClassTemplateInstantiation(TemplateInstantiation):
                 raise Exception("Unknown template parameter type %s" % type(param))
 
         code = ""
-        for param in self.params:
-            if isinstance(param, Type):
-                if param.get_header_filename(path):
-                    code += "#include \"%s\"\n" % param.get_header_filename(path)
+        for param_list in self.params_list.values():
+            for param in param_list:
+                if isinstance(param, Type):
+                    if param.get_header_filename(path):
+                        code += "#include \"%s\"\n" % param.get_header_filename(path)
         code += """
 #include <pyllars_templates.hpp>
 #include "%s"
@@ -147,42 +160,74 @@ class ClassTemplateInstantiation(TemplateInstantiation):
         code += """
 #include "%s"
 """ % self.type.get_header_filename(path)
+        for param_list in self.params_list.values():
+            for param in param_list:
+                if isinstance(param, Type) and param.get_header_filename(path):
+                    code += """
+#include "%s"
+""" % param.get_header_filename(path)
         code += """
 namespace __pyllars_internal{
 
    typedef const char cstring[];
    constexpr cstring %(short_name)s_name = "%(prefix_name)s";
    constexpr cstring %(short_name)s_short_name = "%(short_name)s";
-   static PyObject* parameter_set[] = {(PyObject*)%(params)s, nullptr };
+   static PyObject* parameter_sets[][%(len)s] = {
+%(params)s,
+      nullptr
+   };
 
-   int initialize_template_%(short_name)s_%(id)s(){
+   int initialize_template_%(short_name)s(){
+""" % { 'short_name':  self.name.split('::')[-1],
+        'len': max([len(l) + 2 for l in self._params_list.values()]),
+        'prefix_name': self.context.get_qualified_name() + "::" + self.name,
+        'params' : ",\n".join(["      {(PyObject*)" +
+                               ",\n         (PyObject*)".join([gen_code(param)
+                                                               for param in [self.type] + params]) +
+                               ", nullptr}"
+                        for params in self.params_list.values()])
+        }
+        all_params = []
+        for idx, params in enumerate(self.params_list.values()):
+            all_params.append((idx, params))
+        init_stmnts = []
+        for idx, param_list in all_params:
+            for param in [(len(self._params_list), self.type)] + param_list:
+                if isinstance(param, Type):
+                    init_stmnts.append(("status[%d] |= pyllars" % idx) + param.context.get_qualified_name() + "::" +
+                                       sanitize(param.get_name().strip()) + "___ns::initialize_type();" if
+                                       param.context else
+                                       ("status[%d] |= PythonClassWrapper< %s >::isInitialized()?0:-1;" % (idx, param.full_name))
+                                       )
+        code += """
         PythonClassTemplate* instantiation = PythonClassTemplate::get<%(short_name)s_name, %(short_name)s_short_name>
             (pyllars%(mod)s::%(mod_name)s_mod);
         if(!instantiation){
             return -1;
         }
-        int status =0;
+        int status[%(len)s +1] = {0};
         %(param_init)s
-        if(status == 0){
-            instantiation->addParameterSet(parameter_set);
+        for(size_t i = 0; i < %(len)s; ++i ){
+            if(status[i] == 0){
+                instantiation->addParameterSet(parameter_sets[i]);
+            } else {
+                printf("Unable to load parameters for template function, this template instantiation will not be available %%s",
+                        "%(short_name)s");
+            }
         }
-        return status;
+        return 0;
    }
 
-   static pyllars::Initializer _initializer_template_%(short_name)s_%(id)s(initialize_template_%(short_name)s_%(id)s);
+   static pyllars::Initializer _initializer_template_%(short_name)s(initialize_template_%(short_name)s);
 
 }
 
 """ % {'name': self.full_name,
-       'prefix_name': self.full_name.split('<')[0],
-       'id': self.type.id_,
-       'short_name': self.name,
-       'mod': self.type.context.get_qualified_name(),
-       'mod_name': self.type.module_name,
-       'param_init': "\n      ".join(["status |= pyllars" + param.context.get_qualified_name() + "::" + sanitize(param.get_name().strip()) +"___ns::initialize_type();" if
-                                      param.context else
-                                      "status |= PythonClassWrapper< %s >::isInitialized()?0:-1;" % param.full_name
-                                      for param in [self.type] + self.params if isinstance(param, Type)]),
-       'params': ",\n         (PyObject*)".join([gen_code(param) for param in [self.type] + self.params])}
+       'len': len(self._params_list),
+       'short_name': self.name.split('::')[-1],
+       'mod': self.context.get_qualified_name(),
+       'mod_name': self._type.module_name,
+       'param_init': "\n      ".join(init_stmnts),
+       }
         header_code = ""
         return header_code, code

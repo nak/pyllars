@@ -378,7 +378,7 @@ namespace __pyllars_internal{
             PyErr_SetString(PyExc_ValueError, "Invalid argument keyword name or type to method call");
             return nullptr;
         } else if (kwds) {
-            *member = *toCObject<T, std::is_array<T>::value, PythonClassWrapper<T> >(*pyarg);
+            Assign<T>::assign(*member,*toCObject<T, std::is_array<T>::value, PythonClassWrapper<T> >(*pyarg));
             return Py_None;
         }
         return toPyObject<T>(*member, false, ArraySize<T>::size);
@@ -388,7 +388,7 @@ namespace __pyllars_internal{
     template<const char *const name, typename T>
     void ClassMemberContainer<CClass>::Container<name, T>::
     setFromPyObject(PyObject *pyobj) {
-        *member = *toCObject<T, false, PythonClassWrapper<T>>(*pyobj);
+        Assign<T>::assign(*member ,*toCObject<T, false, PythonClassWrapper<T>>(*pyobj));
     }
 
     template<class CClass>

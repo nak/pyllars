@@ -563,6 +563,29 @@ namespace __pyllars_internal {
         T2 object {};
         return size_t((long long)(&(object.*member)) - (long long)(&object));
     }
+
+    template<typename T, typename Z=void>
+    class Assign{
+    public:
+
+    };
+
+    template<typename T>
+    class Assign< T, typename std::enable_if< std::is_copy_assignable<T>::value >::type >{
+    public:
+        static T& assign(T& v1, const T&v2){
+            return v1 = v2;
+        }
+    };
+
+    template<typename T>
+    class Assign< T, typename std::enable_if< !std::is_copy_assignable<T>::value >::type >{
+    public:
+        static T& assign(T& v1, const T&v2){
+            throw "Unable to assign new value; type is not copy-assignable";
+        }
+    };
+
 }
 
 

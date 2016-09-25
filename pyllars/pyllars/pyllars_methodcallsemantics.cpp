@@ -199,8 +199,8 @@ namespace __pyllars_internal {
                 PyErr_SetString(PyExc_ValueError, "Unexpcted None value in member setter");
                 return nullptr;
             }
-            (_this->template get_CObject<CClass_NoRef>()->*member) =
-                    *toCObject<T, false, PythonClassWrapper<T> >(*pyVal);
+            Assign<T>::assign((_this->template get_CObject<CClass_NoRef>()->*member),
+                    *toCObject<T, false, PythonClassWrapper<T> >(*pyVal));
         } else if ((std::is_reference<T>::value && (!kwds || PyDict_Size(kwds)==0))||
                    (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "as_ref"))) {
             //handle case if oject is to be returned by reference
@@ -240,7 +240,7 @@ namespace __pyllars_internal {
     void MemberContainer<CClass>::Container<name, T, typename std::enable_if<
             !std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value != 0>::type>::
     setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj) {
-        self->*member = *toCObject<T, false, PythonClassWrapper<T> >(*pyobj);
+        Assign<T>::assign(self->*member , *toCObject<T, false, PythonClassWrapper<T> >(*pyobj));
     }
 
     template<class CClass>
@@ -409,9 +409,9 @@ namespace __pyllars_internal {
                 if (PyTuple_Check(pyVal)) {
                     if (PyTuple_Size(pyVal) == size) {
                         for (size_t i = 0; i < size; ++i)
-                            (_this->template get_CObject<CClass_NoRef>()->*
-                             member)[i] = *toCObject<T, false, PythonClassWrapper<T> >(
-                                    *PyTuple_GetItem(pyVal, i));
+                            Assign<T>::assign((_this->template get_CObject<CClass_NoRef>()->*
+                             member)[i],  *toCObject<T, false, PythonClassWrapper<T> >(
+                                    *PyTuple_GetItem(pyVal, i)));
                     } else {
                         static char msg[250];
                         snprintf(msg, 250, "Mismatched array sizes (tuple)%lld!=%lld",
@@ -423,7 +423,7 @@ namespace __pyllars_internal {
                 } else if (PythonClassWrapper<T_array>::checkType(pyVal)) {
                     T_array *val = ((PythonClassWrapper<T_array> *) pyVal)->template get_CObject<T_array>();
                     for (size_t i = 0; i < size; ++i)
-                        (_this->template get_CObject<T_array>()->*member)[i] = (*val)[i];
+                        Assign<T>::assign((_this->template get_CObject<T_array>()->*member)[i] , (*val)[i]);
 
                 } else if ((std::is_reference<T>::value && (!kwds || PyDict_Size(kwds)==0))||
                            (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "as_ref"))) {
@@ -552,9 +552,9 @@ namespace __pyllars_internal {
             if (PyTuple_Check(pyVal)) {
                 if (PyTuple_Size(pyVal) == array_size) {
                     for (size_t i = 0; i < array_size; ++i)
-                        (_this->template get_CObject<CClass_NoRef>()->*
-                         member)[i] = *toCObject<T, false, PythonClassWrapper<T> >(
-                                *PyTuple_GetItem(pyVal, i));
+                        Assign<T>::assign((_this->template get_CObject<CClass_NoRef>()->*
+                         member)[i], *toCObject<T, false, PythonClassWrapper<T> >(
+                                *PyTuple_GetItem(pyVal, i)));
                 } else {
                     static char msg[250];
                     snprintf(msg, 250, "Mismatched array sizes (tuple)%lld!=%lld",
@@ -567,7 +567,7 @@ namespace __pyllars_internal {
                 T_array *val = ((PythonClassWrapper<T_array> *) pyVal)->template get_CObject<T_array>();
                 //TODO: check size????
                 for (size_t i = 0; i < array_size; ++i)
-                    (_this->template get_CObject<T_array>()->*member)[i] = (*val)[i];
+                    Assign<T>::assign((_this->template get_CObject<T_array>()->*member)[i], (*val)[i]);
 
             } else if ((std::is_reference<T>::value && (!kwds || PyDict_Size(kwds)==0))||
                       (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "as_ref"))) {
