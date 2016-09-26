@@ -21,9 +21,9 @@ class Test_BasicC:
         test_pyllars.data3( value = 43)
         assert( test_pyllars.data3() == 43)
 
-    #def testGlobalFunction(self):
-    #    stringcopy = test_pyllars.copy_string("MAKE A COPY");
-    #    assert( stringcopy == "MAKE A COPY")
+    def testGlobalFunction(self):
+        stringcopy = test_pyllars.copy_string("MAKE A COPY");
+        assert( stringcopy == "MAKE A COPY")
 
     @staticmethod
     @pytest.mark.parameterized("test_struct, msg", [(test_pyllars.TestStruct(), None),

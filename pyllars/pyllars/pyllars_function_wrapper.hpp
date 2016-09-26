@@ -224,7 +224,7 @@ namespace __pyllars_internal {
                 return FunctType::call(_cfunc, *toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)...,
                                        extra_args);
             } else {
-                return _cfunc(*toCObject<Args, false, PythonClassWrapper<Args> >(*tuple)...);
+                return _cfunc(*toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)...);
             }
         }
 
