@@ -50,7 +50,7 @@ class Test_BasicC:
             t[2]
         with pytest.raises(IndexError):
             t[-3]
-        taddr = test_struct_array.this()
+        taddr = test_struct_array.this
 
         for i in range(100):
            assert(taddr[0][0].str_member == "Default constructed  TestStruct")
@@ -88,11 +88,16 @@ class Test_BasicC:
 
     def testAddressAndDereference(self):
         t = test_pyllars.TestStruct("TakeMyAddress")
-        taddr = t.this()
+        taddr = t.this
         # del t and see that C object is still arround since
         # taddr holds reference to t
         del(t)
         assert(taddr[0].str_member ==  "TakeMyAddress")
+
+    def testAssignment(self):
+        t = test_pyllars.TestStruct()
+        t.this = 7.77777
+        assert(abs(t.double_member - 7.77777) < 0.0000000001)
 
     def testBitFields(self):
         b = test_pyllars.BitFields()

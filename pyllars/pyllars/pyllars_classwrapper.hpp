@@ -422,6 +422,84 @@ namespace __pyllars_internal {
         template<bool is_base_return_complete, bool with_ellipsis, typename ReturnType, typename ...Args>
         friend struct PythonFunctionWrapper;
 
+        template<typename Class, typename Z=void>
+        class PyAssign ;
+
+        template<typename Class >
+        class PyAssign<Class, typename std::enable_if<!std::is_integral<typename std::remove_reference<Class>::type>::value &&
+	                                              !std::is_floating_point<typename std::remove_reference<Class>::type>::value &&
+	                                              !is_C_stringable<Class>::value>::type> {
+        public:
+            static int
+            assign(PyObject *self, PyObject *value) {
+                if (!PyObject_TypeCheck(value, &PythonClassWrapper<Class>::Type)) {
+                    return -1;
+                }
+                PythonClassWrapper<T> *self_ = (PythonClassWrapper<T> *) self;
+                PythonClassWrapper<Class> *value_ = (PythonClassWrapper<Class> *) value;
+                *(self_->get_CObject()) = *(value_->get_CObject());
+                return 0;
+            }
+        };
+
+        template<typename Class>
+        class PyAssign<Class,  typename std::enable_if<std::is_integral<typename std::remove_reference<Class>::type>::value >::type>{
+        public:
+            static int
+            assign(PyObject *self, PyObject *value) {
+                PythonClassWrapper<T> *self_ = (PythonClassWrapper<T> *) self;
+                if (PyLong_Check(value)) {
+                    Class value_ = (Class) PyLong_AsLong(value);
+                    *(self_->get_CObject()->ptr()) = value_;
+                } else if (PyInt_Check(value)) {
+                    Class value_ = (Class) PyInt_AsLong(value);
+                    *(self_->get_CObject()->ptr()) = value_;
+                } else if (PyBool_Check(value)) {
+                    Class value_ = (value == Py_True);
+                    *(self_->get_CObject()) = value_;
+                } else {
+                    return -1;
+                }
+                return 0;
+            }
+        };
+
+        template<typename Class>
+        class PyAssign<Class,  typename std::enable_if<std::is_floating_point<typename std::remove_reference<Class>::type>::value>::type > {
+        public:
+            static int assign(PyObject *self, PyObject *value) {
+                PythonClassWrapper<T> *self_ = (PythonClassWrapper<T> *) self;
+                if (PyFloat_Check(value)) {
+                    Class value_ = (Class) PyFloat_AsDouble(value);
+                    *(self_->get_CObject()) = value_;
+                } else {
+                    return -1;
+                }
+                return 0;
+            }
+        };
+
+        template<typename Class>
+        class PyAssign<Class, typename std::enable_if<is_C_stringable<Class>::value>::type> {
+        public:
+            static int assign(PyObject *self, PyObject *value) {
+                PythonClassWrapper<T> *self_ = (PythonClassWrapper<T> *) self;
+                if (PyString_Check(value)) {
+                    const char* const value_ = PyString_AsString(value);
+                    *(self_->get_CObject()) = const_cast<Class>(value_);
+                } else {
+                    return -1;
+                }
+                return 0;
+            }
+        };
+
+        static void addAssigner(_setattrfunc func){
+            if(!_member_setters.count("this"))
+                _member_setters["this"] = _pyAssign;
+            _assigners.push_back(func);
+        }
+
     protected:
 
         static PyObject *alloc(PyObject *cls, PyObject *args, PyObject *kwds);
@@ -431,6 +509,22 @@ namespace __pyllars_internal {
         ObjContainer<T_NoRef> *_CObject;
 
     private:
+
+        static PyObject* getThis(PyObject* self){
+            return addr(self, nullptr);
+        }
+
+        static int
+        _pyAssign(PyObject* self, PyObject* value){
+            for ( _setattrfunc assigner: _assigners){
+                if( assigner(self, value) == 0){
+                    return 0;
+                }
+            }
+            PyErr_SetString(PyExc_ValueError, "Cannot assign to given value type");
+            return -1;
+        }
+
         static int
         _pySetAttr(PyObject* self,  char* attrname, PyObject* value){
             if (!_member_setters.count(attrname)){
@@ -492,6 +586,7 @@ namespace __pyllars_internal {
                           >_mapMethodCollection;
         static std::map<std::string, _getattrfunc > _member_getters;
         static std::map<std::string, _setattrfunc > _member_setters;
+        static std::vector<_setattrfunc > _assigners;
         static std::vector<PyTypeObject *> _baseClasses;
         static bool _isInitialized;
         size_t _arraySize;

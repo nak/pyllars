@@ -471,6 +471,23 @@ class CPPParser(object):
         elif element.attrib.get('name') == "~":
             element.attrib['namePy'] = "__inv__"
             self.process_method(element)
+        elif element.attrib.get('name') == "=" and element.attrib.get('artificial')!='1':
+            parent = self.get_type_from(element.attrib['context'], element.attrib['id'])
+            return_type = self.get_type_from(element.attrib.get('returns'), element.attrib['id']) if element.attrib.get('returns') else None
+            arguments = []
+            qualifiers = []
+            if element.attrib.get('const') == '1':
+                qualifiers.append('const')
+            for child in [c for c in element if c.tag == 'Argument']:
+                if self.get_type_from(child.attrib['type'], child.attrib.get('id')) is None:
+                    print "Unable to determine type for argument in method %s" % element.attrib.get('name')
+                    return None
+                arguments.append((child.attrib.get('name'), self.get_type_from(child.attrib['type'], child.attrib.get('id'))))
+            assert(len(arguments)==1)
+            parent.add_assigner(method_scope=element.attrib.get('access') or 'private',
+                                qualifiers=qualifiers,
+                                return_type=return_type,
+                                method_parameter=arguments[0])
 
     def get_file(self, element):
         fileid = element.attrib.get('file')

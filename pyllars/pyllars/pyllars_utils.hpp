@@ -201,6 +201,30 @@ namespace __pyllars_internal {
         char x[256];
     };
 
+    template <typename T>
+    struct is_C_stringable{
+        static constexpr bool value = false;
+    };
+
+    template<>
+    struct is_C_stringable<const char* const>{
+        static constexpr bool value = true;
+    };
+
+    template<>
+    struct is_C_stringable<const char*>{
+        static constexpr bool value = true;
+    };
+
+    template<>
+    struct is_C_stringable< char* const>{
+        static constexpr bool value = true;
+    };
+
+    template<>
+    struct is_C_stringable< char*>{
+        static constexpr bool value = true;
+    };
 
     template<typename T>
     char256 is_complete_helper(int(*)[sizeof(T)]);

@@ -168,6 +168,11 @@ namespace test_pyllars {
             return ((int) (double_member*10.0)) % value;
         }
 
+        TestStruct& operator=(const double & value){
+            double_member = value;
+            return *this;
+        }
+
         //const mapping operator
         const std::string& operator[](const char* const name) const{
             return mapping.at(std::string(name));

@@ -146,6 +146,11 @@ namespace __pyllars_internal{
             PythonClassWrapper<T,
                     typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
             _member_setters;
+    template<typename T>
+    std::vector<_setattrfunc >
+            PythonClassWrapper<T,
+                    typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+            _assigners;
 
     template<typename T>
     std::string PythonClassWrapper<T,
@@ -679,18 +684,12 @@ int __pyllars_internal::PythonClassWrapper<T,
     strcpy(tp_name, tp_name_prefix);
     strcpy(tp_name + strlen(tp_name_prefix), fullname ? fullname : name);
     Type.tp_name = tp_name;
-    PyMethodDef pyMeth = {
-            address_name,
-            addr,
-            METH_KEYWORDS,
-            "C address of object"
-    };
-    _methodCollection.insert(_methodCollection.begin(), pyMeth);
+
     PyMethodDef pyMethAlloc = {
             alloc_name_,
             (PyCFunction) alloc,
             METH_KEYWORDS | METH_CLASS,
-            "allocate arry of single dynamic instance of this class"
+            "allocate array of single dynamic instance of this class"
     };
     _methodCollection.insert(_methodCollection.begin(), pyMethAlloc);
     Type.tp_methods = _methodCollection.data();
@@ -1661,6 +1660,9 @@ _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds) {
     self->_inPlace = false;
     self->_arraySize = 0;
     self->_depth = 0;
+    if (!_member_getters.count("this")){
+        _member_getters["this"] = getThis;
+    }
     return InitHelper<T>::init(self, args, kwds);
 }
 

@@ -507,6 +507,7 @@ class Class(Type):
         self.members = []
         self._constructors = []
         self._is_abstract = is_absrtact
+        self._assigners = []
 
     def get_path(self):
         context = self.context
@@ -543,6 +544,10 @@ class Class(Type):
         :param method_parameters: 2-tuples of type/name pairs
         """
         self._operator_map_methods.append(Class.Method("operator_map", method_scope, qualifiers, return_type, [method_parameter], False))
+
+    def add_assigner(self, method_scope, qualifiers, return_type, method_parameter):
+        if method_scope == 'public':
+            self._assigners.append((return_type, method_parameter))
 
     def add_constructor(self, method_scope, qualifiers, method_parameters):
         """
@@ -772,7 +777,15 @@ static inline status_t initialize_type%(suffix)s(){
        'key_type': method.arguments[0][1].get_qualified_name(),
        'indent': indent,
        'qual': qual}
-
+        for assigner in self._assigners:
+            code +="""
+   {
+       PythonClassWrapper< %(class_name)s >::addAssigner( PythonClassWrapper< %(class_name)s >::PyAssign<%(arg)s >::assign);
+   }
+"""% {'class_name': class_name,
+      'arg': assigner[1][1].get_qualified_name().replace('  ', ' ').replace("const const", "const") if assigner[1][1].get_name().replace('&','').replace('*','')
+        else "decltype(%(class_name)s::%(name)s)" % {'class_name': class_name, 'name':assigner[1][0]},
+      }
         for method in [m for m in self._methods if m.scope == 'public']:
             call_method_name = "add"
             if method.is_const:
