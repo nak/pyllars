@@ -40,17 +40,21 @@ def generate_code():
         
 compilables = generate_code()
 sources={}
-for mod_name, compilable in compilables:
+is_pseudo_ns = {}
+for mod_name, compilable, is_pseudo in compilables:
     base_mod_name = mod_name.split('.')[0]
     sources.setdefault(base_mod_name, []).append(compilable)
+    is_pseudo_ns[base_mod_name] = True#is_pseudo
+
 for base_mod_name in sources:
     sources[base_mod_name] += addl_sources_by_module_name.get(base_mod_name) or []
 print "==========> %s" % sources.keys()
 modules=[]
 for mod, compilables in sources.iteritems():
     #print mod
-    if mod != "test_pyllars":
+    if mod != "test_pyllars" and not is_pseudo_ns[mod]:
         continue
+    #print "===> Compiling sources %s" % compilables
     module = Extension(mod,
                    include_dirs = ['.','../pyllars', outdir, ],
                    language='c++',
@@ -64,11 +68,11 @@ for mod, compilables in sources.iteritems():
                    )
     modules.append(module)
     try:
-        setup (name = 'PyllarsBasicCTest',
-               version = '1.0',
-               description = 'Python bynding to namespace/global file %s' % mod,
-               ext_modules = [module])
+        setup(name='PyllarsBasicCTest',
+              version='1.0',
+              description='Python bynding to namespace/global file %s' % mod,
+              ext_modules=[module])
     except:
-        print "Failed to compiled moduled %s" % mod
+        print "Failed to compile module %s" % mod
         import traceback
         traceback.print_exc()

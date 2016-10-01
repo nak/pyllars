@@ -28,6 +28,9 @@ class TemplateInstantiation(object):
         self.context = type_.context
         self._full_name = self.context.get_qualified_name() + "::" + self._name
 
+    def get_name(self):
+        return self._name
+
     @property
     def full_name(self):
         return self._full_name

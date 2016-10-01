@@ -17,7 +17,6 @@
 //test global variable
 constexpr int data1 = 1;
 extern const int data2;
-extern int data3;
 extern const char *const string_array[];
 
 namespace test_pyllars {

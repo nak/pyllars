@@ -160,7 +160,8 @@ class CPPParser(object):
         return elements.Namespace(element.attrib['name'],
                                   element.attrib['id'],
                                   header_filename=self.get_file(element),
-                                  context=self.get_context(element))
+                                  context=self.get_context(element),
+                                  header_file_id=element.attrib.get('file'))
 
     def process_typedef(self, element):
         if self.get_base_type(element) is None:
@@ -170,7 +171,8 @@ class CPPParser(object):
                                 header_filename=self.get_file(element),
                                 context=self.get_context(element),
                                 alias=element.attrib.get('name'),
-                                scope=element.attrib.get('access'))
+                                scope=element.attrib.get('access'),
+                                header_file_id=element.attrib.get('file'))
 
     def process_fundamental_type(self, element):
         return elements.FundamentalType(element.attrib['name'], element.attrib['id'], element.attrib['size'],element.attrib['align'])
@@ -184,7 +186,8 @@ class CPPParser(object):
                                     context=self.get_context(element),
                                     header_filename=self.get_file(element),
                                     enumerators=enum_values,
-                                    scope=element.attrib.get('access'))
+                                    scope=element.attrib.get('access'),
+                                    header_file_id=element.attrib.get('file'))
 
     def process_array_type(self, element):
         size = element.attrib.get('max')
@@ -197,7 +200,8 @@ class CPPParser(object):
                               context=self.get_context(element),
                               header_filename=self.get_file(element),
                               array_size=size,
-                                scope=element.attrib.get('access'))
+                              scope=element.attrib.get('access'),
+                              header_file_id=element.attrib.get('file'))
 
     def process_struct(self, element):
         # workaround for bug in castxml or internal gnu inconsistency which should not instantiate these:
@@ -214,14 +218,16 @@ class CPPParser(object):
                                is_absrtact=element.attrib.get('abstract')=='1',
                                inherited_from=self.get_bases(element),
                                context=self.get_context(element),
-                               scope=element.attrib.get('access'))
+                               scope=element.attrib.get('access'),
+                               header_file_id=element.attrib.get('file'))
 
     def process_pointer_type(self, element):
         return elements.Pointer(base_type=self.get_base_type(element),
                                 id_=element.attrib['id'],
                                 header_filename=self.get_file(element),
                                 context=self.get_context(element),
-                                scope=element.attrib.get('access'))
+                                scope=element.attrib.get('access'),
+                                header_file_id=element.attrib.get('file'))
 
     def process_reference_type(self, element):
         if self.get_base_type(element) is None:
@@ -230,7 +236,8 @@ class CPPParser(object):
                                   id_=element.attrib['id'],
                                   header_filename=self.get_file(element),
                                   context=self.get_context(element),
-                                  scope=element.attrib.get('access'))
+                                  scope=element.attrib.get('access'),
+                                  header_file_id=element.attrib.get('file'))
 
     def process_class(self, element):
         return elements.Class(name=element.attrib['name'], id_=element.attrib['id'],
@@ -239,7 +246,8 @@ class CPPParser(object):
                               is_absrtact=element.attrib.get('abstract')=='1',
                               inherited_from=self.get_bases(element),
                               context=self.get_context(element),
-                              scope=element.attrib.get('access'))
+                              scope=element.attrib.get('access'),
+                              header_file_id=element.attrib.get('file'))
 
     def process_cvqualified_type(self, element):
         if self.get_base_type(element) is None:
@@ -254,7 +262,8 @@ class CPPParser(object):
                                         context=self.get_context(element),
                                         header_filename=self.get_file(element),
                                         qualifiers=qualifiers,
-                                        scope=element.attrib.get('access'))
+                                        scope=element.attrib.get('access'),
+                                        header_file_id=element.attrib.get('file'))
 
     def process_function_type(self, element):
         has_varargs = 'Ellipsis' in [c.tag for c in element]
@@ -292,7 +301,8 @@ class CPPParser(object):
                                      name=element.attrib.get('name'),
                                      qualifiers=qualifiers,
                                      has_varargs=has_varargs,
-                                     scope=element.attrib.get('access'))
+                                     scope=element.attrib.get('access'),
+                                     header_file_id=element.attrib.get('file'))
 
     def process_function(self, element):
         has_varargs = 'Ellipsis' in [c.tag for c in element]
@@ -315,7 +325,8 @@ class CPPParser(object):
                                  scope=element.attrib.get('access'),
                                  arguments=arguments,
                                  header_filename=self.get_file(element),
-                                 has_varargs=has_varargs
+                                 has_varargs=has_varargs,
+                                 header_file_id=element.attrib.get('file')
                                 )
 
     def process_union_type(self, element):
@@ -326,7 +337,8 @@ class CPPParser(object):
                               is_absrtact=False,
                               inherited_from=self.get_bases(element),
                               context=self.get_context(element),
-                              scope=element.attrib.get('access'))
+                              scope=element.attrib.get('access'),
+                              header_file_id=element.attrib.get('file'))
 
     def process_unknown(self, element):
         print "UNKNOWN ELEMENT: " + element.tag

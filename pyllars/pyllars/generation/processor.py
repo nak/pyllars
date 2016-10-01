@@ -41,7 +41,10 @@ def process(castxml_file, build_dir, class_filters = None):
     compilables = []
 
     def process_item(item):
+        #if isinstance(item, Namespace) and not item.children:
+        #    raise Exception("Empty item %s" % item.get_name())
         if item.get_body_filename() is None:
+            "No body for item %s" % item.get_name()
             return
         if item.get_body_filename().split('/')[-1]==".cpp": raise Exception(item.name +">>" + str(os.path.basename(item.get_header_filename() or '.hpp')=='.hpp'))
         code = item.generate_code(".")
@@ -53,7 +56,8 @@ def process(castxml_file, build_dir, class_filters = None):
                 f.write(header)
             with open(os.path.join(build_dir,item.get_body_filename().replace("<", "__").replace(" ","_").replace(">", "__").replace("::","____").replace(", ", "__")), 'w') as f:
                 f.write(body)
-                compilables.append((item.get_top_module_name().split('.')[0], f.name))
+                top_module, is_pseudo_ns = item.get_top_module_name()
+                compilables.append((top_module.split('.')[0], f.name, is_pseudo_ns))
 
     for item in [i for i in items.itervalues() if i.get_body_filename() is not None and
                     not(isinstance(i,Function)) and os.path.basename((i.get_header_filename() or '.hpp'))!='.hpp']:

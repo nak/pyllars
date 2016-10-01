@@ -24,7 +24,7 @@ class BaseElement(object):
     PSEUDO_ID = "PSEUDO"
     KEYWORDS = ['errno', 'wait', 'obstack']
 
-    def __init__(self, name, id_, header_filename, context):
+    def __init__(self, name, id_, header_filename, context, header_file_id):
         assert (context is None or isinstance(context, Namespace) or isinstance(context, Type))
         assert (id_ is not None)
         assert (name is not None)
@@ -32,10 +32,18 @@ class BaseElement(object):
         nameparts[0] = nameparts[0].replace('::',"")
         self.name = "<".join(nameparts)
         self.id_ = id_
-        self.context = context
+        if not isinstance(self, Namespace) and (context is not None and context.id_ == "_1") and header_filename:
+            ns_name = os.path.basename(header_filename).replace('.hpp','').replace('.h','')
+            self.context = Namespace.namespaces.setdefault(ns_name, Namespace(name=ns_name, id_=BaseElement.PSEUDO_ID,
+                                                                              header_filename=header_filename,
+                                                                              context=Namespace.global_ns,
+                                                                              header_file_id=header_file_id))
+        else:
+            self.context = context
         self.header_filename = system_patch(header_filename) or header_filename
         self.sanitized_name = sanitize(name)
         self.children = []
+        self.header_file_id = header_file_id
         fallback_name = os.path.basename(self.header_filename).split('.')[0] if self.header_filename else None
         if context:
             parent_mod = self
@@ -44,7 +52,7 @@ class BaseElement(object):
             parent_mod.is_global_namespace = (parent_mod.name == "::" or parent_mod.name =="")
             self.module_name = parent_mod.name if (not parent_mod.is_global_namespace or not fallback_name) else fallback_name
         else:
-            parent_mod = Namespace.global_ns or self if name == "" or name == "pyllars" else Namespace("", "_1", None, None)
+            parent_mod = Namespace.global_ns or self if name == "" or name == "pyllars" else Namespace("", "_1", None, None, None)
             parent_mod.is_global_namespace = True
             self.module_name = "pyllars" if isinstance(self, Namespace) else ( fallback_name or "pyllars")
         if self.module_name in BaseElement.KEYWORDS:
@@ -53,7 +61,11 @@ class BaseElement(object):
             (Namespace.namespaces.get(self.module_name) or Namespace( name=self.module_name,
                                                                       id_=BaseElement.PSEUDO_ID,
                                                                       header_filename=header_filename,
-                                                                      context=Namespace.global_ns or Namespace("","_1",None,None)))
+                                                                      context=Namespace.global_ns or Namespace("", "_1", None, None, None),
+                                                                      header_file_id=None))
+        if self.context and not isinstance(self.context, Namespace):
+            print "?????????????????? APPENDING %s to %s" % (self.get_name(), self.context.get_name())
+            self.context.children.append(self)
 
     def get_full_module_name(self):
         context = self.context
@@ -70,17 +82,21 @@ class BaseElement(object):
 
     def get_top_module_name(self):
         if self.context and self.id_ == BaseElement.PSEUDO_ID:
-            return self.name
+            return self.name, self.name!="pyllars"
         top = self
         while top.context and top.context.name not in ["::","","pyllars"]:
             top = top.context
-        return top.module_name
+        return top.module_name, self.id_ == BaseElement.PSEUDO_ID
 
     def get_name(self):
         return self.name
 
     def empty(self):
         return len(self.children) == 0
+
+    def is_pseudo(self):
+        return self.id_ == BaseElement.PSEUDO_ID
+
 
 # noinspection PyUnusedLocal
 class Namespace(BaseElement):
@@ -91,8 +107,8 @@ class Namespace(BaseElement):
     namespaces = {}
     global_ns = None
 
-    def __init__(self, name, id_, header_filename, context):
-        BaseElement.__init__(self, name, id_, header_filename, context)
+    def __init__(self, name, id_, header_filename, context, header_file_id):
+        BaseElement.__init__(self, name, id_, header_filename, context, header_file_id=header_file_id)
         assert (context is None or isinstance(context, Namespace))
         self.is_global_namespace = (self.name == "::" or self.name =="")
         if self.is_global_namespace:
@@ -152,6 +168,9 @@ class Namespace(BaseElement):
             os.path.join(path, self.get_include_parent_path(), "module.cpp")
 
     def generate_code(self, path, suffix="", class_name=None):
+        #if self.id_ == BaseElement.PSEUDO_ID:
+        #    print ("????????? %s" % Namespace.global_ns.children)
+        #    raise Exception("%s" % self.get_name())
         include_path = os.path.join(path, self.get_include_parent_path())
         if not os.path.exists(include_path):
             os.makedirs(include_path)
@@ -177,7 +196,7 @@ class Namespace(BaseElement):
             precode += """\n//ID IS %s""" % func.id_
             precode += """%(indent)s
 %(indent)s      {
-%(indent)s         static const char* const argumentnames[] = {%(argument_names)s, nullptr};
+%(indent)s         static const char* const argumentnames[] = {%(argument_names)s nullptr};
 %(indent)s         status |= PyModule_AddObject( %(name)s_mod, "%(func_name)s",
 %(indent)s              (PyObject*)__pyllars_internal::PythonFunctionWrapper<__pyllars_internal::
 %(indent)s                 is_complete< %(return_type)s >::value, %(has_varargs)s, %(return_type)s %(arguments)s>::
@@ -191,7 +210,7 @@ class Namespace(BaseElement):
                         'arguments': (',' if len(func.arguments) > 0 else "") + ','.join([t.get_qualified_name()
                                                                                          for _, t in func.arguments]),
                         'argument_names': ','.join(["\"%s\"" % (n if n != "" else "_%s" % index) for index, (n, _) in
-                                                    enumerate(func.arguments)])}
+                                                    enumerate(func.arguments)]) +(',' if func.arguments else '')}
 
         precode += """
 %(indent)s   return status;
@@ -199,14 +218,14 @@ class Namespace(BaseElement):
 
 """ % {'indent': indent}
         while p is not None and p.name != "" and p.name != "::":
-            code = """%(indent)snamespace %(name)s{
+            if p.id_ != BaseElement.PSEUDO_ID:
+                code = """%(indent)snamespace %(name)s{
 %(indent)s""" % {'name': p.sanitized_name, 'indent': indent} + code
+                depth += 1
             p = p.context
-            depth += 1
             fullindent += indent
 
-        if self.name != "" and self.name != "::" and self.name != "pyllars":
-            code = "namespace pyllars{\n" + code
+        code = "namespace pyllars{\n" + code
         indent = fullindent[3:]
         header_code = header_code + code + """
 %(indent)sextern PyObject* %(name)s_mod;
@@ -263,10 +282,8 @@ extern "C"{
             indent = indent[:-3]
             code += indent + '}\n'
             header_code += indent + '}\n'
-        if self.name != "" and self.name != "::" and self.name != "pyllars":
-            code += "}//ENDNS\n"
-        if self.name != "" and self.name != "::" and self.name != "pyllars":
-            header_code += "\n}//ENDns '%s'" % self.sanitized_name
+        code += "}//ENDNS\n"
+        header_code += "\n}//ENDns '%s'" % self.sanitized_name
         code += "// END %s" % self.full_name
         guard = sanitize(include_path[1:].replace('/', '__').replace('.',''))
         mod_header_path = os.path.dirname(self.get_include_parent_path())
@@ -291,19 +308,20 @@ extern "C"{
                 code += """using namespace std; \n"""
             code = """
 #include <Python.h>
+#include <pyllars.hpp>
 #include <%(path)s/%(prefix)smodule.hpp>
 #include <pyllars_classwrapper.cpp>
 #include <pyllars_function_wrapper.hpp>
 %(header_include)s
 """ % {'header_include': ("#include \"%s\"" % self.header_filename) if self.header_filename else "",
        'path': self.get_include_parent_path(),
-       'prefix': self.name+"_" if self.id_ == BaseElement.PSEUDO_ID  and self.name != "pyllars" else ""} + code
+       'prefix': self.name+"_" if self.id_ == BaseElement.PSEUDO_ID and self.name != "pyllars" else ""} + code
         return header_code, code
 
     def get_qualified_name(self, iterative=False):
         name = ""
         if self.id_ == BaseElement.PSEUDO_ID:
-            name = "::" + self.name
+            name = ""  # + self.name
         elif self.context is not None:
             name = "::".join([self.context.get_qualified_ns_name(True), self.sanitized_name])
         elif not iterative:
@@ -319,8 +337,9 @@ extern "C"{
 # noinspection PyMethodMayBeStatic
 class Type(BaseElement):
 
-    def __init__(self, name, id_, context, is_incomplete, header_filename, scope):
-        BaseElement.__init__(self, name=name, id_=id_, context=context, header_filename=header_filename)
+    def __init__(self, name, id_, context, is_incomplete, header_filename, scope, header_file_id):
+        BaseElement.__init__(self, name=name, id_=id_, context=context, header_filename=header_filename,
+                             header_file_id=header_file_id)
         assert (isinstance(context, Type) or isinstance(context, Namespace) or context is None)
         self.is_incomplete = is_incomplete
         if context:
@@ -411,7 +430,10 @@ class Type(BaseElement):
             top_context = top_context.context
         if top_context.name == "std":
             code += """using namespace std;\n"""
-
+        if self.id_ == BaseElement.PSEUDO_ID:
+            hname = Namespace.global_ns.get_header_filename(path)
+        else:
+            hname = self.context.get_header_filename(path)
         code += """
 #include <Python.h>
 #include <pyllars.hpp>
@@ -425,7 +447,7 @@ using namespace __pyllars_internal;
 
 """ % {'id': self.pseudo_context.id_,
        'myheader': my_header_path, 'headername': self._header_filename, 'namespace_id': nsid,
-       'myparentheader': self.pseudo_context.get_header_filename(path)}
+       'myparentheader': hname}
         for child in [c for c in self.children if isinstance(c, Type) if c.name != ""]:
             if child.get_header_filename(path):
                 code += """
@@ -494,9 +516,9 @@ class Class(Type):
             return self.type.get_array_size()
 
     def __init__(self, name, id_, header_filename, is_incomplete, is_absrtact, context=None, inherited_from=None,
-                 scope=None):
+                 scope=None, header_file_id=None):
         assert (context is None or isinstance(context, Namespace) or isinstance(context, Class))
-        Type.__init__(self, name, id_, context, is_incomplete, header_filename, scope)
+        Type.__init__(self, name, id_, context, is_incomplete, header_filename, scope, header_file_id=header_file_id)
         self.id_ = id_
         assert(context != self)
         self._header_filename = header_filename
@@ -588,7 +610,7 @@ class Class(Type):
         else:
             guard = include_path.replace('/', '__')
         parent = self.pseudo_context
-        while parent is not None and not isinstance(self.context, Namespace):
+        while parent is not None and not isinstance(parent, Namespace):
             parent = parent.context
         mod_header_path = parent.get_header_filename() if parent is not None and parent.name != "<builtin>" else "pyllars.hpp"
         assert (not mod_header_path.startswith('/'))
@@ -598,10 +620,11 @@ class Class(Type):
         level = 0
         while p.context is not None:
             if isinstance(p.context, Namespace):
-                namespace_decls = "\nnamespace %s{" % (p.context.sanitized_name or "pyllars") + namespace_decls.\
-                    replace('\n', '\n' + indent)
-                level += 1
-                indent += "   "
+                #if p.context.id_ != BaseElement.PSEUDO_ID or True:
+                    namespace_decls = "\nnamespace %s{" % (p.context.sanitized_name or "pyllars") + namespace_decls.\
+                        replace('\n', '\n' + indent)
+                    level += 1
+                    indent += "   "
             elif p.context.sanitized_name:
                 namespace_decls = "\nnamespace %s___ns{" % p.context.sanitized_name + namespace_decls.\
                     replace('\n', '\n' + indent)
@@ -619,7 +642,7 @@ class Class(Type):
 #include <%(classheader)s>
 #endif
 
-typedef %(full_class_name)s %(sname)s_Target_Type;
+//typedef %(full_class_name)s %(sname)s_Target_Type;
 
     """ % {'path': mod_header_path, 'classheader': self.header_filename, 'guard': guard,
            'CLASSHEADER': os.path.basename(self.header_filename).upper().replace('.', '_'),
@@ -968,9 +991,10 @@ class Struct(Class):
 
 class Referencing(Type):
 
-    def __init__(self, base_type, ext, id_, context, header_filename, scope):
+    def __init__(self, base_type, ext, id_, context, header_filename, scope, header_file_id):
         assert (isinstance(base_type, Type)), "%s: %s is not a Type" % (id_, base_type)
-        Type.__init__(self, base_type.name + ext, id_, base_type.context, base_type.is_incomplete, header_filename, scope)
+        Type.__init__(self, base_type.name + ext, id_, base_type.context, base_type.is_incomplete, header_filename,
+                      scope, header_file_id=header_file_id)
         self.base_type = base_type
         self.ext = ext
         if isinstance(self.base_type, TypeAlias):
@@ -1015,14 +1039,14 @@ def get_alias(clazz, name, aliased_type):
 
 
 class Array(Referencing):
-    def __init__(self, base_type, id_, context, header_filename, array_size=None, scope=None):
+    def __init__(self, base_type, id_, context, header_filename, array_size=None, scope=None, header_file_id=None):
         """
         :param base_type:
         :param array_size: None means unbounded
         :return:
         """
         assert (isinstance(base_type, Type))
-        Referencing.__init__(self, base_type, "[]", id_, context, header_filename, scope)
+        Referencing.__init__(self, base_type, "[]", id_, context, header_filename, scope, header_file_id=header_file_id)
         assert (isinstance(base_type, Type))
         self.array_size = array_size
         self.base_type = base_type
@@ -1032,26 +1056,26 @@ class Array(Referencing):
 
 
 class Pointer(Referencing):
-    def __init__(self, base_type, id_, context, header_filename, scope=None):
+    def __init__(self, base_type, id_, context, header_filename, scope=None, header_file_id=None):
         assert (isinstance(base_type, Type))
         Referencing.__init__(self, base_type, "" if isinstance(base_type, FunctionType) else "*", id_, context,
-                             header_filename, scope)
+                             header_filename, scope, header_file_id)
 
     def generate_code(self, path):
         pass
 
 
 class Reference(Referencing):
-    def __init__(self, base_type, id_, context, header_filename, scope=None):
-        Referencing.__init__(self, base_type, "&", id_, context, header_filename, scope)
+    def __init__(self, base_type, id_, context, header_filename, scope=None, header_file_id=None):
+        Referencing.__init__(self, base_type, "&", id_, context, header_filename, scope, header_file_id)
 
     def generate_code(self, path):
         pass
 
 
 class Typedef(Referencing):
-    def __init__(self, base_type, id_, context, alias, header_filename, scope=None):
-        Referencing.__init__(self, base_type, "", id_, context, header_filename, scope)
+    def __init__(self, base_type, id_, context, alias, header_filename, scope=None, header_file_id=None):
+        Referencing.__init__(self, base_type, "", id_, context, header_filename, scope, header_file_id)
         self.alias = alias
         self.set_qualifiers(base_type.qualifiers)
 
@@ -1093,7 +1117,7 @@ class FundamentalType(Type):
         if type_ not in FundamentalType.TYPES:
             print "TYPE NOT FUNDAMENTAL: " + type_
         assert type_ in FundamentalType.TYPES, "%s not in fundamental types" % type_
-        Type.__init__(self, type_, id_, None, False, None, None)
+        Type.__init__(self, type_, id_, None, False, None, None, None)
         self.type_ = type_
         self.size = size
         self.alignment = alignment
@@ -1116,11 +1140,11 @@ class FundamentalType(Type):
 class CvQualifiedType(Referencing):
     QUALIFIERS = ["const", "volatile"]
 
-    def __init__(self, base_type, id_, context, qualifiers, header_filename, scope=None):
+    def __init__(self, base_type, id_, context, qualifiers, header_filename, scope=None, header_file_id=None):
         assert (len(qualifiers) >= 0)
         for qualifier in qualifiers:
             assert (qualifier in CvQualifiedType.QUALIFIERS)
-        Referencing.__init__(self, base_type, "", id_, context, header_filename, scope)
+        Referencing.__init__(self, base_type, "", id_, context, header_filename, scope, header_file_id)
         self.set_qualifiers(qualifiers)
 
     def is_const(self):
@@ -1131,6 +1155,7 @@ class CvQualifiedType(Referencing):
 
 
 class Enumeration(Type):
+
     def generate_code(self, path, suffix="", class_name=None):
         class_name = class_name or self.get_qualified_name()
         if isinstance(self.context, Namespace):
@@ -1196,6 +1221,10 @@ typedef %(full_class_name)s %(sname)s_Target_Type;
 
 #endif
 """
+        if self.id_ == BaseElement.PSEUDO_ID:
+            hname = Namespace.global_ns.get_header_filename(path)
+        else:
+            hname = self.context.get_header_filename(path)
         code = ""
         if suffix == "":
             code += """
@@ -1211,7 +1240,7 @@ using namespace __pyllars_internal;
 
 """ % {'id': self.pseudo_context.id_,
        'myheader': my_header_path, 'headername': self._header_filename, 'namespace_id': nsid,
-           'myparentheader': self.pseudo_context.get_header_filename(path)}
+           'myparentheader': hname}
         code += """static inline status_t initialize_type(){
    static bool inited = false;
    if (inited){
@@ -1262,8 +1291,8 @@ static pyllars::Initializer _initializer(%(namespace_name)s::initialize_type);
         return header_code, code
 
     def __init__(self, name, id_, context, enumerators, header_filename, base_type=None, is_incomplete=False,
-                 scope=None):
-        Type.__init__(self, name, id_, context, is_incomplete, header_filename, scope)
+                 scope=None, header_file_id=None):
+        Type.__init__(self, name, id_, context, is_incomplete, header_filename, scope, header_file_id)
         assert (base_type is None or isinstance(base_type, Type))
         self.base_type = base_type or FundamentalType("int", "internal", 16, 8)
         for value in enumerators or []:
@@ -1279,10 +1308,10 @@ class Union(Class):
 
 class FunctionType(Type):
     def __init__(self, id_, return_type, arguments, header_filename, qualifiers=None, context=None, name=None,
-                 has_varargs=False, scope=None):
+                 has_varargs=False, scope=None, header_file_id=None):
         assert (isinstance(return_type, Type))
         Type.__init__(self, name or self.generate_type_name(arguments, return_type, [] if not qualifiers else ("const" in qualifiers)),
-                      id_, context, False, header_filename, scope)
+                      id_, context, False, header_filename, scope, header_file_id=header_file_id)
         for argument in arguments or []:
             assert (isinstance(argument, tuple))
             assert (len(argument) == 2)
@@ -1320,7 +1349,7 @@ class FunctionType(Type):
 
 class Function(object):
 
-    def __init__(self, id_, name, return_type, context, header_filename, arguments=None, has_varargs=False, scope=None):
+    def __init__(self, id_, name, return_type, context, header_filename, arguments=None, has_varargs=False, scope=None, header_file_id=None):
         assert (isinstance(return_type, Type))
         assert (isinstance(context, Namespace) or isinstance(context, Type))
         self.header_filename = system_patch(header_filename) or header_filename
@@ -1337,10 +1366,20 @@ class Function(object):
         assert(self != context and context is not None)
         self.context = context
         self.scope = scope
+        if (context is not None and context.id_ == "_1") and header_filename:
+            ns_name = os.path.basename(self.header_filename).replace('.hpp','').replace('.h','')
+            self.context = Namespace.namespaces.setdefault(ns_name, Namespace(name=ns_name, id_=BaseElement.PSEUDO_ID,
+                                                                              header_filename=header_filename,
+                                                                              context=Namespace.global_ns,
+                                                                              header_file_id=header_file_id))
+        else:
+            self.context = context
         self.context.children.append(self)
+        print "?????????????? FUNCTION APPENDING %s to %s" % (name, self.context.get_name())
         self.has_varargs = has_varargs
         self.id_ = id_
         self.sanitized_name = sanitize(self.name)
+        self.header_file_id = header_file_id
 
     def generate_code(self, path):
         pass
