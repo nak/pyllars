@@ -1,0 +1,18 @@
+#!/usr/bin/env python
+import argparse
+import os
+import sys
+
+import pyllars.cppparser.parser as parser
+
+if __name__ == "__main__":
+
+    args_parser = argparse.ArgumentParser()
+    args_parser.add_argument("--src", help="source file or directory to recurse")
+    args = args_parser.parse_args()
+    top = parser.parse_file(args.src)
+    from pyllars.cppparser.generation import Generator, Folder
+    if not os.path.exists("generated"):
+        os.makedirs("generated")
+    Generator.generate_body(top.top, Folder("generated"))
+    sys.exit(0)
