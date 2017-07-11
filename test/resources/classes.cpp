@@ -36,7 +36,7 @@ namespace trial{
     template<> class TemplateClass<int>;
 
 
-   int some_global_function(const double & value) throw(double ){
+   int some_global_function(const double & value, outside::Dep& d) throw(double ){
     return 42;
    }
 

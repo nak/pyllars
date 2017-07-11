@@ -37,7 +37,11 @@ class Element(metaclass=ABCMeta):
 
     @property
     def guard(self):
-        return self.full_name.replace(':','_').replace('<','_').replace('>', '_') + "__"
+        text = self.full_name
+        for c in [':', '<', '>', '!', '%', '^', '&', '*',  '[', ']', '\\', '|', '=']:
+            text = text.replace(c, '_')
+        text =  "__PYLLARS__" + text
+        return text
 
     @property
     def parent(self):
@@ -59,6 +63,7 @@ class Element(metaclass=ABCMeta):
     def full_name(self):
         return self.name
 
+    @property
     @abstractmethod
     def scope(self):
         pass
@@ -118,7 +123,7 @@ class Element(metaclass=ABCMeta):
             if node_type == 'TranslationUnitDecl':
                 return None
             tag = tokens.get('tag')
-            name = tokens.get('name') or "<<anonymous-%s>>" % str(tag)
+            name = tokens.get('name') # or "_%s" % str(tag)
             if 'name' in tokens:
                 del tokens['name']
             if tag:
@@ -219,14 +224,22 @@ class Element(metaclass=ABCMeta):
 
 class ScopedElement(Element):
 
+    @property
     def scope(self):
         if len(self._parents) == 1 and self._parents[-1].name:
-            if self._parents[-1].scope():
-                return self._parents[-1].scope() + "::" + self._parents[-1].name
+            if self._parents[-1].scope:
+                return self._parents[-1].scope + "::" + self._parents[-1].name
             else:
                 return "::" + self._parents[-1].name
         else:
             return ""
+
+    @property
+    def pyllars_module_name(self):
+        parent = self.parent
+        while parent and not isinstance(parent, NamespaceDecl):
+            parent = parent.parent
+        return parent.pyllars_module_name
 
     @property
     def full_name(self):
@@ -237,18 +250,19 @@ class ScopedElement(Element):
                     member = m
                     break
             if not member:
-                 return self.scope() + "::" + "<<anonumous>>"
+                 return self.scope + "::" + "<<anonumous>>"
             member_name = member.name
             return "decltype(%(class_name)s::%(name)s)" % {'class_name': self.parent.full_name, 'name': member_name}
 
-        return self.scope() + "::" + self.name
+        return self.scope + "::" + self.name
 
 
 class UnscopedElement(Element):
 
+    @property
     def scope(self):
         if self._parents and len(self._parents) == 1:
-            return self._parents[0].scope()
+            return self._parents[0].scope
         return ""
 
 
@@ -476,7 +490,7 @@ class TypeAliasDecl(ScopedElement):
 class VarDecl(ScopedElement):
 
     def __init__(self, name, tag, parent, definition=None, alias_definition=None, qualifier=None, locator=None):
-        super(ScopedElement, self).__init__(name if isinstance(name, str) else name[-1], tag, parent, locator=locator)
+        super(ScopedElement, self).__init__(name if isinstance(name, str) else name[-1] if name else None, tag, parent, locator=locator)
         assert not (definition is None and alias_definition is None)
         assert definition is None or alias_definition is None
         if not definition:
@@ -512,13 +526,21 @@ class FunctionElement(ScopedElement):
                 break
             tokens[token.type] = token
 
-        self._qualifers = definition.rsplit(')', maxsplit=1)[-1]
-        self._qualifers = self._qualifers.split(' ') if self._qualifers.strip() else None
+        self._qualifiers = definition.rsplit(')', maxsplit=1)[-1]
+        self._qualifiers = self._qualifiers.split(' ') if self._qualifiers.strip() else None
         return_type_name = definition.split('(')[0].strip()
         self._return_type = parse_type(definition.split('(')[0], parent) if return_type_name != 'void' else None
         # params added as ParamVarDecl's
         self._has_varargs = False  # TODO: implement
         self._throws = tokens.get('throws').throws if 'throws' in tokens else []
+
+    @property
+    def is_const(self):
+        return 'const' in (self._qualifiers or [])
+
+    @property
+    def is_static(self):
+        return 'static' in (self._qualifiers or [])
 
     def add_child(self, element):
         if element.name != "void":

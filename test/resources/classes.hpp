@@ -10,6 +10,11 @@ typedef const char* const const_str;
 extern const char * const const_ptr_str ;
 extern const char* const * const_ptr_ptr_str;
 
+namespace outside{
+    class Dep{
+    };
+}
+
 namespace trial{
 
   class Main{
@@ -27,7 +32,7 @@ namespace trial{
     public:
       Inner();
 
-      void method(){
+      void method(outside::Dep d){
       }
 
       class Tertiary{
@@ -36,7 +41,7 @@ namespace trial{
       };
     };
 
-    const volatile double method(const struct Implicit &) const{
+    const double method(const struct Implicit &) const{
         return 0.1;
     }
 
@@ -74,7 +79,7 @@ namespace trial{
     };
   }
 
-  int some_global_function(const double & value) throw(double );
+  int some_global_function(const double & value, outside::Dep &d) throw(double );
 
 }
 
