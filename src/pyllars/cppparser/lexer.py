@@ -71,7 +71,7 @@ decls = r'(TranslationUnitDecl|BuiltinType|TypedefDecl|ParmVarDecl|CXXRecordDecl
          'TemplateSpecializationType|RecordType|NamespaceDecl|PointerType|ArrayType|ConstantArrayType|' + \
          'CXXConstructorDecl|CXXDestructorDecl|CXXMethodDecl|CompoundStmt|ClassTemplateDecl|TemplateTypeParmDecl|' + \
          'LValueReferenceType|ElaboratedType|VarDecl|QualType|ImplicitCastExpr|IntegerLiteral|ReturnStmt|FloatingLiteral|' + \
-         'NonTypeTemplateParmDecl|TypeAliasDecl|FunctionDecl' + \
+         'NonTypeTemplateParmDecl|TypeAliasDecl|FunctionDecl|FieldDecl' + \
          ')'
 
 @TOKEN(decls)
@@ -126,7 +126,8 @@ def t_locator(t):
 
 
 def t_qualifier(t):
-    r'(const|constexpr|mutable|volatile)'
+    r'(const|constexpr|mutable|volatile|extern|static)\ '
+    t.value = t.value.strip()
     return t
 
 

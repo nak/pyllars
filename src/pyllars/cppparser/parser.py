@@ -13,13 +13,16 @@ class Element(metaclass=ABCMeta):
     lookup = {}
     tag_lookup = {}
 
-    def __init__(self, name, tag, parent, locator=None):
+    def __init__(self, name, tag, parent, locator=None, qualifier=None):
         self._name = name
         self._tag = tag
         assert(parent is None or parent is None or isinstance(parent, Element))
         self._parents = [parent] if parent else []
         self._children = {}
         self._locators = locator
+        self._qualifiers = qualifier or []
+        if isinstance(self._qualifiers, str):
+            self._qualifiers = [self._qualifiers]
         if name:
             Element.lookup[self.full_name] = self
         if parent:
@@ -158,6 +161,7 @@ class Element(metaclass=ABCMeta):
                 current = self
                 prev = None
                 for line in stream:
+                    line += b" "
                     try:
                         line = line.decode('latin-1').replace('\n', '').replace('\r', '')
                         depth, tokens = preprocess(line)
@@ -329,6 +333,10 @@ class BuiltinType(UnscopedElement):
     def full_name(self):
         return self.name
 
+    @property
+    def is_const(self):
+        return False
+
 
 class CXXRecord(UnscopedElement):
 
@@ -373,13 +381,16 @@ class CXXRecordDecl(ScopedElement):
 class DecoratingType(UnscopedElement):
 
     def __init__(self, name, tag, parent, qualifier=None, postfix=None,  locator=None):
-        super(DecoratingType, self).__init__(name, tag, parent, locator)
-        self._qualifiers = qualifier or []
+        super(DecoratingType, self).__init__(name, tag, parent, locator, qualifier=qualifier)
         self._postfix = postfix
 
     @classmethod
     def parse_tokens(cls, name, tag, parent, **kargs):
         return cls(name, tag, parent, **kargs)
+
+    @property
+    def is_const(self):
+        return 'const' in (self._qualifiers or [])
 
     def add_child(self, element):
         super(DecoratingType, self).add_child(element)
@@ -405,6 +416,30 @@ class DecoratingType(UnscopedElement):
         return list(self._children.values())[0][0].full_name + (self._postfix or "") + (" " if self._qualifiers else "") + \
             " ".join(reversed(self._qualifiers))
 
+    @property
+    def array_size(self):
+        return None
+
+
+class ArrayType(DecoratingType):
+
+    def __init__(self, name, tag, parent, array_size, base_type, locator=None):
+        self._base_type = base_type
+        self._array_size = array_size
+        super(ArrayType, self).__init__(name, tag, parent, qualifier=None, postfix="[%d]" % array_size, locator=locator)
+        self.add_child(base_type)
+
+    @property
+    def array_size(self):
+        return self._array_size
+
+    @property
+    def name(self):
+        return self._base_type.name + "[%d]" % self.array_size
+
+    @property
+    def full_name(self):
+        return self._base_type.full_name +  "[%d]" % self.array_size
 
 class PointerType(DecoratingType):
 
@@ -423,10 +458,11 @@ class QualType(DecoratingType):
     def __init__(self, name, tag, parent, qualifier=None, definition=None, locator=None):
         if qualifier is None:
             raise Exception("Invalid qual type")
-        super(QualType, self).__init__(name, tag, parent, qualifier=[qualifier], postfix=None, locator=locator)
+        super(QualType, self).__init__(name, tag, parent, qualifier=qualifier, postfix=None, locator=locator)
 
 
 def parse_type(definition, parent, tokens=None):
+    array_size = None
     if not tokens:
         type_lexer.input(definition.replace("'", ''))
         tokens = []
@@ -434,32 +470,37 @@ def parse_type(definition, parent, tokens=None):
             token = type_lexer.token()
             if token is None:
                 break
-            tokens.append(token)
-        return parse_type(definition, parent, [t for t in reversed(tokens)])
+            if token.type == 'array_spec':
+                array_size = token.value
+            else:
+                tokens.append(token)
+        typ = parse_type(definition, parent, [t for t in reversed(tokens)])
+        if array_size is not None:
+            typ = ArrayType(typ.name + "[%d]" % array_size, None, parent, array_size, base_type=typ)
+        return typ
+    typ = None
     if tokens:
         token = tokens[0]
         token.value = token.value.strip()
         if token.type == 'qualifier':
-            qual_typ = QualType("<<qual>>", None, parent, token.value)
+            qual_typ = QualType("<<qual>>", None, parent, qualifier=[token.value])
             t = parse_type(definition, qual_typ, tokens[1:])
             qual_typ._parents = t._parents
-            return qual_typ
+            typ = qual_typ
         elif token.type == 'reference':
-            ref_type = {'*': PointerType, '&': ReferenceType}[token.value]("<<qual>>", None, parent=parent)
+            ref_type = {'*': PointerType, '&': ReferenceType}[token.value]("<<ref>>", None, parent=parent)
             #parent.add_child(ref_type)
             t = parse_type(definition, ref_type, tokens[1:])
             ref_type._parents = t._parents
-            return ref_type
+            typ = ref_type
         elif token.type == 'name':
             if len(tokens) > 1:
                 typ = parse_type(definition, parent, [t for t in reversed(tokens)])
                 assert typ is not None
-                return typ
             else:
                 typ = parent.find(token.value)
                 assert typ is not None
                 parent.add_child(typ)
-                return typ
         elif token.type in ['structured_type']:
             assert tokens[1].type == 'name'
             if len(tokens) > 2:
@@ -467,13 +508,15 @@ def parse_type(definition, parent, tokens=None):
             if parent.find(tokens[1].value):
                 typ = parent.find(tokens[1].value)
                 parent.add_child(typ)
-                return typ
-            if "::" + tokens[1].value in Element.lookup:
-                return Element.lookup["::" + tokens[1].value]
-            typ = CXXRecordDecl(tokens[1].value, None, parent)
-            return typ
+            else:
+                if "::" + tokens[1].value in Element.lookup:
+                    return Element.lookup["::" + tokens[1].value]
+                typ = CXXRecordDecl(tokens[1].value, None, parent)
         else:
-            raise Exception("Unknown toke type: %s" % token.type)
+            raise Exception("Unknown token type: %s" % token.type)
+
+        return typ
+
 
 class TypeAliasDecl(ScopedElement):
 
@@ -490,13 +533,13 @@ class TypeAliasDecl(ScopedElement):
 class VarDecl(ScopedElement):
 
     def __init__(self, name, tag, parent, definition=None, alias_definition=None, qualifier=None, locator=None):
-        super(ScopedElement, self).__init__(name if isinstance(name, str) else name[-1] if name else None, tag, parent, locator=locator)
+        super(ScopedElement, self).__init__(name if isinstance(name, str) else name[-1] if name else None, tag, parent,
+                                            locator=locator, qualifier=qualifier)
         assert not (definition is None and alias_definition is None)
         assert definition is None or alias_definition is None
         if not definition:
             definition = alias_definition[1]
         self._type = parse_type(definition, parent)
-        self._qualifiers = qualifier
 
     @property
     def type_(self):
@@ -505,6 +548,10 @@ class VarDecl(ScopedElement):
     @classmethod
     def parse_tokens(cls, name, tag, parent, **kargs):
         return cls(name, tag, parent, **kargs)
+
+    @property
+    def is_static(self):
+        return 'static' in (self._qualifiers or [])
 
 
 class ParmVarDecl(VarDecl):
@@ -515,25 +562,29 @@ class ParmVarDecl(VarDecl):
 
 class FunctionElement(ScopedElement):
 
-    def __init__(self, name, tag, parent, definition, locator=None):
-        super(FunctionElement, self).__init__(name, tag, parent, locator=locator)
-        from .function_lexer import function_lexer
-        function_lexer.input(definition)
-        tokens = {}
-        while True:
-            token = function_lexer.token()
-            if token is None:
-                break
-            tokens[token.type] = token
+    def __init__(self, name, tag, parent, definition, locator=None, qualifier=None):
+        try:
+            super(FunctionElement, self).__init__(name, tag, parent, locator=locator, qualifier=qualifier)
+            from .function_lexer import function_lexer
+            function_lexer.input(definition)
+            tokens = {}
+            while True:
+                token = function_lexer.token()
+                if token is None:
+                    break
+                tokens[token.type] = token
 
-        self._qualifiers = definition.rsplit(')', maxsplit=1)[-1]
-        self._qualifiers = self._qualifiers.split(' ') if self._qualifiers.strip() else None
-        return_type_name = definition.split('(')[0].strip()
-        self._return_type = parse_type(definition.split('(')[0], parent) if return_type_name != 'void' else None
-        # params added as ParamVarDecl's
-        self._has_varargs = False  # TODO: implement
-        self._throws = tokens.get('throws').throws if 'throws' in tokens else []
-
+            qualifiers = definition.rsplit(')', maxsplit=1)[-1]
+            self._qualifiers += qualifiers.split(' ') if qualifiers.strip() else []
+            return_type_name = definition.split('(')[0].strip()
+            self._return_type = parse_type(definition.split('(')[0], parent) if return_type_name != 'void' else None
+            # params added as ParamVarDecl's
+            self._has_varargs = False  # TODO: implement
+            self._throws = tokens.get('throws').throws if 'throws' in tokens else []
+        except:
+            import traceback
+            traceback.print_exc()
+            raise
     @property
     def is_const(self):
         return 'const' in (self._qualifiers or [])
@@ -548,7 +599,7 @@ class FunctionElement(ScopedElement):
 
     @classmethod
     def parse_tokens(cls, name, tag, parent, **kargs):
-        return cls(name, tag, parent, kargs['definition'].replace("\\", "").replace("'", ""))
+        return cls(name, tag, parent, kargs['definition'].replace("\\", "").replace("'", ""), qualifier=kargs.get('qualifier'))
 
     @property
     def return_type(self):
@@ -572,8 +623,8 @@ class FunctionElement(ScopedElement):
 
 class FunctionDecl(FunctionElement):
 
-    def __init__(self, name, tag, parent, definition, locator=None):
-        super(FunctionDecl, self).__init__(name, tag, parent, definition, locator=locator)
+    def __init__(self, name, tag, parent, definition, locator=None, qualifier=None):
+        super(FunctionDecl, self).__init__(name, tag, parent, definition, locator=locator, qualifier=qualifier)
 
 
 class FunctionTypeDecl(FunctionElement):
@@ -595,6 +646,21 @@ class CXXDestructorDecl(FunctionDecl):
 
 class CXXMethodDecl(FunctionDecl):
     pass
+
+
+class FieldDecl(ScopedElement):
+
+    def __init__(self, name, tag, parent, **kargs):
+        super(FieldDecl, self).__init__(name, tag, parent, locator=kargs.get('locator'))
+        self._type = parse_type(kargs.get('definition'), parent)
+
+    @property
+    def type_(self):
+        return self._type
+
+    @classmethod
+    def parse_tokens(cls, name, tag, parent, **kargs):
+        return FieldDecl(name, tag, parent, **kargs)
 
 
 class RecordType(ScopedElement):
@@ -620,7 +686,7 @@ class RecordType(ScopedElement):
         else:
             self._name = None
             self._qualified_name = None
-        self._qualifiers = [t.value for t in tokens.get('qualifier')] if 'qualifier' in tokens else None
+        self._qualifiers = [t.value for t in tokens.get('qualifier')] if 'qualifier' in tokens else []
 
     @property
     def qualified_name(self):

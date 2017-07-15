@@ -159,6 +159,9 @@ class Generator(metaclass=ABCMeta):
     def body_file_name(cls, element: parser.Element)->str:
         return (element.name or "global") + ".cpp"
 
+    def scope(self, element):
+        return element.scope
+
     def generate_header_code(self, element: Element, folder: Folder) -> None:
         folder.purge(self.header_file_name(element))
         with folder.open(file_name=self.header_file_name(element)) as stream:
@@ -498,9 +501,111 @@ namespace pyllars{
                 'closure': namespace_closure
                 }).encode('utf-8'))
 
-    def scope(self, element):
-        return element.scope
+class FieldDecl(Generator):
 
+    @classmethod
+    def is_generatable(cls):
+        return True
+
+    def generate_body_proper(self, element: parser.FieldDecl, folder: Folder, as_top: bool = False) -> None:
+        with folder.open(self.body_file_name(element)) as stream:
+            namespace_text, namespace_closure = self.namespaces(element)
+            imports = set([])
+            if element.type_ and element.type_.namespace_name != element.parent.namespace_name:
+                imports.add(element.namespace_name)
+            if element.type_.array_size is not None:
+                stream.write(("""
+namespace pyllars{
+    %(indent)s%(namespaces)s
+constexpr cstring name = "%(name)s";
+%(indent)s//generated from %(file)s.generate_initializer_code
+%(indent)s// FUNCTION %(name)s THROWS
+%(indent)sstatic int init_me(){
+%(indent)s   status_t status = 0;
+%(indent)s   %(imports)s
+%(indent)s    __pyllars_internal::PythonClassWrapper<%(parent_full_name)s>::addAttribute<name, %(array_size)s, %(full_type_name)s>
+%(indent)s       ( &%(parent_full_name)s::%(name)s, %(array_size)s);
+%(indent)s   return status;
+%(indent)s}
+%(indent)sint %(name)s_init(){return init_me();}
+%(indent)snamespace{
+%(indent)s    class Initializer: public pyllars::Initializer{
+%(indent)s    public:
+%(indent)s       Initializer():pyllars::Initializer(){
+%(indent)s           pyllars%(parent)s::%(parent_name)s_register(this);
+%(indent)s       }
+%(indent)s       virtual int init(){
+%(indent)s           int status = pyllars::Initializer::init();
+%(indent)s           return status | init_me();
+%(indent)s       }
+%(indent)s    };
+%(indent)s
+%(indent)s    static Initializer init = Initializer();
+%(indent)s}
+%(indent)s
+%(indent)s%(closure)s
+}
+""" % {
+                'indent': self._indent,
+                'file': __file__,
+                'imports': "\n".join(["if(!PyImport_ImportModule(\"pylllars%s\")){return -1;} " % n.replace("::", ".") for n in imports]),
+                'module_name': element.parent.pyllars_module_name,
+                'name': self.sanitize(element.name),
+                'namespaces': namespace_text,
+                'parent_name': element.parent.name,
+                'parent_full_name': element.parent.full_name,
+                'full_type_name': element.type_._base_type.full_name,
+                'parent': self.scope(element),
+                'array_size': element.type_.array_size,
+                'closure': namespace_closure
+                }).encode('utf-8'))
+            else:
+
+                stream.write(("""
+namespace pyllars{
+    %(indent)s%(namespaces)s
+constexpr cstring name = "%(name)s";
+%(indent)s//generated from %(file)s.generate_initializer_code
+%(indent)s// FUNCTION %(name)s THROWS
+%(indent)sstatic int init_me(){
+%(indent)s   status_t status = 0;
+%(indent)s   %(imports)s
+%(indent)s    __pyllars_internal::PythonClassWrapper<%(parent_full_name)s>::addAttribute%(qual)s<name, %(full_type_name)s>
+%(indent)s       ( &%(parent_full_name)s::%(name)s);
+%(indent)s   return status;
+%(indent)s}
+%(indent)sint %(name)s_init(){return init_me();}
+%(indent)snamespace{
+%(indent)s    class Initializer: public pyllars::Initializer{
+%(indent)s    public:
+%(indent)s       Initializer():pyllars::Initializer(){
+%(indent)s           pyllars%(parent)s::%(parent_name)s_register(this);
+%(indent)s       }
+%(indent)s       virtual int init(){
+%(indent)s           int status = pyllars::Initializer::init();
+%(indent)s           return status | init_me();
+%(indent)s       }
+%(indent)s    };
+%(indent)s
+%(indent)s    static Initializer init = Initializer();
+%(indent)s}
+%(indent)s
+%(indent)s%(closure)s
+}
+""" % {
+                    'indent': self._indent,
+                    'file': __file__,
+                    'imports': "\n".join(["if(!PyImport_ImportModule(\"pylllars%s\")){return -1;} " % n.replace("::", ".") for n in imports]),
+                    'module_name': element.parent.pyllars_module_name,
+                    'name': self.sanitize(element.name),
+                    'namespaces': namespace_text,
+                    'parent_name': element.parent.name,
+                    'parent_full_name': element.parent.full_name,
+                    'full_type_name': element.type_.full_name,
+                    'parent': self.scope(element),
+                    'closure': namespace_closure,
+                    'qual': 'Const' if element.type_.is_const else ""
+                }).encode('utf-8'))
 
 class CXXMethodDecl(FunctionDecl):
     METHOD_NAMES = {'operator-': ['addMethod__inv__', 'addMethod__sub__'],
@@ -530,10 +635,16 @@ class CXXMethodDecl(FunctionDecl):
 
     def _func_declaration(self, element: parser.FunctionElement):
         if element.is_static:
-            base = "addStatic"
+            base = "addClass"
         else:
             base = "add"
-        method_name = CXXMethodDecl.METHOD_NAMES.get(element.name) or ("%sMethod" % base if not element.is_const else "%sConstMethod" % base)
+        method_name = CXXMethodDecl.METHOD_NAMES.get(element.name) or ("%sMethod" % base )
+        # work-around for quirk in compiler that transform const non-reference-type arguments in signature to remove const-ness !?!
+        def param_type_name(p: parser.Element):
+            if isinstance(p, parser.QualType) and not isinstance(p.children()[0], parser.DecoratingType):
+                return p.children()[0].full_name
+            return p.full_name
+
         return """
     __pyllars_internal::PythonClassWrapper<%(full_class_name)s>::%(py_method_name)s<name, %(return_type)s %(args)s>
        ( &%(full_class_name)s::%(method_name)s, argumentNames);
@@ -544,8 +655,127 @@ class CXXMethodDecl(FunctionDecl):
             'full_class_name': element.parent.full_name,
             'py_method_name': method_name,
             'return_type': element.return_type.full_name if element.return_type else "void",
-            'args': ("," if element.params else "") + ", ".join([p.type_.full_name for p in element.params])
+            'args': ("," if element.params else "") + ", ".join([param_type_name(p.type_) for p in element.params])
         }
+
+
+class VarDecl(Generator):
+
+    @classmethod
+    def is_generatable(cls):
+        return True
+
+    def generate_body_proper(self, element: parser.VarDecl, folder: Folder, as_top: bool = False) -> None:
+        if element.name == 'cinit':
+            return
+        with folder.open(self.body_file_name(element)) as stream:
+            namespace_text, namespace_closure = self.namespaces(element)
+            stream.write(("//From: %(file)s:VarDecl.generate_body_proper\n" % {
+                'file': os.path.basename(__file__),
+            }).encode('utf-8'))
+            imports = set([])
+            if element.type_ and element.type_.namespace_name != element.parent.namespace_name:
+                imports.add(element.namespace_name)
+            if isinstance(element.parent, parser.CXXRecordDecl):
+                stream.write(("""
+
+namespace pyllars{
+%(namespaces)s
+  namespace %(name)s{
+    constexpr cstring name = "%(name)s";
+    static status_t init_me(){
+        status_t status = 0;
+        %(imports)s
+        __pyllars_internal::PythonClassWrapper<%(parent_full_name)s>::addClassAttribute%(qual)s<name, %(full_type_name)s>
+          ( &%(parent_full_name)s::%(name)s);
+        return status;
+    }
+
+    int %(name)s_init(){return init_me();}
+
+    namespace{
+        class Initializer: public pyllars::Initializer{
+        public:
+            Initializer():pyllars::Initializer(){
+               pyllars%(parent)s::%(parent_name)s_register(this);
+            }
+            virtual int init(){
+               int status = pyllars::Initializer::init();
+               return status | init_me();
+            }
+        };
+
+       static Initializer init = Initializer();
+    }
+  }
+
+  %(closure)s
+}
+    """ % {
+                    'namespaces': namespace_text,
+                    'name': element.name or "anonymous_%s" % element.tag,
+                    'indent': self._indent,
+                    'parent': element.parent.full_name,
+                    'parent_name': element.parent.name if element.parent.name !='::' else '',
+                    'parent_full_name': element.parent.full_name,
+                    'full_type_name': element.type_.full_name,
+                    'closure': namespace_closure,
+                    'qual': 'Const' if element.type_.is_const else '',
+                    'imports': "\n".join(["if(!PyImport_ImportModule(\"pylllars%s\")){return -1;} " % n.replace("::", ".") for n in imports]),
+            }).encode('utf-8'))
+            elif isinstance(element.parent, parser.NamespaceDecl):
+                stream.write(("""
+#include <pyllars/pyllars_globalmembersemantics.cpp>
+
+namespace pyllars{
+%(namespaces)s
+  namespace %(name)s{
+    constexpr cstring name = "%(name)s";
+    static status_t init_me(){
+        status_t status = 0;
+        PyObject* mod = %(mod_name)s;
+        %(imports)s
+        if( !__pyllars_internal::GlobalVariable::createGlobalVariable<%(full_type_name)s>("%(name)s", "%(tp_name)s",
+            &%(parent)s::%(name)s, mod, %(array_size)s)){
+           status = -1;
+         }
+        return status;
+    }
+    int %(name)s_init(){return init_me();}
+
+    namespace{
+        class Initializer: public pyllars::Initializer{
+        public:
+           Initializer():pyllars::Initializer(){
+               pyllars%(parent)s::%(parent_name)s_register(this);
+           }
+           virtual int init(){
+               int status = pyllars::Initializer::init();
+               return status | init_me();
+           }
+        };
+        static Initializer init = Initializer();
+    }
+  }
+  %(closure)s
+}
+    """ % {
+                    'namespaces': namespace_text,
+                    'name': element.name or "anonymous_%s" % element.tag,
+                    'tp_name': element.type_.name,
+                    'indent': self._indent,
+                    'parent': element.parent.full_name if element.parent.full_name != '::' else "",
+                    'parent_name': element.parent.name if element.parent.name else "pyllars",
+                    'mod_name': element.parent.pyllars_module_name,
+                    'parent_full_name': element.parent.full_name,
+                    'full_type_name': element.type_.full_name,
+                    'closure': namespace_closure,
+                    'array_size': element.type_.array_size or 0,
+                    'qual': 'Const' if element.type_.is_const else 'cont',
+                    'imports': "\n".join(["if(!PyImport_ImportModule(\"pylllars%s\")){return -1;} " % n.replace("::", ".") for n in imports]),
+            }).encode('utf-8'))
+            else:
+                logging.error("Unknown parent type for global var")
 
 
 class ParmVarDecl(Generator):
@@ -611,7 +841,7 @@ namespace pyllars{
             for base in element.public_base_classes or []:
                 stream.write(("""
         status |= pyllars%(base_class_name)s_init();
-        PythonClassWrapper<%(full_class_name)s>::addBaseClass
+         __pyllars_internal::PythonClassWrapper<%(full_class_name)s>::addBaseClass
             (&PythonClassWrapper< %(base_class_name)s >::Type); /*1*/
     """ % {
                     'full_class_name': class_name,
@@ -622,7 +852,7 @@ namespace pyllars{
             if element.name:
                 if isinstance(element.parent, parser.NamespaceDecl):
                     stream.write(("""
-            status |= PythonClassWrapper< %(class_name)s >::initialize(
+            status |=  __pyllars_internal::PythonClassWrapper< %(class_name)s >::initialize(
                          "%(name)s",
                          "%(name)s",
                          %(module_name)s,
@@ -635,9 +865,9 @@ namespace pyllars{
                     }).encode('utf-8'))
                 else:
                     stream.write(("""
-            PythonClassWrapper< %(parent_class_name)s >::addClassMember
+             __pyllars_internal::PythonClassWrapper< %(parent_class_name)s >::addClassMember
                 ("%(name)s",
-                 (PyObject*) &PythonClassWrapper< %(class_name)s >::Type);
+                 (PyObject*) & __pyllars_internal::PythonClassWrapper< %(class_name)s >::Type);
 """ % {
                         'parent_class_name': element.parent.full_name,
                         'name': element.name,

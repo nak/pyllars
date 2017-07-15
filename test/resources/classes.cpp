@@ -23,6 +23,10 @@ namespace trial{
     	return 4.2;
 	}
 
+    void Main2::static_method(const Main2 i){
+    }
+
+    double Main2::dbl_static_member = 4.2;
 
     template <typename T, T d>
     void TemplateClass<T, d>::method1(const float& value){

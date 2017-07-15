@@ -54,12 +54,33 @@ namespace trial{
   };
 
   class Main2{
+  public:
+
+    static void static_method(const Main2 i);
+
+    static double dbl_static_member;
+
+    Main2():const_short_member(42){
+        int_members[0] = const_short_member*2;
+        int_members[1] = const_short_member*3;
+        int_members[2] = const_short_member*4;
+    }
+
+    Main2(short v):const_short_member(v){
+        int_members[0] = v*2;
+        int_members[1] = v*3;
+        int_members[2] = v*4;
+    }
+
+    const short const_short_member;
+    int int_members[3];
+
   };
 
   class MultiInherited: public Main, public Main2{
   };
 
-  template <typename T, T d=T(0)>
+  template <typename T, T d = (T)0>
   class TemplateClass{
 
     void method1(const float& value);
@@ -84,7 +105,8 @@ namespace trial{
 }
 
 using ClassLong = trial::TemplateClass<long>;
-using ClassLongPtr = trial::TemplateClass<long*>;
+static constexpr long* null_long_ptr = (long*)0;
+using ClassLongPtr = trial::TemplateClass<long*, null_long_ptr>;
 
 typedef trial::Main& Main2;
 

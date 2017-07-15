@@ -9,6 +9,7 @@ tokens = (
     'structured_type',
     'is_definition',
     'is_referenced',
+    'array_spec'
 )
 
 
@@ -46,6 +47,10 @@ def t_qualifier(t):
     r"(const|constexpr|mutable|volatile)"
     return t
 
+def t_array_spec(t):
+    r"(\[[0-9]*\])"
+    t.value = int(t.value[1:-1])
+    return t
 
 def t_name(t):
     r"([:\<\>_\~\=a-zA-Z0-9\<\>\,\ ]+)"

@@ -19,13 +19,13 @@ t_ignore = ' \t'
 
 
 def t_is_definition(t):
-    r'(definition)'
+    r'(definition)\ '
     t.value = True
     return t
 
 
 def t_is_referenced(t):
-    r"(referenced)"
+    r'(referenced)\ '
     t.value = True
     return t
 
@@ -36,12 +36,15 @@ def t_throws(t):
     return t
 
 def t_parameters(t):
-    r'\([\ \,\:a-zA-Z\,\*\&]*\)'
+    # This need to match any parameter list defn, including things like:
+    # (int a, double (*func)(int p1, short & p2))
+    r'\([\ \,\:a-zA-Z0-9_\,\*\&(\(.*\))]*\)'
     return t
 
 
 def t_structured_type(t):
-    r"(class|struct|union|typename)"
+    r'(class|struct|union|typename)\ '
+    t.value = t.value.strip()
     return t
 
 
@@ -52,22 +55,25 @@ def t_newline(t):
 
 
 def t_implicit_explicit(t):
-    r"(implicit|explicit)"
+    r'(implicit|explicit)\ '
+    t.value = t.value.strip()
     return t
 
 
 def t_qualifier(t):
-    r"(const|constexpr|mutable|volatile)"
+    r'(const|constexpr|mutable|volatile)\ '
+    t.value = t.value.strip()
     return t
 
 
 def t_method_qualifier(t):
-    r"(pure|virtual)"
+    r'(pure|virtual)\ '
+    t.value = t.value.strip()
     return t
 
 
 def t_name(t):
-    r"([_\~\=a-zA-Z0-9\:]+)"
+    r'([_\~\=a-zA-Z0-9\:]+)'
     return t
 
 

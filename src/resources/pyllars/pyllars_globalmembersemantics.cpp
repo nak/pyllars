@@ -295,8 +295,12 @@ namespace __pyllars_internal{
     template<typename T>
     PyTypeObject GlobalVariable::Container<T, typename std::enable_if<
             !std::is_array<T>::value && !std::is_const<T>::value>::type>::Type = {
-            PyObject_HEAD_INIT(nullptr)
-            0,                               /*ob_size*/
+        #if PY_MAJOR_VERSION == 3
+                PyVarObject_HEAD_INIT(nullptr, 0)
+        #else
+                PyObject_HEAD_INIT(nullptr)
+                0,                               /*ob_size*/
+        #endif
             nullptr,                         /*tp_name*/
             sizeof(GlobalVariable::Container<T, typename std::enable_if<
                     !std::is_array<T>::value && !std::is_const<T>::value>::type>),   /*tp_basicsize*/
@@ -350,8 +354,12 @@ namespace __pyllars_internal{
     //Python definition of Type for this function wrapper
     template<size_t size, typename T>
     PyTypeObject GlobalVariable::Container<T[size], void>::Type = {
-            PyObject_HEAD_INIT(nullptr)
-            0,                               /*ob_size*/
+        #if PY_MAJOR_VERSION == 3
+                PyVarObject_HEAD_INIT(nullptr, 0)
+        #else
+                PyObject_HEAD_INIT(nullptr)
+                0,                               /*ob_size*/
+        #endif
             nullptr,                         /*tp_name*/
             sizeof(GlobalVariable::Container<T[size], void>),   /*tp_basicsize*/
             0,                               /*tp_itemsize*/
@@ -403,8 +411,12 @@ namespace __pyllars_internal{
     //Python definition of Type for this function wrapper
     template<typename T>
     PyTypeObject GlobalVariable::Container<const T, typename std::enable_if<!std::is_array<T>::value>::type>::Type = {
-            PyObject_HEAD_INIT(nullptr)
-            0,                               /*ob_size*/
+        #if PY_MAJOR_VERSION == 3
+                PyVarObject_HEAD_INIT(nullptr, 0)
+        #else
+                PyObject_HEAD_INIT(nullptr)
+                0,                               /*ob_size*/
+        #endif
             nullptr,                         /*tp_name*/
             sizeof(GlobalVariable::Container<const T, typename std::enable_if<!std::is_array<T>::value>::type>),   /*tp_basicsize*/
             0,                               /*tp_itemsize*/
@@ -456,8 +468,12 @@ namespace __pyllars_internal{
     //Python definition of Type for this function wrapper
     template<size_t size, typename T>
     PyTypeObject GlobalVariable::Container<const T[size], void>::Type = {
-            PyObject_HEAD_INIT(nullptr)
-            0,                               /*ob_size*/
+        #if PY_MAJOR_VERSION == 3
+                PyVarObject_HEAD_INIT(nullptr, 0)
+        #else
+                PyObject_HEAD_INIT(nullptr)
+                0,                               /*ob_size*/
+        #endif
             nullptr,                         /*tp_name*/
             sizeof(GlobalVariable::Container<const T[size], void>),   /*tp_basicsize*/
             0,                               /*tp_itemsize*/
@@ -510,8 +526,12 @@ namespace __pyllars_internal{
     //Python definition of Type for this function wrapper
     template<typename T>
     PyTypeObject GlobalVariable::Container<T[], typename std::enable_if<!std::is_const<T>::value>::type>::Type = {
-            PyObject_HEAD_INIT(nullptr)
-            0,                               /*ob_size*/
+        #if PY_MAJOR_VERSION == 3
+                PyVarObject_HEAD_INIT(nullptr, 0)
+        #else
+                PyObject_HEAD_INIT(nullptr)
+                0,                               /*ob_size*/
+        #endif
             nullptr,                         /*tp_name*/
             sizeof(GlobalVariable::Container<T[], void>),   /*tp_basicsize*/
             0,                               /*tp_itemsize*/
@@ -563,8 +583,12 @@ namespace __pyllars_internal{
     //Python definition of Type for this function wrapper
     template<typename T>
     PyTypeObject GlobalVariable::Container<const T[], void>::Type = {
-            PyObject_HEAD_INIT(nullptr)
-            0,                               /*ob_size*/
+        #if PY_MAJOR_VERSION == 3
+                PyVarObject_HEAD_INIT(nullptr, 0)
+        #else
+                PyObject_HEAD_INIT(nullptr)
+                0,                               /*ob_size*/
+        #endif
             nullptr,                         /*tp_name*/
             sizeof(GlobalVariable::Container<const T[], void>),   /*tp_basicsize*/
             0,                               /*tp_itemsize*/
