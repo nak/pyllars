@@ -25,7 +25,7 @@ namespace trial{
 
     Main &operator=(const Main & );
 
-    int vargs_method(double d, ...);
+    int varargs_method(double d, ...);
 
     struct Implicit{
     };

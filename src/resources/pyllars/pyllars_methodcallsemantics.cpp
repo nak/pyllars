@@ -10,13 +10,13 @@
 
 namespace __pyllars_internal {
 
-    template<bool with_ellipsis, typename CClass, typename T, typename ...Args>
-    typename extent_as_pointer<T>::type MethodCallSemantics<with_ellipsis, CClass, T, Args...>::FunctType::
-    call(typename std::remove_reference<CClass>::type &self, method_varargs_t method, Args... args, PyObject *extra_args) {
+    template< typename CClass, typename T, typename ...Args>
+    typename extent_as_pointer<T>::type MethodCallSemantics<false, true, CClass, T, Args...>::
+    call( method_t method, typename std::remove_reference<CClass>::type &self, Args... args, PyObject *extra_args) {
         typedef typename std::remove_reference<ReturnType>::type ReturnType_NoRef;
-        if (!extra_args || PyTuple_Size(extra_args) == 0) {
+        /*if (!extra_args || PyTuple_Size(extra_args) == 0) {
             return self.*method(args...);
-        } else {
+        } else*/  {  // bug in g++ forces call this way:
             const ssize_t extra_args_size = PyTuple_Size(extra_args);
 
             ffi_cif cif;
@@ -72,8 +72,8 @@ namespace __pyllars_internal {
                                     (ObjContainer<void *> **) (((char *) nextArg) + offset);
                             extra_arg_values[i].ptrvalue = ptrvalue ? (*ptrvalue)->ptr() : nullptr;
                         } else if (FUNC_TYPE == subtype) {
-                            typedef typename PythonFunctionWrapper<true, with_ellipsis, int, int>::template Wrapper<> wtype;
-                            typedef typename PythonFunctionWrapper<true, with_ellipsis, int, int>::template Wrapper<>::FuncContainer ftype;
+                            typedef typename PythonFunctionWrapper<true, true, int, int>::template Wrapper<> wtype;
+                            typedef typename PythonFunctionWrapper<true, true, int, int>::template Wrapper<>::FuncContainer ftype;
                             static const size_t offset = offset_of<ftype , wtype >(&wtype::_cfunc);
                             void **ptrvalue = (void **) (((char *) nextArg) + offset);
                             extra_arg_values[i].ptrvalue = *ptrvalue;
@@ -104,9 +104,9 @@ namespace __pyllars_internal {
         }
     }
 
-    template<bool with_ellipsis, typename CClass, typename ...Args>
-    void MethodCallSemantics<with_ellipsis, CClass, void, Args...>::FunctType::
-    call(typename std::remove_reference<CClass>::type &self, method_varargs_t method, Args... args, PyObject *extra_args) {
+    template<typename CClass, typename ...Args>
+    void MethodCallSemantics<false, true, CClass, void, Args...>::
+    call(method_t method, typename std::remove_reference<CClass>::type &self, Args... args, PyObject *extra_args) {
         if (!extra_args || PyTuple_Size(extra_args) == 0) {
             self.*method(args...);
         } else {
@@ -164,8 +164,8 @@ namespace __pyllars_internal {
                                     (ObjContainer<void *> **) (((char *) nextArg) + offset);
                             extra_arg_values[i].ptrvalue = ptrvalue ? (*ptrvalue)->ptr() : nullptr;
                         } else if (FUNC_TYPE == subtype) {
-                            typedef typename PythonFunctionWrapper<true, with_ellipsis, int, int>::template Wrapper<> wtype;
-                            typedef typename PythonFunctionWrapper<true, with_ellipsis, int, int>::template Wrapper<>::FuncContainer ftype;
+                            typedef typename PythonFunctionWrapper<true, true, int, int>::template Wrapper<> wtype;
+                            typedef typename PythonFunctionWrapper<true, true, int, int>::template Wrapper<>::FuncContainer ftype;
                             static const size_t offset = offset_of<ftype , wtype >(&wtype::_cfunc);
                             void **ptrvalue = (void **) (((char *) nextArg) + offset);
                             extra_arg_values[i].ptrvalue = *ptrvalue;
@@ -195,9 +195,9 @@ namespace __pyllars_internal {
     }
 
 
-    template<bool with_ellipsis, typename CClass, typename T, typename ... Args>
-    PyObject *MethodCallSemantics<with_ellipsis, CClass, T, Args...>::
-    call(method_t method, CClass &self, PyObject *args, PyObject *kwds) {
+    template<typename CClass, typename T, typename ... Args>
+    PyObject *MethodCallSemantics<false, false, CClass, T, Args...>::
+    call(method_t method, typename std::remove_reference<CClass>::type &self, PyObject *args, PyObject *kwds) {
         try {
             T result = call_methodBase(method, self, args, kwds, typename argGenerator<sizeof...(Args)>::type());
             // const ssize_t type_size = Sizeof<T_base>::value;
@@ -209,12 +209,69 @@ namespace __pyllars_internal {
         }
     }
 
-    template<bool with_ellipsis, typename CClass, typename T, typename ... Args>
+    template<typename CClass, typename T, typename ... Args>
+    PyObject *MethodCallSemantics<false, true, CClass, T, Args...>::
+    call(method_t method, typename std::remove_reference<CClass>::type &self, PyObject *args, PyObject *kwds) {
+        try {
+            T result = call_methodBase(method, self, args, kwds, typename argGenerator<sizeof...(Args)>::type());
+            // const ssize_t type_size = Sizeof<T_base>::value;
+            const ssize_t array_size = ArraySize<T>::size;//type_size > 0 ? sizeof(result) / type_size : 1;
+            return toPyObject<T>(result, false, array_size);
+        } catch (const char *const msg) {
+            PyErr_SetString(PyExc_RuntimeError, msg);
+            return nullptr;
+        }
+    }
+
+    template<typename CClass,  typename ... Args>
+    PyObject *MethodCallSemantics<false, false, CClass, void, Args...>::
+    call(method_t method, typename std::remove_reference<CClass>::type &self, PyObject *args, PyObject *kwds) {
+        try {
+            call_methodBase(method, self, args, kwds, typename argGenerator<sizeof...(Args)>::type());
+
+        } catch (const char *const msg) {
+            PyErr_SetString(PyExc_RuntimeError, msg);
+            return nullptr;
+        }
+        return Py_None;
+    }
+
+
+
+    template<typename CClass, typename T, typename ... Args>
     template<typename ...PyO>
     typename extent_as_pointer<T>::type
-    MethodCallSemantics<with_ellipsis, CClass, T, Args...>::
+    MethodCallSemantics<false, false, CClass, T, Args...>::
     call_methodC(
             typename extent_as_pointer<T>::type  (CClass::*method)(Args...),
+            typename std::remove_reference<CClass>::type &self,
+            PyObject *args, PyObject *kwds, PyO *...pyargs) {
+        static char format[sizeof...(Args) + 1] = {0};
+
+
+
+        if (sizeof...(Args) > 0)
+            memset(format, 'O', sizeof...(Args));
+        if (kwds && !PyArg_ParseTupleAndKeywords(args, kwds, format, (char **) kwlist, &pyargs...)) {
+            PyErr_Print();
+            throw "Invalid arguments to method call";
+        } else if (!kwds && !PyArg_ParseTuple(args, format, &pyargs...) ){
+	        PyErr_Print();
+	        throw "Invalid arguments to method call";
+	    }
+
+        T retval = (self.*method)(*toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)...);
+        return retval;
+    }
+
+
+
+    template<typename CClass, typename T, typename ... Args>
+    template<typename ...PyO>
+    typename extent_as_pointer<T>::type
+    MethodCallSemantics<false, true, CClass, T, Args...>::
+    call_methodC(
+            typename extent_as_pointer<T>::type  (CClass::*method)(Args... ...),
             typename std::remove_reference<CClass>::type &self,
             PyObject *args, PyObject *kwds, PyO *...pyargs) {
         static char format[sizeof...(Args) + 1] = {0};
@@ -223,12 +280,8 @@ namespace __pyllars_internal {
         PyObject *extra_args = nullptr;
         PyObject *tuple = nullptr;
 
-        if ((arg_count > sizeof...(Args)) && with_ellipsis) {
-            tuple = PyTuple_GetSlice(args, 0, sizeof...(Args) - kwd_count);
-            extra_args = PyTuple_GetSlice(args, sizeof...(Args) - kwd_count, arg_count);
-        } else {
-            tuple = args;
-        }
+        tuple = PyTuple_GetSlice(args, 0, sizeof...(Args) - kwd_count);
+        extra_args = PyTuple_GetSlice(args, sizeof...(Args) - kwd_count, arg_count);
 
         if (sizeof...(Args) > 0)
             memset(format, 'O', sizeof...(Args));
@@ -239,22 +292,19 @@ namespace __pyllars_internal {
 	        PyErr_Print();
 	        throw "Invalid arguments to method call";
 	    }
-        if( with_ellipsis ){
-            T retval = FunctType::call(self, (FunctType::method_varargs_t) method, *toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)..., extra_args);
-            return retval;
-        } else {
-            T retval = (self.*method)(*toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)...);
-            return retval;
-        }
+        T retval = call( method, self,  *toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)..., extra_args);
+        return retval;
+
     }
+
 
     /**
      * call that converts python given arguments to make C call:
      **/
-    template<bool with_ellipsis, typename CClass, typename T, typename ... Args>
+    template<typename CClass, typename T, typename ... Args>
     template<int ...S>
     typename extent_as_pointer<T>::type
-    MethodCallSemantics<with_ellipsis, CClass, T, Args...>::
+    MethodCallSemantics<false, false, CClass, T, Args...>::
     call_methodBase(
             typename extent_as_pointer<T>::type  (CClass::*method)(Args...),
             typename std::remove_reference<CClass>::type &self,
@@ -269,28 +319,62 @@ namespace __pyllars_internal {
 
     }
 
-    template<bool with_ellipsis, class CClass, typename ReturnType, typename ...Args>
+    template<class CClass, typename ReturnType, typename ...Args>
     const char *const *
-            MethodCallSemantics<with_ellipsis, CClass, ReturnType, Args...>::kwlist;
+            MethodCallSemantics<false, false, CClass, ReturnType, Args...>::kwlist;
 
 
-    template<bool with_ellipsis, typename CClass, typename ...Args>
-    PyObject *MethodCallSemantics<with_ellipsis, CClass, void, Args...>::
+    template<typename CClass, typename ...Args>
+    PyObject *MethodCallSemantics<false, false, CClass, void, Args...>::
     toPyObj(CClass &self) {
         (void) self;
         return Py_None;
     }
 
+       /**
+     * call that converts python given arguments to make C call:
+     **/
+    template<typename CClass, typename T, typename ... Args>
+    template<int ...S>
+    typename extent_as_pointer<T>::type
+    MethodCallSemantics<false, true, CClass, T, Args...>::
+    call_methodBase(
+            typename extent_as_pointer<T>::type  (CClass::*method)(Args... ...),
+            typename std::remove_reference<CClass>::type &self,
+            PyObject *args, PyObject *kwds, container<S...> s) {
+        (void) s;
+        PyObject pyobjs[sizeof...(Args) + 1];
+        (void) pyobjs;
+	if(!method){
+	  throw "Null method pointer encountered";
+	}
+        return call_methodC(method, self, args, kwds, &pyobjs[S]...);
+
+    }
+
+    template<class CClass, typename ReturnType, typename ...Args>
+    const char *const *
+            MethodCallSemantics<false, true, CClass, ReturnType, Args...>::kwlist;
+
+
+    template<typename CClass, typename ...Args>
+    PyObject *MethodCallSemantics<false, true, CClass, void, Args...>::
+    toPyObj(CClass &self) {
+        (void) self;
+        return Py_None;
+    }
+
+/*
     template<bool with_ellipsis, typename CClass, typename ...Args>
     PyObject *MethodCallSemantics<with_ellipsis, CClass, void, Args...>::
     call(method_t method, CClass &self, PyObject *args, PyObject *kwds) {
         call_methodBase(method, self, args, kwds, typename argGenerator<sizeof...(Args)>::type());
         return Py_None;
-    }
+    }*/
 
-    template<bool with_ellipsis, typename CClass, typename ...Args>
+    template<typename CClass, typename ...Args>
     template<typename ...PyO>
-    void MethodCallSemantics<with_ellipsis, CClass, void, Args...>::
+    void MethodCallSemantics<false, false, CClass, void, Args...>::
     call_methodC(void (CClass::*method)(Args...),
                  typename std::remove_reference<CClass>::type &self,
                  PyObject *args, PyObject *kwds,
@@ -306,9 +390,9 @@ namespace __pyllars_internal {
         }
     }
 
-    template<bool with_ellipsis, typename CClass, typename ...Args>
+    template<typename CClass, typename ...Args>
     template<int ...S>
-    void MethodCallSemantics<with_ellipsis, CClass, void, Args...>::
+    void MethodCallSemantics<false, false, CClass, void, Args...>::
     call_methodBase(void (CClass::*method)(Args...),
                     typename std::remove_reference<CClass>::type &self,
                     PyObject *args, PyObject *kwds,
@@ -320,8 +404,43 @@ namespace __pyllars_internal {
     }
 
 
-    template<bool with_ellipsis, class CClass, typename ...Args>
-    const char *const *MethodCallSemantics<with_ellipsis, CClass, void, Args...>::kwlist;
+   template<typename CClass, typename ...Args>
+    template<typename ...PyO>
+    void MethodCallSemantics<false, true, CClass, void, Args...>::
+    call_methodC(void (CClass::*method)(Args... ...),
+                 typename std::remove_reference<CClass>::type &self,
+                 PyObject *args, PyObject *kwds,
+                 PyO *...pyargs) {
+
+        char format[sizeof...(Args) + 1] = {0};
+        if (sizeof...(Args) > 0)
+            memset(format, 'O', sizeof...(Args));
+        if (!PyArg_ParseTupleAndKeywords(args, kwds, format, (char **) kwlist, &pyargs...)) {
+            PyErr_SetString(PyExc_RuntimeError, "Failed to parse argument on method call");
+        } else {
+            (self.*method)(*toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)...);
+        }
+    }
+
+    template<typename CClass, typename ...Args>
+    template<int ...S>
+    void MethodCallSemantics<false, true, CClass, void, Args...>::
+    call_methodBase(void (CClass::*method)(Args... ...),
+                    typename std::remove_reference<CClass>::type &self,
+                    PyObject *args, PyObject *kwds,
+                    container<S...> unused) {
+        (void) unused;
+        PyObject pyobjs[sizeof...(Args) + 1];
+        call_methodC(method, self, args, kwds, &pyobjs[S]...);
+        (void) pyobjs;
+    }
+
+
+    template<class CClass, typename ...Args>
+    const char *const *MethodCallSemantics<false, false, CClass, void, Args...>::kwlist;
+
+   template< class CClass, typename ...Args>
+    const char *const *MethodCallSemantics<false, true, CClass, void, Args...>::kwlist;
 
 
     template<class CClass>
@@ -335,7 +454,7 @@ namespace __pyllars_internal {
         Wrapper *_this = (Wrapper *) self;
         if (_this->template get_CObject<CClass>()) {
             try {
-                return MethodCallSemantics<false, CClass, ReturnType, Args...>::call(method,
+                return MethodCallSemantics<false, false, CClass, ReturnType, Args...>::call(method,
                                                                               *_this->template get_CObject<CClass>(),
                                                                               args, kwds);
             } catch (...) {
@@ -362,7 +481,7 @@ namespace __pyllars_internal {
         PythonClassWrapper<CClass> *_this = (PythonClassWrapper<CClass> *) self;
         if (_this->template get_CObject<CClass>()) {
             try {
-                return MethodCallSemantics<false, CClass, ReturnType, Args...>::call(method,
+                return MethodCallSemantics<false, false, CClass, ReturnType, Args...>::call(method,
                                                                               *_this->template get_CObject<CClass>(),
                                                                               args, kwds);
             } catch (...) {
@@ -394,7 +513,7 @@ namespace __pyllars_internal {
         Wrapper *_this = (Wrapper *) self;
         if (_this->template get_CObject<CClass>()) {
             try {
-                return MethodCallSemantics<true, CClass, ReturnType, Args...>::call(method,
+                return MethodCallSemantics<false, true, CClass, ReturnType, Args...>::call(method,
                                                                               *_this->template get_CObject<CClass>(),
                                                                               args, kwds);
             } catch (...) {
@@ -421,7 +540,7 @@ namespace __pyllars_internal {
         PythonClassWrapper<CClass> *_this = (PythonClassWrapper<CClass> *) self;
         if (_this->template get_CObject<CClass>()) {
             try {
-                return MethodCallSemantics<true, CClass, ReturnType, Args...>::call(method,
+                return MethodCallSemantics<false, true, CClass, ReturnType, Args...>::call(method,
                                                                               *_this->template get_CObject<CClass>(),
                                                                               args, kwds);
             } catch (...) {
