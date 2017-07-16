@@ -36,8 +36,8 @@ namespace __pyllars_internal{
     ClassMethodCallSemantics<with_ellipsis, CClass, T,Args...>::
     call_methodC(typename FuncDef<with_ellipsis,0>::func_type method, PyObject *args, PyObject *kwds, PyO *...pyargs) {
         static char format[sizeof...(Args) + 1] = {0};
-        memset(format, 'O', (size_t)
-        sizeof...(Args));
+        if (sizeof...(Args) > 0)
+            memset(format, 'O', (size_t) sizeof...(Args));
         const size_t arg_count = kwds ? PyDict_Size(kwds) : 0 + args ? PyTuple_Size(args) : 0;
         const size_t kwd_count = kwds ? PyDict_Size(kwds) : 0;
         PyObject *extra_args = nullptr;

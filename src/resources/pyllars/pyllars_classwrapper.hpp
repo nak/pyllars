@@ -114,6 +114,7 @@ namespace __pyllars_internal {
         template<const char *const name, typename ReturnType, typename ...Args>
         static void addClassMethodVarargs(ReturnType(*method)(Args... ...), const char *const kwlist[]);
 
+
         /**
          * add a method with given compile-time-known name to the contained collection
          **/
@@ -138,6 +139,14 @@ namespace __pyllars_internal {
                 const char *const kwlist[]){
             addMethodTempl<MethodContainer<T_NoRef>, name, ReturnType, Args...>(method, kwlist);
          }
+
+        template<const char *const name, typename ReturnType, typename ...Args>
+        static void addMethodVarargs(
+                typename MethodContainerVarargs<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                const char *const kwlist[]){
+            addMethodTempl<MethodContainerVarargs<T_NoRef>, name, ReturnType, Args...>(method, kwlist);
+         }
+
 
         template<typename _Container, const char *const name, typename ReturnType, typename ...Args>
         static void addMethod__inv__templ(

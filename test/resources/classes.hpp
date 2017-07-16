@@ -25,6 +25,8 @@ namespace trial{
 
     Main &operator=(const Main & );
 
+    int vargs_method(double d, ...);
+
     struct Implicit{
     };
 
@@ -71,6 +73,8 @@ namespace trial{
         int_members[1] = v*3;
         int_members[2] = v*4;
     }
+
+    static Main static_vararg_method(const char* const pattern, ...);
 
     const short const_short_member;
     int int_members[3];

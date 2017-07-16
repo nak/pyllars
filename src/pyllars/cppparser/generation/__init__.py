@@ -49,6 +49,7 @@ class Compiler(object):
                       'target': target,
                       'compilable': compilable,
                   }
+            cmd = cmd.replace("-O2", "-O0")
             print(cmd)
             p = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE,
                                  stderr=subprocess.STDOUT)
@@ -639,11 +640,8 @@ class CXXMethodDecl(FunctionDecl):
         else:
             base = "add"
         method_name = CXXMethodDecl.METHOD_NAMES.get(element.name) or ("%sMethod" % base )
-        # work-around for quirk in compiler that transform const non-reference-type arguments in signature to remove const-ness !?!
-        def param_type_name(p: parser.Element):
-            if isinstance(p, parser.QualType) and not isinstance(p.children()[0], parser.DecoratingType):
-                return p.children()[0].full_name
-            return p.full_name
+        if element.has_varargs:
+            method_name += "Varargs"
 
         return """
     __pyllars_internal::PythonClassWrapper<%(full_class_name)s>::%(py_method_name)s<name, %(return_type)s %(args)s>
@@ -655,7 +653,7 @@ class CXXMethodDecl(FunctionDecl):
             'full_class_name': element.parent.full_name,
             'py_method_name': method_name,
             'return_type': element.return_type.full_name if element.return_type else "void",
-            'args': ("," if element.params else "") + ", ".join([param_type_name(p.type_) for p in element.params])
+            'args': ("," if element.params else "") + ", ".join([p.type_.full_param_name for p in element.params])
         }
 
 

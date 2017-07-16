@@ -36,7 +36,7 @@ def t_alias_definition(t):
 
 
 def t_definition(t):
-    r'(\'[a-zA-Z0-9\_\ \*\[\]\(\)\&(\:\:)\<\>\,]*\')'
+    r'(\'[a-zA-Z0-9\_\ \*\[\]\(\)\&(\:\:)(\.\.\.)\<\>\,]*\')'
     t.value = t.value.replace("'", "")
     return t
 
@@ -126,7 +126,7 @@ def t_locator(t):
 
 
 def t_qualifier(t):
-    r'(const|constexpr|mutable|volatile|extern|static)\ '
+    r'(const|constexpr|mutable|volatile|extern|static|explicit|implicit)\ '
     t.value = t.value.strip()
     return t
 

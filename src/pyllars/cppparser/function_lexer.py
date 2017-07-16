@@ -39,6 +39,7 @@ def t_parameters(t):
     # This need to match any parameter list defn, including things like:
     # (int a, double (*func)(int p1, short & p2))
     r'\([\ \,\:a-zA-Z0-9_\,\*\&(\(.*\))]*\)'
+    t.has_ellipsis = '...' in t.value
     return t
 
 

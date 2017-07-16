@@ -1,3 +1,4 @@
+import logging
 from abc import abstractmethod, ABCMeta
 from typing import List
 
@@ -65,6 +66,13 @@ class Element(metaclass=ABCMeta):
     @property
     def full_name(self):
         return self.name
+
+    @property
+    def full_param_name(self):
+        # g++ has bug where signatures with const params removes the const-ness when checking template signatures,
+        # to template params must not be const (but can be pointer or ref to const types).  QualType therefore
+        # overrides this method
+        return self.full_name
 
     @property
     @abstractmethod
@@ -207,7 +215,12 @@ class Element(metaclass=ABCMeta):
         if tag is not None and tag in Element.tag_lookup:
             return Element.tag_lookup[tag]
         else:
-            return cls.parse_tokens(name, tag, parent, **kargs)
+            try:
+                return cls.parse_tokens(name, tag, parent, **kargs)
+            except:
+                import traceback
+                traceback.print_exc()
+                logging.error("Failed to parse class %s" % cls.__name__)
 
     def children(self, access: str='public') -> List["Element"]:
         if access is None:
@@ -459,6 +472,14 @@ class QualType(DecoratingType):
         if qualifier is None:
             raise Exception("Invalid qual type")
         super(QualType, self).__init__(name, tag, parent, qualifier=qualifier, postfix=None, locator=locator)
+        assert(not self.children())
+
+    @property
+    def full_param_name(self):
+        # g++ has bug where signatures with const params removes the const-ness when checking template signatures,
+        # to template params must not be const (but can be pointer or ref to const types)
+        if 'const' in self._qualifiers or []:
+            return self.children()[0].full_name
 
 
 def parse_type(definition, parent, tokens=None):
@@ -485,12 +506,16 @@ def parse_type(definition, parent, tokens=None):
         if token.type == 'qualifier':
             qual_typ = QualType("<<qual>>", None, parent, qualifier=[token.value])
             t = parse_type(definition, qual_typ, tokens[1:])
+            if not qual_typ.children():
+                qual_typ.add_child(t)
             qual_typ._parents = t._parents
             typ = qual_typ
         elif token.type == 'reference':
             ref_type = {'*': PointerType, '&': ReferenceType}[token.value]("<<ref>>", None, parent=parent)
             #parent.add_child(ref_type)
             t = parse_type(definition, ref_type, tokens[1:])
+            if not ref_type.children():
+                ref_type.add_child(t)
             ref_type._parents = t._parents
             typ = ref_type
         elif token.type == 'name':
@@ -500,14 +525,12 @@ def parse_type(definition, parent, tokens=None):
             else:
                 typ = parent.find(token.value)
                 assert typ is not None
-                parent.add_child(typ)
         elif token.type in ['structured_type']:
             assert tokens[1].type == 'name'
             if len(tokens) > 2:
                 return parse_type(definition, parent, [t for t in reversed(tokens[2:])] + tokens[:2])
             if parent.find(tokens[1].value):
                 typ = parent.find(tokens[1].value)
-                parent.add_child(typ)
             else:
                 if "::" + tokens[1].value in Element.lookup:
                     return Element.lookup["::" + tokens[1].value]
@@ -568,18 +591,20 @@ class FunctionElement(ScopedElement):
             from .function_lexer import function_lexer
             function_lexer.input(definition)
             tokens = {}
+            has_ellipsis = False
             while True:
                 token = function_lexer.token()
                 if token is None:
                     break
                 tokens[token.type] = token
-
+                if token.type == 'parameters':
+                    has_ellipsis = token.has_ellipsis
             qualifiers = definition.rsplit(')', maxsplit=1)[-1]
             self._qualifiers += qualifiers.split(' ') if qualifiers.strip() else []
             return_type_name = definition.split('(')[0].strip()
             self._return_type = parse_type(definition.split('(')[0], parent) if return_type_name != 'void' else None
-            # params added as ParamVarDecl's
-            self._has_varargs = False  # TODO: implement
+            # params added as ParamVarDecl's, except for ellipsis
+            self._has_varargs = has_ellipsis
             self._throws = tokens.get('throws').throws if 'throws' in tokens else []
         except:
             import traceback
@@ -752,6 +777,7 @@ class NonTemplateTypeParmDecl(ScopedElement):
     @property
     def is_type(self):
         return False
+
 
 class ClassTemplateSpecializationDecl(ScopedElement):
 

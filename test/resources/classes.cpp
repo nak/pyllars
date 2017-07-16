@@ -12,12 +12,19 @@ namespace trial{
     Main::~Main(){
     }
 
+    int  Main::varargs_method(double d, ...){
+        return (int)d;
+    }
+
     Main &Main::operator=(const Main & ){
         return *this;
     }
 
     Main::Inner::Inner(){}
 
+    Main Main2::static_vararg_method(const char* const pattern, ...){
+        return Main();
+    }
 
 	float Main::Inner::Tertiary::timestamp(){
     	return 4.2;
