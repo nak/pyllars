@@ -32,9 +32,6 @@ namespace __pyllars_internal {
     class InitHelper;
 
     template<class CClass>
-    class ConstMethodContainer;
-
-    template<class CClass>
     class ConstMemberContainer;
 
     template<class CClass>
@@ -126,25 +123,18 @@ namespace __pyllars_internal {
         /**
          * add a method with given compile-time-known name to the contained collection
          **/
-        template<const char *const name, typename ReturnType, typename ...Args>
+        template<bool is_const, const char *const name, typename ReturnType, typename ...Args>
         static void addMethod(
-                typename ConstMethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                typename MethodContainer<T_NoRef, is_const>::template Container<name, ReturnType, Args...>::method_t method,
                 const char *const kwlist[]){
-            addMethodTempl<ConstMethodContainer<T_NoRef>, name, ReturnType, Args...>(method, kwlist);
+            addMethodTempl<MethodContainer<T_NoRef, is_const>, name, ReturnType, Args...>(method, kwlist);
         }
 
-        template<const char *const name, typename ReturnType, typename ...Args>
-        static void addMethod(
-                typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
-                const char *const kwlist[]){
-            addMethodTempl<MethodContainer<T_NoRef>, name, ReturnType, Args...>(method, kwlist);
-         }
-
-        template<const char *const name, typename ReturnType, typename ...Args>
+        template<bool is_const, const char *const name, typename ReturnType, typename ...Args>
         static void addMethodVarargs(
-                typename MethodContainerVarargs<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                typename MethodContainerVarargs<T_NoRef, is_const>::template Container<name, ReturnType, Args...>::method_t method,
                 const char *const kwlist[]){
-            addMethodTempl<MethodContainerVarargs<T_NoRef>, name, ReturnType, Args...>(method, kwlist);
+            addMethodTempl<MethodContainerVarargs<T_NoRef, is_const>, name, ReturnType, Args...>(method, kwlist);
          }
 
 
@@ -153,37 +143,24 @@ namespace __pyllars_internal {
                 typename _Container::template Container<name, ReturnType, Args...>::method_t method,
                 const char *const kwlist[]);
 
-        template<const char *const name, typename ReturnType, typename ...Args>
+        template<bool is_const, const char *const name, typename ReturnType, typename ...Args>
         static void addMethod__inv__(
-                typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                typename MethodContainer<T_NoRef, is_const>::template Container<name, ReturnType, Args...>::method_t method,
                 const char *const kwlist[]){
-            addMethod__inv__templ< MethodContainer<T_NoRef>, name, ReturnType, Args...>(method, kwlist);
+            addMethod__inv__templ< MethodContainer<T_NoRef, is_const>, name, ReturnType, Args...>(method, kwlist);
         }
 
-        template<const char *const name, typename ReturnType, typename ...Args>
-        static void addMethod__inv__(
-                typename ConstMethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
-                const char *const kwlist[]){
-            addMethod__inv__templ< ConstMethodContainer<T_NoRef>, name, ReturnType, Args...>(method, kwlist);
-        }
 
         template<typename _Container, const char *const name, typename ReturnType, typename ...Args>
         static void addMethod__add__templ(
                 typename _Container::template Container<name, ReturnType, Args...>::method_t method,
                 const char *const kwlist[]);
 
-        template<const char *const name, typename ReturnType, typename ...Args>
+        template<bool is_const, const char *const name, typename ReturnType, typename ...Args>
         static void addMethod__add__(
-                typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                typename MethodContainer<T_NoRef, is_const>::template Container<name, ReturnType, Args...>::method_t method,
                 const char *const kwlist[]){
-            addMethod__add__templ<MethodContainer<T_NoRef>, name, ReturnType, Args...>(method, kwlist);
-        }
-
-        template<const char *const name, typename ReturnType, typename ...Args>
-        static void addMethod__add__(
-                typename ConstMethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
-                const char *const kwlist[]){
-            addMethod__add__templ<ConstMethodContainer<T_NoRef>, name, ReturnType, Args...>(method, kwlist);
+            addMethod__add__templ<MethodContainer<T_NoRef, is_const>, name, ReturnType, Args...>(method, kwlist);
         }
 
         template<typename _Container, const char *const name, typename ReturnType, typename ...Args>
@@ -192,18 +169,11 @@ namespace __pyllars_internal {
                 const char *const kwlist[]);
 
 
-        template<const char *const name, typename ReturnType, typename ...Args>
+        template<bool is_const, const char *const name, typename ReturnType, typename ...Args>
         static void addMethod__sub__(
-                typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                typename MethodContainer<T_NoRef, is_const>::template Container<name, ReturnType, Args...>::method_t method,
                 const char *const kwlist[]){
-            addMethod__sub__templ<MethodContainer<T_NoRef>, name, ReturnType, Args...>(method, kwlist);
-         }
-
-        template<const char *const name, typename ReturnType, typename ...Args>
-        static void addMethod__sub__(
-                typename ConstMethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
-                const char *const kwlist[]){
-            addMethod__sub__templ<ConstMethodContainer<T_NoRef>, name, ReturnType, Args...>(method, kwlist);
+            addMethod__sub__templ<MethodContainer<T_NoRef, is_const>, name, ReturnType, Args...>(method, kwlist);
          }
 
         template<typename _Container, const char *const name, typename ReturnType, typename ...Args>
@@ -211,18 +181,11 @@ namespace __pyllars_internal {
                 typename _Container::template Container<name, ReturnType, Args...>::method_t method,
                 const char *const kwlist[]);
 
-        template<const char *const name, typename ReturnType, typename ...Args>
+        template<bool is_const, const char *const name, typename ReturnType, typename ...Args>
         static void addMethod__mul__(
-                typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                typename MethodContainer<T_NoRef, is_const>::template Container<name, ReturnType, Args...>::method_t method,
                 const char *const kwlist[]){
             addMethod__mul__templ<MethodContainer<T_NoRef>, name, ReturnType, Args...>(method, kwlist);
-        }
-
-        template<const char *const name, typename ReturnType, typename ...Args>
-        static void addMethod__mul__(
-                typename ConstMethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
-                const char *const kwlist[]){
-            addMethod__mul__templ<ConstMethodContainer<T_NoRef>, name, ReturnType, Args...>(method, kwlist);
         }
 
         template<typename _Container, const char *const name, typename ReturnType, typename ...Args>
@@ -230,35 +193,25 @@ namespace __pyllars_internal {
                 typename _Container::template Container<name, ReturnType, Args...>::method_t method,
                 const char *const kwlist[]);
 
-        template<const char *const name, typename ReturnType, typename ...Args>
+        template<bool is_const, const char *const name, typename ReturnType, typename ...Args>
         static void addMethod__div__(
-                typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                typename MethodContainer<T_NoRef, is_const>::template Container<name, ReturnType, Args...>::method_t method,
                 const char *const kwlist[]){
-            addMethod__div__templ< MethodContainer<T_NoRef>, name, ReturnType, Args...>(method, kwlist);
+            addMethod__div__templ< MethodContainer<T_NoRef, is_const>, name, ReturnType, Args...>(method, kwlist);
          }
 
-        template<const char *const name, typename ReturnType, typename ...Args>
-        static void addMethod__div__(
-                typename ConstMethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
-                const char *const kwlist[]);
+
 
         template<typename _Container, const char *const name, typename ReturnType, typename ...Args>
         static void addMethod__and__templ(
                 typename _Container::template Container<name, ReturnType, Args...>::method_t method,
                 const char *const kwlist[]);
 
-        template<const char *const name, typename ReturnType, typename ...Args>
+        template<bool is_const, const char *const name, typename ReturnType, typename ...Args>
         static void addMethod__and__(
-                typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                typename MethodContainer<T_NoRef, is_const>::template Container<name, ReturnType, Args...>::method_t method,
                 const char *const kwlist[]){
-            addMethod__and__templ<MethodContainer<T_NoRef>, name, ReturnType, Args...>(method, kwlist);
-         }
-
-        template<const char *const name, typename ReturnType, typename ...Args>
-        static void addMethod__and__(
-                typename ConstMethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
-                const char *const kwlist[]){
-            addMethod__and__templ<ConstMethodContainer<T_NoRef>, name, ReturnType, Args...>(method, kwlist);
+            addMethod__and__templ<MethodContainer<T_NoRef, is_const>, name, ReturnType, Args...>(method, kwlist);
          }
 
         template<typename _Container, const char *const name, typename ReturnType, typename ...Args>
@@ -266,18 +219,11 @@ namespace __pyllars_internal {
                 typename _Container::template Container<name, ReturnType, Args...>::method_t method,
                 const char *const kwlist[]);
 
-        template<const char *const name, typename ReturnType, typename ...Args>
+        template<bool is_const, const char *const name, typename ReturnType, typename ...Args>
         static void addMethod__or__(
                 typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
                 const char *const kwlist[]){
-            addMethod__and__templ<MethodContainer<T_NoRef>, name, ReturnType, Args...>(method, kwlist);
-         }
-
-        template<const char *const name, typename ReturnType, typename ...Args>
-        static void addMethod__or__(
-                typename ConstMethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
-                const char *const kwlist[]){
-            addMethod__and__templ<ConstMethodContainer<T_NoRef>, name, ReturnType, Args...>(method, kwlist);
+            addMethod__and__templ<MethodContainer<T_NoRef, is_const>, name, ReturnType, Args...>(method, kwlist);
          }
 
         template<typename _Container, const char *const name, typename ReturnType, typename ...Args>
@@ -285,19 +231,12 @@ namespace __pyllars_internal {
                 typename _Container::template Container<name, ReturnType, Args...>::method_t method,
                 const char *const kwlist[]);
 
-        template<const char *const name, typename ReturnType, typename ...Args>
+        template<bool is_const, char *const name, typename ReturnType, typename ...Args>
         static void addMethod__xor__(
-                typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                typename MethodContainer<T_NoRef, is_const>::template Container<name, ReturnType, Args...>::method_t method,
                 const char *const kwlist[]){
-            addMethod__and__templ<MethodContainer<T_NoRef>, name, ReturnType, Args...>(method, kwlist);
+            addMethod__and__templ<MethodContainer<T_NoRef, is_const>, name, ReturnType, Args...>(method, kwlist);
          }
-
-        template<const char *const name, typename ReturnType, typename ...Args>
-        static void addMethod__xor__(
-                typename ConstMethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
-                const char *const kwlist[]){
-            addMethod__and__templ<ConstMethodContainer<T_NoRef>, name, ReturnType, Args...>(method, kwlist);
-        }
 
         template<const char *const name, typename ReturnType, typename ...Args>
         static void addMethod__lshift__(
@@ -314,18 +253,11 @@ namespace __pyllars_internal {
                 typename _Container::template Container<name, ReturnType, Args...>::method_t method,
                 const char *const kwlist[]);
 
-        template<const char *const name, typename ReturnType, typename ...Args>
+        template<bool is_const, const char *const name, typename ReturnType, typename ...Args>
         static void addMethod__mod__(
-                typename MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
+                typename MethodContainer<T_NoRef, is_const>::template Container<name, ReturnType, Args...>::method_t method,
                 const char *const kwlist[]){
-            addMethod__mod__templ<MethodContainer<T_NoRef>, name, ReturnType, Args...>(method, kwlist);
-         }
-
-        template<const char *const name, typename ReturnType, typename ...Args>
-        static void addMethod__mod__(
-                typename ConstMethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method_t method,
-                const char *const kwlist[]){
-            addMethod__mod__templ<ConstMethodContainer<T_NoRef>, name, ReturnType, Args...>(method, kwlist);
+            addMethod__mod__templ<MethodContainer<T_NoRef, is_const>, name, ReturnType, Args...>(method, kwlist);
          }
 
         template<const char *const name, typename ReturnType, typename ...Args>
@@ -375,10 +307,10 @@ namespace __pyllars_internal {
 
 
         template< typename KeyType, typename ValueType>
-        static void addMapOperatorMethod( typename MethodContainer<T_NoRef>::template Container<operatormapname, ValueType, KeyType>::method_t method);
+        static void addMapOperatorMethod( typename MethodContainer<T_NoRef, false>::template Container<operatormapname, ValueType, KeyType>::method_t method);
 
         template< typename KeyType, typename ValueType>
-        static void addMapOperatorMethodConst( typename ConstMethodContainer<T_NoRef>::template Container<operatormapname, ValueType, KeyType>::method_t method);
+        static void addMapOperatorMethodConst( typename MethodContainer<T_NoRef, true>::template Container<operatormapname, ValueType, KeyType>::method_t method);
 
         /**
          * add a class-wide (static) member
@@ -448,7 +380,7 @@ namespace __pyllars_internal {
          * Add a constant bit field to this Python type definition
          **/
         template<const char *const name, typename Type, const size_t bits>
-        static void addConstBitField(
+        static void addBitFieldConst(
                 typename BitFieldContainer<T_NoRef>::template Container<name, Type, bits>::getter_t &getter){
             static const char *const doc = "Get bit-field attribute ";
             char *doc_string = new char[strlen(name) + strlen(doc) + 1];

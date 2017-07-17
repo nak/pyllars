@@ -23,6 +23,7 @@ tokens = (
     'number',
     'throws',
     'keyword',
+    'integer_value'
 )
 
 
@@ -38,6 +39,12 @@ def t_alias_definition(t):
 def t_definition(t):
     r'(\'[a-zA-Z0-9\_\ \*\[\]\(\)\&(\:\:)(\.\.\.)\<\>\,]*\')'
     t.value = t.value.replace("'", "")
+    return t
+
+
+def t_integer_value(t):
+    'r([0-9]+)'
+    t.value = int(t.value)
     return t
 
 
@@ -71,7 +78,7 @@ decls = r'(TranslationUnitDecl|BuiltinType|TypedefDecl|ParmVarDecl|CXXRecordDecl
          'TemplateSpecializationType|RecordType|NamespaceDecl|PointerType|ArrayType|ConstantArrayType|' + \
          'CXXConstructorDecl|CXXDestructorDecl|CXXMethodDecl|CompoundStmt|ClassTemplateDecl|TemplateTypeParmDecl|' + \
          'LValueReferenceType|ElaboratedType|VarDecl|QualType|ImplicitCastExpr|IntegerLiteral|ReturnStmt|FloatingLiteral|' + \
-         'NonTypeTemplateParmDecl|TypeAliasDecl|FunctionDecl|FieldDecl' + \
+         'NonTypeTemplateParmDecl|TypeAliasDecl|FunctionDecl|FieldDecl|IntegerLiteral' + \
          ')'
 
 @TOKEN(decls)

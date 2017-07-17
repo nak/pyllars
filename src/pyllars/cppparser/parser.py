@@ -82,6 +82,9 @@ class Element(metaclass=ABCMeta):
     def default_access(self):
         return "public"
 
+    def set_integer_value(self, value):
+        pass
+
     def add_child(self, element):
         assert(element is not None)
         if isinstance(element, AccessSpecDecl):
@@ -350,6 +353,9 @@ class BuiltinType(UnscopedElement):
     def is_const(self):
         return False
 
+    @property
+    def array_size(self):
+        return None
 
 class CXXRecord(UnscopedElement):
 
@@ -678,14 +684,34 @@ class FieldDecl(ScopedElement):
     def __init__(self, name, tag, parent, **kargs):
         super(FieldDecl, self).__init__(name, tag, parent, locator=kargs.get('locator'))
         self._type = parse_type(kargs.get('definition'), parent)
+        self._bit_size = None
 
     @property
     def type_(self):
         return self._type
 
+    def set_integer_value(self, value):
+        self._bit_size = int(value)
+
+    @property
+    def bit_size(self):
+        return self._bit_size
+
     @classmethod
     def parse_tokens(cls, name, tag, parent, **kargs):
         return FieldDecl(name, tag, parent, **kargs)
+
+
+class IntegerLiteral(ScopedElement):
+
+    def __init__(self, name, tag, parent, integer_value, locator=None):
+        super(IntegerLiteral, self).__init__(name, tag, parent, locator=locator)
+        if parent:
+            parent.set_integer_value(integer_value)
+
+    @classmethod
+    def parse_tokens(cls, name, tag, parent, **kargs):
+        return cls(name, tag, parent, kargs.get('number'), kargs.get('locator'))
 
 
 class RecordType(ScopedElement):
@@ -840,10 +866,21 @@ def init():
     NamespaceDecl.GLOBAL = NamespaceDecl("", None, None, None)
     NamespaceDecl.GLOBAL.add_child(BuiltinType("void", NamespaceDecl.GLOBAL, None))
     NamespaceDecl.GLOBAL.add_child(BuiltinType("char", NamespaceDecl.GLOBAL, None))
+    NamespaceDecl.GLOBAL.add_child(BuiltinType("signed char", NamespaceDecl.GLOBAL, None))
+    NamespaceDecl.GLOBAL.add_child(BuiltinType("unsigned char", NamespaceDecl.GLOBAL, None))
     NamespaceDecl.GLOBAL.add_child(BuiltinType("short", NamespaceDecl.GLOBAL, None))
+    NamespaceDecl.GLOBAL.add_child(BuiltinType("signed short", NamespaceDecl.GLOBAL, None))
+    NamespaceDecl.GLOBAL.add_child(BuiltinType("unsigned short", NamespaceDecl.GLOBAL, None))
     NamespaceDecl.GLOBAL.add_child(BuiltinType("int", NamespaceDecl.GLOBAL, None))
+    NamespaceDecl.GLOBAL.add_child(BuiltinType("signed", NamespaceDecl.GLOBAL, None))
+    NamespaceDecl.GLOBAL.add_child(BuiltinType("signed int", NamespaceDecl.GLOBAL, None))
+    NamespaceDecl.GLOBAL.add_child(BuiltinType("unsigned int", NamespaceDecl.GLOBAL, None))
     NamespaceDecl.GLOBAL.add_child(BuiltinType("long", NamespaceDecl.GLOBAL, None))
+    NamespaceDecl.GLOBAL.add_child(BuiltinType("signed long", NamespaceDecl.GLOBAL, None))
+    NamespaceDecl.GLOBAL.add_child(BuiltinType("unsigned long", NamespaceDecl.GLOBAL, None))
     NamespaceDecl.GLOBAL.add_child(BuiltinType("long long", NamespaceDecl.GLOBAL, None))
+    NamespaceDecl.GLOBAL.add_child(BuiltinType("signed long long", NamespaceDecl.GLOBAL, None))
+    NamespaceDecl.GLOBAL.add_child(BuiltinType("unsigned long long", NamespaceDecl.GLOBAL, None))
     NamespaceDecl.GLOBAL.add_child(BuiltinType("float", NamespaceDecl.GLOBAL, None))
     NamespaceDecl.GLOBAL.add_child(BuiltinType("double", NamespaceDecl.GLOBAL, None))
 

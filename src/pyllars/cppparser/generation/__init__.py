@@ -514,8 +514,9 @@ class FieldDecl(Generator):
             imports = set([])
             if element.type_ and element.type_.namespace_name != element.parent.namespace_name:
                 imports.add(element.namespace_name)
-            if element.type_.array_size is not None:
-                stream.write(("""
+            if element.bit_size is None:
+                if element.type_.array_size is not None:
+                    stream.write(("""
 namespace pyllars{
     %(indent)s%(namespaces)s
 constexpr cstring name = "%(name)s";
@@ -560,9 +561,8 @@ constexpr cstring name = "%(name)s";
                 'array_size': element.type_.array_size,
                 'closure': namespace_closure
                 }).encode('utf-8'))
-            else:
-
-                stream.write(("""
+                else:
+                    stream.write(("""
 namespace pyllars{
     %(indent)s%(namespaces)s
 constexpr cstring name = "%(name)s";
@@ -607,6 +607,69 @@ constexpr cstring name = "%(name)s";
                     'closure': namespace_closure,
                     'qual': 'Const' if element.type_.is_const else ""
                 }).encode('utf-8'))
+            else:
+                setter_code = """
+       static std::function< %(full_type_name)s(%(parent_full_name)s&, %(qual2)s %(full_type_name)s &)> setter =
+           [](%(parent_full_name)s &self, %(qual2)s %(full_type_name)s &v)->%(full_type_name)s{return self.%(name)s = v;};
+""" % {
+                    'parent_full_name': element.parent.full_name,
+                    'qual2': 'const' if not element.type_.is_const else "",
+                    'name': element.name,
+                    'full_type_name': element.type_.full_name
+                }
+                stream.write(("""
+namespace pyllars{
+    %(indent)s%(namespaces)s
+constexpr cstring name = "%(name)s";
+%(indent)s//generated from %(file)s.generate_initializer_code
+%(indent)s// FUNCTION %(name)s THROWS
+%(indent)sstatic int init_me(){
+%(indent)s   status_t status = 0;
+%(indent)s   %(imports)s
+%(indent)s   static std::function< %(full_type_name)s(const %(parent_full_name)s&)> getter =
+%(indent)s       [](const %(parent_full_name)s &self)->%(full_type_name)s{return self.%(name)s;};
+%(indent)s   %(setter_code)s
+%(indent)s    __pyllars_internal::PythonClassWrapper<%(parent_full_name)s>::addBitField%(qual)s<name, %(full_type_name)s, %(bit_size)s>
+%(indent)s       ( getter %(setter)s);
+%(indent)s   return status;
+%(indent)s}
+%(indent)sint %(name)s_init(){return init_me();}
+%(indent)snamespace{
+%(indent)s    class Initializer: public pyllars::Initializer{
+%(indent)s    public:
+%(indent)s       Initializer():pyllars::Initializer(){
+%(indent)s           pyllars%(parent)s::%(parent_name)s_register(this);
+%(indent)s       }
+%(indent)s       virtual int init(){
+%(indent)s           int status = pyllars::Initializer::init();
+%(indent)s           return status | init_me();
+%(indent)s       }
+%(indent)s    };
+%(indent)s
+%(indent)s    static Initializer init = Initializer();
+%(indent)s}
+%(indent)s
+%(indent)s%(closure)s
+}
+""" % {
+                    'indent': self._indent,
+                    'file': __file__,
+                    'bit_size': element.bit_size,
+                    'imports': "\n".join(["if(!PyImport_ImportModule(\"pylllars%s\")){return -1;} " % n.replace("::", ".") for n in imports]),
+                    'module_name': element.parent.pyllars_module_name,
+                    'name': self.sanitize(element.name),
+                    'namespaces': namespace_text,
+                    'parent_name': element.parent.name,
+                    'parent_full_name': element.parent.full_name,
+                    'full_type_name': element.type_.full_name,
+                    'parent': self.scope(element),
+                    'closure': namespace_closure,
+                    'qual': 'Const' if element.type_.is_const else "",
+                    'qual2': 'const' if not element.type_.is_const else "",
+                    'setter': ", setter" if not element.type_.is_const else "",
+                    'setter_code': setter_code if not element.type_.is_const else ""
+                }).encode('utf-8'))
+
 
 class CXXMethodDecl(FunctionDecl):
     METHOD_NAMES = {'operator-': ['addMethod__inv__', 'addMethod__sub__'],
@@ -644,7 +707,7 @@ class CXXMethodDecl(FunctionDecl):
             method_name += "Varargs"
 
         return """
-    __pyllars_internal::PythonClassWrapper<%(full_class_name)s>::%(py_method_name)s<name, %(return_type)s %(args)s>
+    __pyllars_internal::PythonClassWrapper<%(full_class_name)s>::%(py_method_name)s<%(is_const)s name, %(return_type)s %(args)s>
        ( &%(full_class_name)s::%(method_name)s, argumentNames);
 
 """ % {
@@ -652,6 +715,7 @@ class CXXMethodDecl(FunctionDecl):
             'method_name': element.name or "anonymous_%s" % element.tag,
             'full_class_name': element.parent.full_name,
             'py_method_name': method_name,
+            'is_const': str(element.is_const).lower() + "," if not element.is_static else "",
             'return_type': element.return_type.full_name if element.return_type else "void",
             'args': ("," if element.params else "") + ", ".join([p.type_.full_param_name for p in element.params])
         }

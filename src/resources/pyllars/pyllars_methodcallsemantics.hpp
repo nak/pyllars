@@ -17,27 +17,31 @@ namespace __pyllars_internal {
     class MethodTypeDef;
 
     template<typename CClass, typename T, typename ... Args>
-    class MethodTypeDe<false, false, CClass, T, Args...>{
+    class MethodTypeDef<false, false, CClass, T, Args...>{
+    public:
         typedef typename extent_as_pointer<T>::type ReturnType;
-        typedef ReturnType(*method_t)(Args...);
+        typedef ReturnType(CClass::*method_t)(Args...);
     };
 
     template<typename CClass, typename T, typename ... Args>
     class MethodTypeDef<false, true, CClass, T, Args...>{
+    public:
         typedef typename extent_as_pointer<T>::type ReturnType;
-        typedef ReturnType(*method_t)(Args... ...);
+        typedef ReturnType(CClass::*method_t)(Args... ...);
     };
 
    template<typename CClass, typename T, typename ... Args>
     class MethodTypeDef<true, false, CClass, T, Args...>{
+    public:
         typedef typename extent_as_pointer<T>::type ReturnType;
-        typedef ReturnType(*method_t)(Args...) const;
+        typedef ReturnType(CClass::*method_t)(Args...) const;
     };
 
    template<typename CClass, typename T, typename ... Args>
-    class MethodTypeDef<true, true, CClass, T, Args...>{
+   class MethodTypeDef<true, true, CClass, T, Args...>{
+    public:
         typedef typename extent_as_pointer<T>::type ReturnType;
-        typedef ReturnType(*method_t)(Args... ...) const;
+        typedef ReturnType(CClass::*method_t)(Args... ...) const;
     };
 
    /**
@@ -52,11 +56,11 @@ namespace __pyllars_internal {
      * class to hold referecne to a class method and define
      * method call semantics
      **/
-    template<typename CClass, typename T, typename ... Args>
-    class MethodCallSemantics<false, false, CClass, T, Args...> {
+    template<bool is_const, typename CClass, typename T, typename ... Args>
+    class MethodCallSemantics<is_const, false, CClass, T, Args...> {
     public:
-        typedef typename extent_as_pointer<T>::type ReturnType;
-        typedef typename extent_as_pointer<T>::type(CClass::*method_t)(Args...);
+        typedef typename MethodTypeDef<is_const, false, CClass, T, Args...>::ReturnType ReturnType;
+        typedef typename MethodTypeDef<is_const, false, CClass, T, Args...>::method_t method_t;
 
         static const char *const *kwlist;
 
@@ -72,7 +76,7 @@ namespace __pyllars_internal {
          **/
         template<typename ...PyO>
         static typename extent_as_pointer<T>::type call_methodC(
-                typename extent_as_pointer<T>::type  (CClass::*method)(Args...),
+                method_t method,
                 typename std::remove_reference<CClass>::type &self,
                 PyObject *args, PyObject *kwds, PyO *...pyargs);
 
@@ -81,7 +85,7 @@ namespace __pyllars_internal {
          **/
         template<int ...S>
         static typename extent_as_pointer<T>::type call_methodBase(
-                typename extent_as_pointer<T>::type  (CClass::*method)(Args...),
+                method_t method,
                 typename std::remove_reference<CClass>::type &self,
                 PyObject *args, PyObject *kwds, container<S...> s);
 
@@ -92,11 +96,11 @@ namespace __pyllars_internal {
      * class to hold referecne to a class method and define
      * method call semantics
      **/
-    template<typename CClass, typename T, typename ... Args>
-    class MethodCallSemantics<false, true, CClass, T, Args...> {
+    template<bool is_const, typename CClass, typename T, typename ... Args>
+    class MethodCallSemantics<is_const, true, CClass, T, Args...> {
     public:
-        typedef typename extent_as_pointer<T>::type ReturnType;
-        typedef typename extent_as_pointer<T>::type(CClass::*method_t)(Args... ...);
+        typedef typename MethodTypeDef<is_const, true, CClass, T, Args...>::ReturnType ReturnType;
+        typedef typename MethodTypeDef<is_const, true, CClass, T, Args...>::method_t method_t;
 
         static const char *const *kwlist;
 
@@ -113,7 +117,7 @@ namespace __pyllars_internal {
          **/
         template<typename ...PyO>
         static typename extent_as_pointer<T>::type call_methodC(
-                typename extent_as_pointer<T>::type  (CClass::*method)(Args... ...),
+                method_t method,
                 typename std::remove_reference<CClass>::type &self,
                 PyObject *args, PyObject *kwds, PyO *...pyargs);
 
@@ -122,7 +126,7 @@ namespace __pyllars_internal {
          **/
         template<int ...S>
         static typename extent_as_pointer<T>::type call_methodBase(
-                typename extent_as_pointer<T>::type  (CClass::*method)(Args... ...),
+                method_t method,
                 typename std::remove_reference<CClass>::type &self,
                 PyObject *args, PyObject *kwds, container<S...> s);
 
@@ -131,10 +135,10 @@ namespace __pyllars_internal {
     /**
      * specialize for void returns:
      **/
-    template<typename CClass, typename ...Args>
-    class MethodCallSemantics<false, false, CClass, void, Args...> {
+    template<bool is_const, typename CClass, typename ...Args>
+    class MethodCallSemantics<is_const, false, CClass, void, Args...> {
     public:
-        typedef void(CClass::*method_t)(Args...);
+        typedef typename MethodTypeDef<is_const, false, CClass, void, Args...>::method_t method_t;
 
         static const char *const *kwlist;
 
@@ -145,13 +149,13 @@ namespace __pyllars_internal {
     private:
 
         template<typename ...PyO>
-        static void call_methodC(void (CClass::*method)(Args...),
+        static void call_methodC(method_t method,
                                  typename std::remove_reference<CClass>::type &self,
                                  PyObject *args, PyObject *kwds,
                                  PyO *...pyargs);
 
         template<int ...S>
-        static void call_methodBase(void (CClass::*method)(Args...),
+        static void call_methodBase(method_t method,
                                     typename std::remove_reference<CClass>::type &self,
                                     PyObject *args, PyObject *kwds,
                                     container<S...> unused) ;
@@ -159,10 +163,10 @@ namespace __pyllars_internal {
     };
 
 
-   template<typename CClass, typename ...Args>
-    class MethodCallSemantics<false, true, CClass, void, Args...> {
+    template<bool is_const, typename CClass, typename ...Args>
+    class MethodCallSemantics<is_const, true, CClass, void, Args...> {
     public:
-        typedef void(CClass::*method_t)(Args... ...);
+        typedef typename MethodTypeDef<is_const, true, CClass, void, Args...>::method_t method_t;
 
         static const char *const *kwlist;
 
@@ -174,13 +178,13 @@ namespace __pyllars_internal {
     private:
 
         template<typename ...PyO>
-        static void call_methodC(void (CClass::*method)(Args... ...),
+        static void call_methodC(method_t method,
                                  typename std::remove_reference<CClass>::type &self,
                                  PyObject *args, PyObject *kwds,
                                  PyO *...pyargs);
 
         template<int ...S>
-        static void call_methodBase(void (CClass::*method)(Args... ...),
+        static void call_methodBase(method_t method,
                                     typename std::remove_reference<CClass>::type &self,
                                     PyObject *args, PyObject *kwds,
                                     container<S...> unused) ;
@@ -194,7 +198,7 @@ namespace __pyllars_internal {
      * It holds the method call and allows specialization based on
      * underlying CClass type
      **/
-    template<class CClass, typename E = void>
+    template<class CClass, bool is_const = false, typename E = void>
     class MethodContainer {
     public:
         typedef void (*setter_t)(typename std::remove_reference<CClass>::type *, PyObject *);
@@ -202,12 +206,10 @@ namespace __pyllars_internal {
         template<const char *const name, typename ReturnType, typename ...Args>
         class Container{
         public:
-            typedef typename extent_as_pointer<ReturnType>::type TrueReturnType;
-
-            typedef TrueReturnType(CClass::*method_t)(Args...);
-
+            typedef typename MethodCallSemantics<is_const, false, CClass, ReturnType, Args...>::ReturnType TrueReturnType;
+            typedef typename MethodCallSemantics<is_const, false, CClass, ReturnType, Args...>::method_t method_t;
             typedef const char *const *kwlist_t;
-            static constexpr kwlist_t &kwlist = MethodCallSemantics<false, false, CClass, ReturnType, Args...>::kwlist;
+            static constexpr kwlist_t &kwlist = MethodCallSemantics<is_const, false, CClass, ReturnType, Args...>::kwlist;
 
             static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);
 
@@ -221,8 +223,8 @@ namespace __pyllars_internal {
     /**
      * Specialization for non-const class types
      **/
-    template<class CClass>
-    class MethodContainer<CClass, typename std::enable_if<
+    template<class CClass, bool is_const>
+    class MethodContainer<CClass, is_const, typename std::enable_if<
             std::is_class<CClass>::value && !std::is_const<CClass>::value>::type> {
     public:
         typedef void (*setter_t)(typename std::remove_reference<CClass>::type *, PyObject *);
@@ -230,10 +232,10 @@ namespace __pyllars_internal {
         template<const char *const name, typename ReturnType, typename ...Args>
         class Container{
         public:
-            typedef typename extent_as_pointer<ReturnType>::type(CClass::*method_t)(Args...);
+            typedef typename MethodCallSemantics<is_const, false, CClass, ReturnType, Args...>::method_t method_t;
 
             typedef const char *const *kwlist_t;
-            static constexpr kwlist_t &kwlist = MethodCallSemantics<false, false, CClass, ReturnType, Args...>::kwlist;
+            static constexpr kwlist_t &kwlist = MethodCallSemantics<is_const, false, CClass, ReturnType, Args...>::kwlist;
             static method_t method;
 
             static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);
@@ -249,8 +251,8 @@ namespace __pyllars_internal {
     /**
      * Specialization for const class types
      **/
-    template<class CClass>
-    class MethodContainer<CClass, typename std::enable_if<
+    template<class CClass, bool is_const>
+    class MethodContainer<CClass, is_const, typename std::enable_if<
             std::is_class<CClass>::value && std::is_const<CClass>::value>::type> {
     public:
         typedef void (*setter_t)(typename std::remove_reference<CClass>::type *, PyObject *);
@@ -258,10 +260,11 @@ namespace __pyllars_internal {
         template<const char *const name, typename ReturnType, typename ...Args>
         class Container{
         public:
-            typedef typename extent_as_pointer<ReturnType>::type(CClass::*method_t)(Args...);
+            typedef typename MethodCallSemantics<is_const, false, CClass, ReturnType, Args...>::ReturnType TrueReturnType;
+            typedef typename MethodCallSemantics<is_const, false, CClass, ReturnType, Args...>::method_t method_t;
 
             typedef const char *const *kwlist_t;
-            static constexpr kwlist_t &kwlist = MethodCallSemantics<false, false, CClass, ReturnType, Args...>::kwlist;
+            static constexpr kwlist_t &kwlist = MethodCallSemantics<is_const, false, CClass, ReturnType, Args...>::kwlist;
             static method_t method;
 
             static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);
@@ -283,7 +286,7 @@ namespace __pyllars_internal {
      * It holds the method call and allows specialization based on
      * underlying CClass type
      **/
-    template<class CClass, typename E = void>
+    template<class CClass, bool is_const=false, typename E = void>
     class MethodContainerVarargs {
     public:
         typedef void (*setter_t)(typename std::remove_reference<CClass>::type *, PyObject *);
@@ -291,12 +294,11 @@ namespace __pyllars_internal {
         template<const char *const name, typename ReturnType, typename ...Args>
         class Container{
         public:
-            typedef typename extent_as_pointer<ReturnType>::type TrueReturnType;
-
-            typedef TrueReturnType(CClass::*method_t)(Args... ...);
+            typedef typename MethodCallSemantics<is_const, true, CClass, ReturnType, Args...>::ReturnType TrueReturnType;
+            typedef typename MethodCallSemantics<is_const, true, CClass, ReturnType, Args...>::method_t method_t;
 
             typedef const char *const *kwlist_t;
-            static constexpr kwlist_t &kwlist = MethodCallSemantics<false, true, CClass, ReturnType, Args...>::kwlist;
+            static constexpr kwlist_t &kwlist = MethodCallSemantics<is_const, true, CClass, ReturnType, Args...>::kwlist;
 
             static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);
 
@@ -310,8 +312,8 @@ namespace __pyllars_internal {
     /**
      * Specialization for non-const class types
      **/
-    template<class CClass>
-    class MethodContainerVarargs<CClass, typename std::enable_if<
+    template<class CClass, bool is_const>
+    class MethodContainerVarargs<CClass, is_const, typename std::enable_if<
             std::is_class<CClass>::value && !std::is_const<CClass>::value>::type> {
     public:
         typedef void (*setter_t)(typename std::remove_reference<CClass>::type *, PyObject *);
@@ -319,10 +321,11 @@ namespace __pyllars_internal {
         template<const char *const name, typename ReturnType, typename ...Args>
         class Container{
         public:
-            typedef typename extent_as_pointer<ReturnType>::type(CClass::*method_t)(Args... ...);
+            typedef typename MethodCallSemantics<is_const, true, CClass, ReturnType, Args...>::ReturnType TrueReturnType;
+            typedef typename MethodCallSemantics<is_const, true, CClass, ReturnType, Args...>::method_t method_t;
 
             typedef const char *const *kwlist_t;
-            static constexpr kwlist_t &kwlist = MethodCallSemantics<false, true, CClass, ReturnType, Args...>::kwlist;
+            static constexpr kwlist_t &kwlist = MethodCallSemantics<is_const, true, CClass, ReturnType, Args...>::kwlist;
             static method_t method;
 
             static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);
@@ -338,8 +341,8 @@ namespace __pyllars_internal {
     /**
      * Specialization for const class types
      **/
-    template<class CClass>
-    class MethodContainerVarargs<CClass, typename std::enable_if<
+    template<class CClass, bool is_const>
+    class MethodContainerVarargs<CClass, is_const, typename std::enable_if<
             std::is_class<CClass>::value && std::is_const<CClass>::value>::type> {
     public:
         typedef void (*setter_t)(typename std::remove_reference<CClass>::type *, PyObject *);
@@ -347,10 +350,12 @@ namespace __pyllars_internal {
         template<const char *const name, typename ReturnType, typename ...Args>
         class Container{
         public:
-            typedef typename extent_as_pointer<ReturnType>::type(CClass::*method_t)(Args... ...);
+            typedef typename MethodCallSemantics<is_const, true, CClass, ReturnType, Args...>::ReturnType TrueReturnType;
+            typedef typename MethodCallSemantics<is_const, true, CClass, ReturnType, Args...>::method_t method_t;
+
 
             typedef const char *const *kwlist_t;
-            static constexpr kwlist_t &kwlist = MethodCallSemantics<false, true, CClass, ReturnType, Args...>::kwlist;
+            static constexpr kwlist_t &kwlist = MethodCallSemantics<is_const, true, CClass, ReturnType, Args...>::kwlist;
             static method_t method;
 
             static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);

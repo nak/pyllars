@@ -27,6 +27,21 @@ namespace trial{
 
     int varargs_method(double d, ...);
 
+    int const_varargs_method(double d, ...) const;
+
+    struct BitFields{
+        BitFields():size_1bit(1),
+            size_2bit(0),
+            const_size_11bit(3),
+            size_31bit(42){
+        }
+
+        signed char size_1bit : 1;
+        unsigned char size_2bit: 2;
+        const int const_size_11bit: 11;
+        long size_31bit: 31;
+    };
+
     struct Implicit{
     };
 

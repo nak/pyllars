@@ -16,6 +16,10 @@ namespace trial{
         return (int)d;
     }
 
+    int  Main::const_varargs_method(double d, ...) const{
+        return (int)d;
+    }
+
     Main &Main::operator=(const Main & ){
         return *this;
     }

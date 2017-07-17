@@ -1528,7 +1528,7 @@ template<typename T>
 template< typename KeyType, typename ValueType>
 void __pyllars_internal::PythonClassWrapper<T,
         typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
-addMapOperatorMethodConst( typename ConstMethodContainer<T_NoRef>::template Container<operatormapname, ValueType, KeyType>::method_t method){
+addMapOperatorMethodConst( typename MethodContainer<T_NoRef, true>::template Container<operatormapname, ValueType, KeyType>::method_t method){
     std::function<PyObject*(PyObject*, PyObject*)> getter =  [method](PyObject* self, PyObject* item)->PyObject*{
         PythonClassWrapper*  self_ = (PythonClassWrapper*) self;
         try{
