@@ -26,7 +26,7 @@ namespace trial{
 
     Main::Inner::Inner(){}
 
-    Main Main2::static_vararg_method(const char* const pattern, ...){
+    Main PublicMembers::static_vararg_method(const char* const pattern, ...){
         return Main();
     }
 
@@ -34,10 +34,10 @@ namespace trial{
     	return 4.2;
 	}
 
-    void Main2::static_method(const Main2 i){
+    void PublicMembers::static_method(const PublicMembers i){
     }
 
-    double Main2::dbl_static_member = 4.2;
+    double PublicMembers::dbl_static_member = 4.2;
 
     template <typename T, T d>
     void TemplateClass<T, d>::method1(const float& value){
@@ -51,7 +51,7 @@ namespace trial{
     template<> class TemplateClass<int>;
 
 
-   int some_global_function(const double & value, outside::Dep& d) throw(double ){
+   int some_global_function(const double & value, outside::ExternalDependency& d) throw(double ){
     return 42;
    }
 

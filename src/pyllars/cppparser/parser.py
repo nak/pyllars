@@ -13,6 +13,7 @@ class Element(metaclass=ABCMeta):
 
     lookup = {}
     tag_lookup = {}
+    last_parsed_type = None
 
     def __init__(self, name, tag, parent, locator=None, qualifier=None):
         self._name = name
@@ -30,10 +31,15 @@ class Element(metaclass=ABCMeta):
             parent.add_child(self)
         Element.tag_lookup[tag] = self
         self._current_child_access = None
+        self._anonymous_types = set([])
 
     def finalize(self):
         for parent in self._parents:
             parent.add_child(self)
+
+    def make_complete(self):
+        for child in self.children():
+            child.make_complete()
 
     @property
     def namespace_name(self):
@@ -42,7 +48,7 @@ class Element(metaclass=ABCMeta):
     @property
     def guard(self):
         text = self.full_name
-        for c in [':', '<', '>', '!', '%', '^', '&', '*',  '[', ']', '\\', '|', '=']:
+        for c in [':', '<', '>', '!', '%', '^', '&', '*',  '[', ']', '\\', '|', '=', '(', ')']:
             text = text.replace(c, '_')
         text =  "__PYLLARS__" + text
         return text
@@ -58,6 +64,10 @@ class Element(metaclass=ABCMeta):
     @property
     def name(self):
         return self._name
+
+    @property
+    def is_const(self):
+        return 'const' in (self._qualifiers or [])
 
     @property
     def parents(self):
@@ -79,6 +89,10 @@ class Element(metaclass=ABCMeta):
     def scope(self):
         pass
 
+    @property
+    def array_size(self):
+        return None
+
     def default_access(self):
         return "public"
 
@@ -93,6 +107,8 @@ class Element(metaclass=ABCMeta):
             self._children.setdefault(self._current_child_access or self.default_access(), []).append(element)
 
     def __repr__(self):
+        if not self.name:
+            return "<<anonymous-%s" % self.tag
         return self.full_name
 
     def find(self, type_name):
@@ -156,6 +172,8 @@ class Element(metaclass=ABCMeta):
             clazz = _class_from_name(node_type)
             if clazz:
                 current_element = clazz.do_parse_tokens(name, tag, parent, **tokens)
+                if isinstance(current_element, CXXRecordDecl):
+                    Element.last_parsed_type = current_element
             else:
                 current_element = UnknownElement(node_type, tag, parent)
             return Branch(depth+1, current_element) if current_element else None
@@ -175,6 +193,15 @@ class Element(metaclass=ABCMeta):
                     line += b" "
                     try:
                         line = line.decode('latin-1').replace('\n', '').replace('\r', '')
+                        subtext = True
+                        while subtext:
+                            index = line.find("(anonymous ")
+                            if index < 0:
+                                break
+                            end = line[index+1:].find(")") + index + 1
+                            subtext = line[index:end+1]
+                            if subtext:
+                                line = line.replace(subtext, "")
                         depth, tokens = preprocess(line)
                         if tokens.get('node_type') == "TranslationUnitDecl":
                             continue
@@ -206,6 +233,8 @@ class Element(metaclass=ABCMeta):
 
         top = Branch(0, NamespaceDecl.GLOBAL)
         top.process(stream)
+        for element in top.top.children():
+            element.make_complete()
         return top
 
     @classmethod
@@ -248,7 +277,11 @@ class ScopedElement(Element):
     def scope(self):
         if len(self._parents) == 1 and self._parents[-1].name:
             if self._parents[-1].scope:
-                return self._parents[-1].scope + "::" + self._parents[-1].name
+                def qualified_name(name):
+                    return name.replace("(", "_lparen_").replace(")", "_rparen_").replace(":", "_")
+                name = self._parents[-1].name if not self._parents[-1].name.startswith('decltype') \
+                    else qualified_name(self._parents[-1].name)
+                return self._parents[-1].scope + "::" + name
             else:
                 return "::" + self._parents[-1].name
         else:
@@ -263,18 +296,12 @@ class ScopedElement(Element):
 
     @property
     def full_name(self):
-        if not self._name and self.parent:
-            member = None
-            for m in self.parent._children:
-                if m.tag == self.tag:
-                    member = m
-                    break
-            if not member:
-                 return self.scope + "::" + "<<anonumous>>"
-            member_name = member.name
-            return "decltype(%(class_name)s::%(name)s)" % {'class_name': self.parent.full_name, 'name': member_name}
-
-        return self.scope + "::" + self.name
+        if not self._name:
+            if self.parent:
+                return self.parent.full_name
+            return "::"
+        else:
+            return self.scope + "::" + self.name
 
 
 class UnscopedElement(Element):
@@ -365,7 +392,21 @@ class CXXRecord(UnscopedElement):
         return CXXRecord(name, tag, parent)
 
 
-class CXXRecordDecl(ScopedElement):
+class RecordTypeDefn(ScopedElement):
+
+    def make_complete_by_attr_name(self, attr_name):
+        self._name = "decltype(%(parent_full_name)s::%(name)s)" % {'parent_full_name': self.parent.full_name,
+                                                                  'name': attr_name}
+
+    @property
+    def full_name(self):
+        if self._name.startswith("decltype("):
+            return self.name
+        else:
+            return super(RecordTypeDefn, self).full_name
+
+
+class CXXRecordDecl(RecordTypeDefn):
 
     def __init__(self, name, tag, parent, **kargs):
         super(CXXRecordDecl, self).__init__(name, tag, parent,
@@ -410,6 +451,9 @@ class DecoratingType(UnscopedElement):
     @property
     def is_const(self):
         return 'const' in (self._qualifiers or [])
+
+    def make_complete(self):
+        pass
 
     def add_child(self, element):
         super(DecoratingType, self).add_child(element)
@@ -616,9 +660,6 @@ class FunctionElement(ScopedElement):
             import traceback
             traceback.print_exc()
             raise
-    @property
-    def is_const(self):
-        return 'const' in (self._qualifiers or [])
 
     @property
     def is_static(self):
@@ -683,7 +724,11 @@ class FieldDecl(ScopedElement):
 
     def __init__(self, name, tag, parent, **kargs):
         super(FieldDecl, self).__init__(name, tag, parent, locator=kargs.get('locator'))
-        self._type = parse_type(kargs.get('definition'), parent)
+        if kargs.get('alias_definition'):
+            # is anonymous type:
+            self._type = Element.last_parsed_type
+        else:
+            self._type = parse_type(kargs.get('definition'), parent)
         self._bit_size = None
 
     @property
@@ -697,9 +742,26 @@ class FieldDecl(ScopedElement):
     def bit_size(self):
         return self._bit_size
 
+    @property
+    def parent_full_name(self):
+        if self.parent.name:
+            return self.parent.full_name
+
+
     @classmethod
     def parse_tokens(cls, name, tag, parent, **kargs):
         return FieldDecl(name, tag, parent, **kargs)
+
+    def make_complete(self):
+        super(FieldDecl, self).make_complete()
+        if not self.name and self.parent and self.parent.parent:
+            self.parent = self.parent.parent
+            for child in self.children():
+                self.parent.add_child(child)
+                child._parent = self.parent
+            self._children = {}
+        if self.type_ and not self.type_.name and self.name:
+            self.type_.make_complete_by_attr_name(self.name)
 
 
 class IntegerLiteral(ScopedElement):
@@ -713,8 +775,11 @@ class IntegerLiteral(ScopedElement):
     def parse_tokens(cls, name, tag, parent, **kargs):
         return cls(name, tag, parent, kargs.get('number'), kargs.get('locator'))
 
+    def make_complete(self):
+        pass
 
-class RecordType(ScopedElement):
+
+class RecordType(RecordTypeDefn):
 
     def __init__(self, name, tag, parent, **kargs):
         super(RecordType, self).__init__(name, tag, parent, locator=kargs.get('locator'))
@@ -762,7 +827,7 @@ class TemplateDecl(ScopedElement):
         return super(TemplateDecl, self).find(type_name)
 
 
-class ClassTemplateDecl(TemplateDecl):
+class ClassTemplateDecl(TemplateDecl, RecordTypeDefn):
 
     def __init__(self, name, tag, parent, locator=None):
         super(ClassTemplateDecl, self).__init__(name, tag, parent, locator)

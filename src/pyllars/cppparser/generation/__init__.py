@@ -16,6 +16,10 @@ pyllars_resources_dir = pkg_resources.resource_filename("pyllars", os.path.join(
 INDENT = "    "
 
 
+def qualified_name(name):
+    return Generator.sanitize(name.replace("(", "_lparen_").replace(")", "_rparen_").replace(":", "_"))
+
+
 class Compiler(object):
 
     CFLAGS = sysconfig.get_config_var('CFLAGS') or ""
@@ -183,8 +187,8 @@ class Generator(metaclass=ABCMeta):
 """ % (namespace_text, self.generate_header_core(element, folder), namespace_closure)).encode('utf-8'))
 
     def generate_body_code(self, element: parser.Element, folder: Folder, src_path: str, as_top: bool) -> None:
-        self.generate_body_proper(element, folder, as_top)
-        subfolder = folder.create_subfolder(element.name) if element.name != "::" else folder
+        self.generate_body_proper(element, folder, src_path, as_top)
+        subfolder = folder.create_subfolder(element.name) if element.name != "::"  and element.name else folder
         if not isinstance(element, parser.CXXMethodDecl) and not isinstance(element, parser.FunctionDecl):
             for child in element.children():
                 generator = self.get_generator(type(child), src_path, "")
@@ -225,20 +229,24 @@ class Generator(metaclass=ABCMeta):
             stream.write(("""
 namespace pyllars{
 %(namespaces)s
-  namespace %(name)s{
-    int %(name)s_register( pyllars::Initializer* const);
-    int %(name)s_init();
+  namespace %(qname)s{
+    int %(qname)s_register( pyllars::Initializer* const);
+    int %(qname)s_init();
   }
 %(closure)s
 }
 #endif
             """ % {
+                    'qname': qualified_name(top_element.name),
                 'name': cls.sanitize(top_element.name),
+                'qname': qualified_name(top_element.name),
                 'namespaces': namespace_text,
                 'closure': namespace_closure}).encode('utf-8'))
 
     @classmethod
     def generate_body(cls, element: Element, folder: Folder, src_path: str, as_top=False):
+        if not element.name and not as_top:
+            return
         generator = cls.get_generator(type(element), src_path, "")
         if not generator:
             return
@@ -270,12 +278,11 @@ namespace pyllars{
 
     @staticmethod
     def namespaces(element: parser.Element) -> List[str]:
-        from ..parser import NamespaceDecl
         namespaces = []
         parent = element.parent
         while parent:
             if parent.name:
-                namespaces = [parent.name] + namespaces
+                namespaces = [qualified_name(parent.name)] + namespaces
             parent = parent.parent
         namespace_text = "\n".join([INDENT*index + "namespace %s{" % n for index, n in enumerate(namespaces)])
         closure = "\n".join([INDENT*index + '}' for index in range(len(namespaces))]) + "\n"
@@ -284,7 +291,7 @@ namespace pyllars{
     def generate_body_headers(self, element: Element, folder: Folder):
         pass
 
-    def generate_body_proper(self, element: Element, folder: Folder, as_top: bool = False):
+    def generate_body_proper(self, element: Element, folder: Folder, src_path, as_top: bool = False):
         pass
 
 
@@ -328,19 +335,20 @@ class NamespaceDecl(Generator):
             stream.write(("""
 namespace pyllars{
 %(namespaces)s
-    namespace %(name)s{
-        int %(name)s_register( pyllars::Initializer* const);
+    namespace %(qname)s{
+        int %(qname)s_register( pyllars::Initializer* const);
         extern PyObject* %(name)s_mod;
     }
 %(closure)s
 }
 #endif
             """ % {'name': cls.sanitize(element.name),
+                   'qname': qualified_name(element.name),
                    'namespaces': namespace_text,
                    'closure': namespace_closure,
                    }).encode('utf-8'))
 
-    def generate_body_proper(self, element: Element, folder: Folder, as_top: bool = False) -> None:
+    def generate_body_proper(self, element: Element, folder: Folder, src_path, as_top: bool = False) -> None:
         if not element.parent:
             return
 
@@ -350,7 +358,7 @@ namespace pyllars{
             stream.write(("""
 namespace pyllars{
     %(indent)s%(namespaces)s
-    %(indent)snamespace %(name)s{
+    %(indent)snamespace %(qname)s{
     %(indent)s    status_t init_me(){
     %(indent)s        static PyObject* pyllars_mod = PyImport_ImportModule("pyllars");
     %(indent)s        if (%(name)s_mod) return 0;// if already initialized
@@ -374,7 +382,7 @@ namespace pyllars{
     %(indent)s        return status;
     %(indent)s    } // end init
 
-    %(indent)sint %(name)s_register( pyllars::Initializer* const init ){
+    %(indent)sint %(qname)s_register( pyllars::Initializer* const init ){
     %(indent)s    static pyllars::Initializer _initializer = pyllars::Initializer();
     %(indent)s    static int status = pyllars%(parent_name)s::%(parent)s_register(&_initializer);
     %(indent)s    return status==0?_initializer.register_init(init):status;
@@ -387,8 +395,9 @@ namespace pyllars{
     """ % {
                 'indent': self._indent,
                 'name': self.sanitize(element.name),
+                'qname': qualified_name(element.name),
                 'fullname': element.full_name,
-                'parent': element.parent.name if element.parent.name and element.parent.name != "::" else "pyllars",
+                'parent': qualified_name(element.parent.name if element.parent.name and element.parent.name != "::" else "pyllars"),
                 'parent_name': (element.scope if element.scope != '::' else ""),
                 'namespaces': namespace_text,
                 'closure': namespace_closure}).encode('utf-8'))
@@ -437,7 +446,7 @@ class FunctionDecl(Generator):
             'func_name': element.name,
         }
 
-    def generate_body_proper(self, element: parser.FunctionElement, folder: Folder, as_top: bool = False) -> None:
+    def generate_body_proper(self, element: parser.FunctionElement, folder: Folder, src_path, as_top: bool = False) -> None:
         with folder.open(self.body_file_name(element)) as stream:
             namespace_text, namespace_closure = self.namespaces(element)
             imports = set([])
@@ -460,7 +469,7 @@ namespace pyllars{
 %(indent)s   %(func_decl)s
 %(indent)s   return status;
 %(indent)s}
-%(indent)sint %(name)s_init(){return init_me();}
+%(indent)sint %(qname)s_init(){return init_me();}
 %(indent)snamespace{
 %(indent)s    class Initializer: public pyllars::Initializer{
 %(indent)s    public:
@@ -484,11 +493,12 @@ namespace pyllars{
                 'imports': "\n".join(["if(!PyImport_ImportModule(\"pylllars%s\")){return -1;} " % n.replace("::", ".") for n in imports]),
                 'module_name': element.parent.pyllars_module_name,
                 'name': self.sanitize(element.name),
+                'qname': qualified_name(element.name),
                 'pyname': CXXMethodDecl.METHOD_NAMES.get(element.name).replace('addMethod', '') if
                 element.name in CXXMethodDecl.METHOD_NAMES else element.name if element.name != "operator=" else "assign_to",
                 'namespaces': namespace_text,
-                'parent_name': element.parent.name if (element.parent.name and element.parent.name != "::")
-                else "pyllars",
+                'parent_name': qualified_name(element.parent.name if (element.parent.name and element.parent.name != "::")
+                                              else "pyllars"),
                 'parent': self.scope(element),
                 'argument_names': ','.join(["\"%s\"" % (arg.name if arg.name else "_%s" % (index + 1)) for index, arg in
                                             enumerate(element.params)]) + (',' if element.params else ''),
@@ -508,10 +518,14 @@ class FieldDecl(Generator):
     def is_generatable(cls):
         return True
 
-    def generate_body_proper(self, element: parser.FieldDecl, folder: Folder, as_top: bool = False) -> None:
+    def generate_body_proper(self, element: parser.FieldDecl, folder: Folder, src_path, as_top: bool = False) -> None:
+        if not element.name and not element.type_.name:
+            raise Exception("Anonymously typed anonymously name field encountered")
         with folder.open(self.body_file_name(element)) as stream:
+
             namespace_text, namespace_closure = self.namespaces(element)
             imports = set([])
+
             if element.type_ and element.type_.namespace_name != element.parent.namespace_name:
                 imports.add(element.namespace_name)
             if element.bit_size is None:
@@ -529,7 +543,7 @@ constexpr cstring name = "%(name)s";
 %(indent)s       ( &%(parent_full_name)s::%(name)s, %(array_size)s);
 %(indent)s   return status;
 %(indent)s}
-%(indent)sint %(name)s_init(){return init_me();}
+%(indent)sint %(qname)s_init(){return init_me();}
 %(indent)snamespace{
 %(indent)s    class Initializer: public pyllars::Initializer{
 %(indent)s    public:
@@ -553,8 +567,9 @@ constexpr cstring name = "%(name)s";
                 'imports': "\n".join(["if(!PyImport_ImportModule(\"pylllars%s\")){return -1;} " % n.replace("::", ".") for n in imports]),
                 'module_name': element.parent.pyllars_module_name,
                 'name': self.sanitize(element.name),
+                'qname': qualified_name(element.name),
                 'namespaces': namespace_text,
-                'parent_name': element.parent.name,
+                'parent_name': qualified_name(element.parent.name),
                 'parent_full_name': element.parent.full_name,
                 'full_type_name': element.type_._base_type.full_name,
                 'parent': self.scope(element),
@@ -575,7 +590,7 @@ constexpr cstring name = "%(name)s";
 %(indent)s       ( &%(parent_full_name)s::%(name)s);
 %(indent)s   return status;
 %(indent)s}
-%(indent)sint %(name)s_init(){return init_me();}
+%(indent)sint %(qname)s_init(){return init_me();}
 %(indent)snamespace{
 %(indent)s    class Initializer: public pyllars::Initializer{
 %(indent)s    public:
@@ -599,8 +614,9 @@ constexpr cstring name = "%(name)s";
                     'imports': "\n".join(["if(!PyImport_ImportModule(\"pylllars%s\")){return -1;} " % n.replace("::", ".") for n in imports]),
                     'module_name': element.parent.pyllars_module_name,
                     'name': self.sanitize(element.name),
+                    'qname': qualified_name(element.name),
                     'namespaces': namespace_text,
-                    'parent_name': element.parent.name,
+                    'parent_name': qualified_name(element.parent.name),
                     'parent_full_name': element.parent.full_name,
                     'full_type_name': element.type_.full_name,
                     'parent': self.scope(element),
@@ -633,7 +649,7 @@ constexpr cstring name = "%(name)s";
 %(indent)s       ( getter %(setter)s);
 %(indent)s   return status;
 %(indent)s}
-%(indent)sint %(name)s_init(){return init_me();}
+%(indent)sint %(qname)s_init(){return init_me();}
 %(indent)snamespace{
 %(indent)s    class Initializer: public pyllars::Initializer{
 %(indent)s    public:
@@ -658,8 +674,9 @@ constexpr cstring name = "%(name)s";
                     'imports': "\n".join(["if(!PyImport_ImportModule(\"pylllars%s\")){return -1;} " % n.replace("::", ".") for n in imports]),
                     'module_name': element.parent.pyllars_module_name,
                     'name': self.sanitize(element.name),
+                    'qname': qualified_name(element.name),
                     'namespaces': namespace_text,
-                    'parent_name': element.parent.name,
+                    'parent_name': qualified_name(element.parent.name),
                     'parent_full_name': element.parent.full_name,
                     'full_type_name': element.type_.full_name,
                     'parent': self.scope(element),
@@ -727,7 +744,7 @@ class VarDecl(Generator):
     def is_generatable(cls):
         return True
 
-    def generate_body_proper(self, element: parser.VarDecl, folder: Folder, as_top: bool = False) -> None:
+    def generate_body_proper(self, element: parser.VarDecl, folder: Folder, src_path, as_top: bool = False) -> None:
         if element.name == 'cinit':
             return
         with folder.open(self.body_file_name(element)) as stream:
@@ -743,7 +760,7 @@ class VarDecl(Generator):
 
 namespace pyllars{
 %(namespaces)s
-  namespace %(name)s{
+  namespace %(qname)s{
     constexpr cstring name = "%(name)s";
     static status_t init_me(){
         status_t status = 0;
@@ -753,7 +770,7 @@ namespace pyllars{
         return status;
     }
 
-    int %(name)s_init(){return init_me();}
+    int %(qname)s_init(){return init_me();}
 
     namespace{
         class Initializer: public pyllars::Initializer{
@@ -775,10 +792,11 @@ namespace pyllars{
 }
     """ % {
                     'namespaces': namespace_text,
+                    'qname': qualified_name(element.name or "anonymous_%s" % element.tag),
                     'name': element.name or "anonymous_%s" % element.tag,
                     'indent': self._indent,
                     'parent': element.parent.full_name,
-                    'parent_name': element.parent.name if element.parent.name !='::' else '',
+                    'parent_name': qualified_name(element.parent.name if element.parent.name !='::' else ''),
                     'parent_full_name': element.parent.full_name,
                     'full_type_name': element.type_.full_name,
                     'closure': namespace_closure,
@@ -791,7 +809,7 @@ namespace pyllars{
 
 namespace pyllars{
 %(namespaces)s
-  namespace %(name)s{
+  namespace %(qname)s{
     constexpr cstring name = "%(name)s";
     static status_t init_me(){
         status_t status = 0;
@@ -803,7 +821,7 @@ namespace pyllars{
          }
         return status;
     }
-    int %(name)s_init(){return init_me();}
+    int %(qname)s_init(){return init_me();}
 
     namespace{
         class Initializer: public pyllars::Initializer{
@@ -823,11 +841,12 @@ namespace pyllars{
 }
     """ % {
                     'namespaces': namespace_text,
+                    'qname': qualified_name(element.name or "anonymous_%s" % element.tag),
                     'name': element.name or "anonymous_%s" % element.tag,
                     'tp_name': element.type_.name,
                     'indent': self._indent,
                     'parent': element.parent.full_name if element.parent.full_name != '::' else "",
-                    'parent_name': element.parent.name if element.parent.name else "pyllars",
+                    'parent_name': qualified_name(element.parent.name if element.parent.name else "pyllars"),
                     'mod_name': element.parent.pyllars_module_name,
                     'parent_full_name': element.parent.full_name,
                     'full_type_name': element.type_.full_name,
@@ -846,7 +865,11 @@ class ParmVarDecl(Generator):
     def is_generatable(cls):
         return False
 
+
 class CXXRecordDecl(Generator):
+
+    def __init__(self, src_path, indent=""):
+        super().__init__(src_path, indent="")
 
     @classmethod
     def is_generatable(cls):
@@ -854,6 +877,9 @@ class CXXRecordDecl(Generator):
 
     def generate_body_headers(self, element: parser.CXXRecordDecl, folder: Folder):
         if element.is_implicit:
+            return
+        if not element.name:
+            element._anonymous_types.add(self)
             return
 
         with folder.open(self.body_file_name(element)) as stream:
@@ -867,9 +893,10 @@ class CXXRecordDecl(Generator):
                 header = self.header_file_path(base)
                 stream.write(("#include \"%s\"\n" % header).encode('utf-8'))
 
-    def generate_body_proper(self, element: parser.CXXRecordDecl, folder: Folder, as_top: bool = False) -> None:
+    def generate_body_proper(self, element: parser.CXXRecordDecl, folder: Folder, src_path, as_top: bool = False) -> None:
         if element.is_implicit:
             return
+
         with folder.open(self.body_file_name(element)) as stream:
             namespace_text, namespace_closure = self.namespaces(element)
             stream.write(("//From: %(file)s:generate_body_proper\n" % {
@@ -882,7 +909,7 @@ class CXXRecordDecl(Generator):
 
 namespace pyllars{
 %(indent)s%(namespaces)s
-  namespace %(name)s{
+  namespace %(qname)s{
     static status_t init_me(){
         using namespace __pyllars_internal;
         typedef %(full_class_name)s main_type;
@@ -895,6 +922,7 @@ namespace pyllars{
         status_t status = 0;
     """ % {
                 'namespaces': namespace_text,
+                'qname': qualified_name(element.name or "anonymous_%s" % element.tag),
                 'name': element.name or "anonymous_%s" % element.tag,
                 'indent': self._indent,
                 'full_class_name': full_class_name
@@ -908,7 +936,7 @@ namespace pyllars{
     """ % {
                     'full_class_name': class_name,
                     'class_name': element.name,
-                    'base_class_name': base.full_name,
+                    'base_class_name': qualified_name(base.full_name),
                 }).encode('utf-8'))
 
             if element.name:
@@ -941,7 +969,7 @@ namespace pyllars{
     }
 
 
-    %(indent)sint %(name)s_register( pyllars::Initializer* const init ){
+    %(indent)sint %(qname)s_register( pyllars::Initializer* const init ){
     %(indent)s    static pyllars::Initializer _initializer = pyllars::Initializer();
     %(indent)s    static int status = pyllars%(parent)s::%(parent_name)s_register(&_initializer);
     %(indent)s    return status==0?_initializer.register_init(init):status;
@@ -967,7 +995,9 @@ namespace pyllars{
 }
     """ % {'indent': self._indent,
            'name': self.sanitize(element.name if element.name else "pyllars"),
-            'parent_name': element.parent.name if (element.parent.name and element.parent.name != "::") else "pyllars",
+           'qname': qualified_name(element.name if element.name else "pyllars"),
+            'parent_name': qualified_name(element.parent.name if (element.parent.name and element.parent.name != "::")
+                                          else "pyllars"),
             'parent': element.scope if element.scope != '::' else "",
             'closure': namespace_closure
           }).encode('utf-8'))

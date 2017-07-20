@@ -11,7 +11,7 @@ extern const char * const const_ptr_str ;
 extern const char* const * const_ptr_ptr_str;
 
 namespace outside{
-    class Dep{
+    class ExternalDependency{
     };
 }
 
@@ -19,8 +19,11 @@ namespace trial{
 
   class Main{
   public:
+
     Main();
+
     Main(const Main &);
+
     virtual ~Main();
 
     Main &operator=(const Main & );
@@ -42,23 +45,23 @@ namespace trial{
         long size_31bit: 31;
     };
 
-    struct Implicit{
+    struct Internal{
     };
 
     class Inner{
     public:
-      Inner();
-
-      void method(outside::Dep d){
-      }
-
-      class Tertiary{
-      public:
-	float timestamp();
-      };
+          Inner();
+    
+          void method(outside::ExternalDependency d){
+          }
+    
+          class Tertiary{
+          public:
+              float timestamp();
+          };
     };
 
-    const double method(const struct Implicit &) const{
+    const double method(const struct Internal &) const{
         return 0.1;
     }
 
@@ -70,20 +73,20 @@ namespace trial{
   class Inherited: public Main{
   };
 
-  class Main2{
+  class PublicMembers{
   public:
 
-    static void static_method(const Main2 i);
+    static void static_method(const PublicMembers i);
 
     static double dbl_static_member;
 
-    Main2():const_short_member(42){
+    PublicMembers():const_short_member(42){
         int_members[0] = const_short_member*2;
         int_members[1] = const_short_member*3;
         int_members[2] = const_short_member*4;
     }
 
-    Main2(short v):const_short_member(v){
+    PublicMembers(short v):const_short_member(v){
         int_members[0] = v*2;
         int_members[1] = v*3;
         int_members[2] = v*4;
@@ -96,7 +99,7 @@ namespace trial{
 
   };
 
-  class MultiInherited: public Main, public Main2{
+  class MultiInherited: public Main, public PublicMembers{
   };
 
   template <typename T, T d = (T)0>
@@ -110,16 +113,34 @@ namespace trial{
   };
 
 
-  using ClassInt = TemplateClass<int>;
+  using AliasedTemplateClassInt = TemplateClass<int>;
 
   namespace incomplete{
+
     class Incomplete;
 
     class Empty{
     };
+
   }
 
-  int some_global_function(const double & value, outside::Dep &d) throw(double );
+    namespace AnonymousInnerTypes{
+
+        class AnonInner{
+        public:
+            enum {FIRST=1, SECOND=2, FOURTH=4};
+
+            struct {
+               unsigned int word1: 4;
+               unsigned word2: 4;
+            } anon_struct_instance;
+
+        };
+
+
+    }
+
+  int some_global_function(const double & value, outside::ExternalDependency &d) throw(double );
 
 }
 
@@ -127,6 +148,6 @@ using ClassLong = trial::TemplateClass<long>;
 static constexpr long* null_long_ptr = (long*)0;
 using ClassLongPtr = trial::TemplateClass<long*, null_long_ptr>;
 
-typedef trial::Main& Main2;
+typedef trial::Main& PublicMembers;
 
 #endif
