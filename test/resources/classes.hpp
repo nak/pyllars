@@ -104,12 +104,15 @@ namespace trial{
 
   template <typename T, T d = (T)0>
   class TemplateClass{
+   public:
 
     void method1(const float& value);
 
     virtual double method2(T& value);
 
     virtual void abstract() = 0;
+
+    double public_member;
   };
 
 

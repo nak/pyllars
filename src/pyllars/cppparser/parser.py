@@ -33,6 +33,14 @@ class Element(metaclass=ABCMeta):
         self._current_child_access = None
         self._anonymous_types = set([])
 
+    @property
+    def is_template(self):
+        return
+
+    def parent_is_tempalte(self):
+        # Clang AST defines a CXXRecord within a ClassTemplateDecl that is same name as template that items belong to
+        return self.parent and self.parent.parent and self.parent.parent.is_template
+
     def finalize(self):
         for parent in self._parents:
             parent.add_child(self)
@@ -83,6 +91,10 @@ class Element(metaclass=ABCMeta):
         # to template params must not be const (but can be pointer or ref to const types).  QualType therefore
         # overrides this method
         return self.full_name
+
+    @property
+    def is_implicit(self):
+        return False
 
     @property
     @abstractmethod
@@ -384,6 +396,31 @@ class BuiltinType(UnscopedElement):
     def array_size(self):
         return None
 
+    def to_py_conversion_code(self, value):
+        return {
+            "char": "PyLong_FromLong((long)%(val)s)" % value,
+            "signed char": "PyLong_FromLong((long)%(val)s)" % value,
+            "unsigned char": "PyLong_FromUnsignedLong((unsigned long)%(val)s)" % value,
+            "short": "PyLong_FromLong((long)%(val)s)" % value,
+            "signed short": "PyLong_FromLong((long)%(val)s)" % value,
+            "unsigned short": "PyLong_FromUnsignedLong((unsigned long)%(val)s)" % value,
+            "int": "PyLong_FromLong((long) %(val)s)" % value,
+            "signed": "PyLong_FromLong((long) %(val)s)" % value,
+            "unsigned": "PyLong_FromUnsignedLong((unsigned long) %(val)s)" % value,
+            "signed int": "PyLong_FromLong((long) %(val)s)" % value,
+            "unsigned int": "PyLong_FromUnsignedLong((unsigned long) %(val)s)" % value,
+            "long": "PyLong_FromLong(%(val)s)" % value,
+            "signed long": "PyLong_FromLong(%(val)s)" % value,
+            "unsigned long": "PyLong_FromUnsignedLong(%(val)s)" % value,
+            "long long": "PyLong_FromLongLong(%(val)s)" % value,
+            "signed long long": "PyLong_FromLongLong(%(val)s)" % value,
+            "unsigned long long ": "PyLong_FromUnsignedLongLong(%(val)s)" % value,
+            "float" : "PyFloat_FromDouble((double) %(val)s" % value,
+            "double": "PyFloat_FromDouble(%(val)s" % value,
+            "bool": "%(val)s?Py_True:Py_False",
+        }[self.name]
+
+
 class CXXRecord(UnscopedElement):
 
     @classmethod
@@ -393,6 +430,16 @@ class CXXRecord(UnscopedElement):
 
 
 class RecordTypeDefn(ScopedElement):
+
+    def __init__(self, *args, **kargs):
+        super(RecordTypeDefn, self).__init__(*args, **kargs)
+        self._is_internal_template_decl = isinstance(self.parent, ClassTemplateDecl) and self.name == self.parent.name
+
+    def add_child(self, element):
+        if self._is_internal_template_decl:
+            self.parent.add_child(element)
+        else:
+            super(RecordTypeDefn, self).add_child(element)
 
     def make_complete_by_attr_name(self, attr_name):
         self._name = "decltype(%(parent_full_name)s::%(name)s)" % {'parent_full_name': self.parent.full_name,
@@ -817,6 +864,7 @@ class TemplateDecl(ScopedElement):
     def __init__(self, name, tag, parent, locator=None):
         super(TemplateDecl, self).__init__(name, tag, parent, locator)
         self._template_type_params = {}
+        self._template_arguments = []
 
     def add_template_type_param(self, element):
         self._template_type_params[element.name] = element
@@ -825,6 +873,14 @@ class TemplateDecl(ScopedElement):
         if type_name in self._template_type_params:
             return self._template_type_params[type_name]
         return super(TemplateDecl, self).find(type_name)
+
+    @property
+    def template_args(self):
+        return self._template_arguments
+
+    @property
+    def is_template(self):
+        return True
 
 
 class ClassTemplateDecl(TemplateDecl, RecordTypeDefn):
@@ -836,14 +892,18 @@ class ClassTemplateDecl(TemplateDecl, RecordTypeDefn):
     def parse_tokens(cls, name, tag, parent, **kargs):
         return ClassTemplateDecl(name, tag, parent, **kargs)
 
+    def add_template_arg(self, element):
+        self._template_arguments.append(element)
+
+
 
 class TemplateTypeParmDecl(ScopedElement):
 
     def __init__(self, name, tag, parent, structured_type=None, locator=None, is_referenced=False):
-        super(TemplateTypeParmDecl, self).__init__(name, tag, parent, locator)
+        super(TemplateTypeParmDecl, self).__init__(name, tag, None, locator)
         self._kind = structured_type
         self._is_referenced = is_referenced
-        parent.add_template_type_param(self)
+        parent.add_template_arg(self)
 
     @classmethod
     def parse_tokens(cls, name, tag, parent, **kargs):
@@ -853,24 +913,64 @@ class TemplateTypeParmDecl(ScopedElement):
     def is_type(self):
         return True
 
+    @property
+    def type_name(self):
+        return "typename %s" % self.name
 
-class NonTemplateTypeParmDecl(ScopedElement):
+    def type_and_var_name(self, index):
+        return self.type_name
 
-    def __init__(self, name, tag, parent, definition, locator=None):
-        super(NonTemplateTypeParmDecl, self).__init__(name, tag, parent, locator)
-        self._type = parse_type(definition, parent)
+    @property
+    def full_name(self):
+        return self.name
+
+    def var_name(self, index):
+        return self.name
+
+    def py_var_name(self, index):
+        return "(PyObject*)PythonClassWrapper< %s >::Type" % self.full_name
+
+
+class NonTypeTemplateParmDecl(ScopedElement):
+
+    def __init__(self, name, tag, parent: TemplateDecl, definition, locator=None):
+        super(NonTypeTemplateParmDecl, self).__init__(name, tag, None, locator)
+        self._type = self.parse_type(definition, parent)
         #self._is_referenced = is_referenced
+        parent.add_template_arg(self)
 
     @classmethod
     def parse_tokens(cls, name, tag, parent, **kargs):
-        return NonTemplateTypeParmDecl(name, tag, parent, **kargs)
+        return NonTypeTemplateParmDecl(name, tag, parent, **kargs)
 
     @property
     def is_type(self):
         return False
 
+    def parse_type(self, definition, parent):
+        type = {a.name: a for a in parent.template_args}.get(definition)
+        return type if type else parse_type(definition, parent)
 
-class ClassTemplateSpecializationDecl(ScopedElement):
+    @property
+    def type_name(self):
+        return self._type.full_name
+
+    def type_and_var_name(self, index):
+        return self.type_name + " " + self.var_name(index)
+
+    def pyllars_generic_argument(self , value):
+        if isinstance(self._type, BuiltinType):
+            return self._type.to_py_conversion_code(value)
+        return "(PyObject*) __pyllars_internal::PythonClassWrapper< %(name)s >::Type" % self._type.full_name
+
+    def var_name(self, index):
+        return self.name or "_%s" % index
+
+    def py_var_name(self, index):
+        return "keyFrom(%s)" % self.name
+
+
+class ClassTemplateSpecializationDecl(TemplateDecl, ScopedElement):
 
     def __init__(self, name, tag, parent, structured_type=None, locator=None):
         self._base_name = name
@@ -948,6 +1048,7 @@ def init():
     NamespaceDecl.GLOBAL.add_child(BuiltinType("unsigned long long", NamespaceDecl.GLOBAL, None))
     NamespaceDecl.GLOBAL.add_child(BuiltinType("float", NamespaceDecl.GLOBAL, None))
     NamespaceDecl.GLOBAL.add_child(BuiltinType("double", NamespaceDecl.GLOBAL, None))
+    NamespaceDecl.GLOBAL.add_child(BuiltinType("bool", NamespaceDecl.GLOBAL, None))
 
 init()
 
