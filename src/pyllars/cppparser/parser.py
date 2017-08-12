@@ -32,10 +32,13 @@ class Element(metaclass=ABCMeta):
         Element.tag_lookup[tag] = self
         self._current_child_access = None
         self._anonymous_types = set([])
+        self._is_template = self.parent and self.parent.is_template
+        self._template_type_params = {}
+        self._template_arguments = []
 
     @property
     def is_template(self):
-        return
+        return self._is_template
 
     def parent_is_tempalte(self):
         # Clang AST defines a CXXRecord within a ClassTemplateDecl that is same name as template that items belong to
@@ -281,6 +284,12 @@ class Element(metaclass=ABCMeta):
         if typed:
             return self._type.full_name + " " + self.name
         return self.name
+
+    def template_decl(self):
+        return "" if not self._template_type_params else "template < %s >" % (", ".join(self._template_type_params))
+
+    def template_arguments(self):
+        return "" if not self._template_type_params else "<%s>" % (", ".join(self._template_arguments))
 
 
 class ScopedElement(Element):
@@ -596,7 +605,6 @@ def parse_type(definition, parent, tokens=None):
         if array_size is not None:
             typ = ArrayType(typ.name + "[%d]" % array_size, None, parent, array_size, base_type=typ)
         return typ
-    typ = None
     if tokens:
         token = tokens[0]
         token.value = token.value.strip()
@@ -863,8 +871,6 @@ class RecordType(RecordTypeDefn):
 class TemplateDecl(ScopedElement):
     def __init__(self, name, tag, parent, locator=None):
         super(TemplateDecl, self).__init__(name, tag, parent, locator)
-        self._template_type_params = {}
-        self._template_arguments = []
 
     def add_template_type_param(self, element):
         self._template_type_params[element.name] = element

@@ -249,8 +249,8 @@ class Generator(metaclass=ABCMeta):
         cls.generate_spec(element, folder, src_path=src_path)
         with folder.open(file_name=file_name) as stream:
             stream.write(("""
-#include "%(my_header_name)s"
-#include <pyllars/pyllars_globalmembersemantics.cpp>
+        #include "%(my_header_name)s"
+        #include <pyllars/pyllars_globalmembersemantics.cpp>
             """ % {"my_header_name": cls.header_file_name(element)}).encode('utf-8'))
             if element.is_implicit:
                 return
@@ -318,27 +318,27 @@ class NamespaceDecl(Generator):
         with folder.open(file_name=file_name) as stream:
             namespace_text, namespace_closure = generator.namespaces(element)
             stream.write(("""
-#ifndef __%(guard)s__
-#define __%(guard)s__
+            #ifndef __%(guard)s__
+            #define __%(guard)s__
 
 """ % {'guard': element.guard}).encode('utf-8'))
             if element.parent:
                 stream.write(("""
-#include "%(parent_header_name)s"
-#include "%(target_file_name)s"
+            #include "%(parent_header_name)s"
+            #include "%(target_file_name)s"
 """ % {
                     'parent_header_name': cls.header_file_path(element.parent),
                     'target_file_name': src_path}).encode("utf-8"))
             stream.write(("""
-namespace pyllars{
-%(namespaces)s
-    namespace %(qname)s{
-        int %(qname)s_register( pyllars::Initializer* const);
-        extern PyObject* %(name)s_mod;
-    }
-%(closure)s
-}
-#endif
+                namespace pyllars{
+                    %(namespaces)s
+                        namespace %(qname)s{
+                            int %(qname)s_register( pyllars::Initializer* const);
+                            extern PyObject* %(name)s_mod;
+                        }
+                    %(closure)s
+                }
+            #endif
             """ % {'name': cls.sanitize(element.name),
                    'qname': qualified_name(element.name),
                    'namespaces': namespace_text,
@@ -419,6 +419,7 @@ class FunctionDecl(Generator):
             'params': ", ".join(["%s" % arg.name if arg.name else
                                  "p%s" % index for index, arg in enumerate(element.params)]),
         } if not has_varargs else altenative_code
+
         return """
             __pyllars_internal::FuncContainer<%(has_varargs)s,
                                              %(return_type)s %(arguments)s>::Type<0,
@@ -486,6 +487,7 @@ class FunctionDecl(Generator):
                 
                 //generated from %(file)s.generate_initializer_code
                 // FUNCTION %(name)s THROWS %(throws)s
+                %(template_decl)s
                 static int init_me(){
                    static const char* const argumentNames[] = {%(argument_names)s nullptr};
                    status_t status = 0;
@@ -494,7 +496,8 @@ class FunctionDecl(Generator):
                    return status;
                 }
                 
-                int %(qname)s_init(){return init_me();}
+                %(template_decl)s
+                int %(qname)s_init(){return init_me%(template_args)s();}
                 
                 namespace{
         
@@ -530,6 +533,8 @@ class FunctionDecl(Generator):
                 'parent_name': qualified_name(element.parent.name if (element.parent.name and element.parent.name != "::")
                                               else "pyllars"),
                 'parent': self.scope(element),
+                'template_decl': element.template_decl(),
+                'template_args': element.template_arguments(),
                 'argument_names': ','.join(["\"%s\"" % (arg.name if arg.name else "_%s" % (index + 1)) for index, arg in
                                             enumerate(element.params)]) + (',' if element.params else ''),
                 'has_varargs': str(element.has_varargs).lower(),
