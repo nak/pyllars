@@ -282,14 +282,25 @@ class Element(metaclass=ABCMeta):
 
     def as_function_argument(self, index, typed=False):
         if typed:
-            return self._type.full_name + " " + self.name
+            return self._type.full_name + " " + (self.name or "p%s" % index)
         return self.name
 
     def template_decl(self):
-        return "" if not self._template_type_params else "template < %s >" % (", ".join(self._template_type_params))
+        if self.parent and self.parent.is_template:
+            return self.parent.template_decl()
+
+        def template_parm_name(e):
+            if isinstance(e, TemplateTypeParmDecl):
+                return "typename %s" % e.name
+            else:
+                return "%s %s" % (e._type.full_name, e.name)
+
+        return "" if not self._template_arguments else "template < %s >" % (", ".join([template_parm_name(e) for e in self._template_arguments]))
 
     def template_arguments(self):
-        return "" if not self._template_type_params else "<%s>" % (", ".join(self._template_arguments))
+        if self.parent and self.parent.is_template:
+            return self.parent.template_arguments()
+        return "" if not self._template_type_params else "<%s>" % (", ".join([e.name for e in self._template_arguments]))
 
 
 class ScopedElement(Element):
@@ -900,7 +911,8 @@ class ClassTemplateDecl(TemplateDecl, RecordTypeDefn):
 
     def add_template_arg(self, element):
         self._template_arguments.append(element)
-
+        if isinstance(element, TemplateTypeParmDecl):
+            self.add_template_type_param(element)
 
 
 class TemplateTypeParmDecl(ScopedElement):
