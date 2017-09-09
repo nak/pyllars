@@ -112,7 +112,7 @@ class CXXRecordDecl(Generator):
                        }
                     };
 
-                    static Initializer init = Initializer();
+                    static Initializer%(template_args)s init = Initializer%(template_args)s();
                 }
 """ % {
                 'indent': self._indent,
@@ -155,8 +155,31 @@ class CXXMethodDecl(Generator):
     def is_generatable(cls):
         return True
 
+    def _func_declaration(self, element: parser.FunctionElement):
+        if element.is_static:
+            base = "addClass"
+        else:
+            base = "add"
+        method_name = CXXMethodDecl.METHOD_NAMES.get(element.name) or ("%sMethod" % base )
+        if element.has_varargs:
+            method_name += "Varargs"
+
+        return """
+    __pyllars_internal::PythonClassWrapper<%(full_class_name)s>::%(py_method_name)s<%(is_const)s name, %(return_type)s %(args)s>
+       ( &%(full_class_name)s::%(method_name)s, argumentNames);
+
+""" % {
+            'names': ",".join(['"%s"' % (e.name or "param_%d" % index) for index, e in enumerate(element.params)]),
+            'method_name': element.name or "anonymous_%s" % element.tag,
+            'full_class_name': element.parent.full_name,
+            'py_method_name': method_name,
+            'is_const': str(element.is_const).lower() + "," if not element.is_static else "",
+            'return_type': element.return_type.full_name if element.return_type else "void",
+            'args': ("," if element.params else "") + ", ".join([p.type_.full_param_name for p in element.params])
+        }
+
     def generate_body_proper(self, element: parser.CXXMethodDecl, stream: TextIOBase, src_path,
-                                 as_top: bool = False) -> None:
+                             as_top: bool = False) -> None:
         if element.is_static:
             base = "addClass"
         else:
@@ -193,7 +216,7 @@ class CXXMethodDecl(Generator):
 
                 namespace{
 
-                    template< %(template_args)s >
+                    template< %(template_decl)s >
                     class Initializer: public pyllars::Initializer{
                     public:
                         typedef pyllars::Initializer super;
@@ -210,7 +233,7 @@ class CXXMethodDecl(Generator):
 
                     };
 
-                    static Initializer init = Initializer();
+                    static Initializer%(template_args)s init = Initializer%(template_args)s();
                 }
 """ % {
                 'indent': self._indent,

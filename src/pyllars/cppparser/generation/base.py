@@ -43,7 +43,7 @@ class Compiler(object):
             target = os.path.join("objects", compilable[10:]).replace(".cpp", ".o")
             if not os.path.exists(os.path.dirname(target)):
                 os.makedirs(os.path.dirname(target))
-            cmd = "%(cxx)s -std=c++11 %(cxxflags)s -c -fPIC -I%(local_include)s -I%(python_include)s " \
+            cmd = "%(cxx)s -O -std=c++14 %(cxxflags)s -c -fPIC -I%(local_include)s -I%(python_include)s " \
                   "-I%(pyllars_include)s -o %(target)s %(compilable)s" % {
                       'cxx': Compiler.CXX,
                       'cxxflags': Compiler.CFLAGS,
@@ -61,7 +61,7 @@ class Compiler(object):
             if p.returncode != 0:
                 return p.returncode, "Command \"%s\" failed:\n%s" % (cmd, output)
             objects.append(target)
-        cmd = "%(cxx)s -fPIC -std=c++11 %(cxxflags)s -I%(python_include)s -shared -o _trial.so -Wl,--no-undefined " \
+        cmd = "%(cxx)s -O -fPIC -std=c++14 %(cxxflags)s -I%(python_include)s -shared -o _trial.so -Wl,--no-undefined " \
               "%(src)s %(objs)s %(python_lib_name)s -lffi %(pyllars_include)s/pyllars/pyllars.cpp" % {
                   'cxx': Compiler.LDCXXSHARED,
                   'src': body,
@@ -360,7 +360,8 @@ namespace pyllars{
                
             };
         
-            static Initializer init = Initializer();  
+            %(template_decl)s
+            static Initializer%(template_args)s init = Initializer%(template_args)s();  
         }
 
 //////////////////////////////
@@ -426,10 +427,10 @@ namespace pyllars{
                    return 0;
                 }
                
-                template< %(template_decl)s >
+                %(template_decl)s
                 int %(qname)s_register( pyllars::Initializer* const init){
                     static pyllars::Initializer _initializer = pyllars::Initializer();
-                    static int status = pyllars%(parent_name)s%(parent_template_decl)s::%(parent)s_register(&_initializer);
+                    static int status = pyllars::%(parent_name)s%(parent_template_decl)s::%(parent)s_register(&_initializer);
                     return status==0?_initializer.register_init(init):status;
                 }
                 
@@ -441,7 +442,7 @@ namespace pyllars{
                 'full_name_space': element.parent.full_name if element.parent.full_name != "::" else "",
                 'parent_name': qualified_name(
                     element.parent.name if (element.parent.name and element.parent.name != "::")
-                    else "pyllars"),
+                    else ""),
                 'parent': element.parent.name if element.parent else "pyllars",
                 'template_decl': element.template_decl(),
                 'parent_template_decl': element.parent.template_decl() if element.parent else ""
