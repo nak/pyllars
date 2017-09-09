@@ -43,7 +43,7 @@ class Compiler(object):
             target = os.path.join("objects", compilable[10:]).replace(".cpp", ".o")
             if not os.path.exists(os.path.dirname(target)):
                 os.makedirs(os.path.dirname(target))
-            cmd = "%(cxx)s -std=c++14 %(cxxflags)s -c -fPIC -I%(local_include)s -I%(python_include)s " \
+            cmd = "%(cxx)s -std=c++11 %(cxxflags)s -c -fPIC -I%(local_include)s -I%(python_include)s " \
                   "-I%(pyllars_include)s -o %(target)s %(compilable)s" % {
                       'cxx': Compiler.CXX,
                       'cxxflags': Compiler.CFLAGS,
@@ -61,7 +61,7 @@ class Compiler(object):
             if p.returncode != 0:
                 return p.returncode, "Command \"%s\" failed:\n%s" % (cmd, output)
             objects.append(target)
-        cmd = "%(cxx)s -fPIC -std=c++14 %(cxxflags)s -I%(python_include)s -shared -o _trial.so -Wl,--no-undefined " \
+        cmd = "%(cxx)s -fPIC -std=c++11 %(cxxflags)s -I%(python_include)s -shared -o _trial.so -Wl,--no-undefined " \
               "%(src)s %(objs)s %(python_lib_name)s -lffi %(pyllars_include)s/pyllars/pyllars.cpp" % {
                   'cxx': Compiler.LDCXXSHARED,
                   'src': body,
@@ -273,7 +273,7 @@ class Generator(metaclass=ABCMeta):
     @staticmethod
     def get_generator(clazz: type, src_path: str, indent: str) -> "Generator":
         from . import _get_generator
-        _get_generator(clazz=clazz, src_path=src_path, indent=indent)
+        return _get_generator(clazz=clazz, src_path=src_path, indent=indent)
 
     @staticmethod
     def namespaces(element: parser.Element) -> List[str]:

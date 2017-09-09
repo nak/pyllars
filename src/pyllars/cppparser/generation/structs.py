@@ -1,5 +1,7 @@
 from io import TextIOBase
 
+import os
+
 from .base import Folder, Generator, qualified_name
 from . import parser
 

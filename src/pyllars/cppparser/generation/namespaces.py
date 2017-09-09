@@ -7,7 +7,7 @@ class NamespaceDecl(Generator):
     def is_generatable(cls):
         return True
 
-    def generate_header_core(self, element: Element, stream: TextIOBase, as_top=False) -> None:
+    def generate_header_core(self, element: parser.Element, stream: TextIOBase, as_top=False) -> None:
         if element.name:
             stream.write(("""
         extern PyModuleObject *%s_mod;

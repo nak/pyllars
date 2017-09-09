@@ -645,7 +645,7 @@ def parse_type(definition, parent, tokens=None):
             assert tokens[1].type == 'name'
             if len(tokens) > 2:
                 return parse_type(definition, parent, [t for t in reversed(tokens[2:])] + tokens[:2])
-            if parent.find(tokens[1].value):
+            if parent and parent.find(tokens[1].value):
                 typ = parent.find(tokens[1].value)
             else:
                 if "::" + tokens[1].value in Element.lookup:
@@ -698,6 +698,7 @@ class ParmVarDecl(VarDecl):
     @property
     def full_name(self):
         return self.name
+
 
 class FunctionElement(ScopedElement):
 
@@ -1072,6 +1073,6 @@ init()
 
 def parse_file(src_path):
     import subprocess
-    cmd = ["clang-check", "-ast-dump", src_path, "--extra-arg=\"-fno-color-diagnostics\""]
+    cmd = ["clang-check", "-ast-dump", src_path, "--extra-arg=\"std=c++11\"", "--extra-arg=\"-fno-color-diagnostics\"", "--"]
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     return Element.parse(proc.stdout)
