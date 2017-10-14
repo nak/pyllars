@@ -114,9 +114,12 @@ class Folder(object):
 
 
 class Generator(metaclass=ABCMeta):
+
     def __init__(self, src_path, indent=""):
         self._indent = indent
         self._src_path = src_path
+        self._template_argument_lists = []
+        self._template_type_params = []
 
     @classmethod
     def is_generatable(cls):
@@ -151,33 +154,33 @@ class Generator(metaclass=ABCMeta):
 
     @classmethod
     def header_file_name(cls, element: parser.Element)->str:
-        return (element.name or "global") + ".hpp"
+        return (element.basic_name or "global") + ".hpp"
 
     @classmethod
     def body_file_path(cls, element: parser.Element) ->str:
         parent_path = os.path.dirname(cls.header_file_path(element.parent)) if element.parent is not None else "."
         if not os.path.exists(parent_path):
             os.makedirs(parent_path)
-        return os.path.join(parent_path, cls.to_path(element.name or "global", ext=".cpp"))
+        return os.path.join(parent_path, cls.to_path(element.basic_name or "global", ext=".cpp"))
 
     @classmethod
     def body_file_name(cls, element: parser.Element)->str:
-        return (element.name or "global") + ".cpp"
+        return (element.basic_name or "global") + ".cpp"
 
     def scope(self, element):
         return element.scope
 
     def basic_includes(self, element: parser.Element):
         return ("""
-        #include <Python.h>
-        #include <pyllars/pyllars.hpp>
-        #include <pyllars/pyllars_classwrapper.cpp>
-        #include <pyllars/pyllars_function_wrapper.hpp>
-    
-        #include <vector>
+#include <Python.h>
+#include <pyllars/pyllars.hpp>
+#include <pyllars/pyllars_classwrapper.cpp>
+#include <pyllars/pyllars_function_wrapper.hpp>
 
-        #include <%(src_path)s>
-        %(parent_header_name)s
+#include <vector>
+
+#include <%(src_path)s>
+%(parent_header_name)s
 """  % {'src_path': self._src_path,
         'parent_header_name': "#include \"%s\"" % self.header_file_path(element.parent) if element.parent else "",
         }).encode('utf-8')
@@ -205,11 +208,22 @@ class Generator(metaclass=ABCMeta):
             #endif
         """)
 
+    @property
+    def template_decl(self):
+        template_decl = ""
+        for template_args in self._template_argument_lists:
+            template_decl += "\n%s" % parser.Element.template_declaration(template_args)
+        return template_decl
+
+    @property
+    def template_arguments(self):
+        return "" if not self._template_type_params else "<%s>" % (", ".join([e.name for e in self._template_arguments]))
+
     def generate_header_code(self, element: parser. Element, stream: TextIOBase) -> None:
-            with self.guarded(element, stream) as guarded:
-                guarded.write(self.basic_includes(element))
-                with self.scoped(element, guarded) as scoped:
-                    self.generate_header_core(element, scoped)
+        with self.guarded(element, stream) as guarded:
+            guarded.write(self.basic_includes(element))
+            with self.scoped(element, guarded) as scoped:
+                self.generate_header_core(element, scoped)
 
     def generate_header_core(self, element: Element, stream: TextIOBase, as_top=False):
         if not element.name:
@@ -218,57 +232,56 @@ class Generator(metaclass=ABCMeta):
         stream.write(("""
                 %(template_decl)s
                 int %(qname)s_register( pyllars::Initializer* const);
+                
                 %(template_decl)s
                 int %(qname)s_init();
             """ % {
-                'name': self.sanitize(element.name),
-                'qname': qualified_name(element.name),
-                'template_decl': element.template_decl(),
+                'qname': qualified_name(element.basic_name),
+                'template_decl': self.template_decl,
         }).encode('utf-8'))
 
-    @classmethod
-    def generate_spec(cls, element: Element, folder: Folder, src_path: str):
+    def generate_spec(self, element: Element, folder: Folder):
         from ..parser import NamespaceDecl
         if isinstance(element, NamespaceDecl):
-            folder = folder.create_subfolder(cls.to_path(element.name))
-        generator = cls.get_generator(type(element), src_path, "")
-        if not generator:
-            return
-        file_name = cls.to_path(element.name or "global", ext=".hpp")
+            folder = folder.create_subfolder(self.to_path(element.basic_name))
+        # generator = self.get_generator(type(element), self._src_path, "")
+        # if not generator:
+        #     return
+        file_name = self.to_path(element.basic_name or "global", ext=".hpp")
         folder.purge(file_name)
         with folder.open(file_name=file_name) as stream:
-            generator.generate_header_code(element=element, stream=stream)
+            self.generate_header_code(element=element, stream=stream)
 
-
-    @classmethod
-    def generate_body(cls, element: parser.Element, folder: Folder, src_path: str, as_top=False):
+    def generate_body(self, element: parser.Element, folder: Folder, as_top=False):
         if not element.name and not as_top:
             return
-        generator = cls.get_generator(type(element), src_path, "")
-        if not generator:
-            return
-        file_name = cls.to_path(element.name or "global", ext=".cpp")
+        file_name = self.to_path(element.basic_name or "global", ext=".cpp")
         folder.purge(file_name)
-        cls.generate_spec(element, folder, src_path=src_path)
+        self.generate_spec(element, folder)
         with folder.open(file_name=file_name) as stream:
             stream.write(("""
         #include "%(my_header_name)s"
         #include <pyllars/pyllars_globalmembersemantics.cpp>
-            """ % {"my_header_name": cls.header_file_name(element)}).encode('utf-8'))
+            """ % {"my_header_name": self.header_file_name(element)}).encode('utf-8'))
             if element.is_implicit:
                 return
             if not element.name:
-                element._anonymous_types.add(generator)
+                element._anonymous_types.add(self)
             else:
-                generator.generate_body_proper(element, stream, src_path, as_top)
-        subfolder = folder.create_subfolder(element.name) if element.name != "::" and element.name else folder
+                self.generate_body_proper(element, stream, as_top)
+        subfolder = folder.create_subfolder(element.basic_name) if element.name != "::" and element.name else folder
         if not isinstance(element, parser.CXXMethodDecl) and not isinstance(element, parser.FunctionDecl):
             for child in element.children():
-                if child.name == element.name:
-                    continue
-                generator = cls.get_generator(type(child), src_path, "")
-                if generator:
-                    generator.generate_body(child, subfolder, src_path=src_path)
+                #if child.name == element.name:
+                #    continue
+                child_generator = self.get_generator(type(child), self._src_path, "")
+                if child_generator:
+                    child_generator._template_argument_lists += self._template_argument_lists
+                    child_generator._template_type_params += self._template_type_params
+                    if element.template_arguments:
+                        child_generator._template_argument_lists.append(element.template_arguments)
+                        child_generator._template_type_params.append(element._template_type_params)
+                    child_generator.generate_body(child, subfolder)
 
     @staticmethod
     def get_generator(clazz: type, src_path: str, indent: str) -> "Generator":
@@ -305,15 +318,14 @@ class ClassTemplateDecl(Generator):
     def is_generatable(cls):
         return True
 
-    @classmethod
-    def generate_spec(cls, element: parser.ClassTemplateDecl, folder: Folder, src_path: str):
+    def generate_spec(self, element: parser.ClassTemplateDecl, folder: Folder):
         from ..parser import NamespaceDecl
         if isinstance(element, NamespaceDecl):
-            folder = folder.create_subfolder(cls.to_path(element.name))
-        generator = cls.get_generator(type(element), src_path, "")
+            folder = folder.create_subfolder(self.to_path(element.basic_name))
+        generator = self.get_generator(type(element), self._src_path, "")
         if not generator:
             return
-        file_name = cls.to_path(element.name or "global", ext=".hpp")
+        file_name = self.to_path(element.basic_name or "global", ext=".hpp")
         folder.purge(file_name)
         with folder.open(file_name=file_name) as stream:
             if not element.name:
@@ -330,8 +342,8 @@ class ClassTemplateDecl(Generator):
 #include "%(target_file_name)s"
 #include "%(parent_header_name)s"
 """ % {
-                    'parent_header_name': cls.header_file_path(element.parent),
-                    'target_file_name': src_path}).encode("utf-8"))
+                    'parent_header_name': self.header_file_path(element.parent),
+                    'target_file_name': self._src_path}).encode("utf-8"))
 
             stream.write(("""
 #include <pyllars/pyllars_classwrapper.hpp>
@@ -370,17 +382,15 @@ namespace pyllars{
 }
 #endif
             """ % {
-                'name': cls.sanitize(element.name),
-                'name_len': len(cls.sanitize(element.name)),
-                'qname': qualified_name(element.name),
+                'qname': qualified_name(element.basic_name),
                 'namespaces': namespace_text,
                 'parent': element.parent.full_name if element.parent.full_name != "::" else "",
-                'parent_name': element.parent.name,
+                'parent_name': element.parent.basic_name,
                 'template_arg_vals': ",".join([arg.py_var_name(index) for index, arg in enumerate(element.template_args)]),
                 'full_name': element.full_name,
                 'template_arg_len': len(element.template_args),
                 'template_decl': element.template_decl(),
-                'template_args': element.template_arguments(),
+                'template_args': element.template_arguments_string(),
                 'closure': namespace_closure}).encode('utf-8'))
 
     def generate_body_proper(self, element: parser.ClassTemplateDecl, stream: TextIOBase, src_path, as_top: bool = False):
@@ -435,8 +445,7 @@ namespace pyllars{
                 }
                 
 """ % {
-                'qname': qualified_name(element.name or "anonymous_%s" % element.tag),
-                'name': element.name or "anonymous_%s" % element.tag,
+                'qname': qualified_name(element.basic_name or "anonymous_%s" % element.tag),
                 'full_class_name': full_class_name,
                 'add_dict_code': add_dict_code,
                 'full_name_space': element.parent.full_name if element.parent.full_name != "::" else "",

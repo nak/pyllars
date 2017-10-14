@@ -25,6 +25,8 @@ class Element(metaclass=ABCMeta):
         self._qualifiers = qualifier or []
         if isinstance(self._qualifiers, str):
             self._qualifiers = [self._qualifiers]
+        self._template_type_params = {}
+        self._template_arguments = []
         if name:
             Element.lookup[self.full_name] = self
         if parent:
@@ -33,8 +35,6 @@ class Element(metaclass=ABCMeta):
         self._current_child_access = None
         self._anonymous_types = set([])
         self._is_template = self.parent and self.parent.is_template
-        self._template_type_params = {}
-        self._template_arguments = []
 
     @property
     def is_template(self):
@@ -73,8 +73,14 @@ class Element(metaclass=ABCMeta):
         return self._tag
 
     @property
-    def name(self):
+    def basic_name(self):
+        if not self._name:
+            return ""
         return self._name
+
+    @property
+    def name(self):
+        return self.basic_name + self.template_arguments_string()
 
     @property
     def is_const(self):
@@ -285,25 +291,44 @@ class Element(metaclass=ABCMeta):
             return self._type.full_name + " " + (self.name or "p%s" % index)
         return self.name
 
-    def template_decl(self):
-        if self.parent and self.parent.is_template:
-            return self.parent.template_decl()
-
+    @staticmethod
+    def template_declaration(template_args):
         def template_parm_name(e):
             if isinstance(e, TemplateTypeParmDecl):
                 return "typename %s" % e.name
             else:
                 return "%s %s" % (e._type.full_name, e.name)
 
-        return "" if not self._template_arguments else "template < %s >" % (", ".join([template_parm_name(e) for e in self._template_arguments]))
+        return "" if not template_args else "template < %s >" % (", ".join([template_parm_name(e) for e in template_args]))
 
-    def template_arguments(self):
-        if self.parent and self.parent.is_template:
-            return self.parent.template_arguments()
+
+    def template_decl(self):
+        #if self.parent and self.parent.is_template:
+        #    return self.parent.template_decl()
+        return self.template_declaration(self._template_arguments)
+
+    def template_arguments_string(self):
+        if not self._template_type_params and self.parent and self.parent.is_template:
+            return self.parent.template_arguments_string()
         return "" if not self._template_type_params else "<%s>" % (", ".join([e.name for e in self._template_arguments]))
+
+    @property
+    def template_arguments(self):
+        return self._template_arguments
+
+    def add_template_arg(self, element):
+        self._template_arguments.append(element)
+        if isinstance(element, TemplateTypeParmDecl):
+            self.add_template_type_param(element)
+
+    def add_template_type_param(self, element):
+        self._template_type_params[element.name] = element
 
 
 class ScopedElement(Element):
+
+    def __init__(self, *args, **kargs):
+        super(ScopedElement, self).__init__(*args, **kargs)
 
     @property
     def scope(self):
@@ -409,6 +434,10 @@ class BuiltinType(UnscopedElement):
         return self.name
 
     @property
+    def name(self):
+        return self._name
+
+    @property
     def is_const(self):
         return False
 
@@ -453,13 +482,13 @@ class RecordTypeDefn(ScopedElement):
 
     def __init__(self, *args, **kargs):
         super(RecordTypeDefn, self).__init__(*args, **kargs)
-        self._is_internal_template_decl = isinstance(self.parent, ClassTemplateDecl) and self.name == self.parent.name
+        #self._is_internal_template_decl = isinstance(self.parent, ClassTemplateDecl) and self.name == self.parent.name
 
-    def add_child(self, element):
-        if self._is_internal_template_decl:
-            self.parent.add_child(element)
-        else:
-            super(RecordTypeDefn, self).add_child(element)
+    #def add_child(self, element):
+        #if self._is_internal_template_decl:
+        #    self.parent.add_child(element)
+        #else:
+        #    super(RecordTypeDefn, self).add_child(element)
 
     def make_complete_by_attr_name(self, attr_name):
         self._name = "decltype(%(parent_full_name)s::%(name)s)" % {'parent_full_name': self.parent.full_name,
@@ -884,9 +913,6 @@ class TemplateDecl(ScopedElement):
     def __init__(self, name, tag, parent, locator=None):
         super(TemplateDecl, self).__init__(name, tag, parent, locator)
 
-    def add_template_type_param(self, element):
-        self._template_type_params[element.name] = element
-
     def find(self, type_name):
         if type_name in self._template_type_params:
             return self._template_type_params[type_name]
@@ -909,11 +935,6 @@ class ClassTemplateDecl(TemplateDecl, RecordTypeDefn):
     @classmethod
     def parse_tokens(cls, name, tag, parent, **kargs):
         return ClassTemplateDecl(name, tag, parent, **kargs)
-
-    def add_template_arg(self, element):
-        self._template_arguments.append(element)
-        if isinstance(element, TemplateTypeParmDecl):
-            self.add_template_type_param(element)
 
 
 class TemplateTypeParmDecl(ScopedElement):
@@ -959,7 +980,7 @@ class NonTypeTemplateParmDecl(ScopedElement):
         parent.add_template_arg(self)
 
     @classmethod
-    def parse_tokens(cls, name, tag, parent, **kargs):
+    def parse_tokens(cls, name: str, tag: str, parent: Element, **kargs):
         return NonTypeTemplateParmDecl(name, tag, parent, **kargs)
 
     @property
@@ -967,7 +988,7 @@ class NonTypeTemplateParmDecl(ScopedElement):
         return False
 
     def parse_type(self, definition, parent):
-        type = {a.name: a for a in parent.template_args}.get(definition)
+        type = {a.name: a for a in parent.template_arguments}.get(definition)
         return type if type else parse_type(definition, parent)
 
     @property
@@ -1002,7 +1023,7 @@ class ClassTemplateSpecializationDecl(TemplateDecl, ScopedElement):
         return ClassTemplateSpecializationDecl(name, tag, parent, **kargs)
 
     @property
-    def name(self):
+    def name(self)->str:
         children = self._children.get('public') or []
         suffix = "<%s>" % (", ".join([str(c._value) for c in children if c._value]))
         return self._base_name + suffix

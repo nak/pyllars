@@ -15,6 +15,12 @@ class CXXRecordDecl(Generator):
     def is_generatable(cls):
         return True
 
+    def basic_includes(self, element: parser.Element):
+        text = super().basic_includes(element)
+        for subelement in list(element._base_classes.get('public') or []):
+            text += ("\n#include \"%s\"" % self.header_file_path(subelement)).encode('utf-8')
+        return text
+
     def generate_body_proper(self, element: parser.CXXRecordDecl, stream: TextIOBase, src_path, as_top: bool = False) -> None:
         if element.is_implicit:
             return
@@ -47,19 +53,20 @@ class CXXRecordDecl(Generator):
                 'name': element.name or "anonymous_%s" % element.tag,
                 'indent': self._indent,
                 'full_class_name': full_class_name,
-                'template_decl': element.template_decl(),
-                'template_args': element.template_arguments(),
+                'template_decl': self.template_decl,
+                'template_args': element.template_arguments_string(),
             }).encode('utf-8'))
 
             for base in element.public_base_classes or []:
                 stream.write(("""
-                    status |= pyllars%(base_class_name)s_init();
+                    status |= pyllars%(base_class_name)s::%(base_class_bare_name)s_init();
                      __pyllars_internal::PythonClassWrapper<%(full_class_name)s>::addBaseClass
                         (&PythonClassWrapper< %(base_class_name)s >::Type); /*1*/
     """ % {
                     'full_class_name': class_name,
                     'class_name': element.name,
-                    'base_class_name': qualified_name(base.full_name),
+                    'base_class_name': base.full_name,
+                    'base_class_bare_name': base.name
                 }).encode('utf-8'))
 
             if element.name:
@@ -78,14 +85,14 @@ class CXXRecordDecl(Generator):
                     }).encode('utf-8'))
                 else:
                     stream.write(("""
-                     __pyllars_internal::PythonClassWrapper< %(parent_class_name)s%(template_args)s >::addClassMember
+                     __pyllars_internal::PythonClassWrapper< %(parent_class_name)s >::addClassMember
                         ("%(name)s",
-                         (PyObject*) & __pyllars_internal::PythonClassWrapper< %(class_name)s%(template_args)s >::Type);
+                         (PyObject*) & __pyllars_internal::PythonClassWrapper< %(class_name)s >::Type);
 """ % {
                         'parent_class_name': element.parent.full_name,
                         'name': element.name,
                         'class_name': element.full_name,
-                        'template_args': element.template_arguments(),
+                        'template_args': element.template_arguments_string(),
                     }).encode('utf-8'))
             stream.write(("""
                     _status = status;
@@ -117,16 +124,14 @@ class CXXRecordDecl(Generator):
 """ % {
                 'indent': self._indent,
                 'name': self.sanitize(element.name if element.name else "pyllars"),
-                'qname': qualified_name(element.name if element.name else "pyllars"),
+                'qname': qualified_name(element.basic_name if element.basic_name else "pyllars"),
                 'parent_name': qualified_name
-                    (element.parent.name if (element.parent.name and element.parent.name != "::")
+                    (element.parent.basic_name if (element.parent.name and element.parent.name != "::")
                                               else "pyllars"),
                 'parent': element.scope if element.scope != '::' else "",
-                'template_decl': element.template_decl(),
-                'template_args': element.template_arguments(),
+                'template_decl': self.template_decl,
+                'template_args': element.template_arguments_string(),
             }).encode('utf-8'))
-
-
 
 
 class CXXMethodDecl(Generator):
@@ -243,15 +248,15 @@ class CXXMethodDecl(Generator):
                      imports]),
                 'module_name': element.parent.pyllars_module_name,
                 'name': self.sanitize(element.name),
-                'qname': qualified_name(element.name),
+                'qname': qualified_name(element.basic_name),
                 'pyname': CXXMethodDecl.METHOD_NAMES.get(element.name).replace('addMethod', '') if
                 element.name in CXXMethodDecl.METHOD_NAMES else element.name if element.name != "operator=" else "assign_to",
                 'parent_name': qualified_name(
-                    element.parent.name if (element.parent.name and element.parent.name != "::")
+                    element.parent.basic_name if (element.parent.name and element.parent.name != "::")
                     else "pyllars"),
                 'parent': self.scope(element),
-                'template_decl': element.template_decl(),
-                'template_args': element.template_arguments(),
+                'template_decl': self.template_decl,
+                'template_args': element.template_arguments_string(),
                 'argument_names': ','.join(
                     ["\"%s\"" % (arg.name if arg.name else "_%s" % (index + 1)) for index, arg in
                      enumerate(element.params)]) + (',' if element.params else ''),
@@ -264,12 +269,6 @@ class CXXMethodDecl(Generator):
                                                                                    t in element.params]),
             }).encode('utf-8'))
 
-    def generate_header_core(self, element: parser.Element, folder: Folder, as_top=False):
-        if element.parent and isinstance(element.parent.parent, parser.ClassTemplateDecl):
-            #raise Exception("NOT IMPL")
-            pass
-        else:
-            return super(CXXMethodDecl, self).generate_header_core(element, folder, as_top)
 
 
 class FieldDecl(Generator):
@@ -296,7 +295,7 @@ class FieldDecl(Generator):
                         static int init_me(){
                            status_t status = 0;
                            %(imports)s
-                            __pyllars_internal::PythonClassWrapper<%(parent_full_name)s>::addAttribute<name, %(array_size)s, %(full_type_name)s>
+                            __pyllars_internal::PythonClassWrapper< %(parent_full_name)s >::addAttribute<name, %(array_size)s, %(full_type_name)s>
                                ( &%(parent_full_name)s::%(name)s, %(array_size)s);
                            return status;
                         }
@@ -323,8 +322,8 @@ class FieldDecl(Generator):
                              imports]),
                         'module_name': element.parent.pyllars_module_name,
                         'name': self.sanitize(element.name),
-                        'qname': qualified_name(element.name),
-                        'parent_name': qualified_name(element.parent.name),
+                        'qname': qualified_name(element.basic_name),
+                        'parent_name': qualified_name(element.parent.basic_name),
                         'parent_full_name': element.parent.full_name,
                         'full_type_name': element.type_._base_type.full_name,
                         'parent': self.scope(element),
@@ -365,8 +364,8 @@ class FieldDecl(Generator):
                              imports]),
                         'module_name': element.parent.pyllars_module_name,
                         'name': self.sanitize(element.name),
-                        'qname': qualified_name(element.name),
-                        'parent_name': qualified_name(element.parent.name),
+                        'qname': qualified_name(element.basic_name),
+                        'parent_name': qualified_name(element.parent.basic_name),
                         'parent_full_name': element.parent.full_name,
                         'full_type_name': element.type_.full_name,
                         'parent': self.scope(element),
@@ -420,8 +419,8 @@ class FieldDecl(Generator):
                          imports]),
                     'module_name': element.parent.pyllars_module_name,
                     'name': self.sanitize(element.name),
-                    'qname': qualified_name(element.name),
-                    'parent_name': qualified_name(element.parent.name),
+                    'qname': qualified_name(element.basic_name),
+                    'parent_name': qualified_name(element.parent.basic_name),
                     'parent_full_name': element.parent.full_name,
                     'full_type_name': element.type_.full_name,
                     'parent': self.scope(element),
@@ -430,3 +429,104 @@ class FieldDecl(Generator):
                     'setter': ", setter" if not element.type_.is_const else "",
                     'setter_code': setter_code if not element.type_.is_const else ""
                 }).encode('utf-8'))
+
+
+class ClassTemplateDecl(Generator):
+
+    @classmethod
+    def is_generatable(cls):
+        return True
+
+    def generate_header_core(self, element: parser.Element, stream: TextIOBase, as_top=False)->None:
+        raise Exception()
+
+    def generate_body_proper(self, element: parser.CXXRecordDecl, stream: TextIOBase, src_path, as_top: bool = False) -> None:
+        if element.is_implicit:
+            return
+
+        with self.scoped(element, stream) as scoped:
+            scoped.write(("                //From: %(file)s:generate_body_proper\n" % {
+                'file': os.path.basename(__file__),
+            }).encode('utf-8'))
+
+            scoped.write(("""
+                %(template_decl)s
+                static status_t init_me(){
+                    using namespace __pyllars_internal;
+                    static status_t _status = -1;
+                    static bool inited = false;
+                    if (inited){
+                        return _status;
+                    }
+                    inited = true;
+                    status_t status = 0;
+    """ % {
+                'name': element.name or "anonymous_%s" % element.tag,
+                'template_decl': self.template_decl,
+            }).encode('utf-8'))
+
+            if element.name:
+                stream.write(("""
+                        if (!dictionary)
+                            dictionary = PyDict_Create();
+
+                """ % {
+                    'name': element.basic_name or "_anonymous%s" % element.tag,
+                    'module_name': element.parent.pyllars_module_name,
+                }).encode('utf-8'))
+                if isinstance(element.parent, parser.NamespaceDecl):
+                    stream.write(("""
+                        PyObject_Add(%(module_name)s_mod, dictionary, "%(name)s");
+                   
+        """ % {
+                        'name': element.basic_name or "_anonymous%s" % element.tag,
+                        'module_name': element.parent.pyllars_module_name,
+                        'full_name': element.full_name,
+                    }).encode('utf-8'))
+                else:
+                    stream.write(("""
+                        __pyllars_internal::PythonClassWrapper< %(parent_class_name)s >::addClassMember
+                        ("%(name)s",
+                         (PyObject*) dictionary);
+""" % {
+                        'parent_class_name': element.parent.full_name,
+                        'name': element.name,
+                    }).encode('utf-8'))
+            stream.write(("""
+                    _status = status;
+                    return status;
+                }
+
+                %(template_decl)s
+                int %(qname)s_register( pyllars::Initializer* const init ){
+                    static pyllars::Initializer _initializer = pyllars::Initializer();
+                    static int status = pyllars%(parent)s::%(parent_name)s_register(&_initializer);
+                    return status==0?_initializer.register_init(init):status;
+                 }
+
+                namespace{
+                    %(template_decl)s
+                    class Initializer: public pyllars::Initializer{
+                    public:
+                       Initializer():pyllars::Initializer(){
+                           pyllars%(parent)s::%(parent_name)s_register(this);
+                       }
+                       virtual int init(){
+                           int status = pyllars::Initializer::init();
+                           return status | init_me();
+                       }
+                    };
+
+                    static Initializer%(template_args)s init = Initializer%(template_args)s();
+                }
+""" % {
+                'indent': self._indent,
+                'name': self.sanitize(element.name if element.name else "pyllars"),
+                'qname': qualified_name(element.basic_name if element.basic_name else "pyllars"),
+                'parent_name': qualified_name
+                    (element.parent.basic_name if (element.parent.name and element.parent.name != "::")
+                                              else "pyllars"),
+                'parent': element.scope if element.scope != '::' else "",
+                'template_decl': self.template_decl,
+                'template_args': element.template_arguments_string(),
+            }).encode('utf-8'))

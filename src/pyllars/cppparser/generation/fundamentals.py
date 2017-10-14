@@ -150,7 +150,7 @@ class FunctionDecl(Generator):
                                               else "pyllars"),
                 'parent': self.scope(element),
                 'template_decl': element.template_decl(),
-                'template_args': element.template_arguments(),
+                'template_args': element.template_arguments_string(),
                 'argument_names': ','.join(["\"%s\"" % (arg.name if arg.name else "_%s" % (index + 1)) for index, arg in
                                             enumerate(element.params)]) + (',' if element.params else ''),
                 'has_varargs': str(element.has_varargs).lower(),

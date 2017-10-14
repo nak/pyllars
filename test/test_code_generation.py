@@ -24,6 +24,7 @@ class TestCodeGen(object):
         if os.path.exists(gen_path):
             shutil.rmtree(gen_path)
         os.makedirs(gen_path)
-        Generator.generate_body(top.top, Folder(gen_path), src_path=input_file, as_top=True)
+        generator = Generator.get_generator(type(top.top), src_path=input_file, indent="")
+        generator.generate_body(top.top, Folder(gen_path), as_top=True)
         rc, output = Compiler(gen_path).compile_all(src_path=input_file)
         assert rc == 0, "Failed to compile/link generated code: \n%s" % output

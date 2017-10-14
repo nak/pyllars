@@ -3,6 +3,7 @@ from . import parser, TextIOBase
 
 
 class NamespaceDecl(Generator):
+
     @classmethod
     def is_generatable(cls):
         return True
@@ -13,31 +14,31 @@ class NamespaceDecl(Generator):
         extern PyModuleObject *%s_mod;
     """ % element.name).encode('utf-8'))
 
-    @classmethod
-    def generate_spec(cls, element: parser.Element, folder: Folder, src_path: str):
-        file_name = cls.to_path(element.name or "global", ext=".hpp")
+    def generate_spec(self, element: parser.Element, folder: Folder):
+        file_name = self.to_path(element.name or "global", ext=".hpp")
         if element.name == "::" or not element.name:
             with folder.open(file_name=file_name) as stream:
-                stream.write("")
+                stream.write(b"")
                 return
-        generator = cls.get_generator(type(element), src_path, "")
-        if not generator:
-            return
+        #generator = self.get_generator(type(element), self._src_path, "")
+        #if not generator:
+        #    return
         folder.purge(file_name)
         with folder.open(file_name=file_name) as stream:
-            namespace_text, namespace_closure = generator.namespaces(element)
+            namespace_text, namespace_closure = self.namespaces(element)
             stream.write(("""
             #ifndef __%(guard)s__
             #define __%(guard)s__
 
 """ % {'guard': element.guard}).encode('utf-8'))
             if element.parent:
+                stream.write(self.basic_includes(element))
                 stream.write(("""
             #include "%(parent_header_name)s"
             #include "%(target_file_name)s"
 """ % {
-                    'parent_header_name': cls.header_file_path(element.parent),
-                    'target_file_name': src_path}).encode("utf-8"))
+                    'parent_header_name': self.header_file_path(element.parent),
+                    'target_file_name': self._src_path}).encode("utf-8"))
             stream.write(("""
                 namespace pyllars{
                     %(namespaces)s
@@ -48,7 +49,7 @@ class NamespaceDecl(Generator):
                     %(closure)s
                 }
             #endif
-            """ % {'name': cls.sanitize(element.name),
+            """ % {'name': self.sanitize(element.name),
                    'qname': qualified_name(element.name),
                    'namespaces': namespace_text,
                    'closure': namespace_closure,
