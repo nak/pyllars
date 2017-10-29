@@ -24,7 +24,22 @@ class TestCodeGen(object):
         if os.path.exists(gen_path):
             shutil.rmtree(gen_path)
         os.makedirs(gen_path)
-        generator = Generator.get_generator(type(top.top), src_path=input_file, indent="")
-        generator.generate_body(top.top, Folder(gen_path), as_top=True)
+        generator_class = Generator.get_generator_class(top.top)
+        generator = generator_class(top.top, src_path=input_file, folder=Folder(gen_path))
+        generator.generate_body(as_top=True)
+        rc, output = Compiler(gen_path).compile_all(src_path=input_file)
+        assert rc == 0, "Failed to compile/link generated code: \n%s" % output
+
+    def test_template_class_generation(self):
+        input_file = os.path.join(RESOURCES_DIR, "template_classes.hpp")
+        top = parser.parse_file(input_file)
+        gen_path = os.path.join("generated", os.path.basename(input_file))
+        gen_path = os.path.splitext(gen_path)[0]
+        if os.path.exists(gen_path):
+            shutil.rmtree(gen_path)
+        os.makedirs(gen_path)
+        generator_class = Generator.get_generator_class(top.top)
+        generator = generator_class(top.top, src_path=input_file, folder=Folder(gen_path))
+        generator.generate_body(as_top=True)
         rc, output = Compiler(gen_path).compile_all(src_path=input_file)
         assert rc == 0, "Failed to compile/link generated code: \n%s" % output
