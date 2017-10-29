@@ -55,50 +55,49 @@ class NamespaceDecl(Generator):
                    'closure': namespace_closure,
                    }).encode('utf-8'))
 
-    def generate_body_proper(self, element: parser.Element, stream: TextIOBase, src_path, as_top: bool = False) -> None:
+    def generate_body_proper(self, element: parser.Element, scoped: TextIOBase, src_path, as_top: bool = False) -> None:
         if not element.parent:
             return
 
-        with self.scoped(element, stream) as scoped:
-            scoped.write(("""
-                status_t init_me(){
-                    if (%(name)s_mod) return 0;// if already initialized
-                    int status = 0;
-                    #if PY_MAJOR_VERSION==3
-                    static PyModuleDef %(name)s_moddef = {
-                        PyModuleDef_HEAD_INIT,
-                        "noddy",
-                        "Example module that creates an extension type.",
-                        -1,
-                        NULL, NULL, NULL, NULL, NULL
-                    };
-                    %(name)s_mod = PyModule_Create(&%(name)s_moddef);
-                    #else
-                    %(name)s_mod = Py_InitModule3("%(name)s", nullptr,
-                                                  "Module corresponding to C++ namespace %(fullname)s");
-                    #endif
-                    if(! %(name)s_mod ){
-                        status = -1;
-                    }
-                    return status;
-                } // end init
+        scoped.write(("""
+            status_t init_me(){
+                if (%(name)s_mod) return 0;// if already initialized
+                int status = 0;
+                #if PY_MAJOR_VERSION==3
+                static PyModuleDef %(name)s_moddef = {
+                    PyModuleDef_HEAD_INIT,
+                    "noddy",
+                    "Example module that creates an extension type.",
+                    -1,
+                    NULL, NULL, NULL, NULL, NULL
+                };
+                %(name)s_mod = PyModule_Create(&%(name)s_moddef);
+                #else
+                %(name)s_mod = Py_InitModule3("%(name)s", nullptr,
+                                              "Module corresponding to C++ namespace %(fullname)s");
+                #endif
+                if(! %(name)s_mod ){
+                    status = -1;
+                }
+                return status;
+            } // end init
 
-                int %(qname)s_register( pyllars::Initializer* const init ){
-                    static pyllars::Initializer _initializer = pyllars::Initializer();
-                    static int status = pyllars%(parent_name)s::%(parent)s_register(&_initializer);
-                    return status==0?_initializer.register_init(init):status;
-                 }
+            int %(qname)s_register( pyllars::Initializer* const init ){
+                static pyllars::Initializer _initializer = pyllars::Initializer();
+                static int status = pyllars%(parent_name)s::%(parent)s_register(&_initializer);
+                return status==0?_initializer.register_init(init):status;
+             }
 
 
-                 PyObject *%(name)s_mod = nullptr;
+             PyObject *%(name)s_mod = nullptr;
 
-                int %(name)s_init(){return %(name)s::init_me();}
-    """ % {
-                'indent': self._indent,
-                'name': self.sanitize(element.name),
-                'qname': qualified_name(element.name),
-                'fullname': element.full_name,
-                'parent': qualified_name(
-                    element.parent.name if element.parent.name and element.parent.name != "::" else "pyllars"),
-                'parent_name': (element.scope if element.scope != '::' else ""),
-            }).encode('utf-8'))
+            int %(name)s_init(){return %(name)s::init_me();}
+""" % {
+            'indent': self._indent,
+            'name': self.sanitize(element.name),
+            'qname': qualified_name(element.name),
+            'fullname': element.full_name,
+            'parent': qualified_name(
+                element.parent.name if element.parent.name and element.parent.name != "::" else "pyllars"),
+            'parent_name': (element.scope if element.scope != '::' else ""),
+        }).encode('utf-8'))

@@ -94,12 +94,13 @@ class Folder(object):
 
     @contextmanager
     def open(self, file_name: str) -> TextIOBase:
+        from . import FileWriter
         open_file = None
         try:
             full_path = os.path.join(self._path, file_name)
             if not os.path.exists(os.path.dirname(full_path)):
                 os.makedirs(os.path.dirname(full_path))
-            open_file = open(full_path, 'ab')
+            open_file = FileWriter.open(full_path, 'ab')
             yield open_file
         finally:
             if open_file:
@@ -187,13 +188,36 @@ class Generator(metaclass=ABCMeta):
 
     @contextmanager
     def scoped(self, element: parser.Element, stream: TextIOBase):
-        namespace_text, namespace_closure = self.namespaces(element)
-        stream.write(b"\nnamespace pyllars{\n")
-        stream.write(namespace_text.encode('utf-8'))
-        stream.write(("\n\n//============\n\nnamespace %s{\n" % qualified_name(element.name)).encode('utf-8'))
-        yield stream
-        stream.write(b"\n}\n\n//==============\n\n    ")
-        stream.write( namespace_closure.encode('utf-8'))
+        with self._ns_scope(element, stream) as stream:
+            # namespace_text, namespace_closure = self.namespaces(element)
+            # stream.write(b"\nnamespace pyllars{\n\n")
+            # stream.incr_indent()
+            # stream.write(namespace_text.encode('utf-8'))
+            #count = len(namespace_text.split('n'))
+            #for _ in range(max(count-1, 0)):
+            #    stream.incr_indent()
+            #stream.write(("\n\n//============\n\nnamespace %s{\n" % qualified_name(element.basic_name)).encode('utf-8'))
+            #stream.incr_indent()
+            yield stream
+            #stream.decr_indent()
+            #stream.write(b"\n}\n\n//==============\n\n    ")
+            #stream.write( namespace_closure.encode('utf-8'))
+            #for _ in range(max(count-1, 0)):
+            #    stream.decr_indent()
+            #stream.write(b"\n}")
+
+    @contextmanager
+    def _ns_scope(self, element: parser.Element, stream: TextIOBase):
+        if element.parent:
+            with self._ns_scope(element.parent, stream) as scoped:
+                scoped.write(("\nnamespace %s{\n" % qualified_name(element.basic_name)).encode("utf-8"))
+                #stream.incr_indent()
+                yield stream
+        else:
+            stream.write(b"\nnamespace pyllars{\n")
+            #stream.incr_indent()
+            yield stream
+        #stream.decr_indent()
         stream.write(b"\n}")
 
     @contextmanager
@@ -231,10 +255,10 @@ class Generator(metaclass=ABCMeta):
             return
         stream.write(("""
                 %(template_decl)s
-                int %(qname)s_register( pyllars::Initializer* const);
+                status_t %(qname)s_register( pyllars::Initializer* const);
                 
                 %(template_decl)s
-                int %(qname)s_init();
+                status_t %(qname)s_init();
             """ % {
                 'qname': qualified_name(element.basic_name),
                 'template_decl': self.template_decl,
@@ -260,15 +284,16 @@ class Generator(metaclass=ABCMeta):
         self.generate_spec(element, folder)
         with folder.open(file_name=file_name) as stream:
             stream.write(("""
-        #include "%(my_header_name)s"
-        #include <pyllars/pyllars_globalmembersemantics.cpp>
-            """ % {"my_header_name": self.header_file_name(element)}).encode('utf-8'))
+                #include "%(my_header_name)s"
+                #include <pyllars/pyllars_globalmembersemantics.cpp>
+                """ % {"my_header_name": self.header_file_name(element)}).encode('utf-8'))
             if element.is_implicit:
                 return
             if not element.name:
                 element._anonymous_types.add(self)
             else:
-                self.generate_body_proper(element, stream, as_top)
+                with self.scoped(element, stream) as scoped:
+                    self.generate_body_proper(element, scoped, as_top)
         subfolder = folder.create_subfolder(element.basic_name) if element.name != "::" and element.name else folder
         if not isinstance(element, parser.CXXMethodDecl) and not isinstance(element, parser.FunctionDecl):
             for child in element.children():
