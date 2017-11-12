@@ -45,7 +45,7 @@ class FunctionDecl(Generator):
                         template Wrapper<%(throws)s>::create("%(func_name)s", func_container, argumentNames));
 """ % {
             'indent': self._indent,
-            'module_name': self.element.parent.pyllars_module_name,
+            'module_name': self.element.parent.pyllars_scope,
             'return_type': self.element.return_type.full_name if self.element.return_type else "void",
             'arguments': (',' if len(self.element.params) > 0 else "") +
                           ', '.join([t.type_.full_name for t in self.element.params]),
@@ -139,7 +139,7 @@ class FunctionDecl(Generator):
             'file': __file__,
             'imports': "\n".join
                 (["if(!PyImport_ImportModule(\"pylllars%s\")){return -1;} " % n.replace("::", ".") for n in imports]),
-            'module_name': self.element.parent.pyllars_module_name,
+            'module_name': self.element.parent.pyllars_scope,
             'name': self.sanitize(self.element.name),
             'qname': qualified_name(self.element.name),
             'pyname': CXXMethodDecl.METHOD_NAMES.get(self.element.name).replace('addMethod', '') if
@@ -257,7 +257,7 @@ class VarDecl(Generator):
                 'indent': self._indent,
                 'parent': self.element.parent.full_name if self.element.parent.full_name != '::' else "",
                 'parent_name': qualified_name(self.element.parent.name if self.element.parent.name else "pyllars"),
-                'mod_name': self.element.parent.pyllars_module_name,
+                'mod_name': self.element.parent.pyllars_scope,
                 'parent_full_name': self.element.parent.full_name,
                 'full_type_name': self.element.type_.full_name,
                 'array_size': self.element.type_.array_size or 0,

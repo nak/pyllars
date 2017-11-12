@@ -27,7 +27,7 @@ class Element(metaclass=ABCMeta):
             self._qualifiers = [self._qualifiers]
         self._template_type_params = {}
         self._template_arguments = []
-        if name:
+        if name and self.full_name not in Element.lookup:
             Element.lookup[self.full_name] = self
         if parent:
             parent.add_child(self)
@@ -59,7 +59,7 @@ class Element(metaclass=ABCMeta):
     @property
     def guard(self):
         text = self.full_name
-        for c in [':', '<', '>', '!', '%', '^', '&', '*',  '[', ']', '\\', '|', '=', '(', ')']:
+        for c in [':', '<', '>', '!', '%', '^', '&', '*',  '[', ']', '\\', '|', '=', '(', ')', ',', ' ']:
             text = text.replace(c, '_')
         text =  "__PYLLARS__" + text
         return text
@@ -113,6 +113,14 @@ class Element(metaclass=ABCMeta):
     @property
     def array_size(self):
         return None
+
+    @property
+    def is_namespace(self):
+        return False
+
+    @property
+    def is_template_macro(self):
+        return False
 
     def default_access(self):
         return "public"
@@ -332,6 +340,8 @@ class ScopedElement(Element):
 
     @property
     def scope(self):
+        if self.parent:
+            return self.parent.full_name
         if len(self._parents) == 1 and self._parents[-1].name:
             if self._parents[-1].scope:
                 def qualified_name(name):
@@ -345,11 +355,16 @@ class ScopedElement(Element):
             return ""
 
     @property
-    def pyllars_module_name(self):
+    def pyllars_scope(self):
         parent = self.parent
-        while parent and not isinstance(parent, NamespaceDecl):
+        basic_name = parent.basic_name if parent else ""
+        while parent and not (isinstance(parent, NamespaceDecl) or isinstance(parent, ClassTemplateDecl)):
+            basic_name = parent.basic_name
             parent = parent.parent
-        return parent.pyllars_module_name
+        basic_name = "" if basic_name == "::" else basic_name
+        if not parent or not parent.name:
+            return "pyllars" + ("::" if basic_name else "") + basic_name
+        return parent.pyllars_scope + "::" + basic_name
 
     @property
     def full_name(self):
@@ -358,7 +373,7 @@ class ScopedElement(Element):
                 return self.parent.full_name
             return "::"
         else:
-            return self.scope + "::" + self.name
+            return self.scope + ("::" if self.scope != "::" else "") + self.name
 
 
 class UnscopedElement(Element):
@@ -414,11 +429,17 @@ class NamespaceDecl(ScopedElement):
         return self.full_name
 
     @property
+    def is_namespace(self):
+        return True
+
+    @property
     def pyllars_module_name(self):
         if not self.name:
             return 'PyImport_ImportModule("pyllars")'
         else:
-            return "pyllars%s::%s_mod" % (self.full_name, self.name)
+            return "%s::%s::%s_mod" % (self.pyllars_scope, self.name, self.name)
+            # return "pyllars%s::%s_mod" % (self.full_name, self.name)
+
 
 class BuiltinType(UnscopedElement):
 
@@ -935,6 +956,29 @@ class ClassTemplateDecl(TemplateDecl, RecordTypeDefn):
     @classmethod
     def parse_tokens(cls, name, tag, parent, **kargs):
         return ClassTemplateDecl(name, tag, parent, **kargs)
+
+    @property
+    def pyllars_scopeNOT(self):
+        parent = self.parent
+        while parent and not (isinstance(parent, NamespaceDecl) or isinstance(parent, ClassTemplateDecl)):
+            parent = parent.parent
+        return parent.pyllars_scope + "::" + self.basic_name
+
+    @property
+    def full_name(self):
+        return self.parent.full_name
+
+    @property
+    def is_template_macro(self):
+        return True
+
+    @property
+    def guard(self):
+        text = self.full_name + "__" + self.basic_name
+        for c in [':', '<', '>', '!', '%', '^', '&', '*',  '[', ']', '\\', '|', '=', '(', ')', ',', ' ']:
+            text = text.replace(c, '_')
+        text =  "__PYLLARS__" + text
+        return text
 
 
 class TemplateTypeParmDecl(ScopedElement):

@@ -417,7 +417,7 @@ class ClassTemplateDecl(Generator):
                     PyModule_AddObject(
                         %(module_name)s, "%(name)s", mapping);    
                 """ % {
-                    'module_name': self.element.parent.pyllars_module_name,
+                    'module_name': self.element.parent.pyllars_scope,
                     'name': self.element.name
                 }
             elif isinstance(self.element.parent, parser.RecordTypeDefn):

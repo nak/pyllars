@@ -36,7 +36,7 @@ class CXXRecordDecl(Generator):
             %(template_decl)s
             static status_t init_me(){
                 using namespace __pyllars_internal;
-                typedef %(full_class_name)s%(template_args)s main_type;
+                typedef %(full_class_name)s main_type;
                 static status_t _status = -1;
                 static bool inited = false;
                 if (inited){
@@ -65,7 +65,7 @@ class CXXRecordDecl(Generator):
             }).encode('utf-8'))
 
         if self.element.name:
-            if isinstance(self.element.parent, parser.NamespaceDecl):
+            if self.element.parent.is_namespace:
                 scoped.write(("""
                 status |=  __pyllars_internal::PythonClassWrapper< %(class_name)s >::initialize(
                              "%(name)s",
@@ -75,12 +75,72 @@ class CXXRecordDecl(Generator):
     """ % {
                     'class_name': class_name,
                     'name': self.element.name or "_anonymous%s" % self.element.tag,
-                    'module_name': self.element.parent.pyllars_module_name,
+                    'module_name': self.element.parent.pyllars_scope,
                     'full_name': self.element.full_name,
                 }).encode('utf-8'))
+            elif self.element.parent.is_template_macro:
+                if len(self.element.template_arguments) == 1:
+                    arg = self.element.template_arguments[0]
+                    if isinstance(arg, parser.TemplateTypeParmDecl):
+                        scoped.write(("""
+                             PyObject* sequence = (PyObject*) & __pyllars_internal::PythonClassWrapper<%s>::Type ;
+                  """ % arg._type.full_name).encode("utf-8"))
+                    elif isinstance(arg._type, parser.BuiltinType):
+                        scoped.write(("""
+                            PyObject* sequence = (PyObject*) & %s;
+                        """ % arg._type.to_py_conversion_code(arg.name)).encode("utf-8"))
+                    else:
+                        scoped.write(("""
+                            PyObject* sequence = (PyObject*) & _pyllars_internal::Factor<%(class_name)s>::create_single_instance(
+                                1, 
+                                %(arg_name)s,
+                                false
+                                ));
+                        """ % {
+
+                            'class_name': arg._type.full_name,
+                            'arg_name': arg.name,
+                        }).encode("utf-8"))
+                else:
+                    scoped.write(("""
+                    PyObject* sequence = PyTuple_New(%d);
+                    """ % len(self.element.template_arguments)).encode("utf-8"))
+                    for index, arg in enumerate(self.element.template_arguments):
+                        if isinstance(arg, parser.TemplateTypeParmDecl):
+                            scoped.write(("""
+                            PyTuple_SetItem(sequence, %d, (PyObject*) & __pyllars_internal::PythonClassWrapper<%s>::Type )
+                            """ % (index, arg.name) ).encode("utf-8"))
+                        elif isinstance(arg._type, parser.BuiltinType):
+                            scoped.write(("""
+                            PyTuple_Add(sequence, %d, (PyObject*) & %s )
+                            """ % (index, arg._type.to_py_conversion_code(arg.name))).encode("utf-8"))
+                        else:
+                            scoped.write(("""
+                            PyTuple_Add(sequence, %(index)d, (PyObject*) & _pyllars_internal::Factory<%(class_name)s>::create_single_instance(
+                                 1, 
+                                 %(arg_name)s,
+                                 false
+                                 ));
+                            """ % {
+                                'index': index,
+                                'class_name': arg._type.full_name,
+                                'arg_name': arg.name,
+                            }).encode("utf-8"))
+                scoped.write(("""
+                pyllars%(parent)s::%(parent_name)s::register_instance(
+                    (PyObject*) sequence,
+                    (PyObject*) & __pyllars_internal::PythonClassWrapper< %(class_name)s >::Type
+                );
+                """ % {
+                    'parent_name': qualified_name
+                    (self.element.parent.basic_name if (self.element.parent.name and self.element.parent.name != "::")
+                     else "pyllars"),
+                    'parent': self.element.scope if self.element.scope != '::' else "",
+                    'class_name': self.element.full_name,
+                }).encode("utf-8"))
             else:
                 scoped.write(("""
-                 __pyllars_internal::PythonClassWrapper< %(parent_class_name)s >::addClassMember
+                __pyllars_internal::PythonClassWrapper< %(parent_class_name)s >::addClassMember
                     ("%(name)s",
                      (PyObject*) & __pyllars_internal::PythonClassWrapper< %(class_name)s >::Type);
 """ % {
@@ -97,7 +157,7 @@ class CXXRecordDecl(Generator):
             %(template_decl)s
             int %(qname)s_register( pyllars::Initializer* const init ){
                 static pyllars::Initializer _initializer = pyllars::Initializer();
-                static int status = pyllars%(parent)s::%(parent_name)s_register(&_initializer);
+                static int status = %(pyllars_scope)s::%(parent_name)s_register(&_initializer);
                 return status==0?_initializer.register_init(init):status;
              }
 
@@ -106,15 +166,19 @@ class CXXRecordDecl(Generator):
                 class Initializer: public pyllars::Initializer{
                 public:
                    Initializer():pyllars::Initializer(){
-                       pyllars%(parent)s::%(parent_name)s_register(this);
+                       %(pyllars_scope)s::%(parent_name)s_register(this);
                    }
+                   
                    virtual int init(){
                        int status = pyllars::Initializer::init();
-                       return status | init_me();
+                       return status | init_me%(template_args)s();
                    }
+                   
+                   static Initializer* initializer;
                 };
 
-                static Initializer%(template_args)s init = Initializer%(template_args)s();
+                %(template_decl)s
+                Initializer%(template_args)s *Initializer%(template_args)s::initializer = new Initializer%(template_args)s();
             }
 """ % {
             'name': self.sanitize(self.element.name if self.element.name else "pyllars"),
@@ -122,7 +186,7 @@ class CXXRecordDecl(Generator):
             'parent_name': qualified_name
                 (self.element.parent.basic_name if (self.element.parent.name and self.element.parent.name != "::")
                                           else "pyllars"),
-            'parent': self.element.scope if self.element.scope != '::' else "",
+            'pyllars_scope': self.element.pyllars_scope,
             'template_decl': self.template_decl,
             'template_args': self.element.template_arguments_string(),
         }).encode('utf-8'))
@@ -224,18 +288,19 @@ class CXXMethodDecl(Generator):
                             int status = super::init();
                             return status | init_me%(template_args)s();
                         }
-
+                        static Initializer *initializer;
 
                     };
 
-                    static Initializer%(template_args)s init = Initializer%(template_args)s();
+                    template< %(template_decl)s >
+                    Initializer%(template_args)s*  Initializer%(template_args)s::initializer = new Initializer%(template_args)s();
                 }
 """ % {
                 'file': __file__,
                 'imports': "\n".join(
                     ["if(!PyImport_ImportModule(\"pylllars%s\")){return -1;} " % n.replace("::", ".") for n in
                      imports]),
-                'module_name': self.element.parent.pyllars_module_name,
+                'module_name': self.element.parent.pyllars_scope,
                 'name': self.sanitize(self.element.name),
                 'qname': qualified_name(self.element.basic_name),
                 'pyname': CXXMethodDecl.METHOD_NAMES.get(self.element.name).replace('addMethod', '') if
@@ -292,7 +357,7 @@ class FieldDecl(Generator):
                             class Initializer: public pyllars::Initializer{
                             public:
                                Initializer():pyllars::Initializer(){
-                                   pyllars%(parent)s::%(parent_name)s_register(this);
+                                   %(pyllars_scope)s::%(parent_name)s_register(this);
                                }
                                virtual int init(){
                                    int status = pyllars::Initializer::init();
@@ -307,10 +372,11 @@ class FieldDecl(Generator):
                         'imports': "\n".join(
                             ["if(!PyImport_ImportModule(\"pylllars%s\")){return -1;} " % n.replace("::", ".") for n in
                              imports]),
-                        'module_name': self.element.parent.pyllars_module_name,
+                        'module_name': self.element.parent.pyllars_scope,
                         'name': self.sanitize(self.element.name),
                         'qname': qualified_name(self.element.basic_name),
                         'parent_name': qualified_name(self.element.parent.basic_name),
+                        'pyllars_scope': self.element.pyllars_scope,
                         'parent_full_name': self.element.parent.full_name,
                         'full_type_name': self.element.type_._base_type.full_name,
                         'parent': self.scope(),
@@ -333,7 +399,7 @@ class FieldDecl(Generator):
                             class Initializer: public pyllars::Initializer{
                             public:
                                Initializer():pyllars::Initializer(){
-                                   pyllars%(parent)s::%(parent_name)s_register(this);
+                                   %(pyllars_scope)s::%(parent_name)s_register(this);
                                }
                                virtual int init(){
                                    int status = pyllars::Initializer::init();
@@ -348,13 +414,13 @@ class FieldDecl(Generator):
                         'imports': "\n".join(
                             ["if(!PyImport_ImportModule(\"pylllars%s\")){return -1;} " % n.replace("::", ".") for n in
                              imports]),
-                        'module_name': self.element.parent.pyllars_module_name,
+                        'module_name': self.element.parent.pyllars_scope,
                         'name': self.sanitize(self.element.name),
                         'qname': qualified_name(self.element.basic_name),
                         'parent_name': qualified_name(self.element.parent.basic_name),
                         'parent_full_name': self.element.parent.full_name,
                         'full_type_name': self.element.type_.full_name,
-                        'parent': self.scope(),
+                        'pyllars_scope': self.element.pyllars_scope,
                         'qual': 'Const' if self.element.type_.is_const else ""
                     }).encode('utf-8'))
             else:
@@ -386,7 +452,7 @@ class FieldDecl(Generator):
                         class Initializer: public pyllars::Initializer{
                         public:
                            Initializer():pyllars::Initializer(){
-                               pyllars%(parent)s::%(parent_name)s_register(this);
+                               %(pyllars_scope)s::%(parent_name)s_register(this);
                            }
                            virtual int init(){
                                int status = pyllars::Initializer::init();
@@ -402,13 +468,13 @@ class FieldDecl(Generator):
                     'imports': "\n".join(
                         ["if(!PyImport_ImportModule(\"pylllars%s\")){return -1;} " % n.replace("::", ".") for n in
                          imports]),
-                    'module_name': self.element.parent.pyllars_module_name,
+                    'module_name': self.element.parent.pyllars_scope,
                     'name': self.sanitize(self.element.name),
                     'qname': qualified_name(self.element.basic_name),
                     'parent_name': qualified_name(self.element.parent.basic_name),
                     'parent_full_name': self.element.parent.full_name,
                     'full_type_name': self.element.type_.full_name,
-                    'parent': self.scope(),
+                    'pyllars_scope': self.element.pyllars_scope,
                     'qual': 'Const' if self.element.type_.is_const else "",
                     'qual2': 'const' if not self.element.type_.is_const else "",
                     'setter': ", setter" if not self.element.type_.is_const else "",
@@ -422,6 +488,20 @@ class ClassTemplateDecl(Generator):
     def is_generatable(cls):
         return True
 
+    @property
+    def is_namespace(self):
+        return True
+
+    def generate_header_core(self, scoped: TextIOBase, as_top=False):
+        super(ClassTemplateDecl, self).generate_header_core(scoped, as_top)
+        scoped.write(("""
+            %(template_decl)s
+            status_t register_instance(PyObject* sequence_key,  const PyObject* object);
+        """ % {
+            'template_decl': self.template_decl,
+        }).encode("utf-8"))
+
+
     def generate_body_proper(self, scoped: TextIOBase, as_top: bool = False) -> None:
         if self.element.is_implicit:
             return
@@ -432,11 +512,20 @@ class ClassTemplateDecl(Generator):
 
         scoped.write(("""
         
-           %(template_decl)s
-           class Container{
-           public:
-                static PyObject * dictionary;
-           };
+            %(template_decl)s
+            class Container{
+            public:
+                 static PyObject * dictionary;
+            };
+               
+            %(template_decl)s
+            PyObject* Container%(template_args)s::dictionary;
+            
+            %(template_decl)s
+            status_t register_instance(PyObject* const sequence_key,  PyObject* const object){
+                auto dictionary = Container%(template_args)s::dictionary;
+                PyDict_SetItem(dictionary, sequence_key, object);
+            }
             
             %(template_decl)s
             static status_t init_me(){
@@ -461,7 +550,7 @@ class ClassTemplateDecl(Generator):
                     dictionary = PyDict_New();
             """ % {
                 'name': self.element.basic_name or "_anonymous%s" % self.element.tag,
-                'module_name': self.element.parent.pyllars_module_name,
+                'module_name': self.element.parent.pyllars_scope,
             }).encode('utf-8'))
             if isinstance(self.element.parent, parser.NamespaceDecl):
                 scoped.write(("""
@@ -499,13 +588,16 @@ class ClassTemplateDecl(Generator):
                    Initializer():pyllars::Initializer(){
                        pyllars%(parent)s::%(parent_name)s_register(this);
                    }
+                   
                    virtual int init(){
                        int status = pyllars::Initializer::init();
-                       return status | init_me();
+                       return status | init_me%(template_args)s();
                    }
+                   static Initializer* initializer;
                 };
 
-                static Initializer%(template_args)s init = Initializer%(template_args)s();
+                %(template_decl)s
+                Initializer%(template_args)s *Initializer%(template_args)s::initializer = new Initializer%(template_args)s();
             }
 """ % {
             'name': self.sanitize(self.element.name if self.element.name else "pyllars"),

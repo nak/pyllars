@@ -23,21 +23,14 @@ class NamespaceDecl(Generator):
         self.folder.purge(file_name)
         with self.folder.open(file_name=file_name) as stream:
             with self.guarded(stream) as guarded:
+                guarded.write(self.basic_includes())
+                if self.element.parent:
+                    guarded.write(("""#include "%s" """ % self.parent.header_file_path()).encode("utf-8"))
+                    guarded.write(("""#include "%s" """ % self._src_path ).encode("utf-8"))
                 with self.scoped(guarded) as scoped:
-                    if self.element.parent:
-                        scoped.write(self.basic_includes())
-                        scoped.write(("""
-                    #include "%(parent_header_name)s"
-                    #include "%(target_file_name)s"
-        """ % {
-                            'parent_header_name': self.parent.header_file_path(),
-                            'target_file_name': self._src_path}).encode("utf-8"))
                     scoped.write(("""
-                        namespace %(qname)s{
-                            int %(qname)s_register( pyllars::Initializer* const);
-                            extern PyObject* %(name)s_mod;
-                        }
-                    #endif
+                        int %(qname)s_register( pyllars::Initializer* const);
+                        extern PyObject* %(name)s_mod;
                     """ % {'name': self.sanitize(self.element.name),
                            'qname': qualified_name(self.element.name),
                            }).encode('utf-8'))

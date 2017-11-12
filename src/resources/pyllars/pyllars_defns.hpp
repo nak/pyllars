@@ -413,5 +413,31 @@ namespace __pyllars_internal {
             typedef decltype(_cfunc) func_type;
         };
     };
+
+    template<typename T, typename E = void>
+    struct Factory{
+        PyObject* create_single_instance(T& obj, const bool inPlace);
+    };
+
+    template<typename T>
+    struct Factory<T, typename std::enable_if<std::is_integral<T>::value>::type >{
+        PyObject* create_single_instance(const T& value, const bool inPlace){
+            return PyLong_FromLong(value);
+        }
+    };
+
+    template<typename T>
+    struct Factory<T, typename std::enable_if<std::is_floating_point<T>::value>::type >{
+        PyObject* create_single_instance(T& value, const bool inPlace){
+            return PyFloat_FromDouble(value);
+        }
+    };
+
+    template<typename T>
+    struct Factory<T, typename std::enable_if<!std::is_fundamental<T>::value>::type>{
+        PyObject* create_single_instance(T& value, const bool inPlace){
+         return PythonClassWrapper<T>::createPy(1, value, inPlace);
+         }
+    };
 }
 #endif
