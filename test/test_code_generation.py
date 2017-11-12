@@ -24,9 +24,7 @@ class TestCodeGen(object):
         if os.path.exists(gen_path):
             shutil.rmtree(gen_path)
         os.makedirs(gen_path)
-        generator_class = Generator.get_generator_class(top.top)
-        generator = generator_class(top.top, src_path=input_file, folder=Folder(gen_path))
-        generator.generate_body(as_top=True)
+        Generator.generate_code(top.top, src_path=input_file, folder=Folder(gen_path))
         rc, output = Compiler(gen_path).compile_all(src_path=input_file)
         assert rc == 0, "Failed to compile/link generated code: \n%s" % output
 
@@ -38,8 +36,6 @@ class TestCodeGen(object):
         if os.path.exists(gen_path):
             shutil.rmtree(gen_path)
         os.makedirs(gen_path)
-        generator_class = Generator.get_generator_class(top.top)
-        generator = generator_class(top.top, src_path=input_file, folder=Folder(gen_path))
-        generator.generate_body(as_top=True)
+        Generator.generate_code(top.top, src_path=input_file, folder=Folder(gen_path))
         rc, output = Compiler(gen_path).compile_all(src_path=input_file)
         assert rc == 0, "Failed to compile/link generated code: \n%s" % output

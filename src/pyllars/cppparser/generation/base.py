@@ -127,7 +127,9 @@ class Folder(object):
 
 class Generator(metaclass=ABCMeta):
 
-    def __init__(self, element, src_path: str, folder: Folder, parent_generator: "Generator"=None):
+    generator_mapping = {}
+
+    def __init__(self, element: parser.Element, src_path: str, folder: Folder, parent_generator: "Generator"=None):
         self._src_path = src_path
         self._template_argument_lists = []
         self._template_type_params = []
@@ -135,6 +137,13 @@ class Generator(metaclass=ABCMeta):
         self._subfolder = None
         self._element = element
         self._parent = parent_generator
+        Generator.generator_mapping[element] = self
+        for child in element.children():
+            if element not in Generator.generator_mapping:
+                child_generator_class = self.get_generator_class(child)
+                # store for future reference:
+                child_generator_class(child, src_path=src_path, folder=self.subfolder, parent_generator=self)
+
 
     @classmethod
     def is_generatable(cls):
@@ -143,19 +152,6 @@ class Generator(metaclass=ABCMeta):
     def header_file_path(self) -> str:
         header_name = self.header_file_name()
         return os.path.join(self.folder.path, header_name)
-        if isinstance(element, parser.NamespaceDecl):
-            paths = [p for p in element.parent.namespace_name.split('::') if p != ''] if element.parent else []
-            path = os.path.join(*(paths + [header_name])) if paths else header_name
-        else:
-            path = header_name
-            parent = element.parent
-            while parent and element.parent.name:
-                path = os.path.join(parent.name, path)
-                parent = parent.parent
-        parent_path = os.path.basename(path)
-        if not os.path.exists(parent_path):
-            os.makedirs(parent_path)
-        return path
 
     @classmethod
     def sanitize(cls, text):
@@ -186,7 +182,7 @@ class Generator(metaclass=ABCMeta):
     @property
     def subfolder(self):
         if self._subfolder is None:
-            self._subfolder = self.folder.create_subfolder(self.element.name, self)
+            self._subfolder = self.folder.create_subfolder(self.element.name)
         return self._subfolder
 
     @property
@@ -275,6 +271,14 @@ class Generator(metaclass=ABCMeta):
                 'template_decl': self.template_decl,
         }).encode('utf-8'))
 
+    @staticmethod
+    def generate_code(element: parser.Element, src_path: str, folder: Folder):
+        parser.Element.reset()
+        Generator.generator_mapping = {}
+        generator_class = Generator.get_generator_class(element)
+        generator = generator_class(element, src_path, folder)
+        generator.generate_body(as_top=True)
+
     def generate_spec(self):
         file_name = self.to_path(ext=".hpp")
         self.folder.purge(file_name)
@@ -339,7 +343,6 @@ class ClassTemplateDecl(Generator):
         generator_class = self.get_generator_class(self.element)
         if not generator_class.is_generatable():
             return
-        generator = generator_class(self.element, self._src_path, self.folder, parent_generator=self)
         file_name = self.to_path(ext=".hpp")
         self.folder.purge(file_name)
         with self.folder.open(file_name=file_name) as stream:
@@ -348,17 +351,13 @@ class ClassTemplateDecl(Generator):
                 return
             with self.guarded(stream) as guarded:
                 with self.scoped(guarded) as scoped:
-                    scoped.write(("""
-#ifndef __%(guard)s__
-#define __%(guard)s__
 
-""" % {'guard': self.element.guard}).encode('utf-8'))
                     if self.element.parent:
                         scoped.write(("""
         #include "%(target_file_name)s"
         #include "%(parent_header_name)s"
         """ % {
-                            'parent_header_name': self.header_file_path(element.parent),
+                            'parent_header_name': self.header_file_path(self.element.parent),
                             'target_file_name': self._src_path}).encode("utf-8"))
 
                     scoped.write(("""

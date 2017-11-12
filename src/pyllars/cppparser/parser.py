@@ -15,6 +15,13 @@ class Element(metaclass=ABCMeta):
     tag_lookup = {}
     last_parsed_type = None
 
+    @staticmethod
+    def reset():
+        Element.lookup = {}
+        Element.tag_lookup = {}
+        Element.last_parsed_type = None
+        init()
+
     def __init__(self, name, tag, parent, locator=None, qualifier=None):
         self._name = name
         self._tag = tag
@@ -339,6 +346,13 @@ class ScopedElement(Element):
         super(ScopedElement, self).__init__(*args, **kargs)
 
     @property
+    def pyllars_module_name(self):
+        if not self.name:
+            return 'PyImport_ImportModule("pyllars")'
+        else:
+            return "%s::%s::%s_mod" % (self.pyllars_scope, self.name, self.name)
+
+    @property
     def scope(self):
         if self.parent:
             return self.parent.full_name
@@ -357,14 +371,15 @@ class ScopedElement(Element):
     @property
     def pyllars_scope(self):
         parent = self.parent
-        basic_name = parent.basic_name if parent else ""
-        while parent and not (isinstance(parent, NamespaceDecl) or isinstance(parent, ClassTemplateDecl)):
-            basic_name = parent.basic_name
+        basic_names = []
+        while parent and parent.name:
+            basic_names = [parent.basic_name] + basic_names
             parent = parent.parent
-        basic_name = "" if basic_name == "::" else basic_name
-        if not parent or not parent.name:
-            return "pyllars" + ("::" if basic_name else "") + basic_name
-        return parent.pyllars_scope + "::" + basic_name
+        basic_name = "::".join(["pyllars"] + basic_names)
+        #if not parent or not parent.name:
+        #    return "pyllars" + ("::" if basic_name else "") + basic_name
+        #return parent.pyllars_scope + "::" + basic_name
+        return basic_name
 
     @property
     def full_name(self):
@@ -431,15 +446,6 @@ class NamespaceDecl(ScopedElement):
     @property
     def is_namespace(self):
         return True
-
-    @property
-    def pyllars_module_name(self):
-        if not self.name:
-            return 'PyImport_ImportModule("pyllars")'
-        else:
-            return "%s::%s::%s_mod" % (self.pyllars_scope, self.name, self.name)
-            # return "pyllars%s::%s_mod" % (self.full_name, self.name)
-
 
 class BuiltinType(UnscopedElement):
 
