@@ -8,55 +8,42 @@ class NamespaceDecl(Generator):
     def is_generatable(cls):
         return True
 
-    def generate_header_core(self, element: parser.Element, stream: TextIOBase, as_top=False) -> None:
-        if element.name:
+    def generate_header_core(self, stream: TextIOBase, as_top=False) -> None:
+        if self.element.name:
             stream.write(("""
         extern PyModuleObject *%s_mod;
-    """ % element.name).encode('utf-8'))
+    """ % self.element.name).encode('utf-8'))
 
-    def generate_spec(self, element: parser.Element, folder: Folder):
-        file_name = self.to_path(element.name or "global", ext=".hpp")
-        if element.name == "::" or not element.name:
-            with folder.open(file_name=file_name) as stream:
+    def generate_spec(self):
+        file_name = self.to_path(ext=".hpp")
+        if self.element.name == "::" or not self.element.name:
+            with self.folder.open(file_name) as stream:
                 stream.write(b"")
                 return
-        #generator = self.get_generator(type(element), self._src_path, "")
-        #if not generator:
-        #    return
-        folder.purge(file_name)
-        with folder.open(file_name=file_name) as stream:
-            namespace_text, namespace_closure = self.namespaces(element)
-            stream.write(("""
-            #ifndef __%(guard)s__
-            #define __%(guard)s__
-
-""" % {'guard': element.guard}).encode('utf-8'))
-            if element.parent:
-                stream.write(self.basic_includes(element))
-                stream.write(("""
-            #include "%(parent_header_name)s"
-            #include "%(target_file_name)s"
-""" % {
-                    'parent_header_name': self.header_file_path(element.parent),
-                    'target_file_name': self._src_path}).encode("utf-8"))
-            stream.write(("""
-                namespace pyllars{
-                    %(namespaces)s
+        self.folder.purge(file_name)
+        with self.folder.open(file_name=file_name) as stream:
+            with self.guarded(stream) as guarded:
+                with self.scoped(guarded) as scoped:
+                    if self.element.parent:
+                        scoped.write(self.basic_includes())
+                        scoped.write(("""
+                    #include "%(parent_header_name)s"
+                    #include "%(target_file_name)s"
+        """ % {
+                            'parent_header_name': self.parent.header_file_path(),
+                            'target_file_name': self._src_path}).encode("utf-8"))
+                    scoped.write(("""
                         namespace %(qname)s{
                             int %(qname)s_register( pyllars::Initializer* const);
                             extern PyObject* %(name)s_mod;
                         }
-                    %(closure)s
-                }
-            #endif
-            """ % {'name': self.sanitize(element.name),
-                   'qname': qualified_name(element.name),
-                   'namespaces': namespace_text,
-                   'closure': namespace_closure,
-                   }).encode('utf-8'))
+                    #endif
+                    """ % {'name': self.sanitize(self.element.name),
+                           'qname': qualified_name(self.element.name),
+                           }).encode('utf-8'))
 
-    def generate_body_proper(self, element: parser.Element, scoped: TextIOBase, src_path, as_top: bool = False) -> None:
-        if not element.parent:
+    def generate_body_proper(self, scoped: TextIOBase, as_top: bool = False) -> None:
+        if not self.element.parent:
             return
 
         scoped.write(("""
@@ -93,11 +80,10 @@ class NamespaceDecl(Generator):
 
             int %(name)s_init(){return %(name)s::init_me();}
 """ % {
-            'indent': self._indent,
-            'name': self.sanitize(element.name),
-            'qname': qualified_name(element.name),
-            'fullname': element.full_name,
+            'name': self.sanitize(self.element.name),
+            'qname': qualified_name(self.element.name),
+            'fullname': self.element.full_name,
             'parent': qualified_name(
-                element.parent.name if element.parent.name and element.parent.name != "::" else "pyllars"),
-            'parent_name': (element.scope if element.scope != '::' else ""),
+                self.element.parent.name if self.element.parent.name and self.element.parent.name != "::" else "pyllars"),
+            'parent_name': (self.element.scope if self.element.scope != '::' else ""),
         }).encode('utf-8'))

@@ -4,15 +4,18 @@ from .fundamentals import *
 from .structs import *
 
 
-def _get_generator(clazz: type, src_path: str, indent: str) -> "Generator":
+def _get_generator_class(element: Element) -> "Generator":
+    clazz = type(element)
     generator_class = globals().get(clazz.__name__)
-    if not generator_class or not generator_class.is_generatable():
-        return None
-    if generator_class:
-        return generator_class(src_path, indent)
-    else:
-        logging.error("Did not find generator for class %s" % clazz.__name__)
-        return Generator(src_path, indent)
+    if not generator_class:
+        if not isinstance(element, parser.BuiltinType):
+            logging.error("Did not find generator for class %s" % clazz.__name__)
+        return Generator
+    return generator_class
+    # if generator_class:
+    #     return generator_class(element, src_path, folder, parent_generator)
+    # else:
+    #     return Generator(element, src_path, folder, parent_generator)
 
 
 class FileWriter(TextIOBase):
