@@ -323,8 +323,8 @@ class Element(metaclass=ABCMeta):
         return self.template_declaration(self._template_arguments)
 
     def template_arguments_string(self):
-        if not self._template_type_params and self.parent and self.parent.is_template:
-            return self.parent.template_arguments_string()
+        #if not self._template_type_params and self.parent and self.parent.is_template:
+        #    return self.parent.template_arguments_string()
         return "" if not self._template_type_params else "<%s>" % (", ".join([e.name for e in self._template_arguments]))
 
     @property

@@ -127,9 +127,18 @@ class Folder(object):
 
 class Generator(metaclass=ABCMeta):
 
+    MODE_FULL_HEADER = 0
+    MODE_SEPARATE_HEADERS = 1
+    MODE_EMPTY_HEADER = 2
+
     generator_mapping = {}
 
     def __init__(self, element: parser.Element, src_path: str, folder: Folder, parent_generator: "Generator"=None):
+        self._mode = parent_generator.mode if parent_generator else Generator.MODE_SEPARATE_HEADERS
+        if parent_generator and parent_generator.parent and parent_generator.parent._mode == Generator.MODE_FULL_HEADER:
+            self._mode = Generator.MODE_EMPTY_HEADER
+        elif element.is_template_macro:
+            self._mode = Generator.MODE_FULL_HEADER
         self._src_path = src_path
         self._template_argument_lists = []
         self._template_type_params = []
@@ -170,6 +179,10 @@ class Generator(metaclass=ABCMeta):
 
     def body_file_name(self)->str:
         return (self.element.basic_name or "global") + ".cpp"
+
+    @property
+    def mode(self):
+        return self._mode
 
     @property
     def element(self):
@@ -228,6 +241,10 @@ class Generator(metaclass=ABCMeta):
         stream.write(b"\n}")
 
     @contextmanager
+    def templated(self, stream: TextIOBase):
+        yield stream
+
+    @contextmanager
     def guarded(self, stream : TextIOBase):
         stream.write(("""
             #ifndef __%(guard)s__
@@ -241,20 +258,39 @@ class Generator(metaclass=ABCMeta):
 
     @property
     def template_decl(self):
-        template_decl = ""
-        for template_args in self._template_argument_lists:
-            template_decl += "\n%s" % parser.Element.template_declaration(template_args)
+        template_decl = "\n%s" % parser.Element.template_declaration(self.element.template_arguments)
         return template_decl
 
     @property
     def template_arguments(self):
-        return "" if not self._template_type_params else "<%s>" % (", ".join([e.name for e in self._template_arguments]))
+        return "" if not self.element.template_arguments else "<%s>" % (", ".join([e.name for e in self.element.template_arguments]))
 
     def generate_header_code(self, stream: TextIOBase) -> None:
+        if self._mode == Generator.MODE_EMPTY_HEADER:
+            return
         with self.guarded(stream) as guarded:
             guarded.write(self.basic_includes())
             with self.scoped(guarded) as scoped:
                 self.generate_header_core(scoped)
+                if self._mode == Generator.MODE_FULL_HEADER:
+                    with self.templated(scoped) as templated:
+                        for child in self.element.children():
+                            generator = Generator.generator_mapping.get(child) or \
+                                       self.get_generator_class(child)(child, self._src_path, self.folder.create_subfolder(child.basic_name),
+                                                                       parent_generator=self)
+                            if generator.is_generatable():
+                                generator.generate_header_core_full(templated)
+
+    def generate_header_core_full(self, stream: TextIOBase):
+        self.generate_header_core(stream)
+        with self.templated(stream) as templated:
+            for child in self.element.children():
+                generator = Generator.generator_mapping.get(child) or \
+                            self.get_generator_class(child)(child, self._src_path,
+                                                            self.folder.create_subfolder(child.basic_name),
+                                                            parent_generator=self)
+                if generator.is_generatable():
+                    generator.generate_header_core_full(templated)
 
     def generate_header_core(self, stream: TextIOBase, as_top=False):
         if not self.element.name:  # anonymous directly inaccessible type
@@ -309,11 +345,11 @@ class Generator(metaclass=ABCMeta):
             if child_generator_class.is_generatable():
                 child_generator = child_generator_class(child, self._src_path, self.folder.create_subfolder(child.basic_name),
                                                         parent_generator=self)
-                child_generator._template_argument_lists += self._template_argument_lists
-                child_generator._template_type_params += self._template_type_params
-                if self.element.template_arguments:
-                    child_generator._template_argument_lists.append(self.element.template_arguments)
-                    child_generator._template_type_params.append(self.element._template_type_params)
+                #child_generator._template_argument_lists += self._template_argument_lists
+                #child_generator._template_type_params += self._template_type_params
+                #if self.element.template_arguments:
+                #    child_generator._template_argument_lists.append(self.element.template_arguments)
+                #    child_generator._template_type_params.append(self.element._template_type_params)
                 child_generator.generate_body()
 
     @staticmethod

@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from io import TextIOBase
 
 import os
@@ -11,6 +12,16 @@ class CXXRecordDecl(Generator):
     @classmethod
     def is_generatable(cls):
         return True
+
+    @contextmanager
+    def templated(self, stream: TextIOBase):
+        stream.write(("""
+        class %(name)s{""" % {
+            'name': self.element.basic_name,
+        }).encode('utf-8'))
+        yield stream
+        stream.write(("""}""").encode('utf-8'))
+        return stream
 
     def basic_includes(self):
         text = super().basic_includes()
@@ -128,11 +139,12 @@ class CXXRecordDecl(Generator):
                                 'arg_name': arg.name,
                             }).encode("utf-8"))
                 scoped.write(("""
-                pyllars%(parent)s::%(parent_name)s::register_instance(
+                %(pyllarse_scope)s::%(parent_name)s::register_instance(
                     (PyObject*) sequence,
                     (PyObject*) & __pyllars_internal::PythonClassWrapper< %(class_name)s >::Type
                 );
                 """ % {
+                    'pyllarse_scope': self.element.pyllars_scope,
                     'parent_name': qualified_name
                     (self.element.parent.basic_name if (self.element.parent.name and self.element.parent.name != "::")
                      else "pyllars"),
@@ -490,14 +502,25 @@ class ClassTemplateDecl(Generator):
     def is_generatable(cls):
         return True
 
+    @contextmanager
+    def templated(self, stream: TextIOBase):
+        stream.write(("""
+        %(template_decl)s
+        class %(name)s{""" % {
+            'template_decl': self.template_decl,
+            'name': self.element.basic_name,
+        }).encode('utf-8'))
+        yield stream
+        stream.write(("""}""").encode('utf-8'))
+        return stream
+
     @property
     def is_namespace(self):
         return True
 
     def generate_header_core(self, scoped: TextIOBase, as_top=False):
-        super(ClassTemplateDecl, self).generate_header_core(scoped, as_top)
+        #super(ClassTemplateDecl, self).generate_header_core(scoped, as_top)
         scoped.write(("""
-            %(template_decl)s
             status_t register_instance(PyObject* sequence_key,  const PyObject* object);
         """ % {
             'template_decl': self.template_decl,
