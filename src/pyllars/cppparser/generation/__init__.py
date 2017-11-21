@@ -1,3 +1,4 @@
+from ..elements import Element
 from .base import *
 from .namespaces import *
 from .fundamentals import *

@@ -9,6 +9,39 @@ def _class_from_name(name):
     return globals().get(name)
 
 
+class UnresolvedElement(object):
+
+    def __init__(self, name, defining_scope):
+        self._name = name
+        self._parent = None
+        self._defining_scope = defining_scope
+        Element.lookup[name] = self
+
+    @property
+    def parent(self):
+        return None
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def is_resolved(self):
+        return False
+
+    def resolve(self):
+        element = Element.from_name(self._name)
+        scope = self._defining_scope
+        while (element is None or isinstance(element, UnresolvedElement)) and scope:
+            element = Element.from_name(scope.full_name + "::" + self._name)
+            scope = scope.parent
+        if not element or isinstance(element, UnresolvedElement):
+            raise Exception("Unresolvable typ name: %s" % self._name)
+        #elif not element._target_type.is_resolved:
+        #    element._target_type = parse_type(element.target_type.name, self._defining_scope)
+        return element
+
+
 class Element(metaclass=ABCMeta):
 
     lookup = {}
@@ -26,7 +59,10 @@ class Element(metaclass=ABCMeta):
         self._name = name
         self._tag = tag
         assert(parent is None or parent is None or isinstance(parent, Element))
-        self._parents = [parent] if parent else []
+        assert(parent != self)
+        while isinstance(parent, DecoratingType):
+            parent = parent.parent
+        self._parent = parent
         self._children = {}
         self._locators = locator
         self._qualifiers = qualifier or []
@@ -34,26 +70,36 @@ class Element(metaclass=ABCMeta):
             self._qualifiers = [self._qualifiers]
         self._template_type_params = {}
         self._template_arguments = []
-        if name and self.full_name not in Element.lookup:
-            Element.lookup[self.full_name] = self
         if parent:
             parent.add_child(self)
-        Element.tag_lookup[tag] = self
+        if tag:
+            Element.tag_lookup[tag] = self
         self._current_child_access = None
         self._anonymous_types = set([])
-        self._is_template = self.parent and self.parent.is_template
-
+        self._is_template = parent and parent.is_template
+        self._inside_template_macro = (parent._inside_template_macro or parent.is_template_macro) if parent else False
+        self._is_anonymous_type = False
+        if name and self.is_resolved:
+            full_name = self.scope + ('::' if self.scope else "") +  name
+            if full_name in Element.lookup and type(Element.lookup[full_name]) != type(self):
+                raise Exception("Duplicate type def")
+            if full_name and full_name not in Element.lookup:
+                Element.lookup[full_name] = self
     @property
     def is_template(self):
         return self._is_template
 
+    @property
+    def is_resolved(self):
+        return True
+
+    @property
+    def is_anonymous_type(self):
+        return self._is_anonymous_type
+
     def parent_is_tempalte(self):
         # Clang AST defines a CXXRecord within a ClassTemplateDecl that is same name as template that items belong to
         return self.parent and self.parent.parent and self.parent.parent.is_template
-
-    def finalize(self):
-        for parent in self._parents:
-            parent.add_child(self)
 
     def make_complete(self):
         for child in self.children():
@@ -61,11 +107,14 @@ class Element(metaclass=ABCMeta):
 
     @property
     def namespace_name(self):
-        return self.parent.namespace_name if self.parent else None
+        parent = self.parent
+        while parent and not parent.is_namespace:
+            parent = parent.parent
+        return parent.name if parent else ""
 
     @property
     def guard(self):
-        text = self.full_name
+        text = self.name
         for c in [':', '<', '>', '!', '%', '^', '&', '*',  '[', ']', '\\', '|', '=', '(', ')', ',', ' ']:
             text = text.replace(c, '_')
         text =  "__PYLLARS__" + text
@@ -73,7 +122,7 @@ class Element(metaclass=ABCMeta):
 
     @property
     def parent(self):
-        return self._parents[0] if self._parents else None
+        return self._parent
 
     @property
     def tag(self):
@@ -87,19 +136,15 @@ class Element(metaclass=ABCMeta):
 
     @property
     def name(self):
-        return self.basic_name + self.template_arguments_string()
+        return self.basic_name + (self.parent.template_arguments_string() if self.parent else "")
 
     @property
     def is_const(self):
         return 'const' in (self._qualifiers or [])
 
     @property
-    def parents(self):
-        return self._parents
-
-    @property
     def full_name(self):
-        return self.name
+        return self.block_scope + ("::" if self.block_scope else "") + self.name
 
     @property
     def full_param_name(self):
@@ -118,6 +163,11 @@ class Element(metaclass=ABCMeta):
         pass
 
     @property
+    @abstractmethod
+    def block_scope(self):
+        pass
+
+    @property
     def array_size(self):
         return None
 
@@ -128,6 +178,13 @@ class Element(metaclass=ABCMeta):
     @property
     def is_template_macro(self):
         return False
+
+    @classmethod
+    def from_name(cls, name):
+        if '::' + name in Element.lookup:
+            return Element.lookup['::' + name]
+        else:
+            return Element.lookup.get(name)
 
     def default_access(self):
         return "public"
@@ -145,7 +202,7 @@ class Element(metaclass=ABCMeta):
     def __repr__(self):
         if not self.name:
             return "<<anonymous-%s" % self.tag
-        return self.full_name
+        return self.name
 
     def find(self, type_name):
         if type_name in Element.lookup:
@@ -157,9 +214,8 @@ class Element(metaclass=ABCMeta):
                 if child.name == type_name:
                     return child
         # traverse parents to find type:
-        for parent in self._parents:
-            if parent.find(type_name):
-                return parent.find(type_name)
+        if self.parent and self.parent.find(type_name):
+            return self.parent.find(type_name)
         return None
 
     @staticmethod
@@ -190,16 +246,18 @@ class Element(metaclass=ABCMeta):
                 return None
             tag = tokens.get('tag')
             name = tokens.get('name') # or "_%s" % str(tag)
+            if name and not isinstance(name, str):
+                name = ' '.join(name)
             if 'name' in tokens:
                 del tokens['name']
             if tag:
                 del tokens['tag']
             if node_type is None:
                 if 'access' in tokens and 'definition' in tokens and isinstance(parent, CXXRecordDecl):
-                    typ = parse_type(tokens['definition'], parent=None)
+                    typ = parse_type(tokens['definition'], parent)
                     if not typ:
                         print ("ERROR: unable to find type for definition: %s" + tokens['definition'])
-                    else:
+                    elif isinstance(type, RecordTypeDefn):
                         parent.add_base_class(typ, tokens['access'])
                 else:
                     print("ERROR: no node type in token set: %s;  parent: %s" % (tokens, parent))
@@ -223,6 +281,7 @@ class Element(metaclass=ABCMeta):
                 self.parent = parent
 
             def process(self, stream):
+                import ply
                 current = self
                 prev = None
                 for line in stream:
@@ -252,7 +311,7 @@ class Element(metaclass=ABCMeta):
                         branch.parent = current
                         current.children.append(branch)
                         prev = branch
-                    except:
+                    except ply.lex.LexError:
                         print("Failed to process line %s" % line)
                         import traceback
                         print(traceback.format_exc())
@@ -283,12 +342,18 @@ class Element(metaclass=ABCMeta):
         if tag is not None and tag in Element.tag_lookup:
             return Element.tag_lookup[tag]
         else:
+            import ply.lex as lex
             try:
                 return cls.parse_tokens(name, tag, parent, **kargs)
-            except:
+            except lex.LexError:
                 import traceback
                 traceback.print_exc()
                 logging.error("Failed to parse class %s" % cls.__name__)
+            except Exception:
+                raise
+
+    def resolve(self):
+        return self
 
     def children(self, access: str='public') -> List["Element"]:
         if access is None:
@@ -298,7 +363,7 @@ class Element(metaclass=ABCMeta):
         elif access == 'all':
             children = []
             for access in self._children:
-                children += self._children[access] or []
+                children += self._children[access].resolve() or []
             return children
 
     def as_function_argument(self, index, typed=False):
@@ -312,7 +377,7 @@ class Element(metaclass=ABCMeta):
             if isinstance(e, TemplateTypeParmDecl):
                 return "typename %s" % e.name
             else:
-                return "%s %s" % (e._type.full_name, e.name)
+                return "%s %s" % (e._type.name, e.name)
 
         return "" if not template_args else "template < %s >" % (", ".join([template_parm_name(e) for e in template_args]))
 
@@ -354,17 +419,45 @@ class ScopedElement(Element):
 
     @property
     def scope(self):
-        if self.parent:
-            return self.parent.full_name
-        if len(self._parents) == 1 and self._parents[-1].name:
-            if self._parents[-1].scope:
+        if self.is_anonymous_type:
+            return ""
+        if isinstance(self.parent, ClassTemplateDecl):
+            parent = self.parent.parent
+            prefix = ""
+        else:
+            parent = self.parent
+            prefix = ""
+        if parent and parent.name:
+            if parent.scope:
                 def qualified_name(name):
                     return name.replace("(", "_lparen_").replace(")", "_rparen_").replace(":", "_")
-                name = self._parents[-1].name if not self._parents[-1].name.startswith('decltype') \
-                    else qualified_name(self._parents[-1].name)
-                return self._parents[-1].scope + "::" + name
+                name = parent.name if not parent.name.startswith('decltype') \
+                    else qualified_name(parent.name)
+                return parent.scope + "::" + prefix + name
             else:
-                return "::" + self._parents[-1].name
+                return "::" + parent.name
+        else:
+            return ""
+
+    @property
+    def block_scope(self):
+        if self.is_anonymous_type:
+            return ""
+        if self.parent.is_template_macro:
+            parent = self.parent.parent
+        else:
+            parent = self.parent
+        prefix = "" if not parent.parent or not parent.parent.is_template_macro else "template "
+        if parent and parent.name:
+            block_scope = parent.block_scope
+            if block_scope:
+                def qualified_name(name):
+                    return name.replace("(", "_lparen_").replace(")", "_rparen_").replace(":", "_")
+                name = parent.name if not parent.name.startswith('decltype') \
+                    else qualified_name(parent.name)
+                return block_scope + "::" + prefix + name
+            else:
+                return "::" + parent.name
         else:
             return ""
 
@@ -373,31 +466,42 @@ class ScopedElement(Element):
         parent = self.parent
         basic_names = []
         while parent and parent.name:
-            basic_names = [parent.basic_name] + basic_names
+            basic_names = [parent.scope_fragment] + basic_names
             parent = parent.parent
         basic_name = "::".join(["pyllars"] + basic_names)
-        #if not parent or not parent.name:
-        #    return "pyllars" + ("::" if basic_name else "") + basic_name
-        #return parent.pyllars_scope + "::" + basic_name
         return basic_name
+
+    @property
+    def scope_fragment(self):
+        return self.name
+
+    @property
+    def block_scope_fragment(self):
+        return ("template " if self.parent.is_template_macro else "") + self.name
 
     @property
     def full_name(self):
         if not self._name:
             if self.parent:
-                return self.parent.full_name
+                return self.parent.name
             return "::"
         else:
-            return self.scope + ("::" if self.scope != "::" else "") + self.name
+            return self.scope + ("::" if self.scope != "::" else "") + self.name + (self.parent.template_arguments_string() if self.parent else "")
 
 
 class UnscopedElement(Element):
 
     @property
     def scope(self):
-        if self._parents and len(self._parents) == 1:
-            return self._parents[0].scope
+        if self.is_anonymous_type:
+            return ""
+        if self.parent:
+            return self.parent.scope
         return ""
+
+    @property
+    def block_scope(self):
+        return self.scope
 
 
 class FloatingLiteral(UnscopedElement):
@@ -415,7 +519,7 @@ class UnknownElement(ScopedElement):
         return UnknownElement(name, tag, parent)
 
     def __repr__(self):
-        return "<<Unkown Element:%s>>" % self.full_name
+        return "<<Unkown Element:%s>>" % self.name
 
 
 class AccessSpecDecl(UnknownElement):
@@ -437,11 +541,11 @@ class NamespaceDecl(ScopedElement):
         return NamespaceDecl(name, tag, parent, **kargs)
 
     def __repr__(self):
-        return "namespace " + self.full_name
+        return "namespace " + self.name
 
     @property
     def namespace_name(self):
-        return self.full_name
+        return self.name
 
     @property
     def is_namespace(self):
@@ -454,7 +558,7 @@ class BuiltinType(UnscopedElement):
 
     @classmethod
     def parse_tokens(cls,  name, tag, parent, **kargs):
-        return BuiltinType(kargs['definition'].replace("'", ""), parent, tag)
+        return BuiltinType(kargs['definition'].replace("'", ""), None, tag)
 
     @property
     def full_name(self):
@@ -471,6 +575,14 @@ class BuiltinType(UnscopedElement):
     @property
     def array_size(self):
         return None
+
+    @property
+    def scope(self):
+        return ""
+
+    @property
+    def block_scope(self):
+        return ""
 
     def to_py_conversion_code(self, value):
         return {
@@ -507,19 +619,11 @@ class CXXRecord(UnscopedElement):
 
 class RecordTypeDefn(ScopedElement):
 
-    def __init__(self, *args, **kargs):
-        super(RecordTypeDefn, self).__init__(*args, **kargs)
-        #self._is_internal_template_decl = isinstance(self.parent, ClassTemplateDecl) and self.name == self.parent.name
-
-    #def add_child(self, element):
-        #if self._is_internal_template_decl:
-        #    self.parent.add_child(element)
-        #else:
-        #    super(RecordTypeDefn, self).add_child(element)
 
     def make_complete_by_attr_name(self, attr_name):
-        self._name = "decltype(%(parent_full_name)s::%(name)s)" % {'parent_full_name': self.parent.full_name,
-                                                                  'name': attr_name}
+        self._name = "decltype(%(scope)s::%(name)s)" % {'scope': self.scope,
+                                                        'name': attr_name}
+        self._is_anonymous_type = True
 
     @property
     def full_name(self):
@@ -563,44 +667,69 @@ class CXXRecordDecl(RecordTypeDefn):
 
 class DecoratingType(UnscopedElement):
 
-    def __init__(self, name, tag, parent, qualifier=None, postfix=None,  locator=None):
-        super(DecoratingType, self).__init__(name, tag, parent, locator, qualifier=qualifier)
-        self._postfix = postfix
+    def __init__(self, name, tag, parent, definition, qualifier=None,  locator=None):
+        self._target_type = parse_type(definition, parent)
+        super(DecoratingType, self).__init__(name, tag,
+                                             self._target_type.parent,
+                                             locator, qualifier=qualifier)
 
     @classmethod
     def parse_tokens(cls, name, tag, parent, **kargs):
-        return cls(name, tag, parent, **kargs)
+        if 'definition' in kargs:
+            kargs['definition'] = parse_type(kargs['definition'], parent)
+        return cls(tag, parent, **kargs)
 
     @property
     def is_const(self):
         return 'const' in (self._qualifiers or [])
 
+    @property
+    def is_resolved(self):
+        return not isinstance(self._target_type, UnresolvedElement) and self._target_type.is_resolved
+
+    @property
+    def parent(self):
+        return self._target_type.parent if not self._parent else super(DecoratingType, self).parent
+
     def make_complete(self):
         pass
 
-    def add_child(self, element):
-        super(DecoratingType, self).add_child(element)
-        assert(len(self._children.values()) == 1)
-        assert(len(list(self._children.values())[0]) == 1)
-
+    def resolve(self):
+        if not self.is_resolved:
+            self._target_type = self._target_type.resolve()
+            full_name = self.full_name
+            if full_name in Element.lookup and type(Element.lookup[full_name]) != type(self):
+                raise Exception("Duplicate type def")
+            if full_name and full_name not in Element.lookup:
+                Element.lookup[full_name] = self
+        return self
 
     @property
     def name(self):
-        if not self._children:
+        if not self._target_type:
             return "%s<undetermined>" % self.__class__.__name__
-        assert(len(self._children.values()) == 1)
-        assert(len(list(self._children.values())[0]) == 1)
-        return  list(self._children.values())[0][0].name + (self._postfix or "") + (" " if self._qualifiers else "") + \
-               " ".join(reversed(self._qualifiers))
+        return super(DecoratingType, self).name
+
+    @property
+    def basic_name(self):
+        if not self._target_type:
+            return "%s<undetermined>" % self.__class__.__name__
+        return super(DecoratingType, self).basic_name + (" " if self._qualifiers else "")
 
     @property
     def full_name(self):
-        if not self._children:
+        if not self._target_type:
             return "%s<undetermined>" % self.__class__.__name__
-        assert(len(self._children.values()) == 1)
-        assert(len(list(self._children.values())[0]) == 1)
-        return list(self._children.values())[0][0].full_name + (self._postfix or "") + (" " if self._qualifiers else "") + \
-            " ".join(reversed(self._qualifiers))
+        if not self.is_resolved:
+            self.resolve()
+        return self._target_type.scope + ('::' if self._target_type.scope else '') + super(DecoratingType, self).name
+        # base_name = self._target_type.full_name
+        # return base_name + (" " if self._qualifiers else "") + \
+        #    " ".join(reversed(self._qualifiers))
+
+    @property
+    def scope(self):
+        return self._target_type.scope
 
     @property
     def array_size(self):
@@ -609,115 +738,107 @@ class DecoratingType(UnscopedElement):
 
 class ArrayType(DecoratingType):
 
-    def __init__(self, name, tag, parent, array_size, base_type, locator=None):
-        self._base_type = base_type
+    def __init__(self, tag, parent, definition, array_size, locator=None):
         self._array_size = array_size
-        super(ArrayType, self).__init__(name, tag, parent, qualifier=None, postfix="[%d]" % array_size, locator=locator)
-        self.add_child(base_type)
+        super(ArrayType, self).__init__(definition.name + "[%s]" % array_size, tag, parent, definition=definition, qualifier=None, locator=locator)
 
     @property
     def array_size(self):
         return self._array_size
 
-    @property
-    def name(self):
-        return self._base_type.name + "[%d]" % self.array_size
+    # @property
+    # def name(self):
+    #    return self._target_type.name + "[%d]" % self.array_size
 
-    @property
-    def full_name(self):
-        return self._base_type.full_name +  "[%d]" % self.array_size
+    # @property
+    # def full_name(self):
+    #    return self._target_type.name + "[%d]" % self.array_size
 
 class PointerType(DecoratingType):
 
-    def __init__(self, name, tag, parent, definition=None, locator=None):
-        super(PointerType, self).__init__(name, tag, parent, qualifier=None, postfix="*", locator=locator)
+    def __init__(self, tag, parent, definition, locator=None):
+        super(PointerType, self).__init__(definition.name +'*', tag, parent, definition=definition, qualifier=None, locator=locator)
 
 
 class ReferenceType(DecoratingType):
 
-    def __init__(self, name, tag, parent, definition=None, locator=None):
-        super(ReferenceType, self).__init__(name, tag, parent, qualifier=None, postfix="&", locator=locator)
+    def __init__(self, tag, parent, definition, locator=None):
+        super(ReferenceType, self).__init__(definition.name +'&', tag, parent,  definition=definition, qualifier=None, locator=locator)
 
 
 class QualType(DecoratingType):
 
-    def __init__(self, name, tag, parent, qualifier=None, definition=None, locator=None):
+    def __init__(self, tag, parent, definition, qualifier=None, locator=None):
         if qualifier is None:
             raise Exception("Invalid qual type")
-        super(QualType, self).__init__(name, tag, parent, qualifier=qualifier, postfix=None, locator=locator)
-        assert(not self.children())
+        if isinstance(definition, (PointerType, ReferenceType)):
+            name = definition.name + " " + qualifier
+        else:
+            name = qualifier + " " + definition.name
+        super(QualType, self).__init__(name, tag, parent, definition=definition, qualifier=qualifier, locator=locator)
 
     @property
     def full_param_name(self):
         # g++ has bug where signatures with const params removes the const-ness when checking template signatures,
         # to template params must not be const (but can be pointer or ref to const types)
         if 'const' in self._qualifiers or []:
-            return self.children()[0].full_name
+            return self._target_type.full_name
+        return super(QualType, self).full_name
 
 
-def parse_type(definition, parent, tokens=None):
+def parse_type(definition, defining_scope):
+    if isinstance(definition, Element) or isinstance(definition, UnresolvedElement):
+        return definition
     array_size = None
-    if not tokens:
-        type_lexer.input(definition.replace("'", ''))
-        tokens = []
-        while True:
-            token = type_lexer.token()
-            if token is None:
-                break
-            if token.type == 'array_spec':
-                array_size = token.value
+    type_lexer.input(definition.replace("'", ''))
+    implicit_explicit = None
+    struct_type = None
+    base_type = None
+    base_qualifiers = [] # per-type-name qualifiers (const, volatile,...)
+    base_modifiers = []  # post-type modifier (pointer or reference followed by other references or qualifiers)
+    while True:
+        token = type_lexer.token()
+        if token is None:
+            break
+        if token.type == 'name':
+            base_type = Element.from_name(token.value) or UnresolvedElement(token.value, defining_scope)
+        elif token.type == 'array_spec':
+            array_size = token.value
+        elif token.type == 'implicit_explicit':
+            implicit_explicit = token.value
+        elif token.type in ['qualifier', 'reference'] :
+            if base_type is None:
+                base_qualifiers.append(token.value)
             else:
-                tokens.append(token)
-        typ = parse_type(definition, parent, [t for t in reversed(tokens)])
-        if array_size is not None:
-            typ = ArrayType(typ.name + "[%d]" % array_size, None, parent, array_size, base_type=typ)
-        return typ
-    if tokens:
-        token = tokens[0]
-        token.value = token.value.strip()
-        if token.type == 'qualifier':
-            qual_typ = QualType("<<qual>>", None, parent, qualifier=[token.value])
-            t = parse_type(definition, qual_typ, tokens[1:])
-            if not qual_typ.children():
-                qual_typ.add_child(t)
-            qual_typ._parents = t._parents
-            typ = qual_typ
+                base_modifiers.append(token.value)
         elif token.type == 'reference':
-            ref_type = {'*': PointerType, '&': ReferenceType}[token.value]("<<ref>>", None, parent=parent)
-            #parent.add_child(ref_type)
-            t = parse_type(definition, ref_type, tokens[1:])
-            if not ref_type.children():
-                ref_type.add_child(t)
-            ref_type._parents = t._parents
-            typ = ref_type
-        elif token.type == 'name':
-            if len(tokens) > 1:
-                typ = parse_type(definition, parent, [t for t in reversed(tokens)])
-                assert typ is not None
-            else:
-                typ = parent.find(token.value)
-                assert typ is not None
-        elif token.type in ['structured_type']:
-            assert tokens[1].type == 'name'
-            if len(tokens) > 2:
-                return parse_type(definition, parent, [t for t in reversed(tokens[2:])] + tokens[:2])
-            if parent and parent.find(tokens[1].value):
-                typ = parent.find(tokens[1].value)
-            else:
-                if "::" + tokens[1].value in Element.lookup:
-                    return Element.lookup["::" + tokens[1].value]
-                typ = CXXRecordDecl(tokens[1].value, None, parent)
-        else:
-            raise Exception("Unknown token type: %s" % token.type)
-
-        return typ
+            assert base_type is not None
+            base_modifiers.append(token.value)
+        elif token.type == 'structured_type':
+            struct_type = token.value
+    assert base_type is not None
+    typ = base_type if array_size is None else ArrayType(tag=None,
+                                                         parent=base_type.parent,
+                                                         definition=base_type,
+                                                         array_size=array_size)
+    for qualifier in reversed(base_qualifiers):
+        typ = QualType(tag=None, parent=base_type.parent, definition=typ, qualifier=qualifier)
+    for modifier in base_modifiers:
+        typ = {
+            '*': PointerType(tag=None, parent=base_type.parent, definition=typ),
+            '&': ReferenceType(tag=None, parent=base_type.parent, definition=typ),
+        }.get(modifier) or QualType(tag=None, parent=base_type.parent, definition=typ, qualifier=modifier)
+    return typ
 
 
 class TypeAliasDecl(ScopedElement):
 
-    def __init__(self, name, tag, parent, alias_definition, locator=None):
+    def __init__(self, name, tag, parent, alias_definition=None, locator=None, definition=None):
         super(TypeAliasDecl, self).__init__(name, tag, parent, locator)
-        short_hand, full_decl = alias_definition
+        if alias_definition:
+            short_hand, full_decl = alias_definition
+        else:
+            short_hand, full_decl = definition, definition
         self._aliased_type = parent.find(short_hand)
 
     @classmethod
@@ -727,7 +848,7 @@ class TypeAliasDecl(ScopedElement):
 
 class VarDecl(ScopedElement):
 
-    def __init__(self, name, tag, parent, definition=None, alias_definition=None, qualifier=None, locator=None):
+    def __init__(self, name, tag, parent, definition=None, alias_definition=None, qualifier=None, locator=None, implicit_explicit=None):
         super(ScopedElement, self).__init__(name if isinstance(name, str) else name[-1] if name else None, tag, parent,
                                             locator=locator, qualifier=qualifier)
         assert not (definition is None and alias_definition is None)
@@ -735,13 +856,18 @@ class VarDecl(ScopedElement):
         if not definition:
             definition = alias_definition[1]
         self._type = parse_type(definition, parent)
+        self._is_implicit = (implicit_explicit == 'implicit')
 
     @property
     def type_(self):
+        if isinstance(self._type, UnresolvedElement):
+            self._type = self._type.resolve()
         return self._type
 
     @classmethod
     def parse_tokens(cls, name, tag, parent, **kargs):
+        if name and name.startswith('used '):
+            name = name.split(' ')[1]
         return cls(name, tag, parent, **kargs)
 
     @property
@@ -759,37 +885,33 @@ class ParmVarDecl(VarDecl):
 class FunctionElement(ScopedElement):
 
     def __init__(self, name, tag, parent, definition, locator=None, qualifier=None):
-        try:
-            super(FunctionElement, self).__init__(name, tag, parent, locator=locator, qualifier=qualifier)
-            from .function_lexer import function_lexer
-            function_lexer.input(definition)
-            tokens = {}
-            has_ellipsis = False
-            while True:
-                token = function_lexer.token()
-                if token is None:
-                    break
-                tokens[token.type] = token
-                if token.type == 'parameters':
-                    has_ellipsis = token.has_ellipsis
-            qualifiers = definition.rsplit(')', maxsplit=1)[-1]
-            self._qualifiers += qualifiers.split(' ') if qualifiers.strip() else []
-            return_type_name = definition.split('(')[0].strip()
-            self._return_type = parse_type(definition.split('(')[0], parent) if return_type_name != 'void' else None
-            # params added as ParamVarDecl's, except for ellipsis
-            self._has_varargs = has_ellipsis
-            self._throws = tokens.get('throws').throws if 'throws' in tokens else []
-        except:
-            import traceback
-            traceback.print_exc()
-            raise
+        super(FunctionElement, self).__init__(name, tag, parent, locator=locator, qualifier=qualifier)
+        from .function_lexer import function_lexer
+        function_lexer.input(definition)
+        tokens = {}
+        has_ellipsis = False
+        while True:
+            token = function_lexer.token()
+            if token is None:
+                break
+            tokens[token.type] = token
+            if token.type == 'parameters':
+                has_ellipsis = token.has_ellipsis
+        qualifiers = definition.rsplit(')', maxsplit=1)[-1]
+        self._qualifiers += qualifiers.split(' ') if qualifiers.strip() else []
+        return_type_name = definition.split('(')[0].strip()
+        self._return_type = parse_type(definition.split('(')[0], parent) if return_type_name != 'void' else None
+        # params added as ParamVarDecl's, except for ellipsis
+        self._has_varargs = has_ellipsis
+        self._throws = tokens.get('throws').throws if 'throws' in tokens else []
+
 
     @property
     def is_static(self):
         return 'static' in (self._qualifiers or [])
 
     def add_child(self, element):
-        if element.name != "void":
+        if element._name != "void":
             super(FunctionElement, self).add_child(element)
 
     @classmethod
@@ -806,7 +928,7 @@ class FunctionElement(ScopedElement):
 
     @property
     def params(self):
-        return [c for c in self.children('public') if isinstance(c, ParmVarDecl)]
+        return [c.resolve() for c in self.children('public') if isinstance(c.resolve(), ParmVarDecl)]
 
     def default_access(self):
         return 'public'
@@ -827,7 +949,7 @@ class FunctionTypeDecl(FunctionElement):
     def as_function_argument(self, name, typed=False):
         return "%s(*%s)(%s %s)" % (self.return_type.full_name,
                                     name,
-                                    ", ".join([a.full_name for a in self.params]),
+                                    ", ".join([a.name for a in self.params]),
                                     "..." if self.has_varargs else "")
 
 
@@ -856,6 +978,8 @@ class FieldDecl(ScopedElement):
 
     @property
     def type_(self):
+        if isinstance(self._type, UnresolvedElement):
+            self._type = self._type.resolve()
         return self._type
 
     def set_integer_value(self, value):
@@ -868,7 +992,7 @@ class FieldDecl(ScopedElement):
     @property
     def parent_full_name(self):
         if self.parent.name:
-            return self.parent.full_name
+            return self.parent.name
 
 
     @classmethod
@@ -957,22 +1081,24 @@ class TemplateDecl(ScopedElement):
 class ClassTemplateDecl(TemplateDecl, RecordTypeDefn):
 
     def __init__(self, name, tag, parent, locator=None):
+        name = name + "_placeholder"
         super(ClassTemplateDecl, self).__init__(name, tag, parent, locator)
+
+    @property
+    def basic_name(self):
+        return super(ClassTemplateDecl, self).basic_name  # + "_placeholder"
+
+    @property
+    def name(self):
+        return super(ClassTemplateDecl, self).basic_name  # + "_placeholder" # TODO: REMOVE + self.template_arguments_string()
 
     @classmethod
     def parse_tokens(cls, name, tag, parent, **kargs):
         return ClassTemplateDecl(name, tag, parent, **kargs)
 
-    @property
-    def pyllars_scopeNOT(self):
-        parent = self.parent
-        while parent and not (isinstance(parent, NamespaceDecl) or isinstance(parent, ClassTemplateDecl)):
-            parent = parent.parent
-        return parent.pyllars_scope + "::" + self.basic_name
-
-    @property
-    def full_name(self):
-        return self.parent.full_name
+    #@property
+    #def full_name(self):
+    #    return self.parent.name
 
     @property
     def is_template_macro(self):
@@ -980,11 +1106,15 @@ class ClassTemplateDecl(TemplateDecl, RecordTypeDefn):
 
     @property
     def guard(self):
-        text = self.full_name + "__" + self.basic_name
+        text = self.name + "__" + self.basic_name
         for c in [':', '<', '>', '!', '%', '^', '&', '*',  '[', ']', '\\', '|', '=', '(', ')', ',', ' ']:
             text = text.replace(c, '_')
         text =  "__PYLLARS__" + text
         return text
+
+    @property
+    def scope_fragment(self):
+        return self.basic_name
 
 
 class TemplateTypeParmDecl(ScopedElement):
@@ -1018,14 +1148,14 @@ class TemplateTypeParmDecl(ScopedElement):
         return self.name
 
     def py_var_name(self, index):
-        return "(PyObject*)PythonClassWrapper< %s >::Type" % self.full_name
+        return "(PyObject*)PythonClassWrapper< %s >::Type" % self.name
 
 
 class NonTypeTemplateParmDecl(ScopedElement):
 
-    def __init__(self, name, tag, parent: TemplateDecl, definition, locator=None):
+    def __init__(self, name, tag, parent: TemplateDecl, definition, locator=None, is_referenced=None):
         super(NonTypeTemplateParmDecl, self).__init__(name, tag, None, locator)
-        self._type = self.parse_type(definition, parent)
+        self._type = parse_type(definition, parent)
         #self._is_referenced = is_referenced
         parent.add_template_arg(self)
 
@@ -1037,13 +1167,9 @@ class NonTypeTemplateParmDecl(ScopedElement):
     def is_type(self):
         return False
 
-    def parse_type(self, definition, parent):
-        type = {a.name: a for a in parent.template_arguments}.get(definition)
-        return type if type else parse_type(definition, parent)
-
     @property
     def type_name(self):
-        return self._type.full_name
+        return self._type.name
 
     def type_and_var_name(self, index):
         return self.type_name + " " + self.var_name(index)
@@ -1051,7 +1177,7 @@ class NonTypeTemplateParmDecl(ScopedElement):
     def pyllars_generic_argument(self , value):
         if isinstance(self._type, BuiltinType):
             return self._type.to_py_conversion_code(value)
-        return "(PyObject*) __pyllars_internal::PythonClassWrapper< %(name)s >::Type" % self._type.full_name
+        return "(PyObject*) __pyllars_internal::PythonClassWrapper< %(name)s >::Type" % self._type.name
 
     def var_name(self, index):
         return self.name or "_%s" % index
@@ -1082,7 +1208,6 @@ class ClassTemplateSpecializationDecl(TemplateDecl, ScopedElement):
 class TemplateArgument(ScopedElement):
 
     def __init__(self, name, tag, parent, number=None, definition=None, locator=None):
-        super(TemplateArgument, self).__init__(name, tag, parent, locator)
         self._value = None
         if name == 'type':
             self._value = parent.find(definition)
@@ -1090,8 +1215,11 @@ class TemplateArgument(ScopedElement):
             self._value = None
         elif "integral" == name:
             self._value = int(number)
+        elif name=='nullptr':
+            self._value = name
         else:
             raise Exception("Unknown TemplateArgument type: %s" % name)
+        super(TemplateArgument, self).__init__(name, tag, parent, locator)
 
     @classmethod
     def parse_tokens(cls, name, tag, parent, **kargs):
@@ -1144,6 +1272,21 @@ init()
 
 def parse_file(src_path):
     import subprocess
-    cmd = ["clang-check", "-ast-dump", src_path, "--extra-arg=\"std=c++11\"", "--extra-arg=\"-fno-color-diagnostics\"", "--"]
-    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-    return Element.parse(proc.stdout)
+    import tempfile
+    import os.path
+    Element.reset()
+    with tempfile.NamedTemporaryFile(mode='w') as f:
+        f.write("""
+        [
+        {
+           "directory": "%(dir)s",
+           "file": "%(file)s",
+           "command": "clang++ -std=c++14 -c %(file)s"
+        }
+        ]
+        """ % {'dir': os.path.dirname(src_path),
+               'file':os.path.basename(src_path)})
+        f.flush()
+        cmd = ["clang-check", "-ast-dump", src_path, "--extra-arg=\"-fno-color-diagnostics\"", "-p", f.name]
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+        return Element.parse(proc.stdout)

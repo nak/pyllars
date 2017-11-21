@@ -37,7 +37,7 @@ def t_alias_definition(t):
 
 
 def t_definition(t):
-    r'(\'[a-zA-Z0-9\_\ \*\[\]\(\)\&(\:\:)(\.\.\.)\<\>\,]*\')'
+    r'\'([a-zA-Z0-9\_\*\[\]\(\)\&(\:\:)(\.\.\.)\,]*)(\<.*\>)?\''
     t.value = t.value.replace("'", "")
     return t
 

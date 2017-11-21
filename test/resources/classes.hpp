@@ -151,6 +151,8 @@ using ClassLong = trial::TemplateClass<long>;
 static constexpr long* null_long_ptr = (long*)0;
 using ClassLongPtr = trial::TemplateClass<long*, null_long_ptr>;
 
+static long* null_long_ptr2 = (long*)0;
+
 typedef trial::Main& PublicMembers;
 
 #endif

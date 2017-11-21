@@ -6,10 +6,8 @@ import sysconfig
 from abc import ABCMeta
 from contextlib import contextmanager
 from io import TextIOBase
-from typing import List
 
 from .. import parser
-from ..elements import Element
 import pkg_resources
 
 pyllars_resources_dir = pkg_resources.resource_filename("pyllars", os.path.join("..", "resources"))
@@ -135,9 +133,9 @@ class Generator(metaclass=ABCMeta):
 
     def __init__(self, element: parser.Element, src_path: str, folder: Folder, parent_generator: "Generator"=None):
         self._mode = parent_generator.mode if parent_generator else Generator.MODE_SEPARATE_HEADERS
-        if parent_generator and parent_generator.parent and parent_generator.parent._mode == Generator.MODE_FULL_HEADER:
+        if parent_generator and parent_generator._mode == Generator.MODE_FULL_HEADER:
             self._mode = Generator.MODE_EMPTY_HEADER
-        elif element.is_template_macro:
+        elif element.is_template_macro and element.parent and element.parent.is_namespace:
             self._mode = Generator.MODE_FULL_HEADER
         self._src_path = src_path
         self._template_argument_lists = []
@@ -164,8 +162,20 @@ class Generator(metaclass=ABCMeta):
 
     @classmethod
     def sanitize(cls, text):
-        for index, c in enumerate(['-', '=', '&', '<', '>', '*', '&', '|', '!', '^', '[', ']', '/']):
-            text = text.replace(c, "_op____%d" % index)
+        map = {'-' : '_minus_',
+         '=': '_eq_',
+         '&': '_amp_',
+         '<': '_lt_',
+         '>': '_gt_',
+         '*': '_star_',
+         '|': '_or_',
+         '!': '_not_',
+         '^': '_xor_',
+         '[': '_lparen_',
+         ']': '_rparen',
+         '/': '_div_'}
+        for c in list(map.keys()):
+            text = text.replace(c, map[c])
         return text
 
     def header_file_name(self)->str:
@@ -231,14 +241,19 @@ class Generator(metaclass=ABCMeta):
 
     @contextmanager
     def _ns_scope(self, stream: TextIOBase):
+        need_closure = False
         if self.parent:
             with self.parent._ns_scope(stream) as scoped:
-                scoped.write(("\nnamespace %s{\n" % qualified_name(self.element.basic_name)).encode("utf-8"))
+                if not self.element.is_template_macro and not isinstance(self.element, (parser.FieldDecl, parser.CXXMethodDecl)):
+                    need_closure = True
+                    scoped.write(("\nnamespace %s{\n" % qualified_name(self.element.basic_name)).encode("utf-8"))
                 yield stream
         else:
+            need_closure = True
             stream.write(b"\nnamespace pyllars{\n")
             yield stream
-        stream.write(b"\n}")
+        if need_closure:
+            stream.write(b"\n}")
 
     @contextmanager
     def templated(self, stream: TextIOBase):
@@ -266,24 +281,26 @@ class Generator(metaclass=ABCMeta):
         return "" if not self.element.template_arguments else "<%s>" % (", ".join([e.name for e in self.element.template_arguments]))
 
     def generate_header_code(self, stream: TextIOBase) -> None:
-        if self._mode == Generator.MODE_EMPTY_HEADER:
-            return
         with self.guarded(stream) as guarded:
             guarded.write(self.basic_includes())
+            if self._mode == Generator.MODE_EMPTY_HEADER:
+                return
             with self.scoped(guarded) as scoped:
                 self.generate_header_core(scoped)
                 if self._mode == Generator.MODE_FULL_HEADER:
                     with self.templated(scoped) as templated:
                         for child in self.element.children():
                             generator = Generator.generator_mapping.get(child) or \
-                                       self.get_generator_class(child)(child, self._src_path, self.folder.create_subfolder(child.basic_name),
+                                       self.get_generator_class(child)(child,
+                                                                       self._src_path,
+                                                                       self.folder.create_subfolder(child.basic_name),
                                                                        parent_generator=self)
                             if generator.is_generatable():
                                 generator.generate_header_core_full(templated)
 
     def generate_header_core_full(self, stream: TextIOBase):
-        self.generate_header_core(stream)
         with self.templated(stream) as templated:
+            self.generate_header_core(stream)
             for child in self.element.children():
                 generator = Generator.generator_mapping.get(child) or \
                             self.get_generator_class(child)(child, self._src_path,
@@ -293,23 +310,39 @@ class Generator(metaclass=ABCMeta):
                     generator.generate_header_core_full(templated)
 
     def generate_header_core(self, stream: TextIOBase, as_top=False):
-        if not self.element.name:  # anonymous directly inaccessible type
+        if not self.element.name or self.element.is_anonymous_type:  # anonymous directly inaccessible type
             stream.write(b"")
             return
         stream.write(("""
                 %(template_decl)s
-                status_t %(qname)s_register( pyllars::Initializer* const);
+                status_t %(basic_name)s_register( pyllars::Initializer* const);
                 
                 %(template_decl)s
-                status_t %(qname)s_init();
+                status_t %(basic_name)s_init();
+                
+                class Initializer_%(basic_name)s: public pyllars::Initializer{
+                public:
+                    Initializer_%(basic_name)s():pyllars::Initializer(){
+                       %(basic_name)s_register(this);
+                    }
+
+                    virtual int init(){
+                       int status = pyllars::Initializer::init();
+                       return status | %(basic_name)s_init();
+                    }
+
+                    static Initializer_%(basic_name)s* initializer;
+                 };
             """ % {
-                'qname': qualified_name(self.element.basic_name),
+                'name': self.element.name,
+                'basic_name': self.sanitize(self.element.basic_name),
+                 'pyllars_scope': self.element.pyllars_scope,
+                'parent_name': self.element.parent.basic_name if self.element.parent else "pyllars",
                 'template_decl': self.template_decl,
         }).encode('utf-8'))
 
     @staticmethod
     def generate_code(element: parser.Element, src_path: str, folder: Folder):
-        parser.Element.reset()
         Generator.generator_mapping = {}
         generator_class = Generator.get_generator_class(element)
         generator = generator_class(element, src_path, folder)
@@ -324,6 +357,8 @@ class Generator(metaclass=ABCMeta):
     def generate_body(self, as_top=False):
         if not self.element.name and not as_top:
             return
+        if self.element.is_anonymous_type:
+            return
         file_name = self.to_path(ext=".cpp")
         self.folder.purge(file_name)
         self.generate_spec()
@@ -337,19 +372,12 @@ class Generator(metaclass=ABCMeta):
             if not self.element.name:
                 self.element._anonymous_types.add(self)
             else:
-                with self.scoped(stream) as scoped:
-                    self.generate_body_proper(scoped, as_top)
-        #if not isinstance(self.element, parser.CXXMethodDecl) and not isinstance(self.element, parser.FunctionDecl):
+                self.generate_body_proper(stream, as_top)
         for child in self.element.children():
             child_generator_class = self.get_generator_class(child)
             if child_generator_class.is_generatable():
                 child_generator = child_generator_class(child, self._src_path, self.folder.create_subfolder(child.basic_name),
                                                         parent_generator=self)
-                #child_generator._template_argument_lists += self._template_argument_lists
-                #child_generator._template_type_params += self._template_type_params
-                #if self.element.template_arguments:
-                #    child_generator._template_argument_lists.append(self.element.template_arguments)
-                #    child_generator._template_type_params.append(self.element._template_type_params)
                 child_generator.generate_body()
 
     @staticmethod
@@ -412,18 +440,18 @@ class ClassTemplateDecl(Generator):
             public:
                
                Initializer():pyllars::Initializer(){
-                   pyllars%(parent)s::%(parent_name)s_register(this);
+                   %(qname)s_register(this);
                }
                
                virtual int init(){
                    int status = pyllars::Initializer::init();
-                   return status | %(qname)s_init%(template_args)s();
+                   return status | %(qname)s_init();
                }
                
             };
         
             %(template_decl)s
-            static Initializer%(template_args)s init = Initializer%(template_args)s();  
+            static Initializer init = Initializer();  
         }
 
 //////////////////////////////
@@ -431,14 +459,15 @@ class ClassTemplateDecl(Generator):
 }
 #endif
             """ % {
-                'qname': qualified_name(self.element.basic_name),
+                'qname': qualified_name(self.element.parent.basic_name),
                 'parent': self.element.parent.full_name if self.element.parent.full_name != "::" else "",
                 'parent_name': self.element.parent.basic_name,
                 'template_arg_vals': ",".join([arg.py_var_name(index) for index, arg in enumerate(self.element.template_args)]),
                 'full_name': self.element.full_name,
                 'template_arg_len': len(self.element.template_args),
-                'template_decl': self.element.template_decl(),
-                'template_args': self.element.template_arguments_string(),}).encode('utf-8'))
+                'template_decl': self.element.template_decl,
+                # TODO: REMOTE 'template_args': self.element.parent.template_arguments_string() if self.element.parent else "",
+                    }).encode('utf-8'))
 
     def generate_body_proper(self, stream: TextIOBase, as_top: bool = False):
         with self.scoped(stream) as scoped:
@@ -500,6 +529,6 @@ class ClassTemplateDecl(Generator):
                     self.element.parent.name if (self.element.parent.name and self.element.parent.name != "::")
                     else ""),
                 'parent': self.element.parent.name if self.element.parent else "pyllars",
-                'template_decl': self.element.template_decl(),
-                'parent_template_decl': self.element.parent.template_decl() if self.element.parent else ""
+                'template_decl': self.element.template_decl,
+                'parent_template_decl': self.element.parent.template_decl if self.element.parent else ""
             }).encode('utf-8')) 

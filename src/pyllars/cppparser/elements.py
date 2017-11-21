@@ -59,7 +59,7 @@ class Element(metaclass=ABCMeta):
         return "private"
 
     def as_function_argument(self, element, index):
-        return self.name
+        return self.full_name
 
 
 class UnknownElement(Element):

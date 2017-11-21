@@ -40,7 +40,8 @@ class NamespaceDecl(Generator):
             return
 
         scoped.write(("""
-            status_t init_me(){
+            using namespace %(pyllars_scope)s::%(name)s;
+            status_t %(name)s_init(){
                 if (%(name)s_mod) return 0;// if already initialized
                 int status = 0;
                 #if PY_MAJOR_VERSION==3
@@ -62,19 +63,18 @@ class NamespaceDecl(Generator):
                 return status;
             } // end init
 
-            int %(qname)s_register( pyllars::Initializer* const init ){
+            int %(pyllars_scope)s::%(name)s::%(name)s_register( pyllars::Initializer* const init ){
                 static pyllars::Initializer _initializer = pyllars::Initializer();
                 static int status = pyllars%(parent_name)s::%(parent)s_register(&_initializer);
                 return status==0?_initializer.register_init(init):status;
              }
 
 
-             PyObject *%(name)s_mod = nullptr;
+             PyObject *%(pyllars_scope)s::%(name)s::%(name)s_mod = nullptr;
 
-            int %(name)s_init(){return %(name)s::init_me();}
 """ % {
             'name': self.sanitize(self.element.name),
-            'qname': qualified_name(self.element.name),
+            'pyllars_scope': self.element.pyllars_scope,
             'fullname': self.element.full_name,
             'parent': qualified_name(
                 self.element.parent.name if self.element.parent.name and self.element.parent.name != "::" else "pyllars"),

@@ -13,12 +13,11 @@ tokens = (
 )
 
 
-t_reference = r"(\*|\&|\&\&)"
 t_ignore = ' \t'
 
 
 def t_is_definition(t):
-    r'(definition)'
+    r"(definition)"
     t.value = True
     return t
 
@@ -33,6 +32,7 @@ def t_structured_type(t):
     r"(class|struct|union|typename)"
     return t
 
+
 # Define a rule so we can track line numbers
 def t_newline(t):
     r'\n+'
@@ -43,19 +43,27 @@ def t_implicit_explicit(t):
     r"(implicit|explicit)"
     return t
 
+
 def t_qualifier(t):
     r"(const|constexpr|mutable|volatile)"
     return t
 
+
 def t_array_spec(t):
     r"(\[[0-9]*\])"
-    t.value = int(t.value[1:-1])
+    t.value = int(t.value[1:-1]) if t.value else ""  # "" indicates a non-specified-size
     return t
+
 
 def t_name(t):
-    r"([:\<\>_\~\=a-zA-Z0-9\<\>\,\ ]+)"
+    r"([:_\~\=a-zA-Z0-9,]+)(\<.*\>)?"
+    t.value = t.value.strip()
     return t
 
+
+def t_reference(t):
+    r"(\*|\&|\&\&)"
+    return t
 
 type_lexer = lex.lex()
 
