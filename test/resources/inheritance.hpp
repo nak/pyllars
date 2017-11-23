@@ -8,16 +8,17 @@ namespace trial{
 
     ClassA();
 
-    ClassA(const ClassA &);
+    ClassA(const ClassA &){}
 
-    virtual ~ClassA();
+    virtual ~ClassA(){}
 
-    ClassA &operator=(const ClassA & );
-
-    const double method(const struct Internal &) const{
-        return 0.1;
+    ClassA &operator=(const ClassA & ){
+        return *this;
     }
 
+    const double method(const struct ClassA &) const{
+        return 0.1;
+    }
 
 
   };

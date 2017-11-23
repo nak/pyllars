@@ -1274,12 +1274,12 @@ def parse_file(src_path):
         {
            "directory": "%(dir)s",
            "file": "%(file)s",
-           "command": "clang++ -std=c++14 -c %(file)s"
+           "command": "g++ -std=c++14 -c %(file)s"
         }
         ]
         """ % {'dir': os.path.dirname(src_path),
                'file':os.path.basename(src_path)})
         f.flush()
-        cmd = ["clang-check", "-ast-dump", src_path, "--extra-arg=\"-fno-color-diagnostics\"", "-p", f.name]
+        cmd = ["clang-check", "-ast-dump", src_path, "--extra-arg=\"-fno-color-diagnostics\"", ]
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
         return Element.parse(proc.stdout)

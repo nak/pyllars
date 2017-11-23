@@ -1,15 +1,6 @@
 
-#include "classes.hpp"
+#include "inheritance.hpp"
 
 namespace trial{
-
-    Main::Main(){
-    }
-
-    Main::Main(const Main &){
-    }
-
-    Main::~Main(){
-    }
 
 }
