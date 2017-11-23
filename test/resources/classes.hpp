@@ -32,19 +32,6 @@ namespace trial{
 
     int const_varargs_method(double d, ...) const;
 
-    struct BitFields{
-        BitFields():size_1bit(1),
-            size_2bit(0),
-            const_size_11bit(3),
-            size_31bit(42){
-        }
-
-        signed char size_1bit : 1;
-        unsigned char size_2bit: 2;
-        const int const_size_11bit: 11;
-        long size_31bit: 31;
-    };
-
     struct Internal{
     };
 
@@ -73,33 +60,21 @@ namespace trial{
   class Inherited: public Main{
   };
 
-  class PublicMembers{
+  class SecondClass{
   public:
 
-    static void static_method(const PublicMembers i);
 
-    static double dbl_static_member;
-
-    PublicMembers():const_short_member(42){
-        int_members[0] = const_short_member*2;
-        int_members[1] = const_short_member*3;
-        int_members[2] = const_short_member*4;
+    SecondClass():const_short_member(42){
     }
 
-    PublicMembers(short v):const_short_member(v){
-        int_members[0] = v*2;
-        int_members[1] = v*3;
-        int_members[2] = v*4;
+    SecondClass(short v):const_short_member(v){
     }
-
-    static Main static_vararg_method(const char* const pattern, ...);
 
     const short const_short_member;
-    int int_members[3];
 
   };
 
-  class MultiInherited: public Main, public PublicMembers{
+  class MultiInherited: public Main, public SecondClass{
   };
 
   template <typename T, T d = (T)0>
@@ -152,7 +127,5 @@ static constexpr long* null_long_ptr = (long*)0;
 using ClassLongPtr = trial::TemplateClass<long*, null_long_ptr>;
 
 static long* null_long_ptr2 = (long*)0;
-
-typedef trial::Main& PublicMembers;
 
 #endif

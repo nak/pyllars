@@ -26,18 +26,6 @@ namespace trial{
 
     Main::Inner::Inner(){}
 
-    Main PublicMembers::static_vararg_method(const char* const pattern, ...){
-        return Main();
-    }
-
-	float Main::Inner::Tertiary::timestamp(){
-    	return 4.2;
-	}
-
-    void PublicMembers::static_method(const PublicMembers i){
-    }
-
-    double PublicMembers::dbl_static_member = 4.2;
 
     template <typename T, T d>
     void TemplateClass<T, d>::method1(const float& value){
