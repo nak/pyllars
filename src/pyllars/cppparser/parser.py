@@ -746,13 +746,6 @@ class ArrayType(DecoratingType):
     def array_size(self):
         return self._array_size
 
-    # @property
-    # def name(self):
-    #    return self._target_type.name + "[%d]" % self.array_size
-
-    # @property
-    # def full_name(self):
-    #    return self._target_type.name + "[%d]" % self.array_size
 
 class PointerType(DecoratingType):
 

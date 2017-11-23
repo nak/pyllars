@@ -90,6 +90,7 @@ class FunctionDecl(Generator):
             %(template_decl)s
             status_t %(pyllars_scope)s::%(name)s%(template_args)s::%(name)s_register(pyllars::Initializer*){
                 //do nothing, functions have no children
+                return 0;
             }
 
             %(template_decl)s
@@ -151,11 +152,16 @@ class VarDecl(Generator):
                     return status;
                 }
 
+                status_t %(pyllars_scope)s::%(basic_name)s::%(basic_name)s_register( pyllars::Initializer* const){
+                    status_t status = 0;
+                    // do nothing
+                    return status;
+                }
 
-             %(template_decl)s
-             %(pyllars_scope)s::%(basic_name)s%(template_args)s::Initializer_%(basic_name)s
-             *%(pyllars_scope)s::%(basic_name)s%(template_args)s::Initializer_%(basic_name)s::initializer = 
-             new %(pyllars_scope)s::%(basic_name)s%(template_args)s::Initializer_%(basic_name)s();
+                 %(template_decl)s
+                 %(pyllars_scope)s::%(basic_name)s%(template_args)s::Initializer_%(basic_name)s
+                 *%(pyllars_scope)s::%(basic_name)s%(template_args)s::Initializer_%(basic_name)s::initializer = 
+                 new %(pyllars_scope)s::%(basic_name)s%(template_args)s::Initializer_%(basic_name)s();
 
 """ % {
                 'pyllars_scope': self.element.pyllars_scope,
@@ -190,19 +196,16 @@ class VarDecl(Generator):
                 }
                 
 
-                namespace{
-                    class Initializer: public pyllars::Initializer{
-                    public:
-                       Initializer():pyllars::Initializer(){
-                           %(pyllars_scope)s::%(parent_name)s_register(this);
-                       }
-                       virtual int init(){
-                           int status = pyllars::Initializer::init();
-                           return status | %(pyllars_scope)s::%(basic_name)s::%(basic_name)s_init();
-                       }
-                    };
-                    static Initializer init = Initializer();
+                status_t %(pyllars_scope)s::%(basic_name)s::%(basic_name)s_register( pyllars::Initializer* const){
+                    status_t status = 0;
+                    // do nothing
+                    return status;
                 }
+
+                 %(template_decl)s
+                 %(pyllars_scope)s::%(basic_name)s%(template_args)s::Initializer_%(basic_name)s
+                 *%(pyllars_scope)s::%(basic_name)s%(template_args)s::Initializer_%(basic_name)s::initializer = 
+                 new %(pyllars_scope)s::%(basic_name)s%(template_args)s::Initializer_%(basic_name)s();
 """ % {
                 'pyllars_scope': self.element.pyllars_scope,
                 'basic_name': self.element.basic_name,
@@ -218,6 +221,7 @@ class VarDecl(Generator):
                 'imports': "\n".join(
                     ["if(!PyImport_ImportModule(\"pylllars%s\")){return -1;} " % n.replace("::", ".") for n in
                      imports]),
+                'template_args': self.element.template_arguments_string(),
                 'template_decl': template_decl(self)
             }).encode('utf-8'))
         else:

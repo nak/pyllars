@@ -368,6 +368,12 @@ class FieldDecl(Generator):
                     }
                    
                     %(template_decl)s
+                    status_t %(pyllars_scope)s::%(basic_name)s_register(pyllars::Initializer*){
+                            //do nothing, functions have no children
+                            return 0;
+                    }
+
+                    %(template_decl)s
                     typename %(pyllars_scope)s::Initializer_%(basic_name)s
                     * %(pyllars_scope)s::Initializer_%(basic_name)s::initializer = 
                     new %(pyllars_scope)s::Initializer_%(basic_name)s();
@@ -382,6 +388,7 @@ class FieldDecl(Generator):
                     'pyllars_scope': self.element.pyllars_scope,
                     'qual': 'Const' if self.element.type_.is_const else "",
                     'scope': self.element.block_scope,
+                    'template_args': self.element.template_arguments_string(),
                     'template_decl': template_decl(self)
                 }).encode('utf-8'))
         else:
@@ -409,6 +416,12 @@ class FieldDecl(Generator):
                        ( getter %(setter)s);
                    return status;
                 }
+    
+                %(template_decl)s
+                status_t %(pyllars_scope)s::%(basic_name)s_register(pyllars::Initializer*){
+                    //do nothing, functions have no children
+                    return 0;
+                }
                
                 %(template_decl)s
                 typename %(pyllars_scope)s::Initializer_%(basic_name)s
@@ -430,6 +443,7 @@ class FieldDecl(Generator):
                 'setter': ", setter" if not self.element.type_.is_const else "",
                 'setter_code': setter_code if not self.element.type_.is_const else "",
                 'scope': self.element.block_scope,
+                'template_args': self.element.template_arguments_string(),
                 'template_decl': template_decl(self)
             }).encode('utf-8'))
 
