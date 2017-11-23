@@ -7,8 +7,6 @@ namespace unused{
 typedef char * str;
 typedef const char* const const_str;
 
-extern const char * const const_ptr_str ;
-extern const char* const * const_ptr_ptr_str;
 
 namespace outside{
     class ExternalDependency{
@@ -57,41 +55,6 @@ namespace trial{
 
   };
 
-  class Inherited: public Main{
-  };
-
-  class SecondClass{
-  public:
-
-
-    SecondClass():const_short_member(42){
-    }
-
-    SecondClass(short v):const_short_member(v){
-    }
-
-    const short const_short_member;
-
-  };
-
-  class MultiInherited: public Main, public SecondClass{
-  };
-
-  template <typename T, T d = (T)0>
-  class TemplateClass{
-   public:
-
-    void method1(const float& value);
-
-    virtual double method2(T& value);
-
-    virtual void abstract() = 0;
-
-    double public_member;
-  };
-
-
-  using AliasedTemplateClassInt = TemplateClass<int>;
 
   namespace incomplete{
 
@@ -102,30 +65,6 @@ namespace trial{
 
   }
 
-    namespace AnonymousInnerTypes{
-
-        class AnonInner{
-        public:
-            enum {FIRST=1, SECOND=2, FOURTH=4};
-
-            struct {
-               unsigned int word1: 4;
-               unsigned word2: 4;
-            } anon_struct_instance;
-
-        };
-
-
-    }
-
-  int some_global_function(const double & value, outside::ExternalDependency &d) throw(double );
-
 }
-
-using ClassLong = trial::TemplateClass<long>;
-static constexpr long* null_long_ptr = (long*)0;
-using ClassLongPtr = trial::TemplateClass<long*, null_long_ptr>;
-
-static long* null_long_ptr2 = (long*)0;
 
 #endif

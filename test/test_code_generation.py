@@ -1,8 +1,6 @@
 import glob
 import os.path
-import shlex
 import shutil
-import subprocess
 
 import pytest
 from pyllars.cppparser import parser
@@ -28,14 +26,3 @@ class TestCodeGen(object):
         rc, output = Compiler(gen_path).compile_all(src_path=input_file)
         assert rc == 0, "Failed to compile/link generated code: \n%s" % output
 
-    def test_template_class_generation(self):
-        input_file = os.path.join(RESOURCES_DIR, "template_classes.hpp")
-        top = parser.parse_file(input_file)
-        gen_path = os.path.join("generated", os.path.basename(input_file))
-        gen_path = os.path.splitext(gen_path)[0]
-        if os.path.exists(gen_path):
-            shutil.rmtree(gen_path)
-        os.makedirs(gen_path)
-        Generator.generate_code(top.top, src_path=input_file, folder=Folder(gen_path))
-        rc, output = Compiler(gen_path).compile_all(src_path=input_file)
-        assert rc == 0, "Failed to compile/link generated code: \n%s" % output
