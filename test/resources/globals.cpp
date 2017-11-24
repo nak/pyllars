@@ -9,5 +9,9 @@ namespace trial{
 
 }
 
+float global_numer(){
+    return 4.2f;
+}
+
 const char * const const_ptr_str = 0;
 const char* const * const_ptr_ptr_str = 0;

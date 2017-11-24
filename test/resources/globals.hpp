@@ -19,9 +19,7 @@ namespace trial{
 
 }
 
-float global_number(){
-    return 4.2f;
-}
+float global_number();
 
 static constexpr long* null_long_ptr = (long*)0;
 
