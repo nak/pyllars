@@ -25,4 +25,6 @@ static constexpr long* null_long_ptr = (long*)0;
 
 static long* null_long_ptr2 = (long*)0;
 
+enum {FIRST=1, SECOND=2, THIRD=3} anonymous_enum_var;
+
 #endif

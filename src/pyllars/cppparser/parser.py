@@ -824,6 +824,31 @@ def parse_type(definition, defining_scope):
     return typ
 
 
+class AnonymousType(ScopedElement):
+
+    @classmethod
+    def parse_tokens(cls, name, tag, parent, **kargs):
+        raise Exception("Not parsable from tokens")
+
+    def __init__(self, element, type_element):
+        super(AnonymousType, self).__init__(name="decltype(%s::%s)" % (element.block_scope, element.basic_name),
+                                            tag=None,
+                                            parent=None,
+                                            locator=None)
+
+    @property
+    def scope(self):
+        return ""
+
+    @property
+    def block_scope(self):
+        return ""
+
+    @property
+    def full_name(self):
+        return self.name
+
+
 class TypeAliasDecl(ScopedElement):
 
     def __init__(self, name, tag, parent, alias_definition=None, locator=None, definition=None):
@@ -853,6 +878,8 @@ class VarDecl(ScopedElement):
 
     @property
     def type_(self):
+        if self._type.name in ['enum']:
+            self._type = AnonymousType(self, self._type)
         if isinstance(self._type, UnresolvedElement):
             self._type = self._type.resolve()
         return self._type
