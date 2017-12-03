@@ -167,7 +167,12 @@ namespace __pyllars_internal {
                     PyTypeObject *type = new PyTypeObject(Type);
                     Py_INCREF(type);
                     type->tp_name = name;
+		    PyType_Ready(type);
                     auto pyfuncobj = (Wrapper *) PyObject_CallObject((PyObject *) type, nullptr);
+		    if (!pyfuncobj){
+		      PyErr_Print();
+		      throw "Unable to create function callable";
+		    }
                     pyfuncobj->_cfunc = func;
                     while (names[index]) {
                         pyfuncobj->_kwlist.push_back(names[index++]);
