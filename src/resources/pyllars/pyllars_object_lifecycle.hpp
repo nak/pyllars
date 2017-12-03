@@ -393,7 +393,7 @@ namespace __pyllars_internal {
 
 
         ///////////////////////////////
-        // DEALLOCATION LOGIC FOR VARIOUS TYPES
+        // ALLOCATION LOGIC FOR VARIOUS TYPES
         ////////////////////////////////
 
         template<typename T>

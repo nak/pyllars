@@ -9,7 +9,8 @@ tokens = (
     'structured_type',
     'is_definition',
     'is_referenced',
-    'array_spec'
+    'array_spec',
+    'is_enum'
 )
 
 
@@ -29,7 +30,7 @@ def t_is_referenced(t):
 
 
 def t_structured_type(t):
-    r"(class|struct|union|typename)"
+    r"(class|struct|union|typename|enum)"
     return t
 
 
@@ -48,6 +49,10 @@ def t_qualifier(t):
     r"(const|constexpr|mutable|volatile)"
     return t
 
+def t_is_enum(t):
+    r"(enum)"
+    t.value = True
+    return t
 
 def t_array_spec(t):
     r"(\[[0-9]*\])"

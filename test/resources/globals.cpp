@@ -9,7 +9,7 @@ namespace trial{
 
 }
 
-float global_numer(){
+float global_number(){
     return 4.2f;
 }
 

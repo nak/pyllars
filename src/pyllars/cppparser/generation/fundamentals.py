@@ -140,10 +140,10 @@ class VarDecl(Generator):
         imports = set([])
         if self.element.type_ and self.element.type_.namespace_name != self.element.parent.namespace_name:
             imports.add(self.element.namespace_name)
-        if isinstance(self.element.parent, parser.CXXRecordDecl):
+        if isinstance(self.element.parent, parser.RecordTypeDefn):
             # static class member var:
             scoped.write(("""
-                constexpr cstring name = "%(name)s";
+                constexpr cstring name = "%(basic_name)s";
                 status_t %(pyllars_scope)s::%(basic_name)s::%(basic_name)s_init(){
                     status_t status = 0;
                     %(imports)s
@@ -188,7 +188,7 @@ class VarDecl(Generator):
                     status_t status = 0;
                     PyObject* mod = %(module_name)s;
                     %(imports)s
-                    if( !__pyllars_internal::GlobalVariable::createGlobalVariable<%(full_type_name)s>("%(name)s", "%(tp_name)s",
+                    if( !__pyllars_internal::GlobalVariable::createGlobalVariable<%(full_type_name)s>("%(basic_name)s", "%(tp_name)s",
                         &%(parent)s::%(basic_name)s, mod, %(array_size)s)){
                        status = -1;
                      }

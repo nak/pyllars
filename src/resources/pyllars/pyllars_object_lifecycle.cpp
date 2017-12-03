@@ -642,7 +642,7 @@ namespace __pyllars_internal{
         }
         if (!cobj) {
             Py_DECREF(alloc_kwds);
-            PyErr_SetString(PyExc_RuntimeError, "Invalid constructor arguments on allocation");
+            PyErr_SetString(PyExc_RuntimeError, "Invalid constructor arguments on allocation or no public constructor for class");
             return nullptr;
         }
         return (PyObject *) PtrWrapper::createPy2(size, cobj ? cobj->ptrptr() : nullptr, true, false);

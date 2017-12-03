@@ -34,7 +34,7 @@ class Compiler(object):
                 self._compileables.append(os.path.join(root, fil))
         self._folder = folder
 
-    def compile_all(self, src_path):
+    def compile_all(self, src_path:str, output_module_path: str):
         objects = []
         body = src_path.replace(".hpp", ".cpp")
         for compilable in self._compileables:
@@ -59,11 +59,12 @@ class Compiler(object):
             if p.returncode != 0:
                 return p.returncode, "Command \"%s\" failed:\n%s" % (cmd, output)
             objects.append(target)
-        cmd = "%(cxx)s -O -fPIC -std=c++14 %(cxxflags)s -I%(python_include)s -shared -o _trial.so -Wl,--no-undefined " \
+        cmd = "%(cxx)s -O -fPIC -std=c++14 %(cxxflags)s -I%(python_include)s -shared -o objects/%(output_module_path)s -Wl,--no-undefined " \
               "%(src)s %(objs)s %(python_lib_name)s -lffi %(pyllars_include)s/pyllars/pyllars.cpp" % {
                   'cxx': Compiler.LDCXXSHARED,
                   'src': body,
                   'cxxflags': Compiler.CFLAGS,
+                  'output_module_path': output_module_path,
                   'objs': " ".join(objects),
                   'pyllars_include': pyllars_resources_dir,
                   'python_include': Compiler.PYINCLUDE,
@@ -227,7 +228,7 @@ class Generator(metaclass=ABCMeta):
 #include <pyllars/pyllars_function_wrapper.hpp>
 
 #include <vector>
-
+#include <cstddef>
 #include <%(src_path)s>
 %(parent_header_name)s
 """  % {'src_path': self._src_path,
@@ -323,7 +324,7 @@ class Generator(metaclass=ABCMeta):
                 class Initializer_%(basic_name)s: public pyllars::Initializer{
                 public:
                     Initializer_%(basic_name)s():pyllars::Initializer(){
-                       %(basic_name)s_register(this);
+                       %(pyllars_scope)s::%(parent_basic_name)s_register(this);
                     }
 
                     virtual int init(){
@@ -336,17 +337,18 @@ class Generator(metaclass=ABCMeta):
             """ % {
                 'name': self.element.name,
                 'basic_name': self.sanitize(self.element.basic_name),
+                'parent_basic_name': self.element.parent.basic_name if self.element.parent.basic_name else "pyllars",
                  'pyllars_scope': self.element.pyllars_scope,
                 'parent_name': self.element.parent.basic_name if self.element.parent else "pyllars",
                 'template_decl': self.template_decl,
         }).encode('utf-8'))
 
     @staticmethod
-    def generate_code(element: parser.Element, src_path: str, folder: Folder):
+    def generate_code(element: parser.Element, src_path: str, folder: Folder, module_name: str):
         Generator.generator_mapping = {}
         generator_class = Generator.get_generator_class(element)
         generator = generator_class(element, src_path, folder)
-        generator.generate_body(as_top=True)
+        generator.generate_body(as_top=module_name)
 
     def generate_spec(self):
         file_name = self.to_path(ext=".hpp")
@@ -365,7 +367,9 @@ class Generator(metaclass=ABCMeta):
         with self.folder.open(file_name) as stream:
             stream.write(("""
                 #include "%(my_header_name)s"
+                #include <pyllars/pyllars.hpp>
                 #include <pyllars/pyllars_globalmembersemantics.cpp>
+                #include <cstddef>
                 """ % {"my_header_name": self.header_file_name()}).encode('utf-8'))
             if self.element.is_implicit:
                 return
@@ -379,6 +383,50 @@ class Generator(metaclass=ABCMeta):
                 child_generator = child_generator_class(child, self._src_path, self.folder.create_subfolder(child.basic_name),
                                                         parent_generator=self)
                 child_generator.generate_body()
+        if as_top:
+            stream.write(("""
+
+            extern "C"{
+                static const char* const name = "%(basic_name)s";
+                static const char* const doc = "%(basic_name)s top-level C++ interface module";
+                #if PY_MAJOR_VERSION == 3
+                PyMODINIT_FUNC
+                PyInit_%(basic_name)s(void){
+                    static PyModuleDef moduleDef;
+                    memset(&moduleDef, 0, sizeof(moduleDef));
+                    moduleDef.m_name = name;
+                    moduleDef.m_doc = doc;
+                    moduleDef.m_size = -1;
+                    PyObject *pyllars_mod = PyImport_ImportModule("pyllars");
+                    if (!pyllars_mod){
+                        return nullptr;
+                    }                    
+                    PyObject *%(basic_name)s_mod = PyModule_Create(&moduleDef);
+                    if (%(basic_name)s_mod){
+                        PyModule_AddObject(pyllars_mod, "%(basic_name)s", %(basic_name)s_mod);
+                    }
+                    if (%(pyllars_scope)s::Initializer::root->init() != 0){
+                        return nullptr;
+                    }
+                    return %(basic_name)s_mod;
+                }
+                #else
+                int _init%(basic_name)s(){
+                    PyObject *%(basic_name)s_mod = Py_InitModule3(name, nullptr, doc);
+                    if(!%(basic_name)s_mod) { return -1;}
+                    PyObject *pyllars_mod = PyImport_ImportModule("pyllars");
+                    if (!pyllars_mod){
+                        return -1;
+                    }
+                    PyModule_AddObject(pyllars_mod, "%(basic_name)s", %(basic_name)s_mod);
+                    return %(pyllars_scope)s::Initializer::root?pyllars::Initializer::root->init():0;
+                }
+                #endif
+            }
+            """ % {
+            'basic_name': as_top,
+            'pyllars_scope': self.element.pyllars_scope}).encode('utf-8'))
+
 
     @staticmethod
     def get_generator_class(element: parser.Element) -> "Generator":
@@ -403,11 +451,33 @@ class ClassTemplateDecl(Generator):
     def is_generatable(cls):
         return True
 
-    def generate_spec(self):
+    def generate_spec(self, as_top=False):
         generator_class = self.get_generator_class(self.element)
-        if not generator_class.is_generatable():
-            return
         file_name = self.to_path(ext=".hpp")
+        if not generator_class.is_generatable():
+            if as_top:
+                with  self.folder.open(file_name=file_name) as stream:
+                    with self.guarded(stream) as guarded:
+                        with self.scoped(guarded) as scoped:
+                            scoped.write(("""
+                        #include <pyllars/pyllars_classwrapper.hpp>
+
+                        namespace pyllars{
+
+                        ///////////////////////////////
+                            namespace{
+                                status_t pyllars_top_init();
+                                status_t pyllars_top_register();
+                            }
+
+                        //////////////////////////////
+    
+                        }
+                        #endif
+                            """ % {
+                                'top_name': as_top
+                            }).encode('utf-8'))
+            return
         self.folder.purge(file_name)
         with self.folder.open(file_name=file_name) as stream:
             if not self.element.name:
@@ -515,9 +585,7 @@ class ClassTemplateDecl(Generator):
                
                 %(template_decl)s
                 int %(qname)s_register( pyllars::Initializer* const init){
-                    static pyllars::Initializer _initializer = pyllars::Initializer();
-                    static int status = pyllars::%(parent_name)s%(parent_template_decl)s::%(parent)s_register(&_initializer);
-                    return status==0?_initializer.register_init(init):status;
+                    return Initializer_%(qname)s::initializer.register_init(init);
                 }
                 
 """ % {
@@ -531,4 +599,4 @@ class ClassTemplateDecl(Generator):
                 'parent': self.element.parent.name if self.element.parent else "pyllars",
                 'template_decl': self.element.template_decl,
                 'parent_template_decl': self.element.parent.template_decl if self.element.parent else ""
-            }).encode('utf-8')) 
+            }).encode('utf-8'))

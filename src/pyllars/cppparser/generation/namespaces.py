@@ -47,7 +47,7 @@ class NamespaceDecl(Generator):
                 #if PY_MAJOR_VERSION==3
                 static PyModuleDef %(name)s_moddef = {
                     PyModuleDef_HEAD_INIT,
-                    "noddy",
+                    "%(basic_name)s",
                     "Example module that creates an extension type.",
                     -1,
                     NULL, NULL, NULL, NULL, NULL
@@ -59,12 +59,33 @@ class NamespaceDecl(Generator):
                 #endif
                 if(! %(name)s_mod ){
                     status = -1;
+                } else {
+                   if (!%(parent_mod)s){
+                       status = -2;
+                   }
+                   PyModule_AddObject( %(parent_mod)s, "%(basic_name)s", %(basic_name)s_mod); 
                 }
                 return status;
             } // end init
+            
+            
+            class Initializer_%(basic_name)s: public pyllars::Initializer{
+            public:
+                Initializer_%(basic_name)s():pyllars::Initializer(){
+                  
+                }
 
+                virtual int init(){
+                   int status = %(basic_name)s_init();
+                   return status == 0? pyllars::Initializer::init() : status;
+                }
+
+             };
+             
+             
+             
             int %(pyllars_scope)s::%(name)s::%(name)s_register( pyllars::Initializer* const init ){
-                static pyllars::Initializer _initializer = pyllars::Initializer();
+                static Initializer_%(basic_name)s _initializer = Initializer_%(basic_name)s();
                 static int status = pyllars%(parent_name)s::%(parent)s_register(&_initializer);
                 return status==0?_initializer.register_init(init):status;
              }
@@ -74,6 +95,8 @@ class NamespaceDecl(Generator):
 
 """ % {
             'name': self.sanitize(self.element.name),
+            'basic_name': self.element.basic_name,
+            'parent_mod': self.element.parent.pyllars_module_name if self.element.parent else "pyllars_mod",
             'pyllars_scope': self.element.pyllars_scope,
             'fullname': self.element.full_name,
             'parent': qualified_name(

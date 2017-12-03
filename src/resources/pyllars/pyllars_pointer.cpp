@@ -245,8 +245,11 @@ namespace __pyllars_internal {
         static bool initialized = false;
         if (initialized) return 0;
         initialized = true;
-        if (!name && PythonClassWrapper<T_base>::initialize(name, module_entry_name,
-                                                            module, fullname) != 0) {
+        if (!name){
+	  return -1;
+	} 
+	if (PythonClassWrapper<T_base>::initialize(name, module_entry_name,
+							     module, fullname) != 0){
             return -1;
         }
         static std::vector<int> status;

@@ -87,7 +87,7 @@ namespace __pyllars_internal {
         /**
          * Add a constructor to the list contained
          **/
-        static void addConstructor(const char *const kwlist[], constructor c) ;
+        static void addConstructorBase(const char *const kwlist[], constructor c) ;
 
         /**
          * Create an instance of underlying class based on python arguments converting them to C to call
@@ -111,6 +111,13 @@ namespace __pyllars_internal {
         template<const char *const name, typename ReturnType, typename ...Args>
         static void addClassMethodVarargs(ReturnType(*method)(Args... ...), const char *const kwlist[]);
 
+       /**
+         * add a method with given compile-time-known name to the contained collection
+         **/
+        template< typename ...Args>
+        static void addConstructor(const char *const kwlist[]){
+            addConstructorBase(kwlist, &create<Args...>);
+        }
 
         /**
          * add a method with given compile-time-known name to the contained collection
@@ -320,8 +327,26 @@ namespace __pyllars_internal {
         /**
          * Add an enum value to the class
          */
-        static void addEnumValue( const char* const name, long value){
+        static int addEnumValue( const char* const name, long int value){
+
             addClassMember(name, PyInt_FromLong(value));
+            return 0;
+        }
+
+        template<const char* const type_name, typename EnumType>
+        static int addEnumClassValue( const char* const name, EnumType value){
+            const bool inited = PythonClassWrapper<EnumType>::_isInitialized;
+            if (!inited){
+                PythonClassWrapper<EnumType>::initialize(type_name, type_name, nullptr, type_name);
+            }
+            static PyTypeObject holderType = PythonClassWrapper<EnumType>::Type;
+            PyObject* pyval = toPyObject<EnumType>(value, false, 1);
+            PythonClassWrapper<EnumType>::_isInitialized = inited; // chicken and egg here, only initialize to create instances that then get added back into class
+            int status = pyval?0:-1;
+            if (pyval){
+                addClassMember(name, pyval);
+            }
+            return status;
         }
 
         /**

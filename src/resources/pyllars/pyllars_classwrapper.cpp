@@ -692,7 +692,7 @@ int __pyllars_internal::PythonClassWrapper<T,
     PyMethodDef pyMethAlloc = {
             alloc_name_,
             (PyCFunction) alloc,
-            METH_KEYWORDS | METH_CLASS,
+            METH_KEYWORDS | METH_CLASS | METH_VARARGS,
             "allocate array of single dynamic instance of this class"
     };
     _methodCollection.insert(_methodCollection.begin(), pyMethAlloc);
@@ -758,7 +758,7 @@ createPy
 template<typename T>
 void __pyllars_internal::PythonClassWrapper<T, 
         typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
-addConstructor(const char *const kwlist[], constructor c) {
+addConstructorBase(const char *const kwlist[], constructor c) {
     _constructors.push_back(ConstructorContainer(kwlist, c));
 }
 

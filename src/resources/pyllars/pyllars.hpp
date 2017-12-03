@@ -9,7 +9,6 @@ typedef int status_t;
 
 namespace pyllars{
 
-
     class Initializer{
     public:
 
@@ -19,10 +18,14 @@ namespace pyllars{
             for (auto it = _initializers->begin(); it != _initializers->end(); ++ it){
                 status |= (*it)->init();
             }
+            _initializers->clear();
             return status;
         }
 
         int register_init( Initializer* const init){
+	        if(!_initializers){
+	            _initializers = new std::vector<Initializer*>();
+	        }
             _initializers->push_back(init);
             return 0;
         }

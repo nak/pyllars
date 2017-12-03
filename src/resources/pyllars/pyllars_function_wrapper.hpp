@@ -155,15 +155,17 @@ namespace __pyllars_internal {
                             const char *const names[]) {
                 static bool inited = false;
                 Py_ssize_t index = 0;
+                char *name = new char[strlen(func_name) + 1 + ptrtp_name_prefix_len];
+                 memset(name, 0, strlen(func_name) + 1 + ptrtp_name_prefix_len);
+                strcpy(name, ptrtp_name_prefix);
+                strcpy(name + ptrtp_name_prefix_len, func_name);
+                Type.tp_name = name;
                 if (!inited && (PyType_Ready(&Type) < 0)) {
                     throw "Unable to initialize python object for c function wrapper";
                 } else {
                     inited = true;
                     PyTypeObject *type = new PyTypeObject(Type);
                     Py_INCREF(type);
-                    char *name = new char[strlen(func_name) + 1 + ptrtp_name_prefix_len];
-                    strcpy(name, ptrtp_name_prefix);
-                    strcpy(name + ptrtp_name_prefix_len, func_name);
                     type->tp_name = name;
                     auto pyfuncobj = (Wrapper *) PyObject_CallObject((PyObject *) type, nullptr);
                     pyfuncobj->_cfunc = func;

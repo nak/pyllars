@@ -19,7 +19,7 @@ tokens = (
     'access',
     'suagar',
     'float',
-    'alias_definition',
+#    'alias_definition',
     'number',
     'throws',
     'keyword',
@@ -30,15 +30,15 @@ tokens = (
 t_reference = r"(\*|\&|\&\&)"
 t_ignore = '\t '
 
-def t_alias_definition(t):
-    r'(\'[a-zA-Z0-9\_\ \*\[\]\(\)\&(\:\:)\<\>\,]*\'\:\'[a-zA-Z0-9\_\ \*\[\]\(\)\&(\:\:)\<\>\,]*\')'
-    t.value = [v.replace("'", "") for v in t.value.split("':'")]
-    return t
+#def t_alias_definition(t):
+#    r'(\'[a-zA-Z0-9\_\ \*\[\]\(\)\&(\:\:)\<\>\,]*\'\:\'[a-zA-Z0-9\_\ \*\[\]\(\)\&(\:\:)\<\>\,]*\')'
+#    t.value = [v.replace("'", "") for v in t.value.split("':'")]
+#    return t
 
 
 def t_definition(t):
-    r'\'([a-zA-Z0-9\_\*\[\]\(\)\&(\:\:)(\.\.\.)\,]*)(\<.*\>)?\''
-    t.value = t.value.replace("'", "")
+    r'\'([a-zA-Z0-9\_\*\[\]\(\)\&(\:\:)(\.\.\.)\,\ ]*)(\<.*\>)?\''
+    t.value = t.value.replace("'", "").strip()
     return t
 
 
@@ -78,7 +78,7 @@ decls = r'(TranslationUnitDecl|BuiltinType|TypedefDecl|ParmVarDecl|CXXRecordDecl
          'TemplateSpecializationType|RecordType|NamespaceDecl|PointerType|ArrayType|ConstantArrayType|' + \
          'CXXConstructorDecl|CXXDestructorDecl|CXXMethodDecl|CompoundStmt|ClassTemplateDecl|TemplateTypeParmDecl|' + \
          'LValueReferenceType|ElaboratedType|VarDecl|QualType|ImplicitCastExpr|IntegerLiteral|ReturnStmt|FloatingLiteral|' + \
-         'NonTypeTemplateParmDecl|TypeAliasDecl|FunctionDecl|FieldDecl|IntegerLiteral' + \
+         'NonTypeTemplateParmDecl|TypeAliasDecl|FunctionDecl|FieldDecl|IntegerLiteral|EnumDecl|EnumConstantDecl' + \
          ')'
 
 @TOKEN(decls)
@@ -104,7 +104,7 @@ def t_is_referenced(t):
 
 
 def t_structured_type(t):
-    r"(class|struct|union|typename)\ "
+    r"(class|struct|union|typename|enum)\ "
     return t
 
 

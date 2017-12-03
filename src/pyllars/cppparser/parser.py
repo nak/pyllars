@@ -553,8 +553,11 @@ class NamespaceDecl(ScopedElement):
 
 class BuiltinType(UnscopedElement):
 
+    DEFINITIONS = {}
+
     def __init__(self, name, parent, tag):
         super(BuiltinType, self).__init__(name, tag, parent)
+        BuiltinType.DEFINITIONS[name] = self
 
     @classmethod
     def parse_tokens(cls,  name, tag, parent, **kargs):
@@ -619,6 +622,9 @@ class CXXRecord(UnscopedElement):
 
 class RecordTypeDefn(ScopedElement):
 
+    def __init__(self, name, tag, parent, **kargs):
+        super(RecordTypeDefn, self).__init__(name, tag, parent, **kargs)
+        self._base_classes = {}
 
     def make_complete_by_attr_name(self, attr_name):
         self._name = "decltype(%(scope)s::%(name)s)" % {'scope': self.scope,
@@ -632,6 +638,13 @@ class RecordTypeDefn(ScopedElement):
         else:
             return super(RecordTypeDefn, self).full_name
 
+    @property
+    def public_base_classes(self):
+        return self._base_classes.get('public')
+
+    def add_base_class(self, typ, access):
+        self._base_classes.setdefault(access, []).append(typ)
+
 
 class CXXRecordDecl(RecordTypeDefn):
 
@@ -641,15 +654,7 @@ class CXXRecordDecl(RecordTypeDefn):
         self._is_referenced = kargs.get('is_referenced') or False
         self._is_definition = kargs.get('is_definition') or False
         self._kind = kargs.get('structured_type')
-        self._base_classes = {}
         self._is_implicit = kargs.get('implicit_explicit') == 'implicit'
-
-    def add_base_class(self, typ, access):
-        self._base_classes.setdefault(access, []).append(typ)
-
-    @property
-    def public_base_classes(self):
-        return self._base_classes.get('public')
 
     @property
     def is_implicit(self):
@@ -809,6 +814,10 @@ def parse_type(definition, defining_scope):
             base_modifiers.append(token.value)
         elif token.type == 'structured_type':
             struct_type = token.value
+        elif token.type == 'is_enum':
+            is_enum = True
+    if struct_type == 'enum' and not base_type:
+        base_type = BuiltinType.DEFINITIONS['int']
     assert base_type is not None
     typ = base_type if array_size is None else ArrayType(tag=None,
                                                          parent=base_type.parent,
@@ -866,7 +875,7 @@ class TypeAliasDecl(ScopedElement):
 
 class VarDecl(ScopedElement):
 
-    def __init__(self, name, tag, parent, definition=None, alias_definition=None, qualifier=None, locator=None, implicit_explicit=None):
+    def __init__(self, name, tag, parent, definition=None, alias_definition=None, qualifier=None, locator=None, implicit_explicit=None, is_referenced=None):
         super(ScopedElement, self).__init__(name if isinstance(name, str) else name[-1] if name else None, tag, parent,
                                             locator=locator, qualifier=qualifier)
         assert not (definition is None and alias_definition is None)
@@ -874,6 +883,7 @@ class VarDecl(ScopedElement):
         if not definition:
             definition = alias_definition[1]
         self._type = parse_type(definition, parent)
+
         self._is_implicit = (implicit_explicit == 'implicit')
 
     @property
@@ -888,6 +898,8 @@ class VarDecl(ScopedElement):
     def parse_tokens(cls, name, tag, parent, **kargs):
         if name and name.startswith('used '):
             name = name.split(' ')[1]
+        elif name.endswith(" cinit"):
+            name = name[:-6]
         return cls(name, tag, parent, **kargs)
 
     @property
@@ -974,7 +986,10 @@ class FunctionTypeDecl(FunctionElement):
 
 
 class CXXConstructorDecl(FunctionDecl):
-    pass
+
+    @property
+    def guard(self):
+        return super(CXXConstructorDecl, self).guard + "______constructor"
 
 
 class CXXDestructorDecl(FunctionDecl):
@@ -1051,18 +1066,20 @@ class RecordType(RecordTypeDefn):
     def __init__(self, name, tag, parent, **kargs):
         super(RecordType, self).__init__(name, tag, parent, locator=kargs.get('locator'))
         tokens = {}
-        type_lexer.input(kargs.get('definition').replace("'", ""))
-        while True:
-            token = type_lexer.token()
-            if token is None:
-                break
-            if token.type in tokens:
-                tokens[token.type] = [tokens[token.type], token]
-            else:
-                tokens[token.type] = token
-        self._kind = tokens.get('structured_type').value
-        name = tokens.get('name')
-        name = name.value if name else None
+        if kargs.get('definition'):
+            type_lexer.input(kargs.get('definition').replace("'", ""))
+            while True:
+                token = type_lexer.token()
+                if token is None:
+                    break
+                if token.type in tokens:
+                    tokens[token.type] = [tokens[token.type], token]
+                else:
+                    tokens[token.type] = token
+        if tokens.get('structured_type'):
+            self._kind = tokens.get('structured_type').value
+            name = tokens.get('name')
+            name = name.value if name else None
         if name:
             self._name = name.split("::")[-1]
             self._qualified_name = name
@@ -1078,6 +1095,29 @@ class RecordType(RecordTypeDefn):
     @classmethod
     def parse_tokens(cls, name, tag, parent, **kargs):
         return RecordType(name, tag, parent, **kargs)
+
+
+class EnumDecl(RecordType):
+
+    def __init__(self, name, tag, parent, **kargs):
+        super(EnumDecl, self).__init__(name, tag, parent, **kargs)
+        self._structured_type = 'structured_type' in kargs
+
+    @classmethod
+    def parse_tokens(cls, name, tag, parent, **kargs):
+        return EnumDecl(name, tag, parent, **kargs)
+
+    @property
+    def is_structure(self):
+        return self._structured_type
+
+
+class EnumConstantDecl(VarDecl):
+
+    def __init__(self, name, tag, parent, *args, **kargs):
+        if not parent.name or not parent.is_structure:
+            parent = parent.parent  # not an enum class, so must be added to enum's parent
+        super(EnumConstantDecl, self).__init__(name, tag, parent, *args, **kargs)
 
 
 class TemplateDecl(ScopedElement):
@@ -1292,10 +1332,9 @@ init()
 
 def parse_file(src_path):
     import subprocess
-    import tempfile
     import os.path
     Element.reset()
-    with tempfile.NamedTemporaryFile(mode='w') as f:
+    with open(os.path.join(os.path.dirname(src_path), "compile_commands.json"), mode='w') as f:
         f.write("""
         [
         {
@@ -1307,6 +1346,6 @@ def parse_file(src_path):
         """ % {'dir': os.path.dirname(src_path),
                'file':os.path.basename(src_path)})
         f.flush()
-        cmd = ["clang-check", "-ast-dump", src_path, "--extra-arg=\"-fno-color-diagnostics\"", ]
+        cmd = ["clang-check", "-ast-dump", src_path, "--extra-arg=\"-fno-color-diagnostics\"", "-p", src_path]
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
         return Element.parse(proc.stdout)
