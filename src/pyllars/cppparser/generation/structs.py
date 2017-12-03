@@ -208,7 +208,7 @@ class CXXRecordDecl(Generator):
 
 class CXXMethodDecl(Generator):
     METHOD_NAMES = {'operator-': ['addMethod__inv__', 'addMethod__sub__'],
-                    'operator+': ['addMethod__pos__', 'addMethod__add__'],
+                    'operator+': ['addMethod__pos__', 'addMethod__addd__'],
                     'operator*': ['addMethod__deref__', 'addMethod__mul__'],
                     'operator/': [None, 'addMethod__div__'],
                     'operator&': ['addMethod_addr__', 'addMethod__and__'],
@@ -253,7 +253,14 @@ class CXXMethodDecl(Generator):
             'template_prefix': 'template ' if self.element.parent.parent.is_template_macro else ""
         }
 
+    def generate_header_core(self, stream: TextIOBase, as_top=False):
+        if "operator delete" in self.element.name:
+            return
+        super(CXXMethodDecl, self).generate_header_core(stream, as_top=as_top)
+
     def generate_body_proper(self, stream: TextIOBase, as_top: bool = False) -> None:
+        if "operator delete" in self.element.basic_name:
+            return
         imports = set([])
         for elem in self.element.params:
             if elem and elem.type_.namespace_name != self.element.namespace_name and elem.type_.namespace_name != "::":
@@ -283,8 +290,8 @@ class CXXMethodDecl(Generator):
             }
             
             %(template_decl)s
-            typename %(pyllars_scope)s::Initializer_%(sanitized_name)s 
-            *%(pyllars_scope)s::Initializer_%(sanitized_name)s::initializer
+            typename %(pyllars_block_scope)s::Initializer_%(sanitized_name)s 
+            *%(pyllars_scope)s::Initializer_%(sanitized_name)s::initializer =
             new %(pyllars_scope)s::Initializer_%(sanitized_name)s();
 """ % {
             'arguments': (',' if len(self.element.params) > 0 else "") + ', '.join([t.type_.full_name for
@@ -300,6 +307,7 @@ class CXXMethodDecl(Generator):
                  imports]),
             'name': self.sanitize(self.element.name),
             'pyllars_scope': self.element.pyllars_scope,
+            'pyllars_block_scope': self.element.pyllars_block_scope,
             'pyname': CXXMethodDecl.METHOD_NAMES.get(self.element.name).replace('addMethod', '') if
             self.element.name in CXXMethodDecl.METHOD_NAMES else self.element.name if self.element.name != "operator=" else "assign_to",
             'template_decl': template_decl(self),
@@ -594,7 +602,7 @@ class CXXConstructorDecl(CXXMethodDecl):
        ( argumentNames);
 
 """ % {
-            'args': ("," if self.element.params else "") + ", ".join([p.type_.full_param_name for p in self.element.params]),
+            'args': ", ".join([p.type_.full_param_name for p in self.element.params]),
             'basic_name': self.element.parent.basic_name,
             'is_const': str(self.element.is_const).lower() + "," if not self.element.is_static else "",
             'names': ",".join(['"%s"' % (e.name or "param_%d" % index) for index, e in enumerate(self.element.params)]),
@@ -654,8 +662,8 @@ class EnumConstantDecl(VarDecl):
                 'parent_full_name': self.element.parent.full_name,
                 'full_type_name': self.element.type_.full_name,
                 'qual': 'Const' if self.element.type_.is_const else '',
-                'prefix': "" if not self.parent.element.is_structure else "template ",
-                'suffix': "Value" if not self.parent.element.is_structure else "ClassValue<type_name, %s>" % self.element.parent.full_name,
+                'prefix': "" if not self.element.is_structure else "template ",
+                'suffix': "Value" if not self.element.is_structure else "ClassValue<type_name, %s>" % self.element.parent.full_name,
                 'template_decl': template_decl(self),
                 'template_args': self.element.template_arguments_string()
             }).encode('utf-8'))

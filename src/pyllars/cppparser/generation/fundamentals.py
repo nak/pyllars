@@ -63,7 +63,14 @@ class FunctionDecl(Generator):
             'func_name': self.element.name,
         }
 
+    def generate_header_core(self, stream: TextIOBase, as_top=False):
+        if 'operator delete' in self.element.name or 'operator new' in self.element.name:
+            return
+        super(FunctionDecl, self).generate_header_core(stream, as_top=as_top)
+
     def generate_body_proper(self, scoped: TextIOBase, as_top: bool = False) -> None:
+        if 'operator delete' in self.element.name or 'operator new' in self.element.name:
+            return
         imports = set([])
         for elem in self.element.params:
             if elem and elem.type_.namespace_name != self.element.namespace_name and elem.type_.namespace_name != "::":

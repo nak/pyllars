@@ -17,27 +17,28 @@ tokens = (
     'is_definition',
     'is_referenced',
     'access',
-    'suagar',
+    'sugar',
     'float',
-#    'alias_definition',
     'number',
     'throws',
     'keyword',
-    'integer_value'
+    'integer_value',
+    'col',
+    'line'
 )
 
 
 t_reference = r"(\*|\&|\&\&)"
 t_ignore = '\t '
 
-#def t_alias_definition(t):
-#    r'(\'[a-zA-Z0-9\_\ \*\[\]\(\)\&(\:\:)\<\>\,]*\'\:\'[a-zA-Z0-9\_\ \*\[\]\(\)\&(\:\:)\<\>\,]*\')'
-#    t.value = [v.replace("'", "") for v in t.value.split("':'")]
-#    return t
+
+def t_locator(t):
+    r"(<.*>)"
+    return t
 
 
 def t_definition(t):
-    r'\'([a-zA-Z0-9\_\*\[\]\(\)\&(\:\:)(\.\.\.)\,\ ]*)(\<.*\>)?\''
+    r'\'([a-zA-Z0-9\_\*\[\]\(\)\&(\:\:)(\.\.\.)\,\ (\<.*\>)]*)\''
     t.value = t.value.replace("'", "").strip()
     return t
 
@@ -127,10 +128,6 @@ def t_throws(t):
     r'(throw\()[.\ ]*\)'
     return t
 
-def t_locator(t):
-    r"(<<?([^<]*)>?>)|(\[([.:]*)\])|(<[^ ]*>)|((line|col):*[^ ]*)"
-    return t
-
 
 def t_qualifier(t):
     r'(const|constexpr|mutable|volatile|extern|static|explicit|implicit)\ '
@@ -147,12 +144,24 @@ def t_number(t):
     r'([+-]?[0-9]+\.?[0-9]*((e\+|e\-)?[0-9]+)?)'
     return t
 
+
 def t_keyword(t):
-    r'(inline)'
+    r'(inline|noexcept-unevaluated)'
     return t
 
+
+def t_col(t):
+    r'(col\:[0-9]*)'
+    return t
+
+
+def t_line(t):
+    r'(line\:[0-9]*:[0-9]*)'
+    return t
+
+
 def t_name(t):
-    r'([_\~\=a-zA-Z0-9\<\>\,]+)'
+    r'[_\~a-zA-Z].([_\~\=a-zA-Z0-9\<\>\,]*(\[\])?)'
     return t
 
 

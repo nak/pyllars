@@ -15,7 +15,7 @@ INDENT = "    "
 
 
 def qualified_name(name):
-    return Generator.sanitize(name.replace("(", "_lparen_").replace(")", "_rparen_").replace(":", "_"))
+    return Generator.sanitize(name.replace("(", "_lparen_").replace(")", "_rparen_").replace(":", "_")).replace(" ", "_")
 
 
 class Compiler(object):
@@ -42,7 +42,7 @@ class Compiler(object):
             if not os.path.exists(os.path.dirname(target)):
                 os.makedirs(os.path.dirname(target))
             cmd = "%(cxx)s -O -std=c++14 %(cxxflags)s -c -fPIC -I%(local_include)s -I%(python_include)s " \
-                  "-I%(pyllars_include)s -o %(target)s %(compilable)s" % {
+                  "-I%(pyllars_include)s -o \"%(target)s\" \"%(compilable)s\"" % {
                       'cxx': Compiler.CXX,
                       'cxxflags': Compiler.CFLAGS,
                       'local_include': self._folder,
@@ -58,7 +58,7 @@ class Compiler(object):
             output = p.communicate()[0].decode('utf-8')
             if p.returncode != 0:
                 return p.returncode, "Command \"%s\" failed:\n%s" % (cmd, output)
-            objects.append(target)
+            objects.append("\"%s\"" % target)
         cmd = "%(cxx)s -O -fPIC -std=c++14 %(cxxflags)s -I%(python_include)s -shared -o objects/%(output_module_path)s -Wl,--no-undefined " \
               "%(src)s %(objs)s %(python_lib_name)s -lffi %(pyllars_include)s/pyllars/pyllars.cpp" % {
                   'cxx': Compiler.LDCXXSHARED,
@@ -180,7 +180,7 @@ class Generator(metaclass=ABCMeta):
         return text
 
     def header_file_name(self)->str:
-        return (self.element.basic_name or "global") + ".hpp"
+        return (self.element.basic_name or "global").replace(" ", "_") + ".hpp"
 
     def body_file_path(self) ->str:
         parent_path = self.folder.path

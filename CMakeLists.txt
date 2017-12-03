@@ -6,29 +6,12 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=c++14  -Werror -Wall -std=c++11")
 
 include_directories(/usr/include/python2.7)
 include_directories(/usr/include)
-include_directories(pyllars)
+include_directories(src)
 link_directories(/usr/lib/x86_64-linux-gnu)
 
 set(SOURCE_FILES
-        pyllars/test/test_basics.cpp
-        pyllars/pyllars/pyllars_defns.hpp
-        pyllars/pyllars/pyllars_utils.hpp
-        pyllars/pyllars/pyllars_pointer.hpp
-        pyllars/pyllars/pyllars_object_lifecycle.hpp
-        pyllars/pyllars/pyllars_methodcallsemantics.hpp
-        pyllars/pyllars/pyllars_globalmembersemantics.hpp
-        pyllars/pyllars/pyllars_function_wrapper.hpp
-        pyllars/pyllars/pyllars_conversions.hpp
-        pyllars/pyllars/pyllars_constmethodcallsemantics.hpp
-        pyllars/pyllars/pyllars_classwrapper.hpp
-        pyllars/pyllars/pyllars_classmethodsemantics.hpp
-        pyllars/pyllars/pyllars_callbacks.hpp
-        /usr/include/python2.7/Python.h
-        /usr/include/python2.7/object.h
-        /usr/include/python2.7/tupleobject.h
-        pyllars/pyllars/pyllars_callbacks.cpp pyllars/pyllars/pyllars_conversions.cpp pyllars/pyllars/pyllars_constmethodcallsemantics.cpp pyllars/pyllars/pyllars_globalmembersemantics.cpp pyllars/pyllars/pyllars_methodcallsemantics.cpp pyllars/pyllars/pyllars_pointer.cpp pyllars/pyllars/pyllars_classmethodsemantics.cpp pyllars/pyllars/pyllars_object_lifecycle.cpp)
-add_definitions(-DMAIN)
-add_library(Pyllars ${SOURCE_FILES})
-target_link_libraries(Pyllars  python2.7 ffi )
 
-add_custom_target(build_module ALL bash ./do_setup.sh WORKING_DIRECTORY  ${PROJECT_SOURCE_DIR}/pyllars/test  DEPENDS ${PROJECT_SOURCE_DIR}/pyllars/test/to_convert/testbasic_C.hpp ${PROJECT_SOURCE_DIR}/pyllars/pyllars/xslt/cpp2pyllars.xslt)
+        /usr/include/python2.7/Python.h
+        /usr/include/python2.7/object.h)
+
+add_custom_target(build_globals_module ALL PYTHONPATH=../src pytest -s ./test_code_generation.py -k globals WORKING_DIRECTORY  ${PROJECT_SOURCE_DIR}/test)
