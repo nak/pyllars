@@ -80,7 +80,7 @@ class Element(metaclass=ABCMeta):
         self._is_template = parent and parent.is_template
         self._inside_template_macro = (parent._inside_template_macro or parent.is_template_macro) if parent else False
         self._is_anonymous_type = name is None or "enum " in name
-        if name and self.is_resolved:
+        if name is not None and self.is_resolved:
             full_name = self.scope + ('::' if self.scope else "") +  name
             if full_name in Element.lookup and type(Element.lookup[full_name]) != type(self):
                 raise Exception("Duplicate type def")
@@ -259,7 +259,7 @@ class Element(metaclass=ABCMeta):
                 del tokens['tag']
             if node_type is None:
                 if 'access' in tokens and 'definition' in tokens and isinstance(parent, CXXRecordDecl):
-                    typ = parse_type(tokens['definition'], parent)
+                    typ = parse_type(tokens['definition'], parent, var_name=name)
                     if not typ:
                         print ("ERROR: unable to find type for definition: %s" + tokens['definition'])
                     elif isinstance(type, RecordTypeDefn):
@@ -678,8 +678,7 @@ class RecordTypeDefn(ScopedElement):
 class CXXRecordDecl(RecordTypeDefn):
 
     def __init__(self, name, tag, parent, **kargs):
-        super(CXXRecordDecl, self).__init__(name, tag, parent,
-                                            locator=kargs.get('locator'))
+        super(CXXRecordDecl, self).__init__(name, tag, parent, **kargs)
         self._is_referenced = kargs.get('is_referenced') or False
         self._is_definition = kargs.get('is_definition') or False
         self._kind = kargs.get('structured_type')
@@ -697,7 +696,7 @@ class CXXRecordDecl(RecordTypeDefn):
 class DecoratingType(UnscopedElement):
 
     def __init__(self, name, tag, parent, definition, qualifier=None,  locator=None):
-        self._target_type = parse_type(definition, parent)
+        self._target_type = parse_type(definition, parent, var_name=name)
         super(DecoratingType, self).__init__(name, tag,
                                              self._target_type.parent,
                                              locator, qualifier=qualifier)
@@ -705,7 +704,7 @@ class DecoratingType(UnscopedElement):
     @classmethod
     def parse_tokens(cls, name, tag, parent, **kargs):
         if 'definition' in kargs:
-            kargs['definition'] = parse_type(kargs['definition'], parent)
+            kargs['definition'] = parse_type(kargs['definition'], parent, var_name=name)
         return cls(tag, parent, **kargs)
 
     @property
@@ -776,6 +775,13 @@ class ArrayType(DecoratingType):
     def array_size(self):
         return self._array_size
 
+    @property
+    def full_name(self):
+        if not self._target_type:
+            return "%s<undetermined>[%s]" % (self.__class__.__name__, self._array_size or "")
+        if not self.is_resolved:
+            self.resolve()
+        return self._target_type.full_name + "[%s]" % (self._array_size or "")
 
 class PointerType(DecoratingType):
 
@@ -785,7 +791,7 @@ class PointerType(DecoratingType):
     @property
     def full_name(self):
         if not self._target_type:
-            return "%s<undetermined>" % self.__class__.__name__
+            return "%s<undetermined>*" % self.__class__.__name__
         if not self.is_resolved:
             self.resolve()
         return self._target_type.full_name + "*"
@@ -825,13 +831,14 @@ class QualType(DecoratingType):
         return super(QualType, self).full_name
 
 
-def parse_type(definition, defining_scope, tag=None):
+def parse_type(definition, defining_scope, tag=None, var_name=None):
     if isinstance(definition, Element) or isinstance(definition, UnresolvedElement):
         return definition
     if not isinstance(definition, str):
         for defin in definition:
             try:
-                return parse_type(defin, defining_scope, tag)
+                if defin != 'struct':
+                    return parse_type(defin, defining_scope, tag, var_name=var_name)
             except:
                 pass
     array_size = None
@@ -854,10 +861,13 @@ def parse_type(definition, defining_scope, tag=None):
                 name = name[:-2] + "::" +base_name
                 if not Element.from_name(name):
                     base_type = EnumDecl(base_name, tag=defining_scope.tag, parent=defining_scope)
+            elif token.value.endswith('::'):
+                name = "decltype(%s::%s)" % (defining_scope.full_name, var_name)
             if not base_type:
-                base_type = Element.from_name(name) or UnresolvedElement(name, defining_scope)
+                base_type = Element.from_name(name)  or UnresolvedElement(name, defining_scope)
         elif token.type == 'array_spec':
-            array_size = token.value
+            array_size = (array_size or [])
+            array_size.append(token.value)
         elif token.type == 'implicit_explicit':
             implicit_explicit = token.value
         elif token.type in ['qualifier', 'reference'] :
@@ -875,10 +885,10 @@ def parse_type(definition, defining_scope, tag=None):
     if struct_type == 'enum' and not base_type:
         base_type = BuiltinType.DEFINITIONS['int']
     assert base_type is not None
-    typ = base_type if array_size is None else ArrayType(tag=None,
-                                                         parent=base_type.parent,
-                                                         definition=base_type,
-                                                         array_size=array_size)
+    if array_size:
+        for size in reversed(array_size):
+            base_type = ArrayType(tag=None, parent=base_type.parent, definition=base_type, array_size=size)
+    typ = base_type
     for qualifier in reversed(base_qualifiers):
         typ = QualType(tag=None, parent=base_type.parent, definition=typ, qualifier=qualifier)
     for modifier in base_modifiers:
@@ -895,7 +905,7 @@ class AnonymousType(ScopedElement):
     def parse_tokens(cls, name, tag, parent, **kargs):
         raise Exception("Not parsable from tokens")
 
-    def __init__(self, element, type_element):
+    def __init__(self, element, type_element=None):
         super(AnonymousType, self).__init__(name="decltype(%s::%s)" % (element.block_scope, element.basic_name),
                                             tag=None,
                                             parent=None,
@@ -1092,11 +1102,17 @@ class FieldDecl(ScopedElement):
 
     def __init__(self, name, tag, parent, **kargs):
         super(FieldDecl, self).__init__(name, tag, parent, **kargs)
+        definition = kargs.get('definition') or ""
+        if not isinstance(definition, str):
+            definition = definition[0]
         if kargs.get('alias_definition'):
             # is anonymous type:
             self._type = Element.last_parsed_type
+        elif 'struct' == definition or definition.endswith('::'):
+            # anonymous type
+            self._type = AnonymousType(self)
         else:
-            self._type = parse_type(kargs.get('definition'), parent)
+            self._type = parse_type(definition, parent, tag=tag, var_name=name)
         self._bit_size = None
 
     @property
@@ -1143,7 +1159,7 @@ class IntegerLiteral(ScopedElement):
 
     @classmethod
     def parse_tokens(cls, name, tag, parent, **kargs):
-        return cls(name, tag, parent, kargs.get('number'), kargs.get('locator'))
+        return cls(name, tag, parent, integer_value=kargs.get('number'), **kargs)
 
     def make_complete(self):
         pass
@@ -1152,7 +1168,7 @@ class IntegerLiteral(ScopedElement):
 class RecordType(RecordTypeDefn):
 
     def __init__(self, name, tag, parent, **kargs):
-        super(RecordType, self).__init__(name, tag, parent, locator=kargs.get('locator'), **kargs)
+        super(RecordType, self).__init__(name, tag, parent, **kargs)
         tokens = {}
         if kargs.get('definition'):
             type_lexer.input(kargs.get('definition').replace("'", ""))
@@ -1308,7 +1324,7 @@ class NonTypeTemplateParmDecl(ScopedElement):
     def __init__(self, name, tag, parent: TemplateDecl, definition, locator=None, is_referenced=None,
                  **kargs):
         super(NonTypeTemplateParmDecl, self).__init__(name, tag, None, locator, **kargs)
-        self._type = parse_type(definition, parent)
+        self._type = parse_type(definition, parent, var_name=name)
         #self._is_referenced = is_referenced
         parent.add_template_arg(self)
 

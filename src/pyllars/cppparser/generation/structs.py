@@ -340,7 +340,7 @@ class FieldDecl(Generator):
                     status_t %(pyllars_scope)s::%(basic_name)s_init(){
                        status_t status = 0;
                        %(imports)s
-                        __pyllars_internal::PythonClassWrapper< typename %(scope)s >::template addAttribute<name, %(array_size)s, %(full_type_name)s>
+                        __pyllars_internal::PythonClassWrapper< typename %(scope)s >::template addArrayAttribute<name, %(array_size)s, %(full_type_name)s>
                            ( &%(scope)s::%(name)s, %(array_size)s);
                        return status;
                     }

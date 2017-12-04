@@ -612,19 +612,20 @@ namespace __pyllars_internal {
 
     template<typename t, const size_t size>
     struct ObjContainerProxy<t[size], t[size]> : ObjContainer<t[size]> {
+        typedef typename std::remove_const<t>::type unconst_t;
+        struct t_container{
+            t value[size];
+        };
 
         ObjContainerProxy(t arg[size]) :
-	     ObjContainer<t[size]>(contained2, size, false),
-                contained2{arg[0]} {
-            typedef typename std::remove_const<t>::type unconst_t;
-            unconst_t *unconst_contained = const_cast<unconst_t *>(arg);
-            for (size_t i = 0; i < size; ++i) {
-                unconst_contained[i] = arg[i];
-            }
+	     ObjContainer<t[size]>(reinterpret_cast<t_container*>(&contained2)->value, size, false){
+	        contained2 = *reinterpret_cast<container*>(&arg);
         }
 
     private:
-        t contained2[size];
+        struct container{
+            unconst_t value[size];
+        } contained2;
     };
 
     template<typename Type>

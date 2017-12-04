@@ -25,7 +25,7 @@ namespace __pyllars_internal {
             (std::is_pointer<T>::value || std::is_array<T>::value)>::type>::
     _concat(PyObject *self, PyObject *other) {
 
-        if (checkType(other) || NonConstWrapper::checkType(other) || ConstWrapper::checkType(other)) {
+        if (PythonClassWrapper::checkType(other) || NonConstWrapper::checkType(other) || ConstWrapper::checkType(other)) {
             PythonClassWrapper *self_ = (PythonClassWrapper *) self;
             PythonClassWrapper *other_ = (PythonClassWrapper *) other;
             if (self_->_depth != 1 || other_->_depth != 1) {
@@ -564,7 +564,7 @@ namespace __pyllars_internal {
     checkType(PyObject *const obj) {
         if (!obj || !obj->ob_type || (obj->ob_type->tp_init != (initproc) _init)) { return false; }
         PythonClassWrapper *obj_ = (PythonClassWrapper *) obj;
-        return PyObject_TypeCheck(obj, getType(obj_->_depth));
+        return PyObject_TypeCheck(obj, PythonClassWrapper::getType(obj_->_depth));
     }
 
     template<typename T>

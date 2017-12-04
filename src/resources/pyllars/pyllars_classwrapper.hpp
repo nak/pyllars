@@ -358,7 +358,7 @@ namespace __pyllars_internal {
          * add a getter method for the given compile-time-known named public class member
          **/
         template<const char *const name, ssize_t size, typename Type>
-        static void addAttribute(
+        static void addArrayAttribute(
                 typename MemberContainer<T_NoRef>::template Container<name, Type[size]>::member_t member,
                 const ssize_t array_size){
             assert(array_size == size);

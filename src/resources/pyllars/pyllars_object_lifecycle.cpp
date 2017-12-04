@@ -96,6 +96,7 @@ namespace __pyllars_internal{
 
     template<typename T, size_t size>
     ObjContainer <T[size]> *ObjectLifecycleHelpers::Copy<T[size], typename std::enable_if<(size > 0) &&
+                                                                                          !std::is_const<T>::value &&
                                                                                           std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type>::
     new_copy(const T_array &value) {
       typedef typename std::remove_const<T>::type T_nonconst_array[size];
@@ -106,6 +107,7 @@ namespace __pyllars_internal{
 
     template<typename T, size_t size>
     ObjContainer <T[size]> *ObjectLifecycleHelpers::Copy<T[size], typename std::enable_if<(size > 0) &&
+                                                                                          !std::is_const<T>::value &&
                                                                                           std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type>::
     new_copy(T_array *const value) {
       typedef typename std::remove_const<T>::type T_nonconst_array[size];
@@ -116,12 +118,38 @@ namespace __pyllars_internal{
 
     template<typename T, size_t size>
     void ObjectLifecycleHelpers::Copy<T[size], typename std::enable_if<(size > 0) &&
+                                                                       !std::is_const<T>::value &&
                                                                        std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type>::
     inplace_copy(T_array *const to, const Py_ssize_t index, const T_array *const from,
                              const bool in_place) {
         for (size_t i = 0; i < size; ++i) {
             (*to)[i] = (*from)[i];
         }
+    }
+
+    template<typename T, size_t size>
+    ObjContainer <T[size]> *ObjectLifecycleHelpers::Copy<T[size], typename std::enable_if<(size > 0) &&
+                                                                                          std::is_const<T>::value &&
+                                                                                          std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type>::
+     new_copy(const T_array &value) {
+               throw "Attempt to copy const object";
+    }
+
+    template<typename T, size_t size>
+    ObjContainer <T[size]> *ObjectLifecycleHelpers::Copy<T[size], typename std::enable_if<(size > 0) &&
+                                                                                          std::is_const<T>::value &&
+                                                                                          std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type>::
+    new_copy(T_array *const value) {
+               throw "Attempt to copy const object";
+    }
+
+    template<typename T, size_t size>
+    void ObjectLifecycleHelpers::Copy<T[size], typename std::enable_if<(size > 0) &&
+                                                                       std::is_const<T>::value &&
+                                                                       std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type>::
+    inplace_copy(T_array *const to, const Py_ssize_t index, const T_array *const from,
+                             const bool in_place) {
+         throw "Attempt to copy const object";
     }
 
 

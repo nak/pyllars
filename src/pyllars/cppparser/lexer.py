@@ -38,6 +38,11 @@ def t_locator(t):
     return t
 
 
+def t_structured_type(t):
+    r"(class|struct|union|typename|enum)\ "
+    return t
+
+
 def t_definition(t):
     r'\'([a-zA-Z0-9\_\*\[\]\(\)\&(\:\:)(\.\.\.)\,\ (\<.*\>)]*)\''
     t.value = t.value.replace("\\", "").replace("'", "")
@@ -104,12 +109,6 @@ def t_is_referenced(t):
     r"(referenced)"
     t.value = True
     return t
-
-
-def t_structured_type(t):
-    r"(class|struct|union|typename|enum)\ "
-    return t
-
 
 def t_access(t):
     r'(public|protected|private)'

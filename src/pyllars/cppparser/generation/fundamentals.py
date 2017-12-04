@@ -196,7 +196,7 @@ class VarDecl(Generator):
                     PyObject* mod = %(module_name)s;
                     %(imports)s
                     if( !__pyllars_internal::GlobalVariable::createGlobalVariable<%(full_type_name)s>("%(basic_name)s", "%(tp_name)s",
-                        &%(parent)s::%(basic_name)s, mod, %(array_size)s)){
+                        (%(full_type_name)s*) &%(parent)s::%(basic_name)s, mod, %(array_size)s)){
                        status = -1;
                      }
                     return status;

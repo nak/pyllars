@@ -142,7 +142,24 @@ namespace __pyllars_internal {
         };
 
         template<typename T, size_t size>
-        struct Copy<T[size], typename std::enable_if<(size > 0) && std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type > {
+        struct Copy<T[size], typename std::enable_if<(size > 0) &&
+                                                      !std::is_const<T>::value &&
+                                                      std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type > {
+            typedef T T_array[size];
+            typedef typename std::remove_reference<T>::type T_NoRef;
+
+            static ObjContainer <T_array> *new_copy(const T_array &value) ;
+
+            static ObjContainer <T_array> *new_copy(T_array *const value);
+
+            static void inplace_copy(T_array *const to, const Py_ssize_t index, const T_array *const from,
+                                     const bool in_place);
+        };
+
+        template<typename T, size_t size>
+        struct Copy<T[size], typename std::enable_if<(size > 0) &&
+                                                      std::is_const<T>::value &&
+                                                      std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type > {
             typedef T T_array[size];
             typedef typename std::remove_reference<T>::type T_NoRef;
 
@@ -171,7 +188,8 @@ namespace __pyllars_internal {
 
 
         template<typename T, size_t size>
-        struct Copy<T[size], typename std::enable_if<(size > 0) && !std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type > {
+        struct Copy<T[size], typename std::enable_if<(size > 0) &&
+                                                     !std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type > {
             typedef T T_array[size];
             typedef typename std::remove_reference<T>::type T_NoRef;
             typedef typename std::remove_pointer<T_NoRef>::type& T_baseref;

@@ -41,7 +41,7 @@ class Compiler(object):
             target = os.path.join("objects", compilable[10:]).replace(".cpp", ".o")
             if not os.path.exists(os.path.dirname(target)):
                 os.makedirs(os.path.dirname(target))
-            cmd = "%(cxx)s -O -std=c++14 %(cxxflags)s -c -fPIC -I%(local_include)s -I%(python_include)s " \
+            cmd = "%(cxx)s -ftemplate-backtrace-limit=0 -O -std=c++14 %(cxxflags)s -c -fPIC -I%(local_include)s -I%(python_include)s " \
                   "-I%(pyllars_include)s -o \"%(target)s\" \"%(compilable)s\"" % {
                       'cxx': Compiler.CXX,
                       'cxxflags': Compiler.CFLAGS,
