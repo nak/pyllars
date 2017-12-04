@@ -282,6 +282,8 @@ class Generator(metaclass=ABCMeta):
         return "" if not self.element.template_arguments else "<%s>" % (", ".join([e.name for e in self.element.template_arguments]))
 
     def generate_header_code(self, stream: TextIOBase) -> None:
+        if self.element.is_implicit:
+            return
         with self.guarded(stream) as guarded:
             guarded.write(self.basic_includes())
             if self._mode == Generator.MODE_EMPTY_HEADER:
@@ -300,6 +302,8 @@ class Generator(metaclass=ABCMeta):
                                 generator.generate_header_core_full(templated)
 
     def generate_header_core_full(self, stream: TextIOBase):
+        if self.element.is_implicit:
+            return
         with self.templated(stream) as templated:
             self.generate_header_core(stream)
             for child in self.element.children():
@@ -359,7 +363,7 @@ class Generator(metaclass=ABCMeta):
     def generate_body(self, as_top=False):
         if not self.element.name and not as_top:
             return
-        if self.element.is_anonymous_type:
+        if self.element.is_anonymous_type or self.element.is_implicit:
             return
         file_name = self.to_path(ext=".cpp")
         self.folder.purge(file_name)

@@ -260,7 +260,7 @@ namespace __pyllars_internal {
 	        throw "Invalid arguments to method call";
 	    }
 
-        T retval = (self.*method)( *toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)...);
+        T retval = make_call( self, method, *toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)...);
         return retval;
     }
 

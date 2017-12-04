@@ -58,6 +58,7 @@ class Element(metaclass=ABCMeta):
     def __init__(self, name, tag, parent, locator=None, qualifier=None, **kargs):
         self._name = name
         self._tag = tag
+        self._is_implicit = kargs.get('implicit_explicit') == 'implicit'
         assert(parent is None or parent is None or isinstance(parent, Element))
         assert(parent != self)
         while isinstance(parent, DecoratingType):
@@ -157,7 +158,7 @@ class Element(metaclass=ABCMeta):
 
     @property
     def is_implicit(self):
-        return False
+        return self._is_implicit
 
     @property
     @abstractmethod
@@ -682,11 +683,6 @@ class CXXRecordDecl(RecordTypeDefn):
         self._is_referenced = kargs.get('is_referenced') or False
         self._is_definition = kargs.get('is_definition') or False
         self._kind = kargs.get('structured_type')
-        self._is_implicit = kargs.get('implicit_explicit') == 'implicit'
-
-    @property
-    def is_implicit(self):
-        return self._is_implicit
 
     def default_access(self):
         return "private" if self._kind == "class" else 'public'
@@ -832,6 +828,12 @@ class QualType(DecoratingType):
 def parse_type(definition, defining_scope, tag=None):
     if isinstance(definition, Element) or isinstance(definition, UnresolvedElement):
         return definition
+    if not isinstance(definition, str):
+        for defin in definition:
+            try:
+                return parse_type(defin, defining_scope, tag)
+            except:
+                pass
     array_size = None
     type_lexer.input(definition.replace("'", ''))
     implicit_explicit = None
@@ -939,8 +941,6 @@ class VarDecl(ScopedElement):
             definition = alias_definition[1]
         self._type = parse_type(definition, parent, tag=tag)
 
-        self._is_implicit = (implicit_explicit == 'implicit')
-
     @property
     def type_(self):
         if self._type.name in ['enum']:
@@ -972,7 +972,7 @@ class ParmVarDecl(VarDecl):
 class FunctionElement(ScopedElement):
 
     def __init__(self, name, tag, parent, definition, locator=None, qualifier=None, **kargs):
-        super(FunctionElement, self).__init__(name, tag, parent, locator=locator, qualifier=qualifier)
+        super(FunctionElement, self).__init__(name, tag, parent, locator=locator, qualifier=qualifier, **kargs)
         from .function_lexer import function_lexer
         function_lexer.input(definition)
         tokens = {}
@@ -1003,7 +1003,7 @@ class FunctionElement(ScopedElement):
 
     @classmethod
     def parse_tokens(cls, name, tag, parent, **kargs):
-        return cls(name, tag, parent, kargs['definition'].replace("\\", "").replace("'", ""), qualifier=kargs.get('qualifier'))
+        return cls(name, tag, parent, **kargs)
 
     @property
     def return_type(self):
@@ -1061,7 +1061,7 @@ class DeclRefExpr(BogusElement):
 class FunctionDecl(FunctionElement):
 
     def __init__(self, name, tag, parent, definition, locator=None, qualifier=None, **kargs):
-        super(FunctionDecl, self).__init__(name, tag, parent, definition, locator=locator, qualifier=qualifier)
+        super(FunctionDecl, self).__init__(name, tag, parent, definition, locator=locator, qualifier=qualifier, **kargs)
 
 
 class FunctionTypeDecl(FunctionElement):
@@ -1091,7 +1091,7 @@ class CXXMethodDecl(FunctionDecl):
 class FieldDecl(ScopedElement):
 
     def __init__(self, name, tag, parent, **kargs):
-        super(FieldDecl, self).__init__(name, tag, parent, locator=kargs.get('locator'))
+        super(FieldDecl, self).__init__(name, tag, parent, **kargs)
         if kargs.get('alias_definition'):
             # is anonymous type:
             self._type = Element.last_parsed_type
@@ -1137,7 +1137,7 @@ class FieldDecl(ScopedElement):
 class IntegerLiteral(ScopedElement):
 
     def __init__(self, name, tag, parent, integer_value, locator=None, **kargs):
-        super(IntegerLiteral, self).__init__(name, tag, parent, locator=locator)
+        super(IntegerLiteral, self).__init__(name, tag, parent, locator=locator, **kargs)
         if parent:
             parent.set_integer_value(integer_value)
 
@@ -1152,7 +1152,7 @@ class IntegerLiteral(ScopedElement):
 class RecordType(RecordTypeDefn):
 
     def __init__(self, name, tag, parent, **kargs):
-        super(RecordType, self).__init__(name, tag, parent, locator=kargs.get('locator'))
+        super(RecordType, self).__init__(name, tag, parent, locator=kargs.get('locator'), **kargs)
         tokens = {}
         if kargs.get('definition'):
             type_lexer.input(kargs.get('definition').replace("'", ""))
@@ -1214,7 +1214,7 @@ class EnumConstantDecl(VarDecl):
 
 class TemplateDecl(ScopedElement):
     def __init__(self, name, tag, parent, locator=None, **kargs):
-        super(TemplateDecl, self).__init__(name, tag, parent, locator=locator)
+        super(TemplateDecl, self).__init__(name, tag, parent, locator=locator, **kargs)
 
     def find(self, type_name):
         if type_name in self._template_type_params:
@@ -1234,7 +1234,7 @@ class ClassTemplateDecl(TemplateDecl, RecordTypeDefn):
 
     def __init__(self, name, tag, parent, locator=None, **kargs):
         name = name + "_placeholder"
-        super(ClassTemplateDecl, self).__init__(name, tag, parent, locator)
+        super(ClassTemplateDecl, self).__init__(name, tag, parent, locator, **kargs)
 
     @property
     def basic_name(self):
@@ -1272,7 +1272,7 @@ class ClassTemplateDecl(TemplateDecl, RecordTypeDefn):
 class TemplateTypeParmDecl(ScopedElement):
 
     def __init__(self, name, tag, parent, structured_type=None, locator=None, is_referenced=False, **kargs):
-        super(TemplateTypeParmDecl, self).__init__(name, tag, None, locator)
+        super(TemplateTypeParmDecl, self).__init__(name, tag, None, locator, **kargs)
         self._kind = structured_type
         self._is_referenced = is_referenced
         parent.add_template_arg(self)
@@ -1307,7 +1307,7 @@ class NonTypeTemplateParmDecl(ScopedElement):
 
     def __init__(self, name, tag, parent: TemplateDecl, definition, locator=None, is_referenced=None,
                  **kargs):
-        super(NonTypeTemplateParmDecl, self).__init__(name, tag, None, locator)
+        super(NonTypeTemplateParmDecl, self).__init__(name, tag, None, locator, **kargs)
         self._type = parse_type(definition, parent)
         #self._is_referenced = is_referenced
         parent.add_template_arg(self)
@@ -1343,7 +1343,7 @@ class ClassTemplateSpecializationDecl(TemplateDecl, ScopedElement):
 
     def __init__(self, name, tag, parent, structured_type=None, locator=None, **kargs):
         self._base_name = name
-        super(ClassTemplateSpecializationDecl, self).__init__("<<specialized %s @%s>>" %(name, tag), tag, parent, locator)
+        super(ClassTemplateSpecializationDecl, self).__init__("<<specialized %s @%s>>" %(name, tag), tag, parent, locator, **kargs)
         self._kind = structured_type
         self._base_template = parent.find(name)
 
@@ -1372,7 +1372,7 @@ class TemplateArgument(ScopedElement):
             self._value = name
         else:
             raise Exception("Unknown TemplateArgument type: %s" % name)
-        super(TemplateArgument, self).__init__(name, tag, parent, locator)
+        super(TemplateArgument, self).__init__(name, tag, parent, locator, **kargs)
 
     @classmethod
     def parse_tokens(cls, name, tag, parent, **kargs):
@@ -1389,8 +1389,7 @@ class TranslationUnitDecl(ScopedElement):
 class TypedefDecl(ScopedElement):
 
     def __init__(self, name, tag, parent, **kargs):
-        super(TypedefDecl, self).__init__(name, tag, parent, kargs.get('locator'))
-        self._is_implicit = kargs.get('implicit_explicit') == 'implicit'
+        super(TypedefDecl, self).__init__(name, tag, parent, **kargs)
 
     @classmethod
     def parse_tokens(cls, name, tag, parent, **kargs):

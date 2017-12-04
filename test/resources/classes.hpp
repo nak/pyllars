@@ -42,7 +42,7 @@ namespace trial{
     
           class Tertiary{
           public:
-              float timestamp();
+              float timestamp(){return 8349876.123f; }
           };
     };
 

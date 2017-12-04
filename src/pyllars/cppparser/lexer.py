@@ -24,7 +24,8 @@ tokens = (
     'keyword',
     'integer_value',
     'col',
-    'line'
+    'line',
+    'separator'
 )
 
 
@@ -39,6 +40,7 @@ def t_locator(t):
 
 def t_definition(t):
     r'\'([a-zA-Z0-9\_\*\[\]\(\)\&(\:\:)(\.\.\.)\,\ (\<.*\>)]*)\''
+    t.value = t.value.replace("\\", "").replace("'", "")
     t.value = t.value.replace("'", "").strip()
     return t
 
@@ -146,7 +148,7 @@ def t_number(t):
 
 
 def t_keyword(t):
-    r'(inline|noexcept-unevaluated)'
+    r'(inline|noexcept-unevaluated|default_delete|default|trivial|used)'
     return t
 
 
@@ -162,6 +164,11 @@ def t_line(t):
 
 def t_name(t):
     r'[_\~a-zA-Z].([_\~\=a-zA-Z0-9\<\>\,]*(\[\])?)'
+    t.value = t.value.strip()
+    return t
+
+def t_separator(t):
+    r'(\:)'
     return t
 
 
