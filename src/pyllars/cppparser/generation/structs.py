@@ -49,7 +49,7 @@ class CXXRecordDecl(Generator):
 
         stream.write(("""
             %(template_decl)s
-            status_t %(pyllars_scope)s::%(name)s::%(basic_name)s_init(){
+            status_t %(pyllars_scope)s::%(name)s::%(basic_name)s_init(PyObject * const global_mod){
                 using namespace __pyllars_internal;
                 typedef typename %(scope)s::%(template_prefix)s%(name)s  main_type;
                 static status_t _status = -1;
@@ -71,7 +71,7 @@ class CXXRecordDecl(Generator):
 
         for base in self.element.public_base_classes or []:
             stream.write(("""
-                status |= pyllars%(base_class_name)s::%(base_class_bare_name)s_init();
+                status |= pyllars%(base_class_name)s::%(base_class_bare_name)s_init(PyObject* const global_mod);
                  __pyllars_internal::PythonClassWrapper< typename %(scope)s::%(template_prefix)s%(class_name)s >::addBaseClass
                     (&PythonClassWrapper< typename %(base_class_name)s >::Type); /*1*/
 """ % {
@@ -276,7 +276,7 @@ class CXXMethodDecl(Generator):
             //generated from %(file)s.generate_body_proper
             // FUNCTION %(name)s THROWS %(throws)s
             %(template_decl)s
-            status_t %(pyllars_scope)s::%(sanitized_name)s_init(){
+            status_t %(pyllars_scope)s::%(sanitized_name)s_init(PyObject * const global_mod){
                static const char* const argumentNames[] = {%(argument_names)s nullptr};
                status_t status = 0;
                %(imports)s
@@ -337,7 +337,7 @@ class FieldDecl(Generator):
                     // FUNCTION %(name)s THROWS
                     
                     %(template_decl)s
-                    status_t %(pyllars_scope)s::%(basic_name)s_init(){
+                    status_t %(pyllars_scope)s::%(basic_name)s_init(PyObject * const global_mod){
                        status_t status = 0;
                        %(imports)s
                         __pyllars_internal::PythonClassWrapper< typename %(scope)s >::template addArrayAttribute<name, %(array_size)s, %(full_type_name)s>
@@ -369,7 +369,7 @@ class FieldDecl(Generator):
                     // FUNCTION %(name)s THROWS
                     
                     %(template_decl)s
-                    status_t %(pyllars_scope)s::%(basic_name)s_init(){
+                    status_t %(pyllars_scope)s::%(basic_name)s_init(PyObject* const global_mod){
                        status_t status = 0;
                        %(imports)s
                         __pyllars_internal::PythonClassWrapper< typename %(scope)s >::template addAttribute%(qual)s<name, %(full_type_name)s>
@@ -416,7 +416,7 @@ class FieldDecl(Generator):
                 //generated from %(file)s.generate_body_proper #3
                 // FUNCTION %(name)s THROWS
                 %(template_decl)s
-                status_t %(pyllars_scope)s::%(basic_name)s_init(){
+                status_t %(pyllars_scope)s::%(basic_name)s_init(PyObject * const global_mod){
                    status_t status = 0;
                    %(imports)s
                    static std::function< %(full_type_name)s(const %(scope)s&)> getter =
@@ -473,7 +473,7 @@ class ClassTemplateDecl(Generator):
      
             static status_t %(basic_name)s_register(pyllars::Initializer* const);
             
-            static status_t %(basic_name)s_init();
+            static status_t %(basic_name)s_init(PyObject* const global_mod);
             
             %(template_decl)s""" % {
                 'basic_name': self.element.basic_name,
@@ -555,7 +555,7 @@ class CXXConstructorDecl(CXXMethodDecl):
             //generated from %(file)s.generate_body_proper
             // CONSTRUCTOR %(name)s THROWS %(throws)s
             %(template_decl)s
-            status_t %(pyllars_scope)s::%(sanitized_name)s::%(sanitized_name)s_init(){
+            status_t %(pyllars_scope)s::%(sanitized_name)s::%(sanitized_name)s_init(PyObject * const global_mod){
                static const char* const argumentNames[] = {%(argument_names)s nullptr};
                status_t status = 0;
                %(imports)s
@@ -638,7 +638,11 @@ class EnumConstantDecl(VarDecl):
             scoped.write(("""
                 constexpr cstring name = "%(basic_name)s";
                 constexpr cstring type_name = "%(parent_name)s";
-                status_t %(pyllars_scope)s::%(basic_name)s::%(basic_name)s_init(){
+                status_t %(pyllars_scope)s::%(basic_name)s::%(basic_name)s_init(PyObject * const global_mod){
+                    __pyllars_internal::PythonClassWrapper<%(parent_full_name)s>::initialize("%(parent_basic_name)s",
+                                                                  "%(parent_basic_name)s",
+                                                                  %(type_mod)s,
+                                                                  "%(parent_full_name)s");
                     return __pyllars_internal::PythonClassWrapper<%(parent_full_name)s>::%(prefix)s addEnum%(suffix)s(name, %(full_name)s);
                 }
 
@@ -660,12 +664,14 @@ class EnumConstantDecl(VarDecl):
                 'parent': self.element.parent.full_name,
                 'parent_name': qualified_name(self.element.parent.name if self.element.parent.name != '::' else ''),
                 'parent_full_name': self.element.parent.full_name,
+                'parent_basic_name': self.element.parent.basic_name,
                 'full_type_name': self.element.type_.full_name,
                 'qual': 'Const' if self.element.type_.is_const else '',
                 'prefix': "" if not self.element.is_structure else "template ",
                 'suffix': "Value" if not self.element.is_structure else "ClassValue<type_name, %s>" % self.element.parent.full_name,
                 'template_decl': template_decl(self),
-                'template_args': self.element.template_arguments_string()
+                'template_args': self.element.template_arguments_string(),
+                'type_mod': self.element.pyllars_scope + "::" + self.element.parent.parent.name + "_mod" if self.element.parent.parent.name != '' else "global_mod",
             }).encode('utf-8'))
         elif isinstance(self.element.parent, parser.NamespaceDecl):
             # global or namespace var:
@@ -673,7 +679,7 @@ class EnumConstantDecl(VarDecl):
                 constexpr cstring name = "%(name)s";
 
                 %(template_decl)s
-                status_t %(pyllars_scope)s::%(basic_name)s::%(basic_name)s_init(){
+                status_t %(pyllars_scope)s::%(basic_name)s::%(basic_name)s_init(PyObject * const global_mod){
                     status_t status = 0;
                     PyObject* mod = %(module_name)s;
                     PyObject* value = PyInt_FromLong(static_cast<long int>(%(parent_full_name)s::%(basic_name)s));

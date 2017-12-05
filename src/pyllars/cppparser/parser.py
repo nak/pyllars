@@ -418,7 +418,7 @@ class ScopedElement(Element):
     @property
     def pyllars_module_name(self):
         if not self.name:
-            return 'PyImport_ImportModule("pyllars")'
+            return "global_mod"
         else:
             return "%s::%s::%s_mod" % (self.pyllars_scope, self.name, self.name)
 

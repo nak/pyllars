@@ -20,6 +20,7 @@ namespace trial{
 
   int some_global_function(const double & value, outside::ExternalDependency &d) throw(double );
 
+    static constexpr double double_value = 2.33;
 }
 
 float global_number();

@@ -83,10 +83,10 @@ class FunctionDecl(Generator):
         scoped.write(("""
             constexpr cstring name = "%(pyname)s";
 
-            //generated from %(file)s.generate_initializer_code
+            //generated from %(file)s.generate_body_proper
             // FUNCTION %(name)s THROWS %(throws)s
             %(template_decl)s
-            status_t %(pyllars_scope)s::%(name)s%(template_args)s::%(name)s_init(){
+            status_t %(pyllars_scope)s::%(name)s%(template_args)s::%(name)s_init(PyObject * const global_mod){
                static const char* const argumentNames[] = {%(argument_names)s nullptr};
                status_t status = 0;
                %(imports)s
@@ -109,8 +109,9 @@ class FunctionDecl(Generator):
             'file': __file__,
             'basic_name': self.element.basic_name,
             'pyllars_scope': self.element.pyllars_scope,
-            'imports': "\n".join
-                (["if(!PyImport_ImportModule(\"pylllars%s\")){return -1;} " % n.replace("::", ".") for n in imports]),
+            'imports': "\n".join(
+                ["if(!PyImport_ImportModule(\"pylllars.%s\")){PyErr_Clear();} " % n.replace("::", ".") for n in
+                 imports if n]),
             'module_name': self.element.parent.pyllars_module_name,
             'name': self.sanitize(self.element.name),
             'pyname': CXXMethodDecl.METHOD_NAMES.get(self.element.name).replace('addMethod', '') if
@@ -151,9 +152,13 @@ class VarDecl(Generator):
             # static class member var:
             scoped.write(("""
                 constexpr cstring name = "%(basic_name)s";
-                status_t %(pyllars_scope)s::%(basic_name)s::%(basic_name)s_init(){
+                status_t %(pyllars_scope)s::%(basic_name)s::%(basic_name)s_init(PyObject * const global_mod){
                     status_t status = 0;
                     %(imports)s
+                    __pyllars_internal::PythonClassWrapper<%(full_type_name)s>::initialize("%(basic_type_name)s",
+                                                                                           "%(basic_type_name)s",
+                                                                                           %(type_mod)s,
+                                                                                           "%(full_type_name)s");
                     __pyllars_internal::PythonClassWrapper<%(parent_full_name)s>::addClassAttribute%(qual)s<name, %(full_type_name)s>
                       ( &%(parent_full_name)s::%(name)s);
                     return status;
@@ -173,15 +178,17 @@ class VarDecl(Generator):
 """ % {
                 'pyllars_scope': self.element.pyllars_scope,
                 'basic_name' : self.element.basic_name,
+                'basic_type_name': self.element.type_.basic_name,
                 'name': self.element.name or "anonymous_%s" % self.element.tag,
                 'parent': self.element.parent.full_name,
                 'parent_name': qualified_name(self.element.parent.name if self.element.parent.name != '::' else ''),
                 'parent_full_name': self.element.parent.full_name,
                 'full_type_name': self.element.type_.full_name,
+                'type_mod':  self.element.pyllars_scope + "::" + self.element.parent.name + "_mod" if self.element.parent.name != '' else "global_mod",
                 'qual': 'Const' if self.element.type_.is_const else '',
                 'imports': "\n".join(
-                    ["if(!PyImport_ImportModule(\"pylllars%s\")){return -1;} " % n.replace("::", ".") for n in
-                     imports]),
+                    ["if(!PyImport_ImportModule(\"pylllars.%s\")){PyErr_Clear(); } " % n.replace("::", ".") for n in
+                     imports if n]),
                 'template_decl': template_decl(self),
                 'template_args': self.element.template_arguments_string()
             }).encode('utf-8'))
@@ -191,10 +198,15 @@ class VarDecl(Generator):
                 constexpr cstring name = "%(name)s";
                 
                 %(template_decl)s
-                status_t %(pyllars_scope)s::%(basic_name)s::%(basic_name)s_init(){
+                status_t %(pyllars_scope)s::%(basic_name)s::%(basic_name)s_init(PyObject * const global_mod){
                     status_t status = 0;
                     PyObject* mod = %(module_name)s;
+                    
                     %(imports)s
+                    __pyllars_internal::PythonClassWrapper<%(full_type_name)s>::initialize("%(basic_type_name)s",
+                                                                                           "%(basic_type_name)s",
+                                                                                           %(type_mod)s,
+                                                                                           "%(full_type_name)s");
                     if( !__pyllars_internal::GlobalVariable::createGlobalVariable<%(full_type_name)s>("%(basic_name)s", "%(tp_name)s",
                         (%(full_type_name)s*) &%(parent)s::%(basic_name)s, mod, %(array_size)s)){
                        status = -1;
@@ -216,6 +228,7 @@ class VarDecl(Generator):
 """ % {
                 'pyllars_scope': self.element.pyllars_scope,
                 'basic_name': self.element.basic_name,
+                'basic_type_name': self.element.type_.basic_name,
                 'name': self.element.full_name or "anonymous_%s" % self.element.tag,
                 'tp_name': self.element.type_.name,
                 'parent': self.element.parent.full_name if self.element.parent.full_name != '::' else "",
@@ -223,11 +236,12 @@ class VarDecl(Generator):
                 'module_name': self.element.parent.pyllars_module_name,
                 'parent_full_name': self.element.parent.full_name,
                 'full_type_name': self.element.type_.full_name,
+                'type_mod':  self.element.pyllars_scope + "::" + self.element.parent.name + "_mod" if self.element.parent.name != '' else "global_mod",
                 'array_size': self.element.type_.array_size or 0,
                 'qual': 'Const' if self.element.type_.is_const else 'cont',
                 'imports': "\n".join(
-                    ["if(!PyImport_ImportModule(\"pylllars%s\")){return -1;} " % n.replace("::", ".") for n in
-                     imports]),
+                    ["if(!PyImport_ImportModule(\"pylllars.%s\")){PyErr_Clear();} " % n.replace("::", ".") for n in
+                     imports if n]),
                 'template_args': self.element.template_arguments_string(),
                 'template_decl': template_decl(self)
             }).encode('utf-8'))

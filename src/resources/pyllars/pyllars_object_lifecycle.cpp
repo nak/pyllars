@@ -14,7 +14,10 @@ namespace __pyllars_internal{
     ObjectLifecycleHelpers::Array<T, typename std::enable_if<is_complete<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value&&
                                                              !std::is_void <typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value>::type>::
     at(T array, size_t index) {
-            return array[index];
+        if (!array){
+	  throw "Cannot dereference null object!";
+        }
+        return array[index];
     }
 
 

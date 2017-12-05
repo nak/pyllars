@@ -336,9 +336,6 @@ namespace __pyllars_internal {
         template<const char* const type_name, typename EnumType>
         static int addEnumClassValue( const char* const name, EnumType value){
             const bool inited = PythonClassWrapper<EnumType>::_isInitialized;
-            if (!inited){
-                PythonClassWrapper<EnumType>::initialize(type_name, type_name, nullptr, type_name);
-            }
             static PyTypeObject holderType = PythonClassWrapper<EnumType>::Type;
             PyObject* pyval = toPyObject<EnumType>(value, false, 1);
             PythonClassWrapper<EnumType>::_isInitialized = inited; // chicken and egg here, only initialize to create instances that then get added back into class

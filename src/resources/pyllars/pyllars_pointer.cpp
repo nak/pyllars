@@ -98,6 +98,7 @@ namespace __pyllars_internal {
             !std::is_function<typename std::remove_pointer<T>::type>::value &&
             (std::is_pointer<T>::value || std::is_array<T>::value)>::type>::
     _at(PyObject *self, PyObject *args, PyObject *kwds) {
+      try{
         if ((kwds && PyDict_Size(kwds) != 0) || !args || PyTuple_Size(args) != 1 ||
             !(PyLong_Check(PyTuple_GetItem(args, 0)) || PyInt_Check(PyTuple_GetItem(args, 0)))) {
             PyErr_BadArgument();
@@ -112,6 +113,10 @@ namespace __pyllars_internal {
         }
 
         return _get_item2(self, index, true);
+      } catch (const char* const msg){
+	PyErr_SetString(PyExc_RuntimeError, msg);
+	return nullptr;
+      }
     }
 
     template<typename T>
@@ -724,8 +729,8 @@ namespace __pyllars_internal {
     PyMethodDef PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
             !std::is_function<typename std::remove_pointer<T>::type>::value &&
             (std::is_pointer<T>::value || std::is_array<T>::value)>::type>::_methods[] =
-            {{address_name,  (PyCFunction)_addr, METH_KEYWORDS, nullptr},
-             {"at",         nullptr, METH_KEYWORDS, nullptr},
+            {{address_name,  (PyCFunction)_addr, METH_KEYWORDS| METH_VARARGS, nullptr},
+             {"at",         nullptr, METH_KEYWORDS| METH_VARARGS, nullptr},
              {nullptr,      nullptr, 0,             nullptr} /*sentinel*/
             };
 

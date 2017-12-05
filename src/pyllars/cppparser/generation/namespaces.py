@@ -41,7 +41,7 @@ class NamespaceDecl(Generator):
 
         scoped.write(("""
             using namespace %(pyllars_scope)s::%(name)s;
-            status_t %(name)s_init(){
+            status_t %(name)s_init(PyObject* global_mod){
                 if (%(name)s_mod) return 0;// if already initialized
                 int status = 0;
                 #if PY_MAJOR_VERSION==3
@@ -75,9 +75,9 @@ class NamespaceDecl(Generator):
                   
                 }
 
-                virtual int init(){
-                   int status = %(basic_name)s_init();
-                   return status == 0? pyllars::Initializer::init() : status;
+                virtual int init(PyObject * const global_mod){
+                   int status = %(basic_name)s_init(global_mod);
+                   return status == 0? pyllars::Initializer::init(global_mod) : status;
                 }
 
              };

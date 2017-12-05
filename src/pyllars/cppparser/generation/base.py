@@ -323,7 +323,7 @@ class Generator(metaclass=ABCMeta):
                 status_t %(basic_name)s_register( pyllars::Initializer* const);
                 
                 %(template_decl)s
-                status_t %(basic_name)s_init();
+                status_t %(basic_name)s_init(PyObject * const global_mod);
                 
                 class Initializer_%(basic_name)s: public pyllars::Initializer{
                 public:
@@ -331,9 +331,9 @@ class Generator(metaclass=ABCMeta):
                        %(pyllars_scope)s::%(parent_basic_name)s_register(this);
                     }
 
-                    virtual int init(){
-                       int status = pyllars::Initializer::init();
-                       return status | %(basic_name)s_init();
+                    virtual int init(PyObject* const global_mod){
+                       int status = pyllars::Initializer::init(global_mod);
+                       return status | %(basic_name)s_init(global_mod);
                     }
 
                     static Initializer_%(basic_name)s* initializer;
@@ -401,21 +401,20 @@ class Generator(metaclass=ABCMeta):
                     moduleDef.m_name = name;
                     moduleDef.m_doc = doc;
                     moduleDef.m_size = -1;
-                    PyObject *pyllars_mod = PyImport_ImportModule("pyllars");
-                    if (!pyllars_mod){
-                        return nullptr;
-                    }                    
                     PyObject *%(basic_name)s_mod = PyModule_Create(&moduleDef);
-                    if (%(basic_name)s_mod){
-                        PyModule_AddObject(pyllars_mod, "%(basic_name)s", %(basic_name)s_mod);
+                    try{
+                        if (%(pyllars_scope)s::Initializer::root->init(%(basic_name)s_mod) != 0){
+                            return nullptr;
+                        }
+                       return %(basic_name)s_mod;
+                    } catch (const char* msg){
+                       PyErr_SetString(PyExc_RuntimeError, msg);
+                       return nullptr;
                     }
-                    if (%(pyllars_scope)s::Initializer::root->init() != 0){
-                        return nullptr;
-                    }
-                    return %(basic_name)s_mod;
                 }
                 #else
-                int _init%(basic_name)s(){
+                PyMODINIT_FUNC
+                init%(basic_name)s(){
                     PyObject *%(basic_name)s_mod = Py_InitModule3(name, nullptr, doc);
                     if(!%(basic_name)s_mod) { return -1;}
                     PyObject *pyllars_mod = PyImport_ImportModule("pyllars");
@@ -423,7 +422,12 @@ class Generator(metaclass=ABCMeta):
                         return -1;
                     }
                     PyModule_AddObject(pyllars_mod, "%(basic_name)s", %(basic_name)s_mod);
-                    return %(pyllars_scope)s::Initializer::root?pyllars::Initializer::root->init():0;
+                    try{
+                        return %(pyllars_scope)s::Initializer::root?pyllars::Initializer::root->init(%(basic_name)s_mod):0;
+                    } catch (const char* msg ){
+                        PyErr_SetString(PyExc_RuntimeError, msg);
+                        return -2;
+                    }
                 }
                 #endif
             }
@@ -470,7 +474,7 @@ class ClassTemplateDecl(Generator):
 
                         ///////////////////////////////
                             namespace{
-                                status_t pyllars_top_init();
+                                status_t pyllars_top_init(PyObject* const global_mod);
                                 status_t pyllars_top_register();
                             }
 
@@ -507,7 +511,7 @@ class ClassTemplateDecl(Generator):
 
         namespace %(qname)s{
             %(template_decl)s
-            status_t %(qname)s_init();
+            status_t %(qname)s_init(PyObject * const global_mod);
             
             %(template_decl)s
             class Initializer: public pyllars::Initializer{
@@ -517,9 +521,9 @@ class ClassTemplateDecl(Generator):
                    %(qname)s_register(this);
                }
                
-               virtual int init(){
-                   int status = pyllars::Initializer::init();
-                   return status | %(qname)s_init();
+               virtual int init(PyObject * const global_mod){
+                   int status = pyllars::Initializer::init(global_mod);
+                   return status | %(qname)s_init(global_mod);
                }
                
             };
@@ -579,7 +583,7 @@ class ClassTemplateDecl(Generator):
 
                 
                 %(template_decl)s
-                status_t %(qname)s_init(){
+                status_t %(qname)s_init(PyObject* global_mod){
                    if (!mapping){
                        return -1;
                    }
