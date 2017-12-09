@@ -102,7 +102,7 @@ class FunctionDecl(Generator):
 
             %(template_decl)s
             %(pyllars_scope)s::%(basic_name)s%(template_args)s::Initializer_%(basic_name)s
-            *%(pyllars_scope)s::%(basic_name)s%(template_args)s::Initializer_%(basic_name)s::initializer = 
+            *%(pyllars_scope)s::%(basic_name)s%(template_args)s::Initializer_%(basic_name)s::initializer =
             new %(pyllars_scope)s::%(basic_name)s%(template_args)s::Initializer_%(basic_name)s();
             
 """ % {
@@ -172,8 +172,7 @@ class VarDecl(Generator):
 
                  %(template_decl)s
                  %(pyllars_scope)s::%(basic_name)s%(template_args)s::Initializer_%(basic_name)s
-                 *%(pyllars_scope)s::%(basic_name)s%(template_args)s::Initializer_%(basic_name)s::initializer = 
-                 new %(pyllars_scope)s::%(basic_name)s%(template_args)s::Initializer_%(basic_name)s();
+                 *%(pyllars_scope)s::%(basic_name)s%(template_args)s::Initializer_%(basic_name)s::initializer = mullptr;
 
 """ % {
                 'pyllars_scope': self.element.pyllars_scope,

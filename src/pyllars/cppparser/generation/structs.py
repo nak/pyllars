@@ -175,7 +175,17 @@ class CXXRecordDecl(Generator):
             }
             
             %(template_decl)s
-            status_t %(pyllars_scope)s::%(name)s::%(qname)s_register( pyllars::Initializer* const init ){ //
+            static %(pyllars_scope)s::%(name)s::Initializer_%(basic_name)s* _init(){
+                static %(pyllars_scope)s::%(name)s::Initializer_%(basic_name)s *_initializer = 
+                  new %(pyllars_scope)s::%(name)s::Initializer_%(basic_name)s();
+                %(pyllars_scope)s::%(name)s::Initializer_%(basic_name)s::initializer = _initializer;
+                return _initializer;
+            }
+            
+            %(template_decl)s
+            status_t %(pyllars_scope)s::%(name)s::%(qname)s_register( pyllars::Initializer* const init ){ 
+                static Initializer_%(basic_name)s *_initializer = _init();
+                Initializer_%(basic_name)s::initializer = _initializer;
                 return Initializer_%(basic_name)s::initializer->register_init(init);
              }
 
@@ -195,8 +205,7 @@ class CXXRecordDecl(Generator):
         stream.write(("""
             %(template_decl)s
             typename %(pyllars_scope)s::%(template_prefix)s%(name)s::Initializer_%(basic_name)s 
-            *%(pyllars_scope)s::%(template_prefix)s%(name)s::Initializer_%(basic_name)s::initializer = 
-            new %(pyllars_scope)s::%(template_prefix)s%(name)s::Initializer_%(basic_name)s();
+            *%(pyllars_scope)s::%(template_prefix)s%(name)s::Initializer_%(basic_name)s::initializer = _init();
         """ % {
             'basic_name': self.element.basic_name,
             'name': self.element.name,
@@ -292,7 +301,7 @@ class CXXMethodDecl(Generator):
             %(template_decl)s
             typename %(pyllars_block_scope)s::Initializer_%(sanitized_name)s 
             *%(pyllars_scope)s::Initializer_%(sanitized_name)s::initializer =
-            new %(pyllars_scope)s::Initializer_%(sanitized_name)s();
+            new %(pyllars_block_scope)s::Initializer_%(sanitized_name)s();
 """ % {
             'arguments': (',' if len(self.element.params) > 0 else "") + ', '.join([t.type_.full_name for
                                                                                t in self.element.params]),

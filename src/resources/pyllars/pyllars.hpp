@@ -12,6 +12,9 @@ namespace pyllars{
     class Initializer{
     public:
 
+      Initializer():_initializers(nullptr){
+      }
+
         virtual status_t init(PyObject* const global_mod){
             int status = 0;
             if(!_initializers) return 0;

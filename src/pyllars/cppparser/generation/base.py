@@ -592,7 +592,16 @@ class ClassTemplateDecl(Generator):
                 }
                
                 %(template_decl)s
+                static Initializer_%(qname)s *_init(){
+                    static Initializer_%(qname)s * _initializer = new Initializer_%(qname)s();
+                    Initializer_%(qname)s::initializer = _initializer;
+                    return _initializer;
+                }
+                
+                %(template_decl)s
                 int %(qname)s_register( pyllars::Initializer* const init){
+                    static Initializer_%(qname)s * _initializer = _init();
+                    Initializer_%(qname)s::initializer = _initializer;
                     return Initializer_%(qname)s::initializer.register_init(init);
                 }
                 
