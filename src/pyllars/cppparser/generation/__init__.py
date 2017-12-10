@@ -13,10 +13,6 @@ def _get_generator_class(element: Element) -> "Generator":
             logging.error("Did not find generator for class %s" % clazz.__name__)
         return Generator
     return generator_class
-    # if generator_class:
-    #     return generator_class(element, src_path, folder, parent_generator)
-    # else:
-    #     return Generator(element, src_path, folder, parent_generator)
 
 
 class FileWriter(TextIOBase):

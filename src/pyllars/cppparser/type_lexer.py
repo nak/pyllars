@@ -10,7 +10,8 @@ tokens = (
     'is_definition',
     'is_referenced',
     'array_spec',
-    'is_enum'
+    'is_enum',
+    'function_spec'
 )
 
 
@@ -59,9 +60,12 @@ def t_array_spec(t):
     t.value = int(t.value[1:-1]) if t.value else ""  # "" indicates a non-specified-size
     return t
 
+def t_function_spec(t):
+    r"(.*)\(\*\)\((.*)\)"
+    return t
 
 def t_name(t):
-    r"([:_\~\=a-zA-Z0-9,]+)(\<.*\>)?"
+    r"((long\ |short\ |unsigned\ |signed\ )?[:_\~\=a-zA-Z0-9,]+)(\<.*\>)?"
     t.value = t.value.strip()
     return t
 

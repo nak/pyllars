@@ -555,8 +555,13 @@ namespace __pyllars_internal {
     template<bool with_ellipsis, typename... Args>
     template <typename ...Throws>
     PyTypeObject PythonFunctionWrapper<true, with_ellipsis, void, Args...>:: Wrapper<Throws...>::Type = {
-            PyObject_HEAD_INIT(nullptr)
-            0,                               /*ob_size*/
+
+        #if PY_MAJOR_VERSION == 3
+                PyVarObject_HEAD_INIT(NULL, 0)
+        #else
+                PyObject_HEAD_INIT(nullptr)
+                0,                         /*ob_size*/
+        #endif
             nullptr,                         /*tp_name*/
             sizeof(Wrapper),   /*tp_basicsize*/
             0,                               /*tp_itemsize*/

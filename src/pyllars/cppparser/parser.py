@@ -2,6 +2,8 @@ import logging
 from abc import abstractmethod, ABCMeta
 from typing import List
 
+import os
+
 from .lexer import lexer
 from .type_lexer import type_lexer
 
@@ -82,10 +84,11 @@ class Element(metaclass=ABCMeta):
         self._inside_template_macro = (parent._inside_template_macro or parent.is_template_macro) if parent else False
         self._is_anonymous_type = name is None or "enum " in name
         self._dependencies = set([])
+        self._include_paths = []
         if name is not None and self.is_resolved:
             full_name = self.scope + ('::' if self.scope else "") +  name
-            if full_name in Element.lookup and type(Element.lookup[full_name]) != type(self):
-                raise Exception("Duplicate type def")
+            if full_name in Element.lookup and type(Element.lookup[full_name]) != type(self) and kargs.get('is_referenced') is not True:
+                raise Exception("Duplicate type def %s" % full_name)
             if full_name and full_name not in Element.lookup:
                 Element.lookup[full_name] = self
     @property
@@ -120,10 +123,22 @@ class Element(metaclass=ABCMeta):
         if not self._locator:
             return None, None
         try:
-            filename, lineno = self._locator.replace("<", "").split(':')
+            filename, lineno = self._locator.replace("<", "").split(':', 1)
+            if not os.path.exists(os.path.abspath(filename)):
+                for path in self.include_paths:
+                    filename = os.path.join(path, filename)
+                    if os.path.exists(filename):
+                        break
         except:
-            filename = self._locator.repalce("<", "").replace(">", "")
+            filename = self._locator.replace("<", "").replace(">", "")
+            if "invalid sloc" in filename:
+                filename = None
             lineno = None
+        if filename and not os.path.exists(filename):
+            filename = None
+            lineno = None
+        elif filename:
+            filename = os.path.abspath(filename)
         return filename, lineno
 
     @property
@@ -184,6 +199,10 @@ class Element(metaclass=ABCMeta):
         pass
 
     @property
+    def is_union(self):
+        return False
+
+    @property
     def array_size(self):
         return None
 
@@ -202,13 +221,6 @@ class Element(metaclass=ABCMeta):
             deps += child.dependencies
         return deps
 
-    @classmethod
-    def from_name(cls, name):
-        if '::' + name in Element.lookup:
-            return Element.lookup['::' + name]
-        else:
-            return Element.lookup.get(name)
-
     @property
     def top_scope(self):
         if self._top_scope:
@@ -220,6 +232,27 @@ class Element(metaclass=ABCMeta):
             parent = None  # do not count global namespace
         self._top_scope = parent
         return parent
+
+    @property
+    def include_paths(self):
+        return self._include_paths
+
+    @include_paths.setter
+    def include_paths(self, paths):
+        self._include_paths = paths
+
+    @classmethod
+    def from_name(cls, name):
+        if '::' + name in Element.lookup:
+            return Element.lookup['::' + name]
+        else:
+            return Element.lookup.get(name)
+
+    def filter(self, src_paths):
+        full_src_paths = [os.path.abspath(path) for path in src_paths]
+        for element in self.children():
+            if element.location[0] is not None and not os.path.abspath(element.location[0]) in full_src_paths:
+                self._children['public'].remove(element)
 
     def default_access(self):
         return "public"
@@ -254,7 +287,7 @@ class Element(metaclass=ABCMeta):
         return None
 
     @staticmethod
-    def parse(stream):
+    def parse(stream, include_paths: List[str]):
         def preprocess(line):
             tokens = {}
             depth = None
@@ -291,7 +324,7 @@ class Element(metaclass=ABCMeta):
                 del tokens['tag']
             if node_type is None:
                 if 'access' in tokens and 'definition' in tokens and isinstance(parent, CXXRecordDecl):
-                    typ = parse_type(tokens['definition'], parent, var_name=name)
+                    typ = parse_type(None, tokens['definition'], parent, var_name=name)
                     if not typ:
                         print ("ERROR: unable to find type for definition: %s" + tokens['definition'])
                     elif isinstance(type, RecordTypeDefn):
@@ -303,6 +336,8 @@ class Element(metaclass=ABCMeta):
             clazz = _class_from_name(node_type)
             if clazz:
                 current_element = clazz.do_parse_tokens(name, tag, parent, **tokens)
+                if current_element:
+                    current_element.include_paths = include_paths
                 if isinstance(current_element, CXXRecordDecl):
                     Element.last_parsed_type = current_element
             else:
@@ -714,6 +749,11 @@ class CXXRecordDecl(RecordTypeDefn):
         self._is_referenced = kargs.get('is_referenced') or False
         self._is_definition = kargs.get('is_definition') or False
         self._kind = kargs.get('structured_type')
+        self._struct_type = kargs.get('structured_type')
+
+    @property
+    def is_union(self):
+        return self._struct_type.strip() == 'union'
 
     def default_access(self):
         return "private" if self._kind == "class" else 'public'
@@ -728,7 +768,7 @@ class CXXRecordDecl(RecordTypeDefn):
 class DecoratingType(UnscopedElement):
 
     def __init__(self, name, tag, parent, definition, qualifier=None,  locator=None):
-        self._target_type = parse_type(definition, parent, var_name=name)
+        self._target_type = parse_type(self, definition, parent, var_name=name)
         super(DecoratingType, self).__init__(name, tag,
                                              self._target_type.parent,
                                              locator, qualifier=qualifier)
@@ -743,7 +783,7 @@ class DecoratingType(UnscopedElement):
     @classmethod
     def parse_tokens(cls, name, tag, parent, **kargs):
         if 'definition' in kargs:
-            kargs['definition'] = parse_type(kargs['definition'], parent, var_name=name)
+            kargs['definition'] = parse_type(None, kargs['definition'], parent, var_name=name)
         return cls(tag, parent, **kargs)
 
     @property
@@ -870,14 +910,14 @@ class QualType(DecoratingType):
         return super(QualType, self).full_name
 
 
-def parse_type(definition, defining_scope, tag=None, var_name=None):
+def parse_type(element, definition, defining_scope, tag=None, var_name=None):
     if isinstance(definition, Element) or isinstance(definition, UnresolvedElement):
         return definition
     if not isinstance(definition, str):
         for defin in definition:
             try:
                 if defin != 'struct':
-                    return parse_type(defin, defining_scope, tag, var_name=var_name)
+                    return parse_type(element, defin, defining_scope, tag, var_name=var_name)
             except:
                 pass
     array_size = None
@@ -888,6 +928,7 @@ def parse_type(definition, defining_scope, tag=None, var_name=None):
     base_qualifiers = [] # per-type-name qualifiers (const, volatile,...)
     base_modifiers = []  # post-type modifier (pointer or reference followed by other references or qualifiers)
     struct_type = None
+    name = None
     while True:
         token = type_lexer.token()
         if token is None:
@@ -903,7 +944,7 @@ def parse_type(definition, defining_scope, tag=None, var_name=None):
             elif token.value.endswith('::'):
                 name = "decltype(%s::%s)" % (defining_scope.full_name, var_name)
             if not base_type:
-                base_type = Element.from_name(name)  or UnresolvedElement(name, defining_scope)
+                base_type = Element.from_name(name) or UnresolvedElement(name, defining_scope)
         elif token.type == 'array_spec':
             array_size = (array_size or [])
             array_size.append(token.value)
@@ -921,8 +962,16 @@ def parse_type(definition, defining_scope, tag=None, var_name=None):
             struct_type = token.value
         elif token.type == 'is_enum':
             is_enum = True
+        elif token.type == 'function_spec':
+            base_type = FunctionTypeDecl(name=definition, tag=tag, parent=defining_scope, definition=token.value)
     if struct_type == 'enum' and not base_type:
         base_type = BuiltinType.DEFINITIONS['int']
+    if name is None and struct_type and array_size:
+        # anonymous array type (field)
+        base_type = parse_type(element, struct_type, defining_scope=defining_scope, tag=tag, var_name=var_name)
+    elif name is None and struct_type:
+        base_type = AnonymousType(element)
+
     assert base_type is not None
     if array_size:
         for size in reversed(array_size):
@@ -996,7 +1045,7 @@ class VarDecl(ScopedElement):
         assert definition is None or alias_definition is None
         if not definition:
             definition = alias_definition[1]
-        self._type = parse_type(definition, parent, tag=tag)
+        self._type = parse_type(self, definition, parent, tag=tag)
 
     @property
     def dependencies(self):
@@ -1049,7 +1098,7 @@ class FunctionElement(ScopedElement):
         qualifiers = definition.rsplit(')', maxsplit=1)[-1]
         self._qualifiers += qualifiers.split(' ') if qualifiers.strip() else []
         return_type_name = definition.split('(')[0].strip()
-        self._return_type = parse_type(definition.split('(')[0], parent) if return_type_name != 'void' else None
+        self._return_type = parse_type(self, definition.split('(')[0], parent) if return_type_name != 'void' else None
         # params added as ParamVarDecl's, except for ellipsis
         self._has_varargs = has_ellipsis
         self._throws = tokens.get('throws').throws if 'throws' in tokens else []
@@ -1138,6 +1187,14 @@ class FunctionTypeDecl(FunctionElement):
                                     ", ".join([a.name for a in self.params]),
                                     "..." if self.has_varargs else "")
 
+    def make_complete_by_attr_name(self, attr_name):
+        self._name = "anonymous_func_decl_%s" % self.tag
+        self._is_anonymous_type = True
+
+    @property
+    def full_name(self):
+        return self.name
+
 
 class CXXConstructorDecl(FunctionDecl):
 
@@ -1157,19 +1214,22 @@ class CXXMethodDecl(FunctionDecl):
 class FieldDecl(ScopedElement):
 
     def __init__(self, name, tag, parent, **kargs):
-        super(FieldDecl, self).__init__(name, tag, parent, **kargs)
-        definition = kargs.get('definition') or ""
-        if not isinstance(definition, str):
-            definition = definition[0]
-        if kargs.get('alias_definition'):
-            # is anonymous type:
-            self._type = Element.last_parsed_type
-        elif 'struct' == definition or definition.endswith('::'):
-            # anonymous type
-            self._type = AnonymousType(self)
-        else:
-            self._type = parse_type(definition, parent, tag=tag, var_name=name)
-        self._bit_size = None
+        try:
+            super(FieldDecl, self).__init__(name, tag, parent, **kargs)
+            definition = kargs.get('definition') or ""
+            if not isinstance(definition, str):
+                definition = definition[0]
+            if kargs.get('alias_definition'):
+                # is anonymous type:
+                self._type = Element.last_parsed_type
+            elif 'struct' == definition or definition.endswith('::'):
+                # anonymous type
+                self._type = AnonymousType(self)
+            else:
+                self._type = parse_type(self, definition, parent, tag=tag, var_name=name)
+            self._bit_size = None
+        except:
+            raise
 
     @property
     def dependencies(self):
@@ -1202,7 +1262,7 @@ class FieldDecl(ScopedElement):
     def make_complete(self):
         super(FieldDecl, self).make_complete()
         if not self.name and self.parent and self.parent.parent:
-            self.parent = self.parent.parent
+            self._parent = self.parent.parent
             for child in self.children():
                 self.parent.add_child(child)
                 child._parent = self.parent
@@ -1385,7 +1445,7 @@ class NonTypeTemplateParmDecl(ScopedElement):
     def __init__(self, name, tag, parent: TemplateDecl, definition, locator=None, is_referenced=None,
                  **kargs):
         super(NonTypeTemplateParmDecl, self).__init__(name, tag, None, locator, **kargs)
-        self._type = parse_type(definition, parent, var_name=name)
+        self._type = parse_type(self, definition, parent, var_name=name)
         #self._is_referenced = is_referenced
         parent.add_template_arg(self)
 
@@ -1504,22 +1564,37 @@ def init():
 
 init()
 
-def parse_file(src_path):
+def parse_files(src_paths: List[str], include_paths: List[str]):
     import subprocess
     import os.path
     Element.reset()
-    with open(os.path.join(os.path.dirname(src_path), "compile_commands.json"), mode='w') as f:
-        f.write("""
-        [
-        {
-           "directory": "%(dir)s",
-           "file": "%(file)s",
-           "command": "g++ -std=c++14 -c %(file)s"
-        }
-        ]
-        """ % {'dir': os.path.dirname(src_path),
-               'file':os.path.basename(src_path)})
-        f.flush()
-        cmd = ["clang-check", "-ast-dump", src_path, "--extra-arg=\"-fno-color-diagnostics\"", "-p", src_path]
+    import tempfile
+    tmpd = tempfile.mkdtemp()
+    includes = " ".join(['-I%s' % path for path in include_paths])
+    try:
+        with open(os.path.join(str(tmpd), "compile_commands.json"), mode='w') as f:
+            f.write("""
+                [
+                """)
+            for index, src_path in enumerate(src_paths):
+                    f.write("""
+                {
+                   "directory": "%(dir)s",
+                   "file": "%(file)s",
+                   "command": "g++ -std=c++14 -c %(includes)s %(file)s"
+                }
+                """ % {'dir': os.path.dirname(src_path),
+                       'file':os.path.basename(src_path),
+                       'includes': includes})
+                    if index != (len(src_paths) - 1):
+                        f.write(',')
+            f.write("""
+            ]
+            """)
+            f.flush()
+        cmd = ["clang-check", "-ast-dump"] + src_paths + ["--extra-arg=\"-fno-color-diagnostics\"", "-p", str(tmpd)]
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-        return Element.parse(proc.stdout)
+        return Element.parse(proc.stdout, include_paths)
+    finally:
+        import shutil
+        shutil.rmtree(str(tmpd))

@@ -349,11 +349,19 @@ class Generator(metaclass=ABCMeta):
         }).encode('utf-8'))
 
     @staticmethod
-    def generate_code(element: parser.Element, src_path: str, folder: Folder, module_name: str):
+    def _generate_code(element: parser.Element, src_path: str, folder: Folder, module_name: str, include_paths: List[str]):
         Generator.generator_mapping = {}
         generator_class = Generator.get_generator_class(element)
         generator = generator_class(element, src_path, folder)
         generator.generate_body(as_top=module_name)
+
+    @staticmethod
+    def generate_code(src_paths: List[str], folder: Folder, module_name: str, include_paths: List[str]):
+        top = parser.parse_files(src_paths, include_paths)
+        top.top.filter(src_paths)
+        for src_path in src_paths:
+            Generator._generate_code(top.top, src_path=src_path, folder=folder, module_name=module_name,
+                                     include_paths=include_paths)
 
     def generate_spec(self):
         file_name = self.to_path(ext=".hpp")

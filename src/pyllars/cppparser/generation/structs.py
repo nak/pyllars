@@ -46,12 +46,15 @@ class CXXRecordDecl(Generator):
             'file': os.path.basename(__file__),
         }).encode('utf-8'))
 
-
+        if not self.element.is_union:
+            typename = 'typename'
+        else:
+            typename = ""
         stream.write(("""
             %(template_decl)s
             status_t %(pyllars_scope)s::%(name)s::%(basic_name)s_init(PyObject * const global_mod){
                 using namespace __pyllars_internal;
-                typedef typename %(scope)s::%(template_prefix)s%(name)s  main_type;
+                typedef %(typename)s %(scope)s::%(template_prefix)s%(name)s  main_type;
                 static status_t _status = -1;
                 static bool inited = false;
                 if (inited){
@@ -66,20 +69,22 @@ class CXXRecordDecl(Generator):
             'template_decl': template_decl(self),
             'pyllars_scope': self.element.pyllars_scope,
             'scope': self.element.scope,
-            'template_prefix': 'template ' if self.parent and self.parent.element.is_template_macro else ""
+            'template_prefix': 'template ' if self.parent and self.parent.element.is_template_macro else "",
+            'typename': typename,
         }).encode('utf-8'))
 
         for base in self.element.public_base_classes or []:
             stream.write(("""
                 status |= pyllars%(base_class_name)s::%(base_class_bare_name)s_init(PyObject* const global_mod);
-                 __pyllars_internal::PythonClassWrapper< typename %(scope)s::%(template_prefix)s%(class_name)s >::addBaseClass
-                    (&PythonClassWrapper< typename %(base_class_name)s >::Type); /*1*/
+                 __pyllars_internal::PythonClassWrapper< %(typename)s %(scope)s::%(template_prefix)s%(class_name)s >::addBaseClass
+                    (&PythonClassWrapper< %(typename)s %(base_class_name)s >::Type); /*1*/
 """ % {
                 'class_name': self.element.name,
                 'base_class_name': base.full_name,
                 'base_class_bare_name': base.name,
                 'scope': self.element.scope,
-                'template_prefix': 'template ' if self.parent and self.parent.element.is_template_macro else ""
+                'template_prefix': 'template ' if self.parent and self.parent.element.is_template_macro else "",
+                'typename': typename
             }).encode('utf-8'))
 
         if self.element.name:
@@ -99,9 +104,10 @@ class CXXRecordDecl(Generator):
                 if len(self.element.template_arguments) == 1:
                     arg = self.element.template_arguments[0]
                     if isinstance(arg, parser.TemplateTypeParmDecl):
+                        typename = 'typename' if not arg._type.is_union else ""
                         stream.write(("""
-                             PyObject* sequence = (PyObject*) & __pyllars_internal::PythonClassWrapper<typename %s >::Type ;
-                  """ % arg._type.full_name).encode("utf-8"))
+                             PyObject* sequence = (PyObject*) & __pyllars_internal::PythonClassWrapper<%s %s >::Type ;
+                  """ % (typename, arg._type.full_name).encode("utf-8")))
                     elif isinstance(arg._type, parser.BuiltinType):
                         stream.write(("""
                             PyObject* sequence = (PyObject*) & %s;
@@ -123,17 +129,18 @@ class CXXRecordDecl(Generator):
                     PyObject* sequence = PyTuple_New(%d);
                     """ % len(self.element.template_arguments)).encode("utf-8"))
                     for index, arg in enumerate(self.element.template_arguments):
+                        typename = "typename" if not arg._type.is_union else ""
                         if isinstance(arg, parser.TemplateTypeParmDecl):
                             stream.write(("""
-                            PyTuple_SetItem(sequence, %d, (PyObject*) & __pyllars_internal::PythonClassWrapper< typename %s >::Type )
-                            """ % (index, arg.name)).encode("utf-8"))
+                            PyTuple_SetItem(sequence, %d, (PyObject*) & __pyllars_internal::PythonClassWrapper< %s %s >::Type )
+                            """ % (index, typename, arg.name)).encode("utf-8"))
                         elif isinstance(arg._type, parser.BuiltinType):
                             stream.write(("""
                             PyTuple_Add(sequence, %d, (PyObject*) & %s )
                             """ % (index, arg._type.to_py_conversion_code(arg.name))).encode("utf-8"))
                         else:
                             stream.write(("""
-                            PyTuple_Add(sequence, %(index)d, (PyObject*) & _pyllars_internal::Factory<typename %(class_name)s >::create_single_instance(
+                            PyTuple_Add(sequence, %(index)d, (PyObject*) & _pyllars_internal::Factory<%(typename)s %(class_name)s >::create_single_instance(
                                  1, 
                                  %(arg_name)s,
                                  false
@@ -142,11 +149,12 @@ class CXXRecordDecl(Generator):
                                 'index': index,
                                 'class_name': arg._type.full_name,
                                 'arg_name': arg.name,
+                                'typename': typename,
                             }).encode("utf-8"))
                 stream.write(("""
                 %(pyllarse_scope)s::%(parent_name)s::register_instance(
                     (PyObject*) sequence,
-                    (PyObject*) & __pyllars_internal::PythonClassWrapper< typename %(scope)s::%(template_prefix)s%(class_name)s >::Type
+                    (PyObject*) & __pyllars_internal::PythonClassWrapper< %(typename)s %(scope)s::%(template_prefix)s%(class_name)s >::Type
                 );
                 """ % {
                     'pyllarse_scope': self.element.pyllars_scope,
@@ -156,18 +164,20 @@ class CXXRecordDecl(Generator):
                     'parent': self.element.scope if self.element.scope != '::' else "",
                     'class_name': self.element.name,
                     'scope': self.element.scope,
-                   'template_prefix': 'template ' if self.parent and self.parent.element.is_template_macro else ""
+                   'template_prefix': 'template ' if self.parent and self.parent.element.is_template_macro else "",
+                    'typename': 'typename' if not self.element.is_union else ""
                 }).encode("utf-8"))
             else:
                 stream.write(("""
-                __pyllars_internal::PythonClassWrapper< typename %(parent_class_scope)s::%(parent_class_name)s >::addClassMember
+                __pyllars_internal::PythonClassWrapper< %(typename)s %(parent_class_scope)s::%(parent_class_name)s >::addClassMember
                     ("%(class_name)s",
-                     (PyObject*) & __pyllars_internal::PythonClassWrapper< typename %(scope)s::%(class_name)s >::Type);
+                     (PyObject*) & __pyllars_internal::PythonClassWrapper< %(typename)s %(scope)s::%(class_name)s >::Type);
 """ % {
                     'parent_class_name': self.element.parent.name,
                     'parent_class_scope': self.element.parent.scope,
                     'class_name': self.element.name,
-                    'scope': self.element.scope
+                    'scope': self.element.scope,
+                    'typename': 'typename' if not self.element.is_union else ""
                 }).encode('utf-8'))
         stream.write(("""
                 _status = status;
@@ -204,14 +214,15 @@ class CXXRecordDecl(Generator):
 
         stream.write(("""
             %(template_decl)s
-            typename %(pyllars_scope)s::%(template_prefix)s%(name)s::Initializer_%(basic_name)s 
+            %(typename)s %(pyllars_scope)s::%(template_prefix)s%(name)s::Initializer_%(basic_name)s 
             *%(pyllars_scope)s::%(template_prefix)s%(name)s::Initializer_%(basic_name)s::initializer = _init();
         """ % {
             'basic_name': self.element.basic_name,
             'name': self.element.name,
             'pyllars_scope': self.element.pyllars_scope,
             'template_decl': template_decl(self),
-            'template_prefix': 'template ' if self.parent and self.parent.element.is_template_macro else ""
+            'template_prefix': 'template ' if self.parent and self.parent.element.is_template_macro else "",
+            'typename': 'typename' if not self.element.is_union else "",
         }).encode('utf-8'))
 
 
@@ -248,7 +259,7 @@ class CXXMethodDecl(Generator):
             method_name += "Varargs"
 
         return """
-    __pyllars_internal::PythonClassWrapper< typename %(scope)s>::template %(py_method_name)s<%(is_const)s name, %(return_type)s %(args)s>
+    __pyllars_internal::PythonClassWrapper< %(typename)s %(scope)s>::template %(py_method_name)s<%(is_const)s name, %(return_type)s %(args)s>
        ( &%(scope)s::%(method_name)s, argumentNames);
 
 """ % {
@@ -259,7 +270,8 @@ class CXXMethodDecl(Generator):
             'py_method_name': method_name,
             'return_type': self.element.return_type.full_name if self.element.return_type else "void",
             'scope': self.element.block_scope,
-            'template_prefix': 'template ' if self.element.parent.parent.is_template_macro else ""
+            'template_prefix': 'template ' if self.element.parent.parent.is_template_macro else "",
+            'typename': 'typename' if not self.element.is_union else ""
         }
 
     def generate_header_core(self, stream: TextIOBase, as_top=False):
@@ -349,7 +361,7 @@ class FieldDecl(Generator):
                     status_t %(pyllars_scope)s::%(basic_name)s_init(PyObject * const global_mod){
                        status_t status = 0;
                        %(imports)s
-                        __pyllars_internal::PythonClassWrapper< typename %(scope)s >::template addArrayAttribute<name, %(array_size)s, %(full_type_name)s>
+                        __pyllars_internal::PythonClassWrapper< %(typename)s %(scope)s >::template addArrayAttribute<name, %(array_size)s, %(full_type_name)s>
                            ( &%(scope)s::%(name)s, %(array_size)s);
                        return status;
                     }
@@ -369,7 +381,8 @@ class FieldDecl(Generator):
                     'full_type_name': self.element.type_._target_type.full_param_name,
                     'scope': self.element.block_scope,
                     'array_size': self.element.type_.array_size,
-                    'template_decl': template_decl(self)
+                    'template_decl': template_decl(self),
+                    'typename': 'typename' if not self.element.parent.is_union else ""
                 }).encode('utf-8'))
             else:
                 stream.write(("""
@@ -381,7 +394,7 @@ class FieldDecl(Generator):
                     status_t %(pyllars_scope)s::%(basic_name)s_init(PyObject* const global_mod){
                        status_t status = 0;
                        %(imports)s
-                        __pyllars_internal::PythonClassWrapper< typename %(scope)s >::template addAttribute%(qual)s<name, %(full_type_name)s>
+                        __pyllars_internal::PythonClassWrapper< %(typename)s %(scope)s >::template addAttribute%(qual)s<name, %(full_type_name)s>
                            ( &%(scope)s::%(name)s);
                        return status;
                     }
@@ -408,7 +421,8 @@ class FieldDecl(Generator):
                     'qual': 'Const' if self.element.type_.is_const else "",
                     'scope': self.element.block_scope,
                     'template_args': self.element.template_arguments_string(),
-                    'template_decl': template_decl(self)
+                    'template_decl': template_decl(self),
+                    'typename': 'typename' if not self.element.parent.is_union else ""
                 }).encode('utf-8'))
         else:
             setter_code = """
@@ -431,7 +445,7 @@ class FieldDecl(Generator):
                    static std::function< %(full_type_name)s(const %(scope)s&)> getter =
                        [](const %(scope)s &self)->%(full_type_name)s{return self.%(name)s;};
                    %(setter_code)s
-                    __pyllars_internal::PythonClassWrapper< typename %(scope)s >::template addBitField%(qual)s<name, %(full_type_name)s, %(bit_size)s>
+                    __pyllars_internal::PythonClassWrapper< %(typename)s %(scope)s >::template addBitField%(qual)s<name, %(full_type_name)s, %(bit_size)s>
                        ( getter %(setter)s);
                    return status;
                 }
@@ -463,7 +477,8 @@ class FieldDecl(Generator):
                 'setter_code': setter_code if not self.element.type_.is_const else "",
                 'scope': self.element.block_scope,
                 'template_args': self.element.template_arguments_string(),
-                'template_decl': template_decl(self)
+                'template_decl': template_decl(self),
+                'typename': 'typename' if not self.element.parent.is_union else ""
             }).encode('utf-8'))
 
 
@@ -517,13 +532,14 @@ class ClassTemplateDecl(Generator):
                 'full_name': self.element.full_name,
             }
         else:
-            code_for_adding_dict = """__pyllars_internal::PythonClassWrapper< typename %(parent_class_scope)s::%(parent_class_name)s >::addClassMember
+            code_for_adding_dict = """__pyllars_internal::PythonClassWrapper< %(typename)s %(parent_class_scope)s::%(parent_class_name)s >::addClassMember
                         ("%(name)s",
                          (PyObject*) dictionary);
             """ % {
                 'parent_class_name': self.element.parent.name,
                 'parent_class_scope': self.element.parent.scope,
                 'name': self.element.name,
+                'typename': 'typename' if not self.element.is_union else ""
             }
         scoped.write(("""
             %(template_decl)s
@@ -607,7 +623,7 @@ class CXXConstructorDecl(CXXMethodDecl):
         #    method_name += "Varargs"
 
         return """
-    __pyllars_internal::PythonClassWrapper< typename %(scope)s>::template addConstructor<%(args)s>
+    __pyllars_internal::PythonClassWrapper< %(typename)s %(scope)s>::template addConstructor<%(args)s>
        ( argumentNames);
 
 """ % {
@@ -616,7 +632,8 @@ class CXXConstructorDecl(CXXMethodDecl):
             'is_const': str(self.element.is_const).lower() + "," if not self.element.is_static else "",
             'names': ",".join(['"%s"' % (e.name or "param_%d" % index) for index, e in enumerate(self.element.params)]),
             'scope': self.element.block_scope,
-            'template_prefix': 'template ' if self.element.parent.parent.is_template_macro else ""
+            'template_prefix': 'template ' if self.element.parent.parent.is_template_macro else "",
+            'typename': 'typename' if not self.element.parent.is_union else ""
         }
 
 

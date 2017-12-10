@@ -8,8 +8,12 @@ from typing import List
 from ..generation import *
 
 import pkg_resources
+import pyllars
+import tempfile
+
 
 _pyllars_resources_dir = pkg_resources.resource_filename("pyllars", os.path.join("..", "resources"))
+
 
 class CodeBase(object):
 
@@ -56,9 +60,9 @@ class CompilationModel(object):
         SINGLE_MODULE = 0
         BY_NAEMESPACE = 1
 
-    def __init__self(self, code_bases: List[CodeBase], objs_dir: str, output_dir: str, globals_module_name:str):
+    def __init__self(self, code_bases: List[CodeBase], globals_module_name: str):
+        output_dir = pkg_resources.resource_filename("pyllars", ".")
         self._globals_module = os.path.join(output_dir, globals_module_name + ".so")
-        self._objs_dir = objs_dir
         self._code_bases = code_bases
         self._objects = set([])
         self._failed = set([])
@@ -68,20 +72,17 @@ class CompilationModel(object):
     def globals_module(self):
         return self._globals_module
 
-    @property
-    def objs_dir(self):
-        return self._objs_dir
-
     @abstractmethod
     def compile_modules(self, global_module_name: str, global_linker_flags: List[str],
                         global_addl_sources: List[str])->List[str]:
         pass
 
     def compile(self, code_base: CodeBase):
+        self._objs_dir = tempfile.mkdtemp()
         for root, dirs, files in os.walk(code_base.base_dir):
            for base_name in [f for f in files if f.endswith('.cpp')]:
                file_name = os.path.join(root, base_name)
-               self._compile_file(root, file_name)
+               self._compile_file(root, file_name, objs_dir)
 
     def _link(self, module_file_name: str, linker_flags: List[str], addl_sources: List[str]):
         if module_file_name in self._compiled_modules:
@@ -109,9 +110,9 @@ class CompilationModel(object):
         self._objects = set({})
         return module_file_name
 
-    def _compile_file(self, folder: str, file_name: str):
-        obj_file_name = os.path.join(self.objs_dir, os.path.basename(file_name).replace(".cpp", ".o"))
-        cmd = "%(cxx)s -ftemplate-backtrace-limit=0 -O -std=c++14 %(cxxflags)" \
+    def _compile_file(self, folder: str, file_name: str, objs_dir: str):
+        obj_file_name = os.path.join(objs_dir, os.path.basename(file_name).replace(".cpp", ".o"))
+        cmd = "%(cxx)s -ftemplate-backtrace-limit=0 -O -std=c++14 %(cxxflags)s" \
               "-c -fPIC -I%(local_include)s -I%(python_include)s " \
               "-I%(pyllars_include)s -o \"%(target)s\" \"%(compilable)s\"" % {
                   'cxx': CompilationModel.CXX,
@@ -132,12 +133,12 @@ class CompilationModel(object):
         self._objects.add("\"%s\"" % obj_file_name)
 
     @staticmethod
-    def create(policy: "CompilationModel.Policy", code_dir: str, objs_dir: str,
-               output_dir: str, globals_module_name: str) -> "CompilationModel":
+    def create(policy: "CompilationModel.Policy", code_bases: List[CodeBase],
+               globals_module_name: str) -> "CompilationModel":
         if policy == CompilationModel.Policy.SINGLE_MODULE:
-            return SingleModuleCompilationModel(code_dir, objs_dir, output_dir, globals_module_name)
+            return SingleModuleCompilationModel(code_bases, globals_module_name)
         else:
-            return ByNamespaceCompilationModel(code_dir, objs_dir, output_dir, globals_module_name)
+            return ByNamespaceCompilationModel(code_bases, globals_module_name)
 
 
 class SingleModuleCompilationModel(CompilationModel):
