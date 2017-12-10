@@ -64,8 +64,9 @@ class Element(metaclass=ABCMeta):
         while isinstance(parent, DecoratingType):
             parent = parent.parent
         self._parent = parent
+        self._top_scope = None
         self._children = {}
-        self._locators = locator
+        self._locator = locator
         self._qualifiers = qualifier or []
         if isinstance(self._qualifiers, str):
             self._qualifiers = [self._qualifiers]
@@ -80,6 +81,7 @@ class Element(metaclass=ABCMeta):
         self._is_template = parent and parent.is_template
         self._inside_template_macro = (parent._inside_template_macro or parent.is_template_macro) if parent else False
         self._is_anonymous_type = name is None or "enum " in name
+        self._dependencies = set([])
         if name is not None and self.is_resolved:
             full_name = self.scope + ('::' if self.scope else "") +  name
             if full_name in Element.lookup and type(Element.lookup[full_name]) != type(self):
@@ -112,6 +114,17 @@ class Element(metaclass=ABCMeta):
         while parent and not parent.is_namespace:
             parent = parent.parent
         return parent.name if parent else ""
+
+    @property
+    def location(self):
+        if not self._locator:
+            return None, None
+        try:
+            filename, lineno = self._locator.replace("<", "").split(':')
+        except:
+            filename = self._locator.repalce("<", "").replace(">", "")
+            lineno = None
+        return filename, lineno
 
     @property
     def guard(self):
@@ -182,12 +195,31 @@ class Element(metaclass=ABCMeta):
     def is_template_macro(self):
         return False
 
+    @property
+    def dependencies(self):
+        deps = self.dependencies
+        for child in self.children():
+            deps += child.dependencies
+        return deps
+
     @classmethod
     def from_name(cls, name):
         if '::' + name in Element.lookup:
             return Element.lookup['::' + name]
         else:
             return Element.lookup.get(name)
+
+    @property
+    def top_scope(self):
+        if self._top_scope:
+            return self._top_scope
+        parent = self.parent
+        while parent.parent and parent.parent.name:
+            parent = parent.parent
+        if not parent.name:
+            parent = None  # do not count global namespace
+        self._top_scope = parent
+        return parent
 
     def default_access(self):
         return "public"
@@ -701,6 +733,13 @@ class DecoratingType(UnscopedElement):
                                              self._target_type.parent,
                                              locator, qualifier=qualifier)
 
+    @property
+    def dependencies(self):
+        type_parent = self._target_type.top_scope
+        my_parent = self.top_scope
+        if type_parent and type_parent != my_parent:
+            self._dependencies.append(type_parent)
+
     @classmethod
     def parse_tokens(cls, name, tag, parent, **kargs):
         if 'definition' in kargs:
@@ -934,6 +973,14 @@ class TypeAliasDecl(ScopedElement):
             short_hand, full_decl = definition, definition
         self._aliased_type = parent.find(short_hand)
 
+    @property
+    def dependencies(self):
+        top_parent = self.top_scope
+        type_parent = self._aliased_type.top_scope
+        if type_parent and top_parent != type_parent:
+            self._dependencies.apped(type_parent)
+
+
     @classmethod
     def parse_tokens(cls, name, tag, parent, **kargs):
         return TypeAliasDecl(name, tag, parent, **kargs)
@@ -950,6 +997,11 @@ class VarDecl(ScopedElement):
         if not definition:
             definition = alias_definition[1]
         self._type = parse_type(definition, parent, tag=tag)
+
+    @property
+    def dependencies(self):
+        if self._type.top_scope and self._type.top_scope != self.top_scope:
+            self._dependencies.append(self._type.top_scope)
 
     @property
     def type_(self):
@@ -1002,6 +1054,10 @@ class FunctionElement(ScopedElement):
         self._has_varargs = has_ellipsis
         self._throws = tokens.get('throws').throws if 'throws' in tokens else []
 
+    @property
+    def dependencies(self):
+        if self._return_type and self._return_type.top_sccope and self._return_type.top_scope != self.top_scope:
+            self._dependencies.append(self._return_type.top_scope)
 
     @property
     def is_static(self):
@@ -1114,6 +1170,11 @@ class FieldDecl(ScopedElement):
         else:
             self._type = parse_type(definition, parent, tag=tag, var_name=name)
         self._bit_size = None
+
+    @property
+    def dependencies(self):
+        if self._type.top_scope and self._type.top_scope != self.top_scope and self._type.top_scope:
+            self._dependencies.append(self._type.top_scope)
 
     @property
     def type_(self):
@@ -1327,6 +1388,11 @@ class NonTypeTemplateParmDecl(ScopedElement):
         self._type = parse_type(definition, parent, var_name=name)
         #self._is_referenced = is_referenced
         parent.add_template_arg(self)
+
+    @property
+    def dependencies(self):
+        if self._type.top_scope and self._type.top_scope != self.top_scope:
+            return [self._type.top_scope]
 
     @classmethod
     def parse_tokens(cls, name: str, tag: str, parent: Element, **kargs):

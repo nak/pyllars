@@ -23,7 +23,7 @@ class TestCodeGen(object):
             shutil.rmtree(gen_path)
         os.makedirs(gen_path)
         Generator.generate_code(top.top, src_path=input_file, folder=Folder(gen_path), module_name=os.path.basename(input_file).split('.')[0])
-        rc, output = Compiler(gen_path).compile_all(src_path=input_file, output_module_path=os.path.join("..", "..", "src", "pyllars", os.path.basename(input_file).split('.')[0] +".so"))
+        rc, output = Compiler(gen_path).compile_all(src_paths=[input_file], output_module_path=os.path.join("..", "..", "src", "pyllars", os.path.basename(input_file).split('.')[0] +".so"))
         assert rc == 0, "Failed to compile/link generated code: \n%s" % output
 
 

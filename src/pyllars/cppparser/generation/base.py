@@ -6,6 +6,7 @@ import sysconfig
 from abc import ABCMeta
 from contextlib import contextmanager
 from io import TextIOBase
+from typing import List
 
 from .. import parser
 import pkg_resources
@@ -34,9 +35,9 @@ class Compiler(object):
                 self._compileables.append(os.path.join(root, fil))
         self._folder = folder
 
-    def compile_all(self, src_path:str, output_module_path: str):
+    def compile_all(self, src_paths: List[str], output_module_path: str):
         objects = []
-        body = src_path.replace(".hpp", ".cpp")
+        bodies = [src_path.replace(".hpp", ".cpp") for src_path in src_paths]
         for compilable in self._compileables:
             target = os.path.join("objects", compilable[10:]).replace(".cpp", ".o")
             if not os.path.exists(os.path.dirname(target)):
@@ -60,9 +61,9 @@ class Compiler(object):
                 return p.returncode, "Command \"%s\" failed:\n%s" % (cmd, output)
             objects.append("\"%s\"" % target)
         cmd = "%(cxx)s -O -fPIC -std=c++14 %(cxxflags)s -I%(python_include)s -shared -o objects/%(output_module_path)s -Wl,--no-undefined " \
-              "%(src)s %(objs)s %(python_lib_name)s -lffi %(pyllars_include)s/pyllars/pyllars.cpp" % {
+              "%(src)s %(objs)s %(python_lib_name)s -Wl,-R,'$ORIGIN' -lffi %(pyllars_include)s/pyllars/pyllars.cpp" % {
                   'cxx': Compiler.LDCXXSHARED,
-                  'src': body,
+                  'src': " ".join(bodies),
                   'cxxflags': Compiler.CFLAGS,
                   'output_module_path': output_module_path,
                   'objs': " ".join(objects),
