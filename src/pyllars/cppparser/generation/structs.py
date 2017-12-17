@@ -39,6 +39,8 @@ class CXXRecordDecl(Generator):
         return text
 
     def generate_body_proper(self, stream: TextIOBase, as_top: bool = False) -> None:
+        if not self.element._is_definition:
+            return
         if self.element.is_implicit:
             return
 
@@ -394,7 +396,7 @@ class FieldDecl(Generator):
                     status_t %(pyllars_scope)s::%(basic_name)s_init(PyObject* const global_mod){
                        status_t status = 0;
                        %(imports)s
-                        __pyllars_internal::PythonClassWrapper< %(typename)s %(scope)s >::template addAttribute%(qual)s<name, %(full_type_name)s>
+                        __pyllars_internal::PythonClassWrapper< %(typename)s %(scope)s >::template addAttribute%(qual)s<name, decltype(%(scope)s::%(name)s)>
                            ( &%(scope)s::%(name)s);
                        return status;
                     }

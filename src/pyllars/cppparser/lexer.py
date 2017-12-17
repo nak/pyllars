@@ -34,7 +34,7 @@ t_ignore = '\t '
 
 
 def t_locator(t):
-    r"(<.*>)"
+    r"(<.*>)|([a-z\_\/\-\.]*\:[0-9]+\:[0-9]+)"
     return t
 
 
@@ -44,7 +44,7 @@ def t_structured_type(t):
 
 
 def t_definition(t):
-    r'\'([a-zA-Z0-9\_\*\[\]\(\)\&(\:\:)(\.\.\.)\,\ (\<.*\>)]*)\''
+    r'\'([a-zA-Z0-9\_\*\[\]\(\)\&(\:\:)(\.\.\.)\,\ (\<.*\>)]*)\ *(throw\(.*\))?\''
     t.value = t.value.replace("\\", "").replace("'", "")
     t.value = t.value.replace("'", "").strip()
     return t
@@ -86,7 +86,7 @@ decls = r'(TranslationUnitDecl|BuiltinType|TypedefDecl|ParmVarDecl|CXXRecordDecl
          'TemplateSpecializationType|RecordType|NamespaceDecl|PointerType|ArrayType|ConstantArrayType|' + \
          'CXXConstructorDecl|CXXDestructorDecl|CXXMethodDecl|CompoundStmt|ClassTemplateDecl|TemplateTypeParmDecl|' + \
          'LValueReferenceType|ElaboratedType|VarDecl|QualType|ImplicitCastExpr|IntegerLiteral|ReturnStmt|FloatingLiteral|' + \
-         'NonTypeTemplateParmDecl|TypeAliasDecl|FunctionDecl|FieldDecl|IntegerLiteral|EnumDecl|EnumConstantDecl' + \
+         'NonTypeTemplateParmDecl|TypeAliasDecl|FunctionDecl|FieldDecl|IntegerLiteral|EnumDecl|EnumConstantDecl|LinkageSpecDecl' + \
          ')'
 
 @TOKEN(decls)

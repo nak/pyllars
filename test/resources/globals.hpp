@@ -7,8 +7,6 @@ typedef const char* const const_str;
 extern const char * const const_ptr_str ;
 extern const char* const * const_ptr_ptr_str;
 
-#include <pthread.h>
-
 namespace outside{
     class ExternalDependency{
     public:

@@ -11,7 +11,8 @@ tokens = (
     'is_referenced',
     'array_spec',
     'is_enum',
-    'function_spec'
+    'function_spec',
+    'restricted'
 )
 
 
@@ -45,6 +46,9 @@ def t_implicit_explicit(t):
     r"(implicit|explicit)"
     return t
 
+def t_restricted(t):
+    r"(__restrict)"
+    return t
 
 def t_qualifier(t):
     r"(const|constexpr|mutable|volatile)"
@@ -61,7 +65,7 @@ def t_array_spec(t):
     return t
 
 def t_function_spec(t):
-    r"(.*)\(\*\)\((.*)\)"
+    r"(.*)\(\*\)\((.*)\)\ *(threo\(.*\))?"
     return t
 
 def t_name(t):

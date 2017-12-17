@@ -13,7 +13,9 @@ namespace __pyllars_internal {
         template<typename T>
         static
         PyObject *createGlobalVariable(const char *const name, const char *const tp_name,
-                                       typename extent_as_pointer<T>::type *variable, PyObject *module,
+                                       //typename extent_as_pointer<T>::type *variable,
+                                       T *variable,
+                                       PyObject *module,
                                        const size_t size);
 
         template<typename T, typename E= void>
@@ -48,7 +50,9 @@ namespace __pyllars_internal {
 
             static PyTypeObject
                     Type;
-            typedef T *member_t[size];
+            //typedef T *member_t[size];
+            typedef T val_t[size];
+            typedef val_t *member_t;
 
             member_t member;
             size_t array_size;

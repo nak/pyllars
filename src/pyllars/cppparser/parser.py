@@ -68,7 +68,10 @@ class Element(metaclass=ABCMeta):
         self._parent = parent
         self._top_scope = None
         self._children = {}
-        self._locator = locator
+        if locator is None or isinstance(locator, str):
+            self._locator = locator
+        else:
+            self._locator = locator[0]
         self._qualifiers = qualifier or []
         if isinstance(self._qualifiers, str):
             self._qualifiers = [self._qualifiers]
@@ -416,6 +419,8 @@ class Element(metaclass=ABCMeta):
         else:
             import ply.lex as lex
             try:
+                while isinstance(parent, BogusElement):
+                    parent = parent.parent
                 return cls.parse_tokens(name, tag, parent, **kargs)
             except lex.LexError:
                 import traceback
@@ -440,6 +445,10 @@ class Element(metaclass=ABCMeta):
 
     def as_function_argument(self, index, typed=False):
         if typed:
+            if isinstance(self.type_, FunctionElement):
+                type_name = self.type_.full_name
+                name = self.name or "p%s" % index
+                return type_name.replace("(*)", "(*%s)" % name)
             return self._type.full_name + " " + (self.name or "p%s" % index)
         return self.name
 
@@ -750,13 +759,14 @@ class CXXRecordDecl(RecordTypeDefn):
         self._is_definition = kargs.get('is_definition') or False
         self._kind = kargs.get('structured_type')
         self._struct_type = kargs.get('structured_type')
+        self._struct_type = self._struct_type.strip()
+
+    def default_access(self):
+        return "public" if self._struct_type != 'class' else "private"
 
     @property
     def is_union(self):
         return self._struct_type.strip() == 'union'
-
-    def default_access(self):
-        return "private" if self._kind == "class" else 'public'
 
     @classmethod
     def parse_tokens(cls, name, tag, parent, **kargs):
@@ -1139,6 +1149,11 @@ class FunctionElement(ScopedElement):
     def has_varargs(self):
         return self._has_varargs
 
+    def as_function_argument(self, index, typed=False):
+        name = self.name or "p%s" % index
+        type_name = self._type.full_name
+        return type_name.replace("(*)", "(*%s)" % name)
+
 class BogusElement(ScopedElement):
 
     def __init__(self, *args, **kargs):
@@ -1172,6 +1187,8 @@ class CXXNewExpr(BogusElement):
 class DeclRefExpr(BogusElement):
     pass
 
+class LinkageSpecDecl(BogusElement):
+    pass
 
 class FunctionDecl(FunctionElement):
 

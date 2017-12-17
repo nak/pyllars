@@ -155,11 +155,11 @@ class VarDecl(Generator):
                 status_t %(pyllars_scope)s::%(basic_name)s::%(basic_name)s_init(PyObject * const global_mod){
                     status_t status = 0;
                     %(imports)s
-                    __pyllars_internal::PythonClassWrapper<%(full_type_name)s>::initialize("%(basic_type_name)s",
+                    __pyllars_internal::PythonClassWrapper<decltype(%(parent_full_name)s::%(name)s)>::initialize("%(basic_type_name)s",
                                                                                            "%(basic_type_name)s",
                                                                                            %(type_mod)s,
                                                                                            "%(full_type_name)s");
-                    __pyllars_internal::PythonClassWrapper<%(parent_full_name)s>::addClassAttribute%(qual)s<name, %(full_type_name)s>
+                    __pyllars_internal::PythonClassWrapper<%(parent_full_name)s>::addClassAttribute%(qual)s<name, decltype(%(parent_full_name)s::%(name)s)>
                       ( &%(parent_full_name)s::%(name)s);
                     return status;
                 }
@@ -202,12 +202,12 @@ class VarDecl(Generator):
                     PyObject* mod = %(module_name)s;
                     
                     %(imports)s
-                    __pyllars_internal::PythonClassWrapper<%(full_type_name)s>::initialize("%(basic_type_name)s",
+                    __pyllars_internal::PythonClassWrapper<decltype(%(parent)s::%(basic_name)s)>::initialize("%(basic_type_name)s",
                                                                                            "%(basic_type_name)s",
                                                                                            %(type_mod)s,
                                                                                            "%(full_type_name)s");
-                    if( !__pyllars_internal::GlobalVariable::createGlobalVariable<%(full_type_name)s>("%(basic_name)s", "%(tp_name)s",
-                        (%(full_type_name)s*) &%(parent)s::%(basic_name)s, mod, %(array_size)s)){
+                    if( !__pyllars_internal::GlobalVariable::createGlobalVariable<decltype(%(parent)s::%(basic_name)s)>("%(basic_name)s", "%(tp_name)s",
+                        &%(parent)s::%(basic_name)s, mod, %(array_size)s)){
                        status = -1;
                      }
                     return status;

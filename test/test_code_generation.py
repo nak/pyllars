@@ -4,10 +4,11 @@ import shutil
 
 import pytest
 from pyllars.cppparser import parser
+from pyllars.cppparser.compilation import CompilationModel, ByNamespaceCompilationModel, CodeBase
 from pyllars.cppparser.generation import Generator, Folder, Compiler
 
 RESOURCES_DIR = os.path.join(os.path.dirname(__file__), "resources")
-hpp_input_files = glob.glob(os.path.join(RESOURCES_DIR, "*.hpp"))
+hpp_input_files = glob.glob(os.path.join(RESOURCES_DIR, "*.hpp")) + ["/usr/include/pthread.h"]
 
 
 class TestCodeGen(object):
@@ -21,10 +22,16 @@ class TestCodeGen(object):
         if os.path.exists(gen_path):
             shutil.rmtree(gen_path)
         os.makedirs(gen_path)
-        Generator.generate_code(src_paths=[input_file], folder=Folder(gen_path), module_name=os.path.basename(input_file).split('.')[0],
-                                include_paths=[os.path.dirname(input_file)])
-        rc, output = Compiler(gen_path).compile_all(src_paths=[input_file], output_module_path=os.path.join("..", "..", "src", "pyllars", os.path.basename(input_file).split('.')[0] +".so"))
-        assert rc == 0, "Failed to compile/link generated code: \n%s" % output
+        top =Generator.generate_code(src_paths=[input_file], folder=Folder(gen_path),
+                                     module_name=os.path.basename(input_file).split('.')[0],
+                                     include_paths=[os.path.dirname(input_file)])
+        code_base = CodeBase(top, base_dir=gen_path)
+        compilation_model = ByNamespaceCompilationModel(code_bases=[code_base], globals_module_name=os.path.basename(input_file).replace(".hpp", "") )
+        compilation_model.compile_modules(compiler_flags=[],
+                                          linker_flags=["-lpthread"],
+                                          addl_sources=[input_file.replace(".hpp", ".cpp")])
+        #rc, output = Compiler(gen_path).compile_all(src_paths=[input_file], output_module_path=os.path.join("..", "..", "src", "pyllars", os.path.basename(input_file).split('.')[0] +".so"))
+        #assert rc == 0, "Failed to compile/link generated code: \n%s" % output
 
 
 class TestGlobalImports(object):

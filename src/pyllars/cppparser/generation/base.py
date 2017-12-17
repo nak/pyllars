@@ -52,7 +52,8 @@ class Compiler(object):
                       'target': target,
                       'compilable': compilable,
                   }
-            cmd = cmd.replace("-O2", "-O0")
+            #cmd = cmd.replace("-O2", "-O0")
+            cmd = cmd.replace("-g ", "")
             print(cmd)
             p = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE,
                                  stderr=subprocess.STDOUT)
@@ -61,7 +62,7 @@ class Compiler(object):
                 return p.returncode, "Command \"%s\" failed:\n%s" % (cmd, output)
             objects.append("\"%s\"" % target)
         cmd = "%(cxx)s -O -fPIC -std=c++14 %(cxxflags)s -I%(python_include)s -shared -o objects/%(output_module_path)s -Wl,--no-undefined " \
-              "%(src)s %(objs)s %(python_lib_name)s -Wl,-R,'$ORIGIN' -lffi %(pyllars_include)s/pyllars/pyllars.cpp" % {
+              "%(src)s %(objs)s %(python_lib_name)s -Wl,-R,'$ORIGIN' -lpthread -lffi %(pyllars_include)s/pyllars/pyllars.cpp" % {
                   'cxx': Compiler.LDCXXSHARED,
                   'src': " ".join(bodies),
                   'cxxflags': Compiler.CFLAGS,
@@ -362,6 +363,7 @@ class Generator(metaclass=ABCMeta):
         for src_path in src_paths:
             Generator._generate_code(top.top, src_path=src_path, folder=folder, module_name=module_name,
                                      include_paths=include_paths)
+        return top.top
 
     def generate_spec(self):
         file_name = self.to_path(ext=".hpp")

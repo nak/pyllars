@@ -12,7 +12,9 @@ namespace __pyllars_internal{
     template<typename T>
     PyObject *GlobalVariable::
     createGlobalVariable(const char *const name, const char *const tp_name,
-                            typename extent_as_pointer<T>::type *variable, PyObject *module,
+                            //typename extent_as_pointer<T>::type *variable,
+                            T *variable,
+                            PyObject *module,
                             const size_t size) {
         if (!tp_name || !name || !module) {
             PyErr_SetString(PyExc_RuntimeError, "Null name or module on global variable creation");
@@ -109,7 +111,10 @@ namespace __pyllars_internal{
     call(Container *callable, PyObject *args, PyObject *kwds) {
         (void) callable;
         if (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "value")) {
-            T val[size] = *toCObject<T[size], true>(*PyDict_GetItemString(kwds, "value"));
+            T val[size];
+            auto cval = *toCObject<T[size], true, PythonClassWrapper<T[size]> >(*PyDict_GetItemString(kwds, "value"));
+            for(unsigned int i = 0; i < size; ++i)
+               val[i] = cval[i];
             for (size_t i = 0; i < size; ++i) (*callable->member)[i] = val[i];
         } else if (kwds) {
             PyErr_SetString(PyExc_RuntimeError, "Invalid parameters when getting/setting global variable");
@@ -118,7 +123,7 @@ namespace __pyllars_internal{
         typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
         const ssize_t type_size = Sizeof<T_base>::value;
         const ssize_t array_size = type_size > 0 ? sizeof(*(callable->member)) / type_size : 1;
-        return toPyObject<T[size], size>(callable->member, false, array_size);
+        return toPyObject<T[size]>(*callable->member, false, array_size);
     }
 
 
