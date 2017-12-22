@@ -71,7 +71,7 @@ class Element(metaclass=ABCMeta):
         if locator is None or isinstance(locator, str):
             self._locator = locator
         else:
-            self._locator = locator[0]
+            self._locator = locator[-1]
         self._qualifiers = qualifier or []
         if isinstance(self._qualifiers, str):
             self._qualifiers = [self._qualifiers]
@@ -122,8 +122,24 @@ class Element(metaclass=ABCMeta):
         return parent.name if parent else ""
 
     @property
+    def root_python_module(self):
+        root = self.parent
+        while root and root.parent != NamespaceDecl.GLOBAL and isinstance(root.parent, NamespaceDecl):
+            root = self.parent.parent
+        if root is None or root == NamespaceDecl.GLOBAL:
+            if os.path.exists(self.location[0] or ""):
+                location = self.location[0]
+            else:
+                return None
+            return os.path.basename(location).split('.')[0].replace(' ', "_").replace("-", "_")
+        else:
+            return root.basic_name
+
+    @property
     def location(self):
         if not self._locator:
+            if self.parent:
+                return self.parent.location
             return None, None
         try:
             filename, lineno = self._locator.replace("<", "").split(':', 1)
@@ -134,14 +150,16 @@ class Element(metaclass=ABCMeta):
                         break
         except:
             filename = self._locator.replace("<", "").replace(">", "")
-            if "invalid sloc" in filename:
+            if "invalid sloc" in filename or filename.split(':')[0] == 'line':
                 filename = None
             lineno = None
         if filename and not os.path.exists(filename):
             filename = None
             lineno = None
-        elif filename:
-            filename = os.path.abspath(filename)
+        #elif filename:
+        #    filename = os.path.abspath(filename)
+        if filename is None and self.parent:
+            return self.parent.location
         return filename, lineno
 
     @property
@@ -251,10 +269,19 @@ class Element(metaclass=ABCMeta):
         else:
             return Element.lookup.get(name)
 
-    def filter(self, src_paths):
-        full_src_paths = [os.path.abspath(path) for path in src_paths]
+    def filter(self, src_paths: List[str], include_paths: List[str]):
+        def full_path(path):
+            if os.path.isabs(path):
+                return path
+            # TODO: Better mech for "/usr/include": system includes
+            for inc_path in include_paths + ["/usr/include"]:
+                if os.path.isfile(os.path.join(inc_path, path)):
+                    return os.path.join(inc_path, path)
+            return path
+
+        full_src_paths = [full_path(path) for path in src_paths]
         for element in self.children():
-            if element.location[0] is not None and not os.path.abspath(element.location[0]) in full_src_paths:
+            if element.location[0] is not None and not full_path(element.location[0]) in full_src_paths:
                 self._children['public'].remove(element)
 
     def default_access(self):
@@ -359,37 +386,40 @@ class Element(metaclass=ABCMeta):
                 import ply
                 current = self
                 prev = None
-                for line in stream:
-                    line += b" "
-                    try:
-                        line = line.decode('latin-1').replace('\n', '').replace('\r', '')
-                        subtext = True
-                        while subtext:
-                            index = line.find("(anonymous ")
-                            if index < 0:
-                                break
-                            end = line[index+1:].find(")") + index + 1
-                            subtext = line[index:end+1]
-                            if subtext:
-                                line = line.replace(subtext, "")
-                        depth, tokens = preprocess(line)
-                        if tokens.get('node_type') == "TranslationUnitDecl":
-                            continue
-                        assert depth is not None and depth >= 0, depth
-                        while current.depth + 1 > depth:
-                            current = current.parent
-                        if depth > current.depth + 1:
-                            current = prev
-                        branch = process_line(tokens, depth-1, current.top if current else NamespaceDecl.GLOBAL)
-                        if branch is None:
-                            continue
-                        branch.parent = current
-                        current.children.append(branch)
-                        prev = branch
-                    except ply.lex.LexError:
-                        print("Failed to process line %s" % line)
-                        import traceback
-                        print(traceback.format_exc())
+                with open('parser.log', 'w') as log:
+                    for line in stream:
+                        line += b" "
+                        try:
+                            line = line.decode('latin-1').replace('\n', '').replace('\r', '')
+                            subtext = True
+                            while subtext:
+                                index = line.find("(anonymous ")
+                                if index < 0:
+                                    break
+                                end = line[index+1:].find(")") + index + 1
+                                subtext = line[index:end+1]
+                                if subtext:
+                                    line = line.replace(subtext, "")
+                            depth, tokens = preprocess(line)
+                            if tokens.get('node_type') == "TranslationUnitDecl":
+                                continue
+                            assert depth is not None and depth >= 0, depth
+                            while current.depth + 1 > depth:
+                                current = current.parent
+                            if depth > current.depth + 1:
+                                current = prev
+                            branch = process_line(tokens, depth-1, current.top if current else NamespaceDecl.GLOBAL)
+                            if branch is None:
+                                continue
+                            log.write("%s\n" %line)
+                            log.write("   LOC: %s\n" % branch.top.location[0])
+                            branch.parent = current
+                            current.children.append(branch)
+                            prev = branch
+                        except ply.lex.LexError:
+                            print("Failed to process line %s" % line)
+                            import traceback
+                            print(traceback.format_exc())
 
             def __repr__(self):
                 return self.str_rep()

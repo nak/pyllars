@@ -19,6 +19,7 @@ class TestCodeGen(object):
         parser.init()
         gen_path = os.path.join("generated", os.path.basename(input_file))
         gen_path = os.path.splitext(gen_path)[0]
+        gen_path = "generated"
         if os.path.exists(gen_path):
             shutil.rmtree(gen_path)
         os.makedirs(gen_path)

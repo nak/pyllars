@@ -147,9 +147,10 @@ class Generator(metaclass=ABCMeta):
         self._subfolder = None
         self._element = element
         self._parent = parent_generator
+        self._root_module = element.root_python_module or "unaccounted_globals"
         Generator.generator_mapping[element] = self
         for child in element.children():
-            if element not in Generator.generator_mapping:
+            if child not in Generator.generator_mapping:
                 child_generator_class = self.get_generator_class(child)
                 # store for future reference:
                 child_generator_class(child, src_path=src_path, folder=self.subfolder, parent_generator=self)
@@ -162,6 +163,10 @@ class Generator(metaclass=ABCMeta):
     def header_file_path(self) -> str:
         header_name = self.header_file_name()
         return os.path.join(self.folder.path, header_name)
+
+    @property
+    def root_module(self):
+        return self._root_module
 
     @classmethod
     def sanitize(cls, text):
@@ -350,18 +355,21 @@ class Generator(metaclass=ABCMeta):
         }).encode('utf-8'))
 
     @staticmethod
-    def _generate_code(element: parser.Element, src_path: str, folder: Folder, module_name: str, include_paths: List[str]):
+    def _generate_code(element: parser.Element, src_path: str, folder: Folder, module_name: str,
+                       src_paths: List[str],
+                       include_paths: List[str]):
         Generator.generator_mapping = {}
         generator_class = Generator.get_generator_class(element)
         generator = generator_class(element, src_path, folder)
-        generator.generate_body(as_top=module_name)
+        generator.generate_body(src_paths=[os.path.abspath(path) for path in src_paths], as_top=module_name, root_folder=folder)
 
     @staticmethod
     def generate_code(src_paths: List[str], folder: Folder, module_name: str, include_paths: List[str]):
         top = parser.parse_files(src_paths, include_paths)
-        top.top.filter(src_paths)
+        top.top.filter(src_paths, include_paths)
         for src_path in src_paths:
             Generator._generate_code(top.top, src_path=src_path, folder=folder, module_name=module_name,
+                                     src_paths=[os.path.abspath(path) for path in src_paths],
                                      include_paths=include_paths)
         return top.top
 
@@ -371,7 +379,7 @@ class Generator(metaclass=ABCMeta):
         with self.folder.open(file_name) as stream:
             self.generate_header_code(stream)
 
-    def generate_body(self, as_top=False):
+    def generate_body(self,  src_paths: List[str], root_folder: Folder, as_top: bool=False):
         if not self.element.name and not as_top:
             return
         if self.element.is_anonymous_type or self.element.is_implicit:
@@ -393,11 +401,23 @@ class Generator(metaclass=ABCMeta):
             else:
                 self.generate_body_proper(stream, as_top)
         for child in self.element.children():
+
+            location, _ = child.location
+            if location and os.path.abspath(location) not in src_paths:
+                print("SKIPPING %s generation as %s not in source paths" % (child.full_name, location))
+                continue
             child_generator_class = self.get_generator_class(child)
             if child_generator_class.is_generatable():
-                child_generator = child_generator_class(child, self._src_path, self.folder.create_subfolder(child.basic_name),
+                if as_top:
+                    root_module = child.root_python_module or "unaccounted_globals"
+                    subfolder = root_folder.create_subfolder(root_module)
+                else:
+                    subfolder = self.folder
+                child_generator = child_generator_class(child,
+                                                        self._src_path,
+                                                        subfolder.create_subfolder(child.basic_name),
                                                         parent_generator=self)
-                child_generator.generate_body()
+                child_generator.generate_body(src_paths=src_paths, root_folder=root_folder)
         if as_top:
             stream.write(("""
 

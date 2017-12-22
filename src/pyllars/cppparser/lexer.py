@@ -25,7 +25,9 @@ tokens = (
     'integer_value',
     'col',
     'line',
-    'separator'
+    'separator',
+    'angle_bracket',
+    'string'
 )
 
 
@@ -34,7 +36,8 @@ t_ignore = '\t '
 
 
 def t_locator(t):
-    r"(<.*>)|([a-z\_\/\-\.]*\:[0-9]+\:[0-9]+)"
+    r"(<?[0-9A-Za-z\_\/\-\.\\]*\:[0-9]+\:[0-9]+>?)"
+    t.value = t.value.replace("<", "").replace(">", "")
     return t
 
 
@@ -166,10 +169,23 @@ def t_name(t):
     t.value = t.value.strip()
     return t
 
+
 def t_separator(t):
     r'(\:)'
     return t
 
+
+def t_angle_bracket(t):
+    "[<>,]+"
+    return t
+
+
+def t_string(t):
+    "\".*\""
+    return t
+
+def t_error(t):
+    return t
 
 lexer = lex.lex()
 

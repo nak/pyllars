@@ -78,7 +78,7 @@ class CompilationModel(object):
         for root, dirs, files in os.walk(code_base.base_dir):
            for base_name in [f for f in files if f.endswith('.cpp')]:
                file_name = os.path.join(root, base_name)
-               self._compile_file(root, file_name, self._objs_dir)
+               self._compile_file(root, file_name, self._objs_dir, code_base.base_dir)
 
     def _link(self, module_file_name: str, linker_flags: List[str], addl_sources: List[str]):
         if module_file_name in self._compiled_modules:
@@ -106,11 +106,12 @@ class CompilationModel(object):
         self._objects = set({})
         return module_file_name
 
-    def _compile_file(self, folder: str, file_name: str, objs_dir: str):
+    def _compile_file(self, folder: str, file_name: str, objs_dir: str, base_dir: str):
         obj_file_name = os.path.join(objs_dir, os.path.basename(file_name).replace(".cpp", ".o"))
         cmd = "%(cxx)s -ftemplate-backtrace-limit=0 -O -std=c++14 %(cxxflags)s " \
-              "-c -fPIC -I%(local_include)s -I%(python_include)s " \
+              "-c -fPIC -I%(local_include)s -I%(python_include)s -I%(baseincldue)s " \
               "-I%(pyllars_include)s -o \"%(target)s\" \"%(compilable)s\" " % {
+                  'baseincldue': base_dir,
                   'cxx': CompilationModel.CXX,
                   'cxxflags': CompilationModel.CFLAGS,
                   'local_include': os.path.join(objs_dir, folder),
