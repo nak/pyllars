@@ -36,7 +36,7 @@ t_ignore = '\t '
 
 
 def t_locator(t):
-    r"(<?[0-9A-Za-z\_\/\-\.\\]*\:[0-9]+\:[0-9]+>?)"
+    r"(<?[0-9A-Za-z\_\/\-\.\\]*\:[0-9]+\:[0-9]+>?)|(<<?invalid\ sloc>?>)"
     t.value = t.value.replace("<", "").replace(">", "")
     return t
 

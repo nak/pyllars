@@ -90,8 +90,13 @@ class Element(metaclass=ABCMeta):
         self._include_paths = []
         if name is not None and self.is_resolved:
             full_name = self.scope + ('::' if self.scope else "") +  name
-            if full_name in Element.lookup and type(Element.lookup[full_name]) != type(self) and kargs.get('is_referenced') is not True:
-                raise Exception("Duplicate type def %s" % full_name)
+            if full_name in Element.lookup and  kargs.get('is_referenced') is not True:
+                if issubclass(type(Element.lookup[full_name]), type(self)):
+                    pass
+                elif issubclass(type(self), type(Element.lookup[full_name])):
+                    Element.lookup[full_name] = self
+                else:
+                    raise Exception("Duplicate differing type def %s" % full_name)
             if full_name and full_name not in Element.lookup:
                 Element.lookup[full_name] = self
     @property
@@ -127,13 +132,16 @@ class Element(metaclass=ABCMeta):
         while root and root.parent != NamespaceDecl.GLOBAL and isinstance(root.parent, NamespaceDecl):
             root = self.parent.parent
         if root is None or root == NamespaceDecl.GLOBAL:
-            if os.path.exists(self.location[0] or ""):
-                location = self.location[0]
-            else:
+            location = self.location[0]
+            if not os.path.exists(location or ""):
                 return None
             return os.path.basename(location).split('.')[0].replace(' ', "_").replace("-", "_")
         else:
             return root.basic_name
+
+    @staticmethod
+    def set_default_location(location: str):
+        Element._default_location = location
 
     @property
     def location(self):
@@ -143,14 +151,22 @@ class Element(metaclass=ABCMeta):
             return None, None
         try:
             filename, lineno = self._locator.replace("<", "").split(':', 1)
-            if not os.path.exists(os.path.abspath(filename)):
+            if "invalid sloc" in filename:
+                filename = None
+                lineno = None
+            elif filename == 'line':
+                filename = self._default_location
+                return filename, lineno
+            elif not os.path.exists(os.path.abspath(filename)):
                 for path in self.include_paths:
                     filename = os.path.join(path, filename)
                     if os.path.exists(filename):
                         break
         except:
             filename = self._locator.replace("<", "").replace(">", "")
-            if "invalid sloc" in filename or filename.split(':')[0] == 'line':
+            if filename and filename.split(':')[0] == 'line':
+                filename = self._default_location
+            elif filename and "invalid sloc" in filename:
                 filename = None
             lineno = None
         if filename and not os.path.exists(filename):
@@ -281,7 +297,8 @@ class Element(metaclass=ABCMeta):
 
         full_src_paths = [full_path(path) for path in src_paths]
         for element in self.children():
-            if element.location[0] is not None and not full_path(element.location[0]) in full_src_paths:
+            location = element.location[0]
+            if location is not None and not full_path(location) in full_src_paths:
                 self._children['public'].remove(element)
 
     def default_access(self):
@@ -340,16 +357,33 @@ class Element(metaclass=ABCMeta):
             return depth+1 if depth is not None else None, tokens
 
 
-        def process_line(tokens, depth, parent):
+        def process_line(location, tokens, depth, parent):
             node_type = tokens.get('node_type')
             if node_type in ['TranslationUnitDecl']:
                 return None
             tag = tokens.get('tag')
             name = tokens.get('name') # or "_%s" % str(tag)
+            possible_location = tokens.get('locator')
+            if possible_location and not isinstance(possible_location, str):
+                possible_location = possible_location[-1]
+            if possible_location:
+                possible_location = possible_location.split(':', 1)[0]
+                if possible_location != 'line':
+                    location = possible_location
+                elif not location:
+                    raise Exception("referenced line location without no reference set")
             if name and not isinstance(name, str):
                 name = ' '.join(name)
             if 'name' in tokens:
                 del tokens['name']
+            if not name:
+                try:
+                    if 'definition' in tokens:
+                        definition = tokens['definition']
+                        if definition.startswith('struct'):
+                            name = definition.split(' ')[-1]
+                except:
+                    pass
             if tag:
                 del tokens['tag']
             if node_type is None:
@@ -361,7 +395,7 @@ class Element(metaclass=ABCMeta):
                         parent.add_base_class(typ, tokens['access'])
                 else:
                     print("ERROR: no node type in token set: %s;  parent: %s" % (tokens, parent))
-                return None
+                return location, None
             del tokens['node_type']
             clazz = _class_from_name(node_type)
             if clazz:
@@ -372,7 +406,7 @@ class Element(metaclass=ABCMeta):
                     Element.last_parsed_type = current_element
             else:
                 current_element = UnknownElement(node_type, tag, parent)
-            return Branch(depth+1, current_element) if current_element else None
+            return location, Branch(depth+1, current_element) if current_element else None
 
         class Branch:
 
@@ -386,6 +420,7 @@ class Element(metaclass=ABCMeta):
                 import ply
                 current = self
                 prev = None
+                location = None
                 with open('parser.log', 'w') as log:
                     for line in stream:
                         line += b" "
@@ -408,11 +443,12 @@ class Element(metaclass=ABCMeta):
                                 current = current.parent
                             if depth > current.depth + 1:
                                 current = prev
-                            branch = process_line(tokens, depth-1, current.top if current else NamespaceDecl.GLOBAL)
+                            location, branch = process_line(location, tokens, depth-1, current.top if current else NamespaceDecl.GLOBAL)
                             if branch is None:
                                 continue
                             log.write("%s\n" %line)
                             log.write("   LOC: %s\n" % branch.top.location[0])
+                            branch.top.set_default_location(location)
                             branch.parent = current
                             current.children.append(branch)
                             prev = branch
@@ -739,14 +775,6 @@ class BuiltinType(UnscopedElement):
         }[self.name]
 
 
-class CXXRecord(UnscopedElement):
-
-    @classmethod
-    def parse_tokens(cls, name, tag, parent, **kargs):
-        name = name or kargs.get('definition').replace("'", "")
-        return CXXRecord(name, tag, parent)
-
-
 class RecordTypeDefn(ScopedElement):
 
     def __init__(self, name, tag, parent, **kargs):
@@ -760,7 +788,7 @@ class RecordTypeDefn(ScopedElement):
 
     @property
     def full_name(self):
-        if self._name.startswith("decltype("):
+        if self.name.startswith("decltype("):
             return self.name
         else:
             return super(RecordTypeDefn, self).full_name
@@ -1369,11 +1397,20 @@ class RecordType(RecordTypeDefn):
         return RecordType(name, tag, parent, **kargs)
 
 
+class CXXRecord(RecordType):
+
+    @classmethod
+    def parse_tokens(cls, name, tag, parent, **kargs):
+        name = name or kargs.get('definition').replace("'", "")
+        return CXXRecord(name, tag, parent)
+
+
 class EnumDecl(RecordType):
 
     def __init__(self, name, tag, parent, **kargs):
         super(EnumDecl, self).__init__(name, tag, parent, **kargs)
         self._structured_type = 'structured_type' in kargs
+        self._is_definition = True
 
     @classmethod
     def parse_tokens(cls, name, tag, parent, **kargs):

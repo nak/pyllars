@@ -364,7 +364,7 @@ class Generator(metaclass=ABCMeta):
         generator.generate_body(src_paths=[os.path.abspath(path) for path in src_paths], as_top=module_name, root_folder=folder)
 
     @staticmethod
-    def generate_code(src_paths: List[str], folder: Folder, module_name: str, include_paths: List[str]):
+    def generate_code(source: str, src_paths: List[str], folder: Folder, module_name: str, include_paths: List[str]):
         top = parser.parse_files(src_paths, include_paths)
         top.top.filter(src_paths, include_paths)
         for src_path in src_paths:
