@@ -354,6 +354,9 @@ class Generator(metaclass=ABCMeta):
                 'template_decl': self.template_decl,
         }).encode('utf-8'))
 
+
+    dependencies = {}
+
     @staticmethod
     def _generate_code(element: parser.Element, src_path: str, folder: Folder, module_name: str,
                        src_paths: List[str],
@@ -361,7 +364,13 @@ class Generator(metaclass=ABCMeta):
         Generator.generator_mapping = {}
         generator_class = Generator.get_generator_class(element)
         generator = generator_class(element, src_path, folder)
-        generator.generate_body(src_paths=[os.path.abspath(path) for path in src_paths], as_top=module_name, root_folder=folder)
+        for dependency in generator.generate_body(src_paths=[os.path.abspath(path) for path in src_paths], as_top=module_name, root_folder=folder):
+            Generator.dependencies.setdefault(src_path, []).append(dependency)
+            if dependency not in Generator.dependencies:
+                Generator._generate_code(element, src_path=dependency, folder=folder, module_name=module_name, src_paths=src_paths,
+                                         include_paths=include_paths)
+
+
 
     @staticmethod
     def generate_code(source: str, src_paths: List[str], folder: Folder, module_name: str, include_paths: List[str]):
@@ -404,8 +413,8 @@ class Generator(metaclass=ABCMeta):
 
             location, _ = child.location
             if location and os.path.abspath(location) not in src_paths:
-                print("SKIPPING %s generation as %s not in source paths" % (child.full_name, location))
-                continue
+                #print("SKIPPING %s generation as %s not in source paths" % (child.full_name, location))
+                yield location
             child_generator_class = self.get_generator_class(child)
             if child_generator_class.is_generatable():
                 if as_top:
@@ -417,7 +426,8 @@ class Generator(metaclass=ABCMeta):
                                                         self._src_path,
                                                         subfolder.create_subfolder(child.basic_name),
                                                         parent_generator=self)
-                child_generator.generate_body(src_paths=src_paths, root_folder=root_folder)
+                for dependency in child_generator.generate_body(src_paths=src_paths, root_folder=root_folder):
+                    yield dependency
         if as_top:
             stream.write(("""
 
