@@ -75,10 +75,27 @@ class CompilationModel(object):
         pass
 
     def compile(self, code_base: CodeBase):
+        procs = []
         for root, dirs, files in os.walk(code_base.base_dir):
-           for base_name in [f for f in files if f.endswith('.cpp')]:
-               file_name = os.path.join(root, base_name)
-               self._compile_file(root, file_name, self._objs_dir, code_base.base_dir)
+            for base_name in [f for f in files if f.endswith('.cpp')]:
+                file_name = os.path.join(root, base_name)
+                p, cmd, obj_file_name =self._compile_file(root, file_name, self._objs_dir, code_base.base_dir)
+                procs.append((p, cmd, obj_file_name))
+                if len(procs) >= 12:
+                    p, cmd, obj_file_name = procs[0]
+                    output = p.communicate()[0].decode('utf-8')
+                    if p.returncode != 0:
+                        self._failed.add((p.returncode, cmd + "\n\t%s" % output))
+                    else:
+                        self._objects.add("\"%s\"" % obj_file_name)
+                    procs = procs[1:]
+
+        for p, cmd, obj_file_name in procs:
+            output = p.communicate()[0].decode('utf-8')
+            if p.returncode != 0:
+                self._failed.add((p.returncode, cmd + "\n\t%s " % output))
+            else:
+                self._objects.add(obj_file_name)
 
     def _link(self, module_file_name: str, linker_flags: List[str], addl_sources: List[str]):
         if module_file_name in self._compiled_modules:
@@ -122,13 +139,8 @@ class CompilationModel(object):
               }
         cmd = cmd.replace("-O2", "-O0")
         print(cmd)
-        p = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE,
-                             stderr=subprocess.STDOUT)
-        output = p.communicate()[0].decode('utf-8')
-        if p.returncode != 0:
-            self._failed.add((p.returncode, cmd + "\n\t%s" % output))
-        else:
-            self._objects.add("\"%s\"" % obj_file_name)
+        return subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE,
+                             stderr=subprocess.STDOUT), cmd, obj_file_name
 
     @staticmethod
     def create(policy: "CompilationModel.Policy", code_bases: List[CodeBase],

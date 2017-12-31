@@ -358,14 +358,19 @@ class Generator(metaclass=ABCMeta):
     dependencies = {}
 
     @staticmethod
-    def _generate_code(element: parser.Element, src_path: str, folder: Folder, module_name: str,
+    def _generate_code(element: parser.Element,
+                       src_path: str,
+                       folder: Folder,
+                       module_name: str,
                        src_paths: List[str],
                        include_paths: List[str]):
         Generator.generator_mapping = {}
         generator_class = Generator.get_generator_class(element)
         generator = generator_class(element, src_path, folder)
-        for dependency in generator.generate_body(src_paths=[os.path.abspath(path) for path in src_paths], as_top=module_name, root_folder=folder):
-            Generator.dependencies.setdefault(src_path, []).append(dependency)
+        for dependency in generator.generate_body(src_paths=[os.path.abspath(path) for path in src_paths],
+                                                  as_top=module_name,
+                                                  root_folder=folder):
+            Generator.dependencies.setdefault(src_path, set([])).add(dependency)
             if dependency not in Generator.dependencies:
                 Generator._generate_code(element, src_path=dependency, folder=folder, module_name=module_name, src_paths=src_paths,
                                          include_paths=include_paths)
@@ -373,7 +378,7 @@ class Generator(metaclass=ABCMeta):
 
 
     @staticmethod
-    def generate_code(source: str, src_paths: List[str], folder: Folder, module_name: str, include_paths: List[str]):
+    def generate_code(src_paths: List[str], folder: Folder, module_name: str, include_paths: List[str]):
         top = parser.parse_files(src_paths, include_paths)
         top.top.filter(src_paths, include_paths)
         for src_path in src_paths:

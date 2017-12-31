@@ -130,7 +130,7 @@ class Element(metaclass=ABCMeta):
     def root_python_module(self):
         root = self.parent
         while root and root.parent != NamespaceDecl.GLOBAL and isinstance(root.parent, NamespaceDecl):
-            root = self.parent.parent
+            root = root.parent.parent
         if root is None or root == NamespaceDecl.GLOBAL:
             location = self.location[0]
             if not os.path.exists(location or ""):
@@ -164,10 +164,10 @@ class Element(metaclass=ABCMeta):
                         break
         except:
             filename = self._locator.replace("<", "").replace(">", "")
-            if filename and filename.split(':')[0] == 'line':
+            if filename and "invalid sloc" in filename:
+                return None, None
+            elif filename and filename.split(':')[0] == 'line':
                 filename = self._default_location
-            elif filename and "invalid sloc" in filename:
-                filename = None
             lineno = None
         if filename and not os.path.exists(filename):
             filename = None
@@ -371,7 +371,17 @@ class Element(metaclass=ABCMeta):
                 if possible_location != 'line':
                     location = possible_location
                 elif not location:
-                    raise Exception("referenced line location without no reference set")
+                    raise Exception("referenced line location without reference set")
+            if location and "invalid sloc" in location:
+                location = None
+            elif location and not os.path.isabs(location):
+                for dir in include_paths + ["."]:
+                    if os.path.exists(os.path.join(dir, location)):
+                        location = os.path.join(dir, location)
+                        break
+                if not os.path.isabs(location):
+                    print("location not found: %s" % location)
+                    location = None
             if name and not isinstance(name, str):
                 name = ' '.join(name)
             if 'name' in tokens:

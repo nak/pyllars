@@ -23,8 +23,7 @@ class TestCodeGen(object):
         if os.path.exists(gen_path):
             shutil.rmtree(gen_path)
         os.makedirs(gen_path)
-        top =Generator.generate_code(source=input_file,
-                                     src_paths=[input_file], folder=Folder(gen_path),
+        top =Generator.generate_code(src_paths=[input_file], folder=Folder(gen_path),
                                      module_name=os.path.basename(input_file).split('.')[0],
                                      include_paths=[os.path.dirname(input_file)])
         code_base = CodeBase(top, base_dir=gen_path)
