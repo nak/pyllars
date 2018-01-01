@@ -90,7 +90,8 @@ class CXXRecordDecl(Generator):
             }).encode('utf-8'))
 
         if self.element.name:
-            if self.element.parent.is_namespace:
+            if not self.element.parent.is_template_macro: #self.element.parent.is_namespace or isinstance():
+                module_name = self.element.parent.pyllars_module_name if self.element.parent.is_namespace else "nullptr"
                 stream.write(("""
                 status |=  __pyllars_internal::PythonClassWrapper< main_type >::initialize(
                              "%(name)s",
@@ -99,7 +100,7 @@ class CXXRecordDecl(Generator):
                              "%(full_name)s");  //classes
     """ % {
                     'name': self.element.name or "_anonymous%s" % self.element.tag,
-                    'module_name': self.element.parent.pyllars_module_name,
+                    'module_name': module_name,
                     'full_name': self.element.full_name,
                 }).encode('utf-8'))
             elif self.element.parent.is_template_macro:
@@ -169,7 +170,7 @@ class CXXRecordDecl(Generator):
                    'template_prefix': 'template ' if self.parent and self.parent.element.is_template_macro else "",
                     'typename': 'typename' if not self.element.is_union else ""
                 }).encode("utf-8"))
-            else:
+            if not self.element.is_template_macro and not self.element.parent.is_namespace:
                 stream.write(("""
                 __pyllars_internal::PythonClassWrapper< %(typename)s %(parent_class_scope)s::%(parent_class_name)s >::addClassMember
                     ("%(class_name)s",
@@ -286,7 +287,8 @@ class CXXMethodDecl(Generator):
             return
         imports = set([])
         for elem in self.element.params:
-            if elem and elem.type_.namespace_name != self.element.namespace_name and elem.type_.namespace_name != "::":
+            if elem and elem.type_.namespace_name and not self.element.namespace_name.startswith(elem.type_.namespace_name)\
+                    and elem.type_.namespace_name != "::":
                 imports.add(elem.namespace_name)
         if self.element.return_type and \
                         self.element.return_type.namespace_name != self.element.namespace_name and self.element.return_type.namespace_name != "::":
@@ -326,7 +328,7 @@ class CXXMethodDecl(Generator):
             'file': __file__,
             'func_decl': self._func_declaration(),
             'imports': "\n".join(
-                ["if(!PyImport_ImportModule(\"pyllars::%s\")){return -1;} " % n.replace("::", ".") for n in
+                ["if(!PyImport_ImportModule(\"pyllars.%s\")){return -1;} " % n.replace("::", ".") for n in
                  imports]),
             'name': self.sanitize(self.element.name),
             'pyllars_scope': self.element.pyllars_scope,
@@ -350,7 +352,7 @@ class FieldDecl(Generator):
 
         imports = set([])
 
-        if self.element.type_ and self.element.type_.namespace_name != self.element.parent.namespace_name:
+        if self.element.type_ and self.element.type_.namespace_name and not self.element.parent.namespace_name.startswith(self.element.type_.namespace_name ):
             imports.add(self.element.namespace_name)
         if self.element.bit_size is None:
             if self.element.type_.array_size is not None:
@@ -376,7 +378,7 @@ class FieldDecl(Generator):
                     'file': __file__,
                     'basic_name': self.element.basic_name,
                     'imports': "\n".join(
-                        ["if(!PyImport_ImportModule(\"pyllars::%s\")){return -1;} " % n.replace("::", ".") for n in
+                        ["if(!PyImport_ImportModule(\"pyllars.%s\")){return -1;} " % n.replace("::", ".") for n in
                          imports]),
                     'name': self.sanitize(self.element.name),
                     'pyllars_scope': self.element.pyllars_scope,
@@ -415,7 +417,7 @@ class FieldDecl(Generator):
                     'file': __file__,
                     'basic_name': self.element.basic_name,
                     'imports': "\n".join(
-                        ["if(!PyImport_ImportModule(\"pyllars::%s\")){return -1;} " % n.replace("::", ".") for n in
+                        ["if(!PyImport_ImportModule(\"pyllars.%s\")){return -1;} " % n.replace("::", ".") for n in
                          imports]),
                     'name': self.sanitize(self.element.name),
                     'full_type_name': self.element.type_.full_param_name,
@@ -466,7 +468,7 @@ class FieldDecl(Generator):
                 'file': __file__,
                 'bit_size': self.element.bit_size,
                 'imports': "\n".join(
-                    ["if(!PyImport_ImportModule(\"pyllars::%s\")){return -1;} " % n.replace("::", ".") for n in
+                    ["if(!PyImport_ImportModule(\"pyllars.%s\")){return -1;} " % n.replace("::", ".") for n in
                      imports]),
                 'name': self.sanitize(self.element.name),
                 'basic_name': self.element.basic_name,
@@ -571,7 +573,8 @@ class CXXConstructorDecl(CXXMethodDecl):
     def generate_body_proper(self, stream: TextIOBase, as_top: bool = False) -> None:
         imports = set([])
         for elem in self.element.params:
-            if elem and elem.type_.namespace_name != self.element.namespace_name and elem.type_.namespace_name != "::":
+            if elem and elem.type_.namespace_name and not self.element.namespace_name.startswith(elem.type_.namespace_name) \
+                    and elem.type_.namespace_name != "::":
                 imports.add(elem.namespace_name)
         if self.element.return_type and \
                         self.element.return_type.namespace_name != self.element.namespace_name and self.element.return_type.namespace_name != "::":
@@ -609,7 +612,7 @@ class CXXConstructorDecl(CXXMethodDecl):
             'file': __file__,
             'func_decl': self._func_declaration(),
             'imports': "\n".join(
-                ["if(!PyImport_ImportModule(\"pyllars::%s\")){return -1;} " % n.replace("::", ".") for n in
+                ["if(!PyImport_ImportModule(\"pyllars.%s\")){return -1;} " % n.replace("::", ".") for n in
                  imports]),
             'name': self.sanitize(self.element.name),
             'pyllars_scope': self.element.pyllars_scope,
@@ -659,7 +662,7 @@ class EnumConstantDecl(VarDecl):
             'file': os.path.basename(__file__),
         }).encode('utf-8'))
         imports = set([])
-        if self.element.type_ and self.element.type_.namespace_name != self.element.parent.namespace_name:
+        if self.element.type_ and self.element.type_.namespace_name and not self.element.parent.namespace_name.startswith(self.element.type_.namespace_name ):
             imports.add(self.element.namespace_name)
         if isinstance(self.element.parent, parser.RecordTypeDefn):
             # static class member var:

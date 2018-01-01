@@ -15,6 +15,38 @@ import tempfile
 _pyllars_resources_dir = pkg_resources.resource_filename("pyllars", os.path.join("..", "resources"))
 
 
+class CompilationModule(object):
+
+    def __init__(self, element: parser.Element, root_dir: str):
+        self._root_element = element
+        self._dir = root_dir
+        self._sources = set([])
+        for root, dirs, files in os.walk(self._dir):
+            for base_name in [f for f in files if f.endswith('.cpp')]:
+                file_name = os.path.join(root, base_name)
+                self._sources.add(file_name)
+        self._dependencies = set([])
+
+    @property
+    def sources(self):
+        return self._sources
+
+    @property
+    def is_empty(self):
+        return not self._sources
+
+    @property
+    def root_dir(self):
+        return self._dir
+
+    @property
+    def dependencies(self):
+        return self._dependencies
+
+    def add_dependency(self, dependency):
+        self._dependencies.add(dependency)
+
+
 class CodeBase(object):
 
     def __init__(self, element_type, base_dir: str, linker_flags: List[str]=[], addl_sources: List[str]=[]):
@@ -100,14 +132,16 @@ class CompilationModel(object):
     def _link(self, module_file_name: str, linker_flags: List[str], addl_sources: List[str]):
         if module_file_name in self._compiled_modules:
             raise Exception("Attempted to compile module %s twice" % module_file_name)
-        cmd = "%(cxx)s -O -fPIC -std=c++14 %(cxxflags)s -I%(python_include)s -shared " \
+        ext = {"posix": ".so", "windows": ".dll"}[os.name]
+        module_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        cmd = "%(cxx)s -O -fPIC -std=c++14 %(cxxflags)s -I%(python_include)s " \
               "-o %(output_module_path)s -Wl,--no-undefined %(src)s %(objs)s %(python_lib_name)s " \
               "-Wl,-R,'$ORIGIN' " \
               "-L%(output_module_path)s -lffi %(linker_flags)s %(pyllars_include)s/pyllars/pyllars.cpp" % {
             'cxx': CompilationModel.LDCXXSHARED,
             'src': " ".join(addl_sources),
             'cxxflags': CompilationModel.CFLAGS,
-            'output_module_path': module_file_name,
+            'output_module_path': os.path.join(module_dir, module_file_name + ext),
             'objs': " ".join(self._objects),
             'pyllars_include': _pyllars_resources_dir,
             'python_include': CompilationModel.PYINCLUDE,
@@ -124,7 +158,10 @@ class CompilationModel(object):
         return module_file_name
 
     def _compile_file(self, folder: str, file_name: str, objs_dir: str, base_dir: str):
-        obj_file_name = os.path.join(objs_dir, os.path.basename(file_name).replace(".cpp", ".o"))
+        obj_dir = os.path.join(objs_dir, folder)
+        if not os.path.exists(obj_dir):
+            os.makedirs(obj_dir)
+        obj_file_name = os.path.join(obj_dir, os.path.basename(file_name).replace(".cpp", ".o"))
         cmd = "%(cxx)s -ftemplate-backtrace-limit=0 -O -std=c++14 %(cxxflags)s " \
               "-c -fPIC -I%(local_include)s -I%(python_include)s -I%(baseincldue)s " \
               "-I%(pyllars_include)s -o \"%(target)s\" \"%(compilable)s\" " % {

@@ -370,8 +370,8 @@ class Element(metaclass=ABCMeta):
                 possible_location = possible_location.split(':', 1)[0]
                 if possible_location != 'line':
                     location = possible_location
-                elif not location:
-                    raise Exception("referenced line location without reference set")
+                #elif not location:
+                #    raise Exception("referenced line location without reference set")
             if location and "invalid sloc" in location:
                 location = None
             elif location and not os.path.isabs(location):

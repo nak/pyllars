@@ -367,13 +367,31 @@ class Generator(metaclass=ABCMeta):
         Generator.generator_mapping = {}
         generator_class = Generator.get_generator_class(element)
         generator = generator_class(element, src_path, folder)
+        compilation_modules = {}
+        from ..compilation import CompilationModule
+        root_dir = None
+        if isinstance(generator.element,
+                      parser.NamespaceDecl) and generator.element.parent == parser.NamespaceDecl.GLOBAL:
+            root_dir = os.path.dirname(generator.header_file_name())
+        elif generator.element.parent == parser.NamespaceDecl.GLOBAL:
+            root_dir = os.path.join(folder.path, os.path.basename(src_path).split('.', 1)[0])
+        if root_dir:
+            module_name = os.path.basename(root_dir)
+            compilation_module = CompilationModule(generator.element, root_dir)
+            compilation_modules[module_name] = compilation_module
         for dependency in generator.generate_body(src_paths=[os.path.abspath(path) for path in src_paths],
                                                   as_top=module_name,
                                                   root_folder=folder):
+            compilation_module.add_dependency(dependency)
+
             Generator.dependencies.setdefault(src_path, set([])).add(dependency)
             if dependency not in Generator.dependencies:
-                Generator._generate_code(element, src_path=dependency, folder=folder, module_name=module_name, src_paths=src_paths,
-                                         include_paths=include_paths)
+                compilation_modules += Generator._generate_code(element, src_path=dependency,
+                                                                folder=folder,
+                                                                module_name=module_name,
+                                                                src_paths=src_paths,
+                                                                include_paths=include_paths)
+        return compilation_modules
 
 
 
