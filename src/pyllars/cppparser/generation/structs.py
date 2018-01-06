@@ -702,7 +702,7 @@ class EnumConstantDecl(VarDecl):
                 'suffix': "Value" if not self.element.is_structure else "ClassValue<type_name, %s>" % self.element.parent.full_name,
                 'template_decl': template_decl(self),
                 'template_args': self.element.template_arguments_string(),
-                'type_mod': self.element.pyllars_scope + "::" + self.element.parent.parent.name + "_mod" if self.element.parent.parent.name != '' else "global_mod",
+                'type_mod': self.element.pyllars_module_name # self.element.pyllars_scope + "::" + self.element.parent.parent.name + "_mod" if self.element.parent.parent.name != '' else "global_mod",
             }).encode('utf-8'))
         elif isinstance(self.element.parent, parser.NamespaceDecl):
             # global or namespace var:
@@ -745,4 +745,4 @@ class EnumConstantDecl(VarDecl):
                 'template_decl': template_decl(self)
             }).encode('utf-8'))
         else:
-            logging.error("Unknown parent type for global var")
+            print("ERROR: Unknown parent type for global var")

@@ -320,6 +320,12 @@ class Element(metaclass=ABCMeta):
         return self.name
 
     def find(self, type_name):
+        if not isinstance(type_name, str):
+            for t in type_name:
+                lookup = self.find(t)
+                if lookup:
+                    return lookup
+            return None
         if type_name in Element.lookup:
             return Element.lookup[type_name]
         if "::" + type_name in Element.lookup:
@@ -569,6 +575,8 @@ class ScopedElement(Element):
 
     @property
     def pyllars_module_name(self):
+        if not self.is_namespace:
+            return self.parent.pyllars_module_name
         if not self.name:
             return "global_mod"
         else:
@@ -623,7 +631,8 @@ class ScopedElement(Element):
         parent = self.parent
         basic_names = []
         while parent and parent.name:
-            basic_names = [parent.scope_fragment] + basic_names
+            if parent.is_scopable:
+                basic_names = [parent.scope_fragment] + basic_names
             parent = parent.parent
         basic_name = "::".join(["pyllars"] + basic_names)
         return basic_name
@@ -1092,7 +1101,7 @@ class AnonymousType(ScopedElement):
 
 class TypeAliasDecl(ScopedElement):
 
-    def __init__(self, name, tag, parent, alias_definition=None, locator=None, definition=None):
+    def __init__(self, name, tag, parent, alias_definition=None, locator=None, definition=None, **kargs):
         super(TypeAliasDecl, self).__init__(name, tag, parent, locator)
         if alias_definition:
             short_hand, full_decl = alias_definition

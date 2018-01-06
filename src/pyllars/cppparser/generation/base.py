@@ -349,7 +349,7 @@ class Generator(metaclass=ABCMeta):
                 'name': self.element.name,
                 'basic_name': self.sanitize(self.element.basic_name),
                 'parent_basic_name': self.element.parent.basic_name if self.element.parent.basic_name else "pyllars",
-                 'pyllars_scope': self.element.pyllars_scope,
+                'pyllars_scope': self.element.pyllars_scope,
                 'parent_name': self.element.parent.basic_name if self.element.parent else "pyllars",
                 'template_decl': self.template_decl,
         }).encode('utf-8'))
@@ -459,7 +459,7 @@ class Generator(metaclass=ABCMeta):
                 static const char* const doc = "%(basic_name)s top-level C++ interface module";
                 #if PY_MAJOR_VERSION == 3
                 PyMODINIT_FUNC
-                PyInit_%(basic_name)s(void){
+                PyInit__%(basic_name)s(void){
                     static PyModuleDef moduleDef;
                     memset(&moduleDef, 0, sizeof(moduleDef));
                     moduleDef.m_name = name;
@@ -478,7 +478,7 @@ class Generator(metaclass=ABCMeta):
                 }
                 #else
                 PyMODINIT_FUNC
-                init%(basic_name)s(){
+                init_%(basic_name)s(){
                     PyObject *%(basic_name)s_mod = Py_InitModule3(name, nullptr, doc);
                     if(!%(basic_name)s_mod) { return -1;}
                     PyObject *pyllars_mod = PyImport_ImportModule("pyllars");

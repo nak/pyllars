@@ -60,6 +60,7 @@ class FileWriter(TextIOBase):
 
         new_text = b"\n".join([realign(line).replace(b'\n', b'') for line in text.splitlines(keepends=True)]) + b"\n"
         self._file.write(new_text, *args, **kargs)
+        self._file.flush()
 
     @classmethod
     def open(cls, *args, **kargs):

@@ -172,7 +172,7 @@ class VarDecl(Generator):
 
                  %(template_decl)s
                  %(pyllars_scope)s::%(basic_name)s%(template_args)s::Initializer_%(basic_name)s
-                 *%(pyllars_scope)s::%(basic_name)s%(template_args)s::Initializer_%(basic_name)s::initializer = mullptr;
+                 *%(pyllars_scope)s::%(basic_name)s%(template_args)s::Initializer_%(basic_name)s::initializer = nullptr;
 
 """ % {
                 'pyllars_scope': self.element.pyllars_scope,
@@ -183,7 +183,7 @@ class VarDecl(Generator):
                 'parent_name': qualified_name(self.element.parent.name if self.element.parent.name != '::' else ''),
                 'parent_full_name': self.element.parent.full_name,
                 'full_type_name': self.element.type_.full_name,
-                'type_mod':  self.element.pyllars_scope + "::" + self.element.parent.name + "_mod" if self.element.parent.name != '' else "global_mod",
+                'type_mod':  self.element.pyllars_module_name,
                 'qual': 'Const' if self.element.type_.is_const else '',
                 'imports': "\n".join(
                     ["if(!PyImport_ImportModule(\"pylllars.%s\")){PyErr_Clear(); } " % n.replace("::", ".") for n in

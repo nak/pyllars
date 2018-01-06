@@ -125,6 +125,7 @@ class CompilationModel(object):
         for p, cmd, obj_file_name in procs:
             output = p.communicate()[0].decode('utf-8')
             if p.returncode != 0:
+                print(output)
                 self._failed.add((p.returncode, cmd + "\n\t%s " % output))
             else:
                 self._objects.add(obj_file_name)
@@ -133,7 +134,11 @@ class CompilationModel(object):
         if module_file_name in self._compiled_modules:
             raise Exception("Attempted to compile module %s twice" % module_file_name)
         ext = {"posix": ".so", "windows": ".dll"}[os.name]
-        module_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        module_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), module_file_name)
+        if not os.path.exists(module_dir):
+            os.makedirs(module_dir)
+        with open(os.path.join(module_dir, "__init__.py"), 'w') as f:
+            f.write("from ._%s import *\n" % module_file_name)
         cmd = "%(cxx)s -O -fPIC -std=c++14 %(cxxflags)s -I%(python_include)s " \
               "-o %(output_module_path)s -Wl,--no-undefined %(src)s %(objs)s %(python_lib_name)s " \
               "-Wl,-R,'$ORIGIN' " \
@@ -141,7 +146,7 @@ class CompilationModel(object):
             'cxx': CompilationModel.LDCXXSHARED,
             'src': " ".join(addl_sources),
             'cxxflags': CompilationModel.CFLAGS,
-            'output_module_path': os.path.join(module_dir, module_file_name + ext),
+            'output_module_path': os.path.join(module_dir, '_' + module_file_name + ext),
             'objs': " ".join(self._objects),
             'pyllars_include': _pyllars_resources_dir,
             'python_include': CompilationModel.PYINCLUDE,
