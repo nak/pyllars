@@ -68,7 +68,7 @@ class FunctionDecl(Generator):
             return
         super(FunctionDecl, self).generate_header_core(stream, as_top=as_top)
 
-    def generate_body_proper(self, scoped: TextIOBase, as_top: bool = False) -> None:
+    def _generate_body_proper(self, scoped: TextIOBase, as_top: bool = False) -> None:
         if 'operator delete' in self.element.name or 'operator new' in self.element.name:
             return
         imports = set([])
@@ -139,7 +139,7 @@ class VarDecl(Generator):
     def is_generatable(cls):
         return True
 
-    def generate_body_proper(self, scoped: TextIOBase, as_top: bool = False) -> None:
+    def _generate_body_proper(self, scoped: TextIOBase, as_top: bool = False) -> None:
         if self.element.parent and isinstance(self.element.parent.parent, parser.ClassTemplateDecl):
             raise Exception("NOT IMPL")
         scoped.write(("\n                    //generated rom: %(file)s:VarDecl.generate_body_proper\n" % {

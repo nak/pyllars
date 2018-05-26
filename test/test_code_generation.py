@@ -24,7 +24,6 @@ class TestCodeGen(object):
             shutil.rmtree(gen_path)
         os.makedirs(gen_path)
         top =Generator.generate_code(src_paths=[input_file], folder=Folder(gen_path),
-                                     module_name=os.path.basename(input_file).split('.')[0],
                                      include_paths=[os.path.dirname(input_file)])
         code_base = CodeBase(top, base_dir=gen_path)
         compilation_model = ByNamespaceCompilationModel(code_bases=[code_base], globals_module_name=os.path.basename(input_file).replace(".hpp", "") )

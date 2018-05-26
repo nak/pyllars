@@ -38,7 +38,7 @@ class CXXRecordDecl(Generator):
             text += ("\n#include \"%s\"" % child_generator.header_file_path()).encode('utf-8')
         return text
 
-    def generate_body_proper(self, stream: TextIOBase, as_top: bool = False) -> None:
+    def _generate_body_proper(self, stream: TextIOBase, as_top: bool = False) -> None:
         if not self.element._is_definition:
             return
         if self.element.is_implicit:
@@ -282,7 +282,7 @@ class CXXMethodDecl(Generator):
             return
         super(CXXMethodDecl, self).generate_header_core(stream, as_top=as_top)
 
-    def generate_body_proper(self, stream: TextIOBase, as_top: bool = False) -> None:
+    def _generate_body_proper(self, stream: TextIOBase, as_top: bool = False) -> None:
         if "operator delete" in self.element.basic_name:
             return
         imports = set([])
@@ -346,7 +346,7 @@ class FieldDecl(Generator):
     def is_generatable(cls):
         return True
 
-    def generate_body_proper(self, stream: TextIOBase, as_top: bool = False) -> None:
+    def _generate_body_proper(self, stream: TextIOBase, as_top: bool = False) -> None:
         if not self.element.name and not self.element.type_.name:
             raise Exception("Anonymously typed anonymously name field encountered")
 
@@ -521,7 +521,7 @@ class ClassTemplateDecl(Generator):
         #super(ClassTemplateDecl, self).generate_header_core(scoped, as_top)
         pass
 
-    def generate_body_proper(self, scoped: TextIOBase, as_top: bool = False) -> None:
+    def _generate_body_proper(self, scoped: TextIOBase, as_top: bool = False) -> None:
         if self.element.is_implicit:
             return
 
@@ -570,7 +570,7 @@ class CXXConstructorDecl(CXXMethodDecl):
     def is_generatable(cls):
             return True
 
-    def generate_body_proper(self, stream: TextIOBase, as_top: bool = False) -> None:
+    def _generate_body_proper(self, stream: TextIOBase, as_top: bool = False) -> None:
         imports = set([])
         for elem in self.element.params:
             if elem and elem.type_.namespace_name and not self.element.namespace_name.startswith(elem.type_.namespace_name) \
@@ -655,7 +655,7 @@ class EnumConstantDecl(VarDecl):
     def is_generatable(cls):
         return True
 
-    def generate_body_proper(self, scoped: TextIOBase, as_top: bool = False) -> None:
+    def _generate_body_proper(self, scoped: TextIOBase, as_top: bool = False) -> None:
         if self.element.parent and isinstance(self.element.parent.parent, parser.ClassTemplateDecl):
             raise Exception("NOT IMPL")
         scoped.write(("\n                    //generated rom: %(file)s:VarDecl.generate_body_proper\n" % {

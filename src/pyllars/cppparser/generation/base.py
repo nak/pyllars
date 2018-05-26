@@ -147,7 +147,9 @@ class Generator(metaclass=ABCMeta):
         self._subfolder = None
         self._element = element
         self._parent = parent_generator
+        self._children = set([])
         self._root_module = element.root_python_module or "unaccounted_globals"
+        self._dependencies = {}
         Generator.generator_mapping[element] = self
         for child in element.children():
             if child not in Generator.generator_mapping:
@@ -355,70 +357,64 @@ class Generator(metaclass=ABCMeta):
         }).encode('utf-8'))
 
 
-    dependencies = {}
+    @staticmethod
+    def generate_code(src_paths: List[str], folder: Folder, include_paths: List[str]):
+        top = parser.parse_files(src_paths, include_paths)
+        top.top.filter(src_paths, include_paths)
+        for src_path in src_paths:
+            Generator._generate_code(top.top,
+                                     src_path=src_path,
+                                     folder=folder,
+                                     src_paths=[os.path.abspath(path) for path in src_paths],
+                                     include_paths=include_paths)
+        return top.top
 
     @staticmethod
     def _generate_code(element: parser.Element,
                        src_path: str,
                        folder: Folder,
-                       module_name: str,
                        src_paths: List[str],
                        include_paths: List[str]):
         Generator.generator_mapping = {}
         generator_class = Generator.get_generator_class(element)
         generator = generator_class(element, src_path, folder)
         compilation_modules = {}
-        from ..compilation import CompilationModule
-        root_dir = None
-        if isinstance(generator.element,
-                      parser.NamespaceDecl) and generator.element.parent == parser.NamespaceDecl.GLOBAL:
-            root_dir = os.path.dirname(generator.header_file_name())
-        elif generator.element.parent == parser.NamespaceDecl.GLOBAL:
-            root_dir = os.path.join(folder.path, os.path.basename(src_path).split('.', 1)[0])
-        if root_dir:
-            module_name = os.path.basename(root_dir)
-            compilation_module = CompilationModule(generator.element, root_dir)
-            compilation_modules[module_name] = compilation_module
-        for dependency in generator.generate_body(src_paths=[os.path.abspath(path) for path in src_paths],
-                                                  as_top=module_name,
-                                                  root_folder=folder):
-            compilation_module.add_dependency(dependency)
+        globals_module_name = os.path.basename(src_path).split('.', 1)[0]
+        for dependency in generator._generate_body(src_paths=[os.path.abspath(path) for path in src_paths],
+                                                   as_top=os.path.basename(src_path).split('.', 1)[0],
+                                                   root_folder=folder):
+            if dependency not in (generator._dependencies.get(src_path) or set([])):
+                generator._dependencies.setdefault(src_path, set([])).add(dependency)
+                # for dep, root_dir in Generator._generate_code(element,
+                #                                               src_path=dependency,
+                #                                               folder=folder,
+                #                                               src_paths=src_paths,
+                #                                               include_paths=include_paths).items():
+                #     compilation_modules.setdefault(dep, set([])).union(root_dir)
+        for generator in set([generator]).union(generator._children):
+            if isinstance(generator.element,
+                          parser.NamespaceDecl) and generator.element.parent == parser.NamespaceDecl.GLOBAL:
+                root_dir = os.path.join(folder.path, generator.element.basic_name)
+                compilation_modules.setdefault(generator.element.basic_name, set([])).add(root_dir)
+            elif generator.element.parent == parser.NamespaceDecl.GLOBAL:
+                root_dir = os.path.join(folder.path, globals_module_name)
+                compilation_modules.setdefault(globals_module_name,set([])).add(root_dir)
+        return generator._dependencies
 
-            Generator.dependencies.setdefault(src_path, set([])).add(dependency)
-            if dependency not in Generator.dependencies:
-                compilation_modules += Generator._generate_code(element, src_path=dependency,
-                                                                folder=folder,
-                                                                module_name=module_name,
-                                                                src_paths=src_paths,
-                                                                include_paths=include_paths)
-        return compilation_modules
-
-
-
-    @staticmethod
-    def generate_code(src_paths: List[str], folder: Folder, module_name: str, include_paths: List[str]):
-        top = parser.parse_files(src_paths, include_paths)
-        top.top.filter(src_paths, include_paths)
-        for src_path in src_paths:
-            Generator._generate_code(top.top, src_path=src_path, folder=folder, module_name=module_name,
-                                     src_paths=[os.path.abspath(path) for path in src_paths],
-                                     include_paths=include_paths)
-        return top.top
-
-    def generate_spec(self):
+    def _generate_spec(self):
         file_name = self.to_path(ext=".hpp")
         self.folder.purge(file_name)
         with self.folder.open(file_name) as stream:
             self.generate_header_code(stream)
 
-    def generate_body(self,  src_paths: List[str], root_folder: Folder, as_top: bool=False):
+    def _generate_body(self, src_paths: List[str], root_folder: Folder, as_top: bool=False):
         if not self.element.name and not as_top:
             return
         if self.element.is_anonymous_type or self.element.is_implicit:
             return
         file_name = self.to_path(ext=".cpp")
         self.folder.purge(file_name)
-        self.generate_spec()
+        self._generate_spec()
         with self.folder.open(file_name) as stream:
             stream.write(("""
                 #include "%(my_header_name)s"
@@ -431,7 +427,7 @@ class Generator(metaclass=ABCMeta):
             if not self.element.name:
                 self.element._anonymous_types.add(self)
             else:
-                self.generate_body_proper(stream, as_top)
+                self._generate_body_proper(stream, as_top)
         for child in self.element.children():
 
             location, _ = child.location
@@ -440,16 +436,16 @@ class Generator(metaclass=ABCMeta):
                 yield location
             child_generator_class = self.get_generator_class(child)
             if child_generator_class.is_generatable():
-                if as_top:
-                    root_module = child.root_python_module or "unaccounted_globals"
-                    subfolder = root_folder.create_subfolder(root_module)
+                if as_top and  not isinstance(child, parser.NamespaceDecl):
+                    subfolder = root_folder.create_subfolder("$globals")
                 else:
                     subfolder = self.folder
                 child_generator = child_generator_class(child,
                                                         self._src_path,
                                                         subfolder.create_subfolder(child.basic_name),
                                                         parent_generator=self)
-                for dependency in child_generator.generate_body(src_paths=src_paths, root_folder=root_folder):
+                self._children.add(child_generator)
+                for dependency in child_generator._generate_body(src_paths=src_paths, root_folder=root_folder):
                     yield dependency
         if as_top:
             stream.write(("""
@@ -506,7 +502,7 @@ class Generator(metaclass=ABCMeta):
         generator_class = _get_generator_class(element)
         return generator_class
 
-    def generate_body_proper(self, stream: TextIOBase, as_top: bool = False):
+    def _generate_body_proper(self, stream: TextIOBase, as_top: bool = False):
         pass
 
 
@@ -523,7 +519,7 @@ class ClassTemplateDecl(Generator):
     def is_generatable(cls):
         return True
 
-    def generate_spec(self, as_top=False):
+    def _generate_spec(self, as_top=False):
         generator_class = self.get_generator_class(self.element)
         file_name = self.to_path(ext=".hpp")
         if not generator_class.is_generatable():
@@ -611,7 +607,7 @@ class ClassTemplateDecl(Generator):
                 # TODO: REMOTE 'template_args': self.element.parent.template_arguments_string() if self.element.parent else "",
                     }).encode('utf-8'))
 
-    def generate_body_proper(self, stream: TextIOBase, as_top: bool = False):
+    def _generate_body_proper(self, stream: TextIOBase, as_top: bool = False):
         with self.scoped(stream) as scoped:
             scoped.write(("            //From: %(file)s:generate_body_proper\n" % {
                 'file': __file__

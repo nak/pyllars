@@ -14,5 +14,5 @@ if __name__ == "__main__":
     from pyllars.cppparser.generation import Generator, Folder
     if not os.path.exists("generated"):
         os.makedirs("generated")
-    Generator("generated").generate_body(top.top, Folder("generated"), src_path="generated")
+    Generator("generated")._generate_body(top.top, Folder("generated"), src_path="generated")
     sys.exit(0)

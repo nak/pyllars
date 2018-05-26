@@ -14,7 +14,7 @@ class NamespaceDecl(Generator):
         extern PyModuleObject *%s_mod;
     """ % self.element.name).encode('utf-8'))
 
-    def generate_spec(self):
+    def _generate_spec(self):
         file_name = self.to_path(ext=".hpp")
         if self.element.name == "::" or not self.element.name:
             with self.folder.open(file_name) as stream:
@@ -35,7 +35,7 @@ class NamespaceDecl(Generator):
                            'qname': qualified_name(self.element.name),
                            }).encode('utf-8'))
 
-    def generate_body_proper(self, scoped: TextIOBase, as_top: bool = False) -> None:
+    def _generate_body_proper(self, scoped: TextIOBase, as_top: bool = False) -> None:
         if not self.element.parent:
             return
 
