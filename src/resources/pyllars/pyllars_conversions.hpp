@@ -16,10 +16,10 @@ namespace __pyllars_internal {
         const bool PTR_IS_ALLOCATED = true;
         const bool PTR_IS_NOT_ALLOCATED = false;
 
-      /** for use in asReference/asArgument parameters **/
-      constexpr bool AS_ARGUMENT = true;
-      constexpr bool AS_REFERNCE = true;
-      constexpr bool AS_VARIABLE = false;
+        /** for use in asReference/asArgument parameters **/
+        constexpr bool AS_ARGUMENT = true;
+        constexpr bool AS_REFERNCE = true;
+        constexpr bool AS_VARIABLE = false;
     }
     /**
      * template function to convert python to C object

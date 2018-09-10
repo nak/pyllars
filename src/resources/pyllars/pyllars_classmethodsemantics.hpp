@@ -21,6 +21,10 @@ namespace __pyllars_internal {
     /**
      * class to hold reference to a class method and define
      * method call semantics
+     *
+     * @param with ellipsis: whether methode-h method belongs
+     * @param ReturnType:  ReturnType of the method (can be "void")
+     * @param Args: template variable arg list of method arguments (can be empty)
      **/
     template<bool with_ellipsis, typename CClass, typename ReturnType_, typename ... Args>
     class ClassMethodCallSemantics {
@@ -28,26 +32,39 @@ namespace __pyllars_internal {
 
         typedef typename extent_as_pointer<ReturnType_>::type ReturnType;
 
-        template<bool, int>
+        template<bool has_ellipsis, int no_args>
         struct FuncDef;
+
         template<int val>
-        struct FuncDef<false, val> {
+        struct FuncDef<false, val> { // no ellipsis
             typedef ReturnType(*func_type)(Args...);
         };
+
         template<int val>
-        struct FuncDef<true, val> {
+        struct FuncDef<true, val> { // with ellipsis
             typedef ReturnType(*func_type)(Args... ...);
         };
 
+        /**
+         * Type to hold a callable "function".
+         */
         struct FunctType {
             typedef typename FuncDef<with_ellipsis, 0>::func_type func_type;
 
             static ReturnType call(func_type func, Args... args, PyObject *extra_args);
         };
 
-
+        /**
+         * the 0-arg "based" case.  this uses somewhat of a trick to unroll
+         * the method's arguments into a template definition throug var-args
+         * based on the types of arguments defined for the method
+         */
         typedef typename FuncDef<with_ellipsis, 0>::func_type method_t;
 
+        /**
+         * Used to hold a list of argument names if given as part of the
+         * method definition
+         */
         static const char *const *kwlist;
 
         /**
@@ -61,7 +78,9 @@ namespace __pyllars_internal {
          * call that invokes method a la C:
          **/
         template<typename ...PyO>
-        static ReturnType call_methodC(typename FuncDef<with_ellipsis,0>::func_type method, PyObject *args, PyObject *kwds, PyO *...pyargs);
+        static ReturnType call_methodC(typename FuncDef<with_ellipsis,0>::func_type method, PyObject *args,
+                                       PyObject *kwds, PyO *...pyargs);
+
         /**
          * call that converts python given arguments to make C call:
          **/

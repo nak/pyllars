@@ -1,11 +1,12 @@
 import logging
+import os
 from abc import abstractmethod, ABCMeta
 from typing import List
 
-import os
+from pyllars.cppparser.parser import clang_lexer
+from .. import type_lexer
+from ..type_lexer import type_lexer
 
-from .lexer import lexer
-from .type_lexer import type_lexer
 
 def _class_from_name(name):
     return globals().get(name)
@@ -57,40 +58,26 @@ class Element(metaclass=ABCMeta):
         Element.last_parsed_type = None
         init()
 
-    def __init__(self, name, tag, parent, locator=None, qualifier=None, **kargs):
+    def __init__(self, name, tag, parent_tag, location=None, location_start=None, **kargs):
+        assert(parent_tag is None or parent_tag != tag)
         self._name = name
         self._tag = tag
+        self._location = location
+        self._location_start = location_start
         self._is_implicit = kargs.get('implicit_explicit') == 'implicit'
-        assert(parent is None or parent is None or isinstance(parent, Element))
-        assert(parent != self)
-        while isinstance(parent, DecoratingType):
-            parent = parent.parent
-        self._parent = parent
+        self._qualifiers = kargs.get('qualifier') or []
+        self._parent_tag = parent_tag
         self._top_scope = None
         self._children = {}
-        if locator is None or isinstance(locator, str):
-            self._locator = locator
-        else:
-            self._locator = locator[-1]
-        self._qualifiers = qualifier or []
-        if isinstance(self._qualifiers, str):
-            self._qualifiers = [self._qualifiers]
-        self._template_type_params = {}
-        self._template_arguments = []
-        if parent:
-            parent.add_child(self)
         if tag:
             Element.tag_lookup[tag] = self
         self._current_child_access = None
         self._anonymous_types = set([])
-        self._is_template = parent and parent.is_template
-        self._inside_template_macro = (parent._inside_template_macro or parent.is_template_macro) if parent else False
         self._is_anonymous_type = name is None or "enum " in name
         self._dependencies = set([])
-        self._include_paths = []
         if name is not None and self.is_resolved:
-            full_name = self.scope + ('::' if self.scope else "") +  name
-            if full_name in Element.lookup and  kargs.get('is_referenced') is not True:
+            full_name = self.scope + ('::' if self.scope else "") + name
+            if full_name in Element.lookup and kargs.get('is_referenced') is not True:
                 if issubclass(type(Element.lookup[full_name]), type(self)):
                     pass
                 elif issubclass(type(self), type(Element.lookup[full_name])):
@@ -99,6 +86,13 @@ class Element(metaclass=ABCMeta):
                     raise Exception("Duplicate differing type def %s" % full_name)
             if full_name and full_name not in Element.lookup:
                 Element.lookup[full_name] = self
+
+        #self._include_paths = []
+        #self._is_template = parent and parent.is_template
+        #self._inside_template_macro = (parent._inside_template_macro or parent.is_template_macro) if parent else False
+        #self._template_type_params = {}
+        #self._template_arguments = []
+
     @property
     def is_template(self):
         return self._is_template
@@ -110,6 +104,10 @@ class Element(metaclass=ABCMeta):
     @property
     def is_anonymous_type(self):
         return self._is_anonymous_type
+
+    @property
+    def parent_tag(self):
+        return self._parent_tag
 
     def parent_is_tempalte(self):
         # Clang AST defines a CXXRecord within a ClassTemplateDecl that is same name as template that items belong to
@@ -192,7 +190,7 @@ class Element(metaclass=ABCMeta):
 
     @property
     def parent(self):
-        return self._parent
+        return self._parent_tag
 
     @property
     def tag(self):
@@ -334,144 +332,14 @@ class Element(metaclass=ABCMeta):
         return None
 
     @staticmethod
-    def parse(stream, include_paths: List[str]):
-        def preprocess(line):
-            tokens = {}
-            depth = None
-            lexer.input(line)
-            while True:
-                token = lexer.token()
-                if token is None:
-                    break
-                if token.type == 'node':
-                    depth = token.depth
-                else:
-                    if token.type in tokens:
-                        if token.type == 'tag':
-                            continue
-                        if isinstance(tokens[token.type], str) or not hasattr(tokens[token.type], "__iter__"):
-                            tokens[token.type] = [tokens[token.type]]
-                        tokens[token.type].append(token.value)
-                    else:
-                        tokens[token.type] = token.value
-            return depth+1 if depth is not None else None, tokens
-
-
-        def process_line(location, tokens, depth, parent):
-            node_type = tokens.get('node_type')
-            if node_type in ['TranslationUnitDecl']:
-                return None
-            tag = tokens.get('tag')
-            name = tokens.get('name') # or "_%s" % str(tag)
-            possible_location = tokens.get('locator')
-            if possible_location and not isinstance(possible_location, str):
-                possible_location = possible_location[-1]
-            if possible_location:
-                possible_location = possible_location.split(':', 1)[0]
-                if possible_location != 'line':
-                    location = possible_location
-                elif not location:
-                    raise Exception("referenced line location without no reference set")
-            if name and not isinstance(name, str):
-                name = ' '.join(name)
-            if 'name' in tokens:
-                del tokens['name']
-            if not name:
-                try:
-                    if 'definition' in tokens:
-                        definition = tokens['definition']
-                        if definition.startswith('struct'):
-                            name = definition.split(' ')[-1]
-                except:
-                    pass
-            if tag:
-                del tokens['tag']
-            if node_type is None:
-                if 'access' in tokens and 'definition' in tokens and isinstance(parent, CXXRecordDecl):
-                    typ = parse_type(None, tokens['definition'], parent, var_name=name)
-                    if not typ:
-                        print ("ERROR: unable to find type for definition: %s" + tokens['definition'])
-                    elif isinstance(type, RecordTypeDefn):
-                        parent.add_base_class(typ, tokens['access'])
-                else:
-                    print("ERROR: no node type in token set: %s;  parent: %s" % (tokens, parent))
-                return location, None
-            del tokens['node_type']
-            clazz = _class_from_name(node_type)
-            if clazz:
-                current_element = clazz.do_parse_tokens(name, tag, parent, **tokens)
-                if current_element:
-                    current_element.include_paths = include_paths
-                if isinstance(current_element, CXXRecordDecl):
-                    Element.last_parsed_type = current_element
-            else:
-                current_element = UnknownElement(node_type, tag, parent)
-            return location, Branch(depth+1, current_element) if current_element else None
-
-        class Branch:
-
-            def __init__(self, depth, top, parent = None):
-                self.depth = depth
-                self.top = top
-                self.children = []
-                self.parent = parent
-
-            def process(self, stream):
-                import ply
-                current = self
-                prev = None
-                location = None
-                with open('parser.log', 'w') as log:
-                    for line in stream:
-                        line += b" "
-                        try:
-                            line = line.decode('latin-1').replace('\n', '').replace('\r', '')
-                            subtext = True
-                            while subtext:
-                                index = line.find("(anonymous ")
-                                if index < 0:
-                                    break
-                                end = line[index+1:].find(")") + index + 1
-                                subtext = line[index:end+1]
-                                if subtext:
-                                    line = line.replace(subtext, "")
-                            depth, tokens = preprocess(line)
-                            if tokens.get('node_type') == "TranslationUnitDecl":
-                                continue
-                            assert depth is not None and depth >= 0, depth
-                            while current.depth + 1 > depth:
-                                current = current.parent
-                            if depth > current.depth + 1:
-                                current = prev
-                            location, branch = process_line(location, tokens, depth-1, current.top if current else NamespaceDecl.GLOBAL)
-                            if branch is None:
-                                continue
-                            log.write("%s\n" %line)
-                            log.write("   LOC: %s\n" % branch.top.location[0])
-                            branch.top.set_default_location(location)
-                            branch.parent = current
-                            current.children.append(branch)
-                            prev = branch
-                        except ply.lex.LexError:
-                            print("Failed to process line %s" % line)
-                            import traceback
-                            print(traceback.format_exc())
-
-            def __repr__(self):
-                return self.str_rep()
-
-            def str_rep(self, indent=""):
-                text = "%s%s\n" % (indent, self.top)
-                for child in self.children:
-                    text += child.str_rep(indent + "  |-")
-                return text
-
-
-        top = Branch(0, NamespaceDecl.GLOBAL)
-        top.process(stream)
-        for element in top.top.children():
-            element.make_complete()
-        return top
+    def parse(
+              declaration: str,
+              tag: str,
+              **kargs
+              ):
+        DeclClass = _class_from_name(declaration)
+        print("DECLCLASS is %s;  \n   %s" % (DeclClass.__name__, kargs))
+        return DeclClass(tag=tag, **kargs)
 
     @classmethod
     @abstractmethod
@@ -718,8 +586,9 @@ class BuiltinType(UnscopedElement):
 
     DEFINITIONS = {}
 
-    def __init__(self, name, parent, tag):
-        super(BuiltinType, self).__init__(name, tag, parent)
+    def __init__(self, name, parent_tag, tag, definition=None):
+        name = name or definition
+        super(BuiltinType, self).__init__(name=name, tag=tag, parent_tag=parent_tag)
         BuiltinType.DEFINITIONS[name] = self
 
     @classmethod
@@ -777,8 +646,8 @@ class BuiltinType(UnscopedElement):
 
 class RecordTypeDefn(ScopedElement):
 
-    def __init__(self, name, tag, parent, **kargs):
-        super(RecordTypeDefn, self).__init__(name, tag, parent, **kargs)
+    def __init__(self, name, tag, parent_tag, **kargs):
+        super(RecordTypeDefn, self).__init__(name=name, tag=tag, parent_tag=parent_tag, **kargs)
         self._base_classes = {}
 
     def make_complete_by_attr_name(self, attr_name):
@@ -864,7 +733,7 @@ class DecoratingType(UnscopedElement):
 
     @property
     def parent(self):
-        return self._target_type.parent if not self._parent else super(DecoratingType, self).parent
+        return self._target_type.parent if not self._parent_tag else super(DecoratingType, self).parent
 
     def make_complete(self):
         pass
@@ -932,8 +801,11 @@ class ArrayType(DecoratingType):
 
 class PointerType(DecoratingType):
 
-    def __init__(self, tag, parent, definition, locator=None):
-        super(PointerType, self).__init__(definition.name +'*', tag, parent, definition=definition, qualifier=None, locator=locator)
+    def __init__(self, tag, parent_tag, definition, locator=None, name=None):
+        if isinstance(definition, str):
+            definition = parse_type(self, definition, None)
+        super(PointerType, self).__init__(name if name else definition.name, tag, parent_tag,
+                                          definition=definition, qualifier=None, locator=locator)
 
     @property
     def full_name(self):
@@ -946,8 +818,9 @@ class PointerType(DecoratingType):
 
 class ReferenceType(DecoratingType):
 
-    def __init__(self, tag, parent, definition, locator=None):
-        super(ReferenceType, self).__init__(definition.name +'&', tag, parent,  definition=definition, qualifier=None, locator=locator)
+    def __init__(self, tag, parent_tag, definition, locator=None):
+        super(ReferenceType, self).__init__(definition.name +'&', tag, parent_tag,
+                                            definition=definition, qualifier=None, locator=locator)
 
     @property
     def full_name(self):
@@ -960,14 +833,15 @@ class ReferenceType(DecoratingType):
 
 class QualType(DecoratingType):
 
-    def __init__(self, tag, parent, definition, qualifier=None, locator=None):
+    def __init__(self, tag, parent_tag, definition, qualifier=None, locator=None):
         if qualifier is None:
             raise Exception("Invalid qual type")
         #if isinstance(definition, (PointerType, ReferenceType)):
         name = definition.name + " " + qualifier
         #else:
         #    name = qualifier + " " + definition.name
-        super(QualType, self).__init__(name, tag, parent, definition=definition, qualifier=qualifier, locator=locator)
+        super(QualType, self).__init__(name, tag, parent_tag,
+                                       definition=definition, qualifier=qualifier, locator=locator)
 
     @property
     def full_param_name(self):
@@ -1046,12 +920,12 @@ def parse_type(element, definition, defining_scope, tag=None, var_name=None):
             base_type = ArrayType(tag=None, parent=base_type.parent, definition=base_type, array_size=size)
     typ = base_type
     for qualifier in reversed(base_qualifiers):
-        typ = QualType(tag=None, parent=base_type.parent, definition=typ, qualifier=qualifier)
+        typ = QualType(tag=None, parent=base_type.parent_tag, definition=typ, qualifier=qualifier)
     for modifier in base_modifiers:
         typ = {
-            '*': PointerType(tag=None, parent=base_type.parent, definition=typ),
-            '&': ReferenceType(tag=None, parent=base_type.parent, definition=typ),
-        }.get(modifier) or QualType(tag=None, parent=base_type.parent, definition=typ, qualifier=modifier)
+            '*': PointerType(tag=None, parent_tag=base_type.parent_tag, definition=typ),
+            '&': ReferenceType(tag=None, parent_tag=base_type.parent_tag, definition=typ),
+        }.get(modifier) or QualType(tag=None, parent_tag=base_type.parent_tag, definition=typ, qualifier=modifier)
     return typ
 
 
@@ -1340,7 +1214,7 @@ class FieldDecl(ScopedElement):
             self._parent = self.parent.parent
             for child in self.children():
                 self.parent.add_child(child)
-                child._parent = self.parent
+                child._parent_tag = self.parent
             self._children = {}
         if self.type_ and not self.type_.name and self.name:
             self.type_.make_complete_by_attr_name(self.name)
@@ -1363,8 +1237,8 @@ class IntegerLiteral(ScopedElement):
 
 class RecordType(RecordTypeDefn):
 
-    def __init__(self, name, tag, parent, **kargs):
-        super(RecordType, self).__init__(name, tag, parent, **kargs)
+    def __init__(self, name, tag, parent_tag, **kargs):
+        super(RecordType, self).__init__(name=name, tag=tag, parent_tag=parent_tag, **kargs)
         tokens = {}
         if kargs.get('definition'):
             type_lexer.input(kargs.get('definition').replace("'", ""))
@@ -1608,14 +1482,15 @@ class TemplateArgument(ScopedElement):
 class TranslationUnitDecl(ScopedElement):
 
     @classmethod
-    def parse_tokens(cls, name, tag, parent, **kargs):
-        return TranslationUnitDecl(name, tag, parent, **kargs)
+    def parse_tokens(cls, name, tag, parent_tag, **kargs):
+        return TranslationUnitDecl(name, tag, parent_tag, **kargs)
 
 
 class TypedefDecl(ScopedElement):
 
-    def __init__(self, name, tag, parent, **kargs):
-        super(TypedefDecl, self).__init__(name, tag, parent, **kargs)
+    def __init__(self, tag, **kargs):
+        super(TypedefDecl, self).__init__(tag=tag, **kargs)
+        self._target_type = kargs['definition']
 
     @classmethod
     def parse_tokens(cls, name, tag, parent, **kargs):
@@ -1648,6 +1523,7 @@ def init():
 
 init()
 
+
 def parse_files(src_paths: List[str], include_paths: List[str]):
     import subprocess
     import os.path
@@ -1678,6 +1554,12 @@ def parse_files(src_paths: List[str], include_paths: List[str]):
             f.flush()
         cmd = ["clang-check", "-ast-dump"] + src_paths + ["--extra-arg=\"-fno-color-diagnostics\"", "-p", str(tmpd)]
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+        from .clang import ClangOutputReader
+        reader = ClangOutputReader(None)
+        for line in iter(proc.stdout.readline, None):
+            reader.parse(line)
+            if not line:
+                break
         return Element.parse(proc.stdout, include_paths)
     finally:
         import shutil

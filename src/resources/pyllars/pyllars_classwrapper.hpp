@@ -42,6 +42,7 @@ namespace __pyllars_internal {
 
     template<bool is_base_return_complete, bool with_ellipsis, typename ReturnType, typename ...Args>
     struct PythonFunctionWrapper;
+
     /**
      * Class to define Python wrapper to C class/type
      **/
@@ -49,56 +50,70 @@ namespace __pyllars_internal {
     struct PythonClassWrapper<T,
             typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>
             : public CommonBaseWrapper {
-
+        // Convenience typedefs
         typedef CommonBaseWrapper::Base Base;
         typedef PythonClassWrapper DereferencedWrapper;
         typedef PythonClassWrapper<T const,   void> ConstWrapper;
         typedef PythonClassWrapper<typename std::remove_const<T>::type> NonConstWrapper;
         typedef PythonClassWrapper<typename std::remove_reference<T>::type> NoRefWrapper;
-
-        typedef typename std::remove_reference<T>::type T_NoRef;
-        typedef typename ObjectLifecycleHelpers::BasicAlloc<T>::ConstructorContainer
-        ConstructorContainer;
+        typedef typename ObjectLifecycleHelpers::BasicAlloc<T>::ConstructorContainer ConstructorContainer;
         typedef typename ConstructorContainer::constructor constructor;
+        typedef typename std::remove_reference<T>::type T_NoRef;
+
         typedef PyTypeObject *TypePtr_t;
 
 
+        /**
+         * return the C-likde object associated with this Python wrapper
+         */
         template<typename Z = T>
-        typename std::remove_reference<T>::type *get_CObject() ;
+        typename T_NoRef *get_CObject() ;
 
         static PyTypeObject Type;
         static TypePtr_t constexpr TypePtr = &Type;
 
          /**
-         * Python initialization of underlying type, called to init and register type with
-         * underlying Python system
+          * Python initialization of underlying type, called to init and register type with
+          * underlying Python system
+          *
+          * @param name: Python simple-name of the type
+          * @param module_entry_name: entry as found within module
+          * @param module: The python module holding this type
+          * @param fullname: full name of this type, including scoping module
          **/
         static int initialize(const char *const name, const char *const module_entry_name,
                               PyObject *module, const char *const fullname = nullptr) ;
 
         /**
-         * create a python object of this class type
+         * create a Python object of this class type
          **/
         static PythonClassWrapper *createPy(const ssize_t arraySize, 
-					                        ObjContainer<T_NoRef> *const cobj, const bool isAllocated,
+					                        ObjContainer<T_NoRef> *const cobj,
+                                            const bool isAllocated,
                                             const bool inPlace,
                                             PyObject *referencing = nullptr, const size_t depth = 0) ;
 
         /**
-         * Add a constructor to the list contained
+         * Add a constructor for this type
          **/
         static void addConstructorBase(const char *const kwlist[], constructor c) ;
 
         /**
          * Create an instance of underlying class based on python arguments converting them to C to call
          * the constructor
+         *
+         * @param kwlist: list of keyword names of the Python parameters
+         * @param args: list of Python args from the Python call into the C constructor
+         * @params kwds: keywoards bassed into the copnstructor
+         * @param cobj: container to hold the C-like object created
+         * @param inPlace: whether to create in-memory (existing allocation)
          **/
         template<typename ...Args>
         static bool create(const char *const kwlist[], PyObject *args, PyObject *kwds, ObjContainer<T_NoRef> *&cobj,
                            const bool inPlace) ;
 
         /**
-         * return python object representing the address of the contained object
+         * return Python object representing the address of the contained object
          **/
         static PyObject *addr(PyObject *self, PyObject *args) ;
 
@@ -352,36 +367,6 @@ namespace __pyllars_internal {
         static void addBaseClass(PyTypeObject *base) ;
 
         /**
-         * add a getter method for the given compile-time-known named public class member
-         **/
-        template<const char *const name, ssize_t size, typename Type>
-        static void addArrayAttribute(
-                typename MemberContainer<T_NoRef>::template Container<name, Type[size]>::member_t member,
-                const ssize_t array_size){
-            assert(array_size == size);
-            static const char *const doc = "Get attribute ";
-            char *doc_string = new char[strlen(name) + strlen(doc) + 1];
-            snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
-            //static const char *const getter_prefix = "get_";
-            //char *getter_name = new char[strlen(name) +strlen(getter_prefix)+1];
-            //snprintf(getter_name, strlen(name) +strlen(getter_prefix)+1, "%s%s_",getter_prefix,name);
-            MemberContainer<T_NoRef>::template Container<name, Type[size]>::member = member;
-            _member_getters[name] = MemberContainer<T_NoRef>::template Container<name, Type[size]>::get;
-            _member_setters[name] = MemberContainer<T_NoRef>::template Container<name, Type[size]>::set;
-        }
-
-        template<const char *const name, ssize_t size, typename Type>
-        static void addConstAttribute(
-                typename MemberContainer<T_NoRef>::template Container<name, Type[size]>::member_t member,
-                const ssize_t array_size){
-            assert(array_size == size);
-            static const char *const doc = "Get attribute ";
-            char *doc_string = new char[strlen(name) + strlen(doc) + 1];
-            snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
-            MemberContainer<T_NoRef>::template Container<name, Type[size]>::member = member;
-            _member_getters[name] = MemberContainer<T_NoRef>::template Container<name, Type[size]>::get;
-        }
-        /**
          * Add a mutable bit field to this Python type definition
          **/
         template<const char *const name, typename Type, const size_t bits>
@@ -427,6 +412,18 @@ namespace __pyllars_internal {
             _member_setters[name] =   MemberContainer<T_NoRef>::template Container<name, Type>::set;
         }
 
+         template<const char *const name, ssize_t size, typename Type>
+        static void addConstAttribute(
+                typename MemberContainer<T_NoRef>::template Container<name, Type[size]>::member_t member,
+                const ssize_t array_size){
+            assert(array_size == size);
+            static const char *const doc = "Get attribute ";
+            char *doc_string = new char[strlen(name) + strlen(doc) + 1];
+            snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
+            MemberContainer<T_NoRef>::template Container<name, Type[size]>::member = member;
+            _member_getters[name] = MemberContainer<T_NoRef>::template Container<name, Type[size]>::get;
+        }
+
 
         /**
          * add a getter method for the given compile-time-known named public class member
@@ -440,6 +437,24 @@ namespace __pyllars_internal {
             snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
             ConstMemberContainer<T_NoRef>::template Container<name, Type>::member = member;
             _member_getters[name] = ConstMemberContainer<T_NoRef>::template Container<name, Type>::get;
+        }
+        /**
+          * add a getter method for the given compile-time-known named public class member
+          **/
+        template<const char *const name, ssize_t size, typename Type>
+        static void addArrayAttribute(
+                typename MemberContainer<T_NoRef>::template Container<name, Type[size]>::member_t member,
+                const ssize_t array_size){
+            assert(array_size == size);
+            static const char *const doc = "Get attribute ";
+            char *doc_string = new char[strlen(name) + strlen(doc) + 1];
+            snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
+            //static const char *const getter_prefix = "get_";
+            //char *getter_name = new char[strlen(name) +strlen(getter_prefix)+1];
+            //snprintf(getter_name, strlen(name) +strlen(getter_prefix)+1, "%s%s_",getter_prefix,name);
+            MemberContainer<T_NoRef>::template Container<name, Type[size]>::member = member;
+            _member_getters[name] = MemberContainer<T_NoRef>::template Container<name, Type[size]>::get;
+            _member_setters[name] = MemberContainer<T_NoRef>::template Container<name, Type[size]>::set;
         }
 
 

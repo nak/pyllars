@@ -1,7 +1,6 @@
-from collections import OrderedDict
 import pytest
 
-import pyllars.cppparser.lexer as asl_lexer
+import pyllars.cppparser.parser.clang_lexer as asl_lexer
 
 lines = [
     ("|-FunctionDecl 0x20d3e70 <line:272:1, /usr/include/sys/cdefs.h:61:27> pthread.h:272:12 pthread_detach 'int (pthread_t) throw()' extern ",

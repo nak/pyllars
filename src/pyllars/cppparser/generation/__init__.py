@@ -64,3 +64,4 @@ class FileWriter(TextIOBase):
     @classmethod
     def open(cls, *args, **kargs):
         return FileWriter(open(*args, **kargs))
+

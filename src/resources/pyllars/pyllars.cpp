@@ -28,8 +28,12 @@ extern "C"{
 }
 
 int pyllars::pyllars_register( Initializer* const init){
+    // ensure root is "clean" and no static initizlied as this function
+    // may be called during static initialization before root has been assigend
+    // a static value
     static Initializer _root;
     Initializer::root = &_root;
+
     return Initializer::root->register_init(init);
 }
 
