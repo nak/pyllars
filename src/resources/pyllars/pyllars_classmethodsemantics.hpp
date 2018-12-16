@@ -209,62 +209,6 @@ namespace __pyllars_internal {
     };
 
 
-    /**
-     * Class member container
-     **/
-    template<class CClass>
-    class ClassMemberContainer {
-    public:
-
-        template<const char *const name, typename T>
-        class Container {
-        public:
-            typedef typename std::remove_reference<CClass>::type CClass_NoRef;
-            typedef T *member_t;
-
-            static member_t member;
-
-            static PyObject *call(PyObject *cls, PyObject *args, PyObject *kwds);
-
-            static void setFromPyObject(PyObject *pyobj);
-
-        };
-
-        template<const char *const name, size_t size, typename T>
-        class Container<name, T[size]> {
-        public:
-            typedef typename std::remove_reference<CClass>::type CClass_NoRef;
-            typedef T *member_t[size];
-
-            static member_t member;
-
-            static PyObject *call(PyObject *cls, PyObject *args, PyObject *kwds);
-
-            static void setFromPyObject(PyObject *pyobj) ;
-        };
-    };
-
-   /**
-     * Class member container for const class members
-     **/
-    template<class CClass>
-    class ConstClassMemberContainer {
-    public:
-
-        template<const char *const name, typename T>
-        class Container {
-        public:
-            typedef typename std::remove_reference<CClass>::type CClass_NoRef;
-            typedef T const *member_t;
-
-            static member_t member;
-
-            static PyObject *call(PyObject *cls, PyObject *args, PyObject *kwds);
-
-        };
-
-    };
-
 }
 
 #endif // __PYLLARS_INTERNAL__METHODCALLSEMANTICS_H2

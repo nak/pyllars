@@ -17,7 +17,8 @@
 //#include "pyllars_utils.hpp"
 #include "pyllars_defns.hpp"
 #include "pyllars_classmethodsemantics.hpp"
-#include "pyllars_constmethodcallsemantics.hpp"
+#include "pyllars_classmembersemantics.hpp"
+//#include "pyllars_constmethodcallsemantics.hpp"
 #include "pyllars_methodcallsemantics.hpp"
 #include "pyllars_object_lifecycle.hpp"
 //#include "pyllars_conversions.hpp"
@@ -67,7 +68,7 @@ namespace __pyllars_internal {
          * return the C-likde object associated with this Python wrapper
          */
         template<typename Z = T>
-        typename T_NoRef *get_CObject() ;
+        typename PythonClassWrapper::T_NoRef *get_CObject() ;
 
         static PyTypeObject Type;
         static TypePtr_t constexpr TypePtr = &Type;

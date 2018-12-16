@@ -58,8 +58,8 @@ class Element(metaclass=ABCMeta):
     def default_access(self):
         return "private"
 
-    def as_function_argument(self, element, index):
-        return self.full_name
+    def as_function_argument(self, index):
+        return self.name if self.name else "param%s" % index
 
 
 class UnknownElement(Element):

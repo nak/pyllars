@@ -2,9 +2,9 @@ from io import TextIOBase
 import logging
 import os
 
+from pyllars.cppparser.parser import code_structure
 from .base import Generator, qualified_name
 from .. import parser
-
 
 
 def template_decl(element: Generator):
@@ -23,7 +23,7 @@ class FunctionDecl(Generator):
     def _func_declaration(self):
         has_varargs = self.element.has_varargs
         altenative_code = self.element.full_name
-        argslambda = ", ".join([arg.as_function_argument(index, typed=True) for
+        argslambda = ", ".join([arg.as_function_argument(index) for
                                 index, arg in enumerate(self.element.params)])
         if self.element.is_template:
             template_args = "< %s >" % ",".join([arg.type_and_var_name(index) for index, arg in
@@ -52,10 +52,10 @@ class FunctionDecl(Generator):
                         is_complete< %(return_type)s >::value, %(has_varargs)s, %(return_type)s %(arguments)s>::
                         template Wrapper<%(throws)s>::create("%(func_name)s", func_container, argumentNames));
 """ % {
-            'module_name': self.element.parent.pyllars_module_name,
+            'module_name': self.element.parent.python_cpp_module_name if self.parent else "pyllars_mod",
             'return_type': self.element.return_type.full_name if self.element.return_type else "void",
             'arguments': (',' if len(self.element.params) > 0 else "") +
-                          ', '.join([t.type_.full_name for t in self.element.params]),
+                          ', '.join([t.target_type.full_name for t in self.element.params]),
             'lambdacode': lambda_code,
             'has_varargs': str(self.element.has_varargs).lower(),
             'throws': "" if self.element.throws is None else "void" if len(self.element.throws) == 0
@@ -73,11 +73,12 @@ class FunctionDecl(Generator):
             return
         imports = set([])
         for elem in self.element.params:
-            if elem and elem.type_.namespace_name != self.element.namespace_name and elem.type_.namespace_name != "::":
-                imports.add(elem.namespace_name)
-        if self.element.return_type and \
-                        self.element.return_type.namespace_name != self.element.namespace_name and self.element.return_type.namespace_name != "::":
-            imports.add(self.element.return_type.namespace_name)
+            if elem and elem.target_type.scope != self.element.scope and elem.target_type.scope != "::":
+                imports.add(elem.scope)
+        if self.element.return_type \
+                and self.element.return_type.scope != self.element.scope \
+                and self.element.return_type.scope != "::":
+            imports.add(self.element.return_type.namespace.name)
 
         from .structs import CXXMethodDecl
         scoped.write(("""
@@ -85,51 +86,47 @@ class FunctionDecl(Generator):
 
             //generated from %(file)s.generate_body_proper
             // FUNCTION %(name)s THROWS %(throws)s
-            %(template_decl)s
-            status_t %(pyllars_scope)s::%(name)s%(template_args)s::%(name)s_init(PyObject * const global_mod){
+            status_t %(pyllars_scope)s::%(name)s::%(name)s_init(PyObject * const global_mod){
                static const char* const argumentNames[] = {%(argument_names)s nullptr};
                status_t status = 0;
                %(imports)s
                %(func_decl)s
                return status;
             }
-            
-            %(template_decl)s
-            status_t %(pyllars_scope)s::%(name)s%(template_args)s::%(name)s_register(pyllars::Initializer*){
+            status_t %(pyllars_scope)s::%(name)s::%(name)s_register(pyllars::Initializer*){
                 //do nothing, functions have no children
                 return 0;
             }
 
-            %(template_decl)s
-            %(pyllars_scope)s::%(basic_name)s%(template_args)s::Initializer_%(basic_name)s
-            *%(pyllars_scope)s::%(basic_name)s%(template_args)s::Initializer_%(basic_name)s::initializer =
-            new %(pyllars_scope)s::%(basic_name)s%(template_args)s::Initializer_%(basic_name)s();
+            %(pyllars_scope)s::%(basic_name)s::Initializer_%(basic_name)s
+            *%(pyllars_scope)s::%(basic_name)s::Initializer_%(basic_name)s::initializer =
+            new %(pyllars_scope)s::%(basic_name)s::Initializer_%(basic_name)s();
             
 """ % {
             'file': __file__,
-            'basic_name': self.element.basic_name,
+            'basic_name': self.element.name,
             'pyllars_scope': self.element.pyllars_scope,
             'imports': "\n".join(
                 ["if(!PyImport_ImportModule(\"pylllars.%s\")){PyErr_Clear();} " % n.replace("::", ".") for n in
                  imports if n]),
-            'module_name': self.element.parent.pyllars_module_name,
+            'module_name': self.element.parent.python_cpp_module_name if self.parent else "pyllars_mod",
             'name': self.sanitize(self.element.name),
             'pyname': CXXMethodDecl.METHOD_NAMES.get(self.element.name).replace('addMethod', '') if
             self.element.name in CXXMethodDecl.METHOD_NAMES else self.element.name if self.element.name != "operator=" else "assign_to",
             'parent_name': qualified_name
                 (self.element.parent.name if (self.element.parent.name and self.element.parent.name != "::")
                                           else "pyllars"),
-            'parent': self.scope(),
-            'template_decl': template_decl(self),
-            'template_args': self.element.template_arguments_string(),
+            'parent': self.element.scope,
+            # 'template_decl': template_decl(self),
+            # 'template_args': self.element.template_arguments_string(),
             'argument_names': ','.join(["\"%s\"" % (arg.name if arg.name else "_%s" % (index + 1)) for index, arg in
                                         enumerate(self.element.params)]) + (',' if self.element.params else ''),
             'has_varargs': str(self.element.has_varargs).lower(),
             'throws': "" if self.element.throws is None else "void" if len(self.element.throws) == 0
             else ",".join(self.element.throws),
             'func_decl': self._func_declaration() if not self.element.is_template else "",
-            'return_type': self.element.return_type.full_name if self.element.return_type else "void",
-            'arguments': (',' if len(self.element.params) > 0 else "") + ', '.join([t.type_.full_name for
+            'return_type': self.element.return_type_spec,
+            'arguments': (',' if len(self.element.params) > 0 else "") + ', '.join([t.target_type.full_name for
                                                                                t in self.element.params]),
         }).encode('utf-8'))
 
@@ -140,15 +137,15 @@ class VarDecl(Generator):
         return True
 
     def generate_body_proper(self, scoped: TextIOBase, as_top: bool = False) -> None:
-        if self.element.parent and isinstance(self.element.parent.parent, parser.ClassTemplateDecl):
+        if self.element.parent and isinstance(self.element.parent.parent, code_structure.ClassTemplateDecl):
             raise Exception("NOT IMPL")
         scoped.write(("\n                    //generated rom: %(file)s:VarDecl.generate_body_proper\n" % {
             'file': os.path.basename(__file__),
         }).encode('utf-8'))
         imports = set([])
-        if self.element.type_ and self.element.type_.namespace_name != self.element.parent.namespace_name:
-            imports.add(self.element.namespace_name)
-        if isinstance(self.element.parent, parser.RecordTypeDefn):
+        if self.element.parent and self.element.target_type and self.element.target_type.scope != self.element.parent.scope:
+            imports.add(self.element.scope)
+        if isinstance(self.element.parent, code_structure.RecordTypeDefn):
             # static class member var:
             scoped.write(("""
                 constexpr cstring name = "%(basic_name)s";
@@ -170,14 +167,13 @@ class VarDecl(Generator):
                     return status;
                 }
 
-                 %(template_decl)s
-                 %(pyllars_scope)s::%(basic_name)s%(template_args)s::Initializer_%(basic_name)s
-                 *%(pyllars_scope)s::%(basic_name)s%(template_args)s::Initializer_%(basic_name)s::initializer = mullptr;
+                 %(pyllars_scope)s::%(basic_name)s::Initializer_%(basic_name)s
+                 *%(pyllars_scope)s::%(basic_name)s::Initializer_%(basic_name)s::initializer = mullptr;
 
 """ % {
                 'pyllars_scope': self.element.pyllars_scope,
-                'basic_name' : self.element.basic_name,
-                'basic_type_name': self.element.type_.basic_name,
+                'basic_name' : self.element.name,
+                'basic_type_name': self.element.type_spec,
                 'name': self.element.name or "anonymous_%s" % self.element.tag,
                 'parent': self.element.parent.full_name,
                 'parent_name': qualified_name(self.element.parent.name if self.element.parent.name != '::' else ''),
@@ -188,10 +184,10 @@ class VarDecl(Generator):
                 'imports': "\n".join(
                     ["if(!PyImport_ImportModule(\"pylllars.%s\")){PyErr_Clear(); } " % n.replace("::", ".") for n in
                      imports if n]),
-                'template_decl': template_decl(self),
-                'template_args': self.element.template_arguments_string()
+                # 'template_decl': template_decl(self),
+                #'template_args': self.element.template_arguments_string()
             }).encode('utf-8'))
-        elif isinstance(self.element.parent, parser.NamespaceDecl):
+        elif isinstance(self.element.parent, code_structure.NamespaceDecl):
             # global or namespace var:
             scoped.write(("""
                 constexpr cstring name = "%(name)s";
@@ -226,23 +222,23 @@ class VarDecl(Generator):
                  new %(pyllars_scope)s::%(basic_name)s%(template_args)s::Initializer_%(basic_name)s();
 """ % {
                 'pyllars_scope': self.element.pyllars_scope,
-                'basic_name': self.element.basic_name,
-                'basic_type_name': self.element.type_.basic_name,
+                'basic_name': self.element.name,  # basic_name
+                'basic_type_name': self.element.target_type.name,  # basic_name
                 'name': self.element.full_name or "anonymous_%s" % self.element.tag,
-                'tp_name': self.element.type_.name,
+                'tp_name': self.element.target_type.name,
                 'parent': self.element.parent.full_name if self.element.parent.full_name != '::' else "",
                 'parent_name': qualified_name(self.element.parent.name if self.element.parent.name else "pyllars"),
-                'module_name': self.element.parent.pyllars_module_name,
+                'module_name': self.element.parent.python_cpp_module_name,
                 'parent_full_name': self.element.parent.full_name,
-                'full_type_name': self.element.type_.full_name,
+                'full_type_name': self.element.target_type.full_name,
                 'type_mod':  self.element.pyllars_scope + "::" + self.element.parent.name + "_mod" if self.element.parent.name != '' else "global_mod",
-                'array_size': self.element.type_.array_size or 0,
-                'qual': 'Const' if self.element.type_.is_const else 'cont',
+                'array_size': self.element.target_type.array_size or 0,
+                'qual': 'Const' if self.element.target_type.is_const else 'cont',
                 'imports': "\n".join(
                     ["if(!PyImport_ImportModule(\"pylllars.%s\")){PyErr_Clear();} " % n.replace("::", ".") for n in
                      imports if n]),
-                'template_args': self.element.template_arguments_string(),
-                'template_decl': template_decl(self)
+                'template_args': '', ##! self.element.template_arguments_string(),
+                'template_decl': '', ##! template_decl(self)
             }).encode('utf-8'))
         else:
             logging.error("Unknown parent type for global var")

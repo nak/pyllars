@@ -1,5 +1,6 @@
+from io import TextIOBase
+from .. import parser
 from .base import Folder, Generator, qualified_name
-from . import parser, TextIOBase
 
 
 class NamespaceDecl(Generator):
@@ -15,7 +16,7 @@ class NamespaceDecl(Generator):
     """ % self.element.name).encode('utf-8'))
 
     def generate_spec(self):
-        file_name = self.to_path(ext=".hpp")
+        file_name = self.header_file_name()
         if self.element.name == "::" or not self.element.name:
             with self.folder.open(file_name) as stream:
                 stream.write(b"")
@@ -24,7 +25,7 @@ class NamespaceDecl(Generator):
         with self.folder.open(file_name=file_name) as stream:
             with self.guarded(stream) as guarded:
                 guarded.write(self.basic_includes())
-                if self.element.parent:
+                if self.parent:
                     guarded.write(("""#include "%s" """ % self.parent.header_file_path()).encode("utf-8"))
                     guarded.write(("""#include "%s" """ % self._src_path ).encode("utf-8"))
                 with self.scoped(guarded) as scoped:
@@ -95,8 +96,8 @@ class NamespaceDecl(Generator):
 
 """ % {
             'name': self.sanitize(self.element.name),
-            'basic_name': self.element.basic_name,
-            'parent_mod': self.element.parent.pyllars_module_name if self.element.parent else "pyllars_mod",
+            'basic_name': self.element.name,
+            'parent_mod': self.element.parent.python_cpp_module_name if self.element.parent else "pyllars_mod",
             'pyllars_scope': self.element.pyllars_scope,
             'fullname': self.element.full_name,
             'parent': qualified_name(

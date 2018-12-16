@@ -5,31 +5,17 @@ import subprocess
 import sysconfig
 from abc import ABCMeta
 from contextlib import contextmanager
-from dataclasses import dataclass
 from io import TextIOBase
 from typing import List
 
 from .. import parser
 import pkg_resources
-from ..parser import code_structure
 
 pyllars_resources_dir = pkg_resources.resource_filename("pyllars", os.path.join("..", "resources"))
-
 INDENT = "    "
 
 
-log = logging.getLogger(__name__)
-
-@dataclass
-class CompilationModel:
-    sources: List[str]
-    compile_flags: str
-    linker_flags: str
-
-
 def qualified_name(name):
-    if name is None:
-        return "pyllars"
     return Generator.sanitize(name.replace("(", "_lparen_").replace(")", "_rparen_").replace(":", "_")).replace(" ", "_")
 
 
@@ -146,104 +132,41 @@ class Generator(metaclass=ABCMeta):
     MODE_SEPARATE_HEADERS = 1
     MODE_EMPTY_HEADER = 2
 
-    COMMON_HEADER_INCLUDES = \
-"""
-#include <Python.h>
-#include <pyllars/pyllars.hpp>
-#include <pyllars/pyllars_classwrapper.cpp>
-#include <pyllars/pyllars_function_wrapper.hpp>
-
-#include <vector>
-#include <cstddef>
-#include <%(src_path)s>
-%(parent_header_name)s
-"""
-
-    COMMON_BODY_INCLUDES = \
-"""
-#include "%(my_header_name)s"
-#include <pyllars/pyllars.hpp>
-#include <pyllars/pyllars_globalmembersemantics.cpp>
-#include <cstddef>
-"""
-    INIT_IMPL_CODE = \
-"""
-
-extern "C"{
-    static const char* const name = "%(basic_name)s";
-    static const char* const doc = "%(basic_name)s top-level C++ interface module";
-    #if PY_MAJOR_VERSION == 3
-    PyMODINIT_FUNC
-    PyInit_%(basic_name)s(void){
-        static PyModuleDef moduleDef;
-        memset(&moduleDef, 0, sizeof(moduleDef));
-        moduleDef.m_name = name;
-        moduleDef.m_doc = doc;
-        moduleDef.m_size = -1;
-        PyObject *%(basic_name)s_mod = PyModule_Create(&moduleDef);
-        try{
-            if (%(pyllars_scope)s::Initializer::root->init(%(basic_name)s_mod) != 0){
-                return nullptr;
-            }
-           return %(basic_name)s_mod;
-        } catch (const char* msg){
-           PyErr_SetString(PyExc_RuntimeError, msg);
-           return nullptr;
-        }
-    }
-
-    #else
-
-    PyMODINIT_FUNC
-    init%(basic_name)s(){
-        PyObject *%(basic_name)s_mod = Py_InitModule3(name, nullptr, doc);
-        if(!%(basic_name)s_mod) { return -1;}
-        PyObject *pyllars_mod = PyImport_ImportModule("pyllars");
-        if (!pyllars_mod){
-            return -1;
-        }
-        PyModule_AddObject(pyllars_mod, "%(basic_name)s", %(basic_name)s_mod);
-        try{
-            return %(pyllars_scope)s::Initializer::root?pyllars::Initializer::root->init(%(basic_name)s_mod):0;
-        } catch (const char* msg ){
-            PyErr_SetString(PyExc_RuntimeError, msg);
-            return -2;
-        }
-    }
-    #endif
-}
-"""
-
     generator_mapping = {}
 
-    def __init__(self, element: code_structure.Element, src_path: str, folder: Folder, parent: "Generator"):
-        self._parent = parent
+    def __init__(self, element: parser.Element, src_path: str, folder: Folder, parent_generator: "Generator"=None):
+        self._mode = parent_generator.mode if parent_generator else Generator.MODE_SEPARATE_HEADERS
+        if parent_generator and parent_generator._mode == Generator.MODE_FULL_HEADER:
+            self._mode = Generator.MODE_EMPTY_HEADER
+        elif element.is_template_macro and element.parent and element.parent.is_namespace:
+            self._mode = Generator.MODE_FULL_HEADER
         self._src_path = src_path
+        self._template_argument_lists = []
+        self._template_type_params = []
+        self._folder = folder
+        self._subfolder = None
         self._element = element
-        folder_name = element.name or "anonymous-%s" % element.tag
-        self._folder = folder.create_subfolder(folder_name)
+        self._parent = parent_generator
+        self._root_module = element.root_python_module or "unaccounted_globals"
         Generator.generator_mapping[element] = self
-        self._children = {}
         for child in element.children():
-            child_generator_class = self.get_generator_class(child)
-            # store for future reference:
-            self._children[child.tag] = child_generator_class(child, src_path=src_path, folder=self.folder, parent=self)
+            if child not in Generator.generator_mapping:
+                child_generator_class = self.get_generator_class(child)
+                # store for future reference:
+                child_generator_class(child, src_path=src_path, folder=self.subfolder, parent_generator=self)
+
 
     @classmethod
     def is_generatable(cls):
         return False
 
     def header_file_path(self) -> str:
-        return os.path.join(self.folder.path, self.header_file_name())
+        header_name = self.header_file_name()
+        return os.path.join(self.folder.path, header_name)
 
-    def header_file_name(self)->str:
-        return (self.element.name or "global").replace(" ", "_") + ".hpp"
-
-    def body_file_path(self) -> str:
-        return os.path.join(self.folder.path, self.body_file_name())
-
-    def body_file_name(self)->str:
-        return (self.element.name or "global").replace(" ", "_") + ".cpp"
+    @property
+    def root_module(self):
+        return self._root_module
 
     @classmethod
     def sanitize(cls, text):
@@ -263,6 +186,18 @@ extern "C"{
             text = text.replace(c, map[c])
         return text
 
+    def header_file_name(self)->str:
+        return (self.element.basic_name or "global").replace(" ", "_") + ".hpp"
+
+    def body_file_path(self) ->str:
+        parent_path = self.folder.path
+        if not os.path.exists(parent_path):
+            os.makedirs(parent_path)
+        return os.path.join(parent_path, self.to_path(ext=".cpp"))
+
+    def body_file_name(self)->str:
+        return (self.element.basic_name or "global") + ".cpp"
+
     @property
     def mode(self):
         return self._mode
@@ -276,20 +211,35 @@ extern "C"{
         return self._folder
 
     @property
+    def subfolder(self):
+        if self._subfolder is None:
+            self._subfolder = self.folder.create_subfolder(self.element.name)
+        return self._subfolder
+
+    @property
     def parent(self):
         return self._parent
 
-    # def to_path(self, ext="") -> str:
-    #     name = self.element.basic_name if self.element.name else "global"
-    #     return name.replace(" ", "_") + ext
+    def to_path(self, ext="") -> str:
+        name = self.element.basic_name if self.element.name else "global"
+        return name.replace(" ", "_") + ext
 
-    # def scope(self):
-    #     return self.element.scope
+    def scope(self):
+        return self.element.scope
 
     def basic_includes(self):
-        return (self.COMMON_HEADER_INCLUDES % {
-            'src_path': self._src_path,
-            'parent_header_name': "#include \"%s\"" % self.parent.header_file_path() if self.parent else "",
+        return ("""
+#include <Python.h>
+#include <pyllars/pyllars.hpp>
+#include <pyllars/pyllars_classwrapper.cpp>
+#include <pyllars/pyllars_function_wrapper.hpp>
+
+#include <vector>
+#include <cstddef>
+#include <%(src_path)s>
+%(parent_header_name)s
+"""  % {'src_path': self._src_path,
+        'parent_header_name': "#include \"%s\"" % self.parent.header_file_path() if self.element.parent else "",
         }).encode('utf-8')
 
     @contextmanager
@@ -301,33 +251,21 @@ extern "C"{
     def _ns_scope(self, stream: TextIOBase):
         need_closure = False
         if self.parent:
-            # recurse upward
             with self.parent._ns_scope(stream) as scoped:
-                if not self.element.is_template_macro and not isinstance(self.element, (code_structure.FieldDecl,
-                                                                                        code_structure.CXXMethodDecl,
-                                                                                        code_structure.BuiltinType,
-                                                                                        code_structure.TypedefDecl)):
+                if not self.element.is_template_macro and not isinstance(self.element, (parser.FieldDecl, parser.CXXMethodDecl)):
                     need_closure = True
-                    scoped.write(("\nnamespace %s{\n" % qualified_name(self.element.name)).encode("utf-8"))
+                    scoped.write(("\nnamespace %s{\n" % qualified_name(self.element.basic_name)).encode("utf-8"))
                 yield stream
         else:
-            # at top level
+            need_closure = True
             stream.write(b"\nnamespace pyllars{\n")
-            if not self.element.is_template_macro and not isinstance(self.element, (code_structure.FieldDecl,
-                                                                                    code_structure.CXXMethodDecl,
-                                                                                    code_structure.BuiltinType,
-                                                                                    code_structure.TypedefDecl)):
-                need_closure = True
-                stream.write(("\nnamespace %s{\n" % qualified_name(self.element.name)).encode("utf-8"))
             yield stream
-            stream.write(b"\n}")
-
         if need_closure:
             stream.write(b"\n}")
 
-    # @contextmanager
-    # def templated(self, stream: TextIOBase):
-    #     yield stream
+    @contextmanager
+    def templated(self, stream: TextIOBase):
+        yield stream
 
     @contextmanager
     def guarded(self, stream : TextIOBase):
@@ -341,39 +279,57 @@ extern "C"{
             #endif
         """)
 
-    # @property
-    # def template_decl(self):
-    #     template_decl = "\n%s" % parser.Element.template_declaration(self.element.template_arguments)
-    #     return template_decl
+    @property
+    def template_decl(self):
+        template_decl = "\n%s" % parser.Element.template_declaration(self.element.template_arguments)
+        return template_decl
 
-    # @property
-    # def template_arguments(self):
-    #     return "" if not self.element.template_arguments else "<%s>" % (", ".join([e.name for e in self.element.template_arguments]))
+    @property
+    def template_arguments(self):
+        return "" if not self.element.template_arguments else "<%s>" % (", ".join([e.name for e in self.element.template_arguments]))
 
     def generate_header_code(self, stream: TextIOBase) -> None:
         if self.element.is_implicit:
             return
         with self.guarded(stream) as guarded:
             guarded.write(self.basic_includes())
+            if self._mode == Generator.MODE_EMPTY_HEADER:
+                return
             with self.scoped(guarded) as scoped:
                 self.generate_header_core(scoped)
+                if self._mode == Generator.MODE_FULL_HEADER:
+                    with self.templated(scoped) as templated:
+                        for child in self.element.children():
+                            generator = Generator.generator_mapping.get(child) or \
+                                       self.get_generator_class(child)(child,
+                                                                       self._src_path,
+                                                                       self.folder.create_subfolder(child.basic_name),
+                                                                       parent_generator=self)
+                            if generator.is_generatable():
+                                generator.generate_header_core_full(templated)
 
     def generate_header_core_full(self, stream: TextIOBase):
         if self.element.is_implicit:
             return
-        self.generate_header_core(stream)
-        for child in self.element.children():
-            generator = self._children[child.tag]
-            if generator.is_generatable():
-                generator.generate_header_core_full(stream)
+        with self.templated(stream) as templated:
+            self.generate_header_core(stream)
+            for child in self.element.children():
+                generator = Generator.generator_mapping.get(child) or \
+                            self.get_generator_class(child)(child, self._src_path,
+                                                            self.folder.create_subfolder(child.basic_name),
+                                                            parent_generator=self)
+                if generator.is_generatable():
+                    generator.generate_header_core_full(templated)
 
     def generate_header_core(self, stream: TextIOBase, as_top=False):
-        if self.element.is_anonymous_type:  # anonymous directly inaccessible type
+        if not self.element.name or self.element.is_anonymous_type:  # anonymous directly inaccessible type
             stream.write(b"")
             return
         stream.write(("""
+                %(template_decl)s
                 status_t %(basic_name)s_register( pyllars::Initializer* const);
                 
+                %(template_decl)s
                 status_t %(basic_name)s_init(PyObject * const global_mod);
                 
                 class Initializer_%(basic_name)s: public pyllars::Initializer{
@@ -391,69 +347,128 @@ extern "C"{
                  };
             """ % {
                 'name': self.element.name,
-                'basic_name': self.sanitize(self.element.name or "anonymous-%s" % self.element.tag),
-                'parent_basic_name': self.element.parent.name if (self.element.parent and self.element.parent.name) else "pyllars",
-                'pyllars_scope': self.element.pyllars_scope,
-                'parent_name': self.element.parent.name if self.element.parent else "pyllars",
+                'basic_name': self.sanitize(self.element.basic_name),
+                'parent_basic_name': self.element.parent.basic_name if self.element.parent.basic_name else "pyllars",
+                 'pyllars_scope': self.element.pyllars_scope,
+                'parent_name': self.element.parent.basic_name if self.element.parent else "pyllars",
+                'template_decl': self.template_decl,
         }).encode('utf-8'))
 
     @staticmethod
-    def generate_code(node_tree: code_structure.TranslationUnitDecl, src_path: str, output_dir: str, module_name: str):
-        folder = Folder(output_dir)
+    def _generate_code(element: parser.Element, src_path: str, folder: Folder, module_name: str,
+                       src_paths: List[str],
+                       include_paths: List[str]):
         Generator.generator_mapping = {}
-        for element in node_tree.children():
-            generator_class = Generator.get_generator_class(element)
-            generator = generator_class(element, src_path, folder, parent=None)
-            generator.generate_body(src_path=src_path)
+        generator_class = Generator.get_generator_class(element)
+        generator = generator_class(element, src_path, folder)
+        generator.generate_body(src_paths=[os.path.abspath(path) for path in src_paths], as_top=module_name, root_folder=folder)
+
+    @staticmethod
+    def generate_code(source: str, src_paths: List[str], folder: Folder, module_name: str, include_paths: List[str]):
+        top = parser.parse_files(src_paths, include_paths)
+        top.top.filter(src_paths, include_paths)
+        for src_path in src_paths:
+            Generator._generate_code(top.top, src_path=src_path, folder=folder, module_name=module_name,
+                                     src_paths=[os.path.abspath(path) for path in src_paths],
+                                     include_paths=include_paths)
+        return top.top
 
     def generate_spec(self):
-        file_name = self.header_file_name()
+        file_name = self.to_path(ext=".hpp")
         self.folder.purge(file_name)
         with self.folder.open(file_name) as stream:
             self.generate_header_code(stream)
 
-    def generate_body(self,  src_path: str):
+    def generate_body(self,  src_paths: List[str], root_folder: Folder, as_top: bool=False):
+        if not self.element.name and not as_top:
+            return
         if self.element.is_anonymous_type or self.element.is_implicit:
             return
-        file_name = self.body_file_name()
+        file_name = self.to_path(ext=".cpp")
         self.folder.purge(file_name)
         self.generate_spec()
         with self.folder.open(file_name) as stream:
-            stream.write((self.COMMON_BODY_INCLUDES % {"my_header_name": self.header_file_name()}).encode('utf-8'))
+            stream.write(("""
+                #include "%(my_header_name)s"
+                #include <pyllars/pyllars.hpp>
+                #include <pyllars/pyllars_globalmembersemantics.cpp>
+                #include <cstddef>
+                """ % {"my_header_name": self.header_file_name()}).encode('utf-8'))
             if self.element.is_implicit:
                 return
-            if not self.element.is_anonymous_type:
-            #    self.element._anonymous_types.add(self)
-            #else:
-                self.generate_body_proper(stream)
-
+            if not self.element.name:
+                self.element._anonymous_types.add(self)
+            else:
+                self.generate_body_proper(stream, as_top)
         for child in self.element.children():
 
-            location = child.location
-            if not bool(location) or (os.path.abspath(location) != os.path.abspath(src_path)):
-                print("SKIPPING %s generation as %s not in source paths" % (child.name, location))
+            location, _ = child.location
+            if location and os.path.abspath(location) not in src_paths:
+                print("SKIPPING %s generation as %s not in source paths" % (child.full_name, location))
                 continue
             child_generator_class = self.get_generator_class(child)
             if child_generator_class.is_generatable():
-                # if as_top:
-                #    root_module = child.root_python_module or "unaccounted_globals"
-                #    subfolder = root_folder.create_subfolder(root_module)
-                # else:
-                #    subfolder = self.folder
+                if as_top:
+                    root_module = child.root_python_module or "unaccounted_globals"
+                    subfolder = root_folder.create_subfolder(root_module)
+                else:
+                    subfolder = self.folder
                 child_generator = child_generator_class(child,
                                                         self._src_path,
-                                                        self.folder.create_subfolder(child.safe_name),
-                                                        parent=self)
-                child_generator.generate_body(src_path=src_path)
-        # if as_top:
-        stream.write((self.INIT_IMPL_CODE % {
-            'basic_name': self.element.name,
-            'pyllars_scope': self.element.pyllars_scope
-        }).encode('utf-8'))
+                                                        subfolder.create_subfolder(child.basic_name),
+                                                        parent_generator=self)
+                child_generator.generate_body(src_paths=src_paths, root_folder=root_folder)
+        if as_top:
+            stream.write(("""
+
+            extern "C"{
+                static const char* const name = "%(basic_name)s";
+                static const char* const doc = "%(basic_name)s top-level C++ interface module";
+                #if PY_MAJOR_VERSION == 3
+                PyMODINIT_FUNC
+                PyInit_%(basic_name)s(void){
+                    static PyModuleDef moduleDef;
+                    memset(&moduleDef, 0, sizeof(moduleDef));
+                    moduleDef.m_name = name;
+                    moduleDef.m_doc = doc;
+                    moduleDef.m_size = -1;
+                    PyObject *%(basic_name)s_mod = PyModule_Create(&moduleDef);
+                    try{
+                        if (%(pyllars_scope)s::Initializer::root->init(%(basic_name)s_mod) != 0){
+                            return nullptr;
+                        }
+                       return %(basic_name)s_mod;
+                    } catch (const char* msg){
+                       PyErr_SetString(PyExc_RuntimeError, msg);
+                       return nullptr;
+                    }
+                }
+                #else
+                PyMODINIT_FUNC
+                init%(basic_name)s(){
+                    PyObject *%(basic_name)s_mod = Py_InitModule3(name, nullptr, doc);
+                    if(!%(basic_name)s_mod) { return -1;}
+                    PyObject *pyllars_mod = PyImport_ImportModule("pyllars");
+                    if (!pyllars_mod){
+                        return -1;
+                    }
+                    PyModule_AddObject(pyllars_mod, "%(basic_name)s", %(basic_name)s_mod);
+                    try{
+                        return %(pyllars_scope)s::Initializer::root?pyllars::Initializer::root->init(%(basic_name)s_mod):0;
+                    } catch (const char* msg ){
+                        PyErr_SetString(PyExc_RuntimeError, msg);
+                        return -2;
+                    }
+                }
+                #endif
+            }
+            """ % {
+            'basic_name': as_top,
+            'pyllars_scope': self.element.pyllars_scope}).encode('utf-8'))
 
 
     @staticmethod
-    def get_generator_class(element: code_structure.Element) -> "Generator":
+    def get_generator_class(element: parser.Element) -> "Generator":
         from . import _get_generator_class
         generator_class = _get_generator_class(element)
         return generator_class
@@ -633,15 +648,3 @@ class ClassTemplateDecl(Generator):
                 'template_decl': self.element.template_decl,
                 'parent_template_decl': self.element.parent.template_decl if self.element.parent else ""
             }).encode('utf-8'))
-
-
-class BuiltInType(Generator):
-
-    def generate_body(self,  src_path: str):
-        pass
-
-
-class TranslationUnitDecl(Generator):
-
-    def generate_body(self,  src_path: str):
-        pass

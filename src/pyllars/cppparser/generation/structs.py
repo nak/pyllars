@@ -1,11 +1,16 @@
 from contextlib import contextmanager
 from io import TextIOBase
 
+import logging
 import os
 
+from pyllars.cppparser.parser import code_structure
 from .base import Folder, Generator, qualified_name
 from . import parser
 from .fundamentals import VarDecl
+
+
+log = logging.getLogger(__name__)
 
 
 def template_decl(element: Generator):
@@ -33,13 +38,13 @@ class CXXRecordDecl(Generator):
 
     def basic_includes(self):
         text = super().basic_includes()
-        for subelement in list(self.element._base_classes.get('public') or []):
+        for subelement in self.element.base_classes:
             child_generator = Generator.generator_mapping[subelement]
             text += ("\n#include \"%s\"" % child_generator.header_file_path()).encode('utf-8')
         return text
 
     def generate_body_proper(self, stream: TextIOBase, as_top: bool = False) -> None:
-        if not self.element._is_definition:
+        if not self.element.is_definition:
             return
         if self.element.is_implicit:
             return
@@ -53,7 +58,6 @@ class CXXRecordDecl(Generator):
         else:
             typename = ""
         stream.write(("""
-            %(template_decl)s
             status_t %(pyllars_scope)s::%(name)s::%(basic_name)s_init(PyObject * const global_mod){
                 using namespace __pyllars_internal;
                 typedef %(typename)s %(scope)s::%(template_prefix)s%(name)s  main_type;
@@ -66,16 +70,15 @@ class CXXRecordDecl(Generator):
                 status_t status = 0;
 """ % {
             'qname': qualified_name(self.element.name or "anonymous_%s" % self.element.tag),
-            'basic_name': self.element.basic_name,
+            'basic_name': self.element.name,
             'name': self.element.name or "anonymous_%s" % self.element.tag,
-            'template_decl': template_decl(self),
             'pyllars_scope': self.element.pyllars_scope,
             'scope': self.element.scope,
             'template_prefix': 'template ' if self.parent and self.parent.element.is_template_macro else "",
             'typename': typename,
         }).encode('utf-8'))
 
-        for base in self.element.public_base_classes or []:
+        for base in self.element.base_classes or []:
             stream.write(("""
                 status |= pyllars%(base_class_name)s::%(base_class_bare_name)s_init(PyObject* const global_mod);
                  __pyllars_internal::PythonClassWrapper< %(typename)s %(scope)s::%(template_prefix)s%(class_name)s >::addBaseClass
@@ -90,7 +93,7 @@ class CXXRecordDecl(Generator):
             }).encode('utf-8'))
 
         if self.element.name:
-            if self.element.parent.is_namespace:
+            if self.element.parent and self.element.parent.is_namespace:
                 stream.write(("""
                 status |=  __pyllars_internal::PythonClassWrapper< main_type >::initialize(
                              "%(name)s",
@@ -99,10 +102,21 @@ class CXXRecordDecl(Generator):
                              "%(full_name)s");  //classes
     """ % {
                     'name': self.element.name or "_anonymous%s" % self.element.tag,
-                    'module_name': self.element.parent.pyllars_module_name,
+                    'module_name': self.element.parent.python_cpp_module_name,
                     'full_name': self.element.full_name,
                 }).encode('utf-8'))
-            elif self.element.parent.is_template_macro:
+            elif isinstance(self.element.parent, code_structure.TranslationUnitDecl):
+                stream.write(("""
+                        status |=  __pyllars_internal::PythonClassWrapper< main_type >::initialize(
+                                     "%(name)s",
+                                     "%(name)s",
+                                     "pyllars",
+                                     "%(full_name)s");  //classes
+            """ % {
+                    'name': self.element.name or "_anonymous%s" % self.element.tag,
+                    'full_name': self.element.full_name,
+                }).encode('utf-8'))
+            elif self.element.parent and self.element.parent.is_template_macro:
                 if len(self.element.template_arguments) == 1:
                     arg = self.element.template_arguments[0]
                     if isinstance(arg, parser.TemplateTypeParmDecl):
@@ -169,7 +183,7 @@ class CXXRecordDecl(Generator):
                    'template_prefix': 'template ' if self.parent and self.parent.element.is_template_macro else "",
                     'typename': 'typename' if not self.element.is_union else ""
                 }).encode("utf-8"))
-            else:
+            elif self.element.parent:
                 stream.write(("""
                 __pyllars_internal::PythonClassWrapper< %(typename)s %(parent_class_scope)s::%(parent_class_name)s >::addClassMember
                     ("%(class_name)s",
@@ -186,7 +200,7 @@ class CXXRecordDecl(Generator):
                 return status;
             }
             
-            %(template_decl)s
+            
             static %(pyllars_scope)s::%(name)s::Initializer_%(basic_name)s* _init(){
                 static %(pyllars_scope)s::%(name)s::Initializer_%(basic_name)s *_initializer = 
                   new %(pyllars_scope)s::%(name)s::Initializer_%(basic_name)s();
@@ -194,7 +208,6 @@ class CXXRecordDecl(Generator):
                 return _initializer;
             }
             
-            %(template_decl)s
             status_t %(pyllars_scope)s::%(name)s::%(qname)s_register( pyllars::Initializer* const init ){ 
                 static Initializer_%(basic_name)s *_initializer = _init();
                 Initializer_%(basic_name)s::initializer = _initializer;
@@ -204,25 +217,24 @@ class CXXRecordDecl(Generator):
 
 """ % {
             'name': self.element.name if self.element.name else "pyllars",
-            'basic_name': self.element.basic_name,
-            'qname': self.element.basic_name if self.element.basic_name else "pyllars",
+            'basic_name': self.element.name,
+            'qname': self.element.name if self.element.name else "pyllars",
             'parent_name': qualified_name
-                (self.element.parent.basic_name if (self.element.parent.name and self.element.parent.name != "::")
+                (self.element.parent.name if (self.element.parent and self.element.parent.name and self.element.parent.name != "::")
                                           else "pyllars"),
             'pyllars_scope': self.element.pyllars_scope,
-            'template_decl': template_decl(self),
+#            'template_decl': template_decl(self),
         }).encode('utf-8'))
 
 
         stream.write(("""
-            %(template_decl)s
             %(typename)s %(pyllars_scope)s::%(template_prefix)s%(name)s::Initializer_%(basic_name)s 
             *%(pyllars_scope)s::%(template_prefix)s%(name)s::Initializer_%(basic_name)s::initializer = _init();
         """ % {
-            'basic_name': self.element.basic_name,
+            'basic_name': self.element.name,
             'name': self.element.name,
             'pyllars_scope': self.element.pyllars_scope,
-            'template_decl': template_decl(self),
+            #'template_decl': template_decl(self),
             'template_prefix': 'template ' if self.parent and self.parent.element.is_template_macro else "",
             'typename': 'typename' if not self.element.is_union else "",
         }).encode('utf-8'))
@@ -350,10 +362,10 @@ class FieldDecl(Generator):
 
         imports = set([])
 
-        if self.element.type_ and self.element.type_.namespace_name != self.element.parent.namespace_name:
-            imports.add(self.element.namespace_name)
+        if self.element.parent and self.element.target_type and self.element.target_type.scope != self.element.parent.scope:
+            imports.add(self.element.scope)
         if self.element.bit_size is None:
-            if self.element.type_.array_size is not None:
+            if self.element.target_type.array_size is not None:
                 stream.write(("""
                     constexpr cstring name = "%(name)s";
                     //generated from %(file)s.generate_body_proper #1
@@ -392,7 +404,6 @@ class FieldDecl(Generator):
                     //generated from %(file)s.generate_body_proper #2
                     // FUNCTION %(name)s THROWS
                     
-                    %(template_decl)s
                     status_t %(pyllars_scope)s::%(basic_name)s_init(PyObject* const global_mod){
                        status_t status = 0;
                        %(imports)s
@@ -401,30 +412,28 @@ class FieldDecl(Generator):
                        return status;
                     }
                    
-                    %(template_decl)s
                     status_t %(pyllars_scope)s::%(basic_name)s_register(pyllars::Initializer*){
                             //do nothing, functions have no children
                             return 0;
                     }
 
-                    %(template_decl)s
                     typename %(pyllars_scope)s::Initializer_%(basic_name)s
                     * %(pyllars_scope)s::Initializer_%(basic_name)s::initializer = 
                     new %(pyllars_scope)s::Initializer_%(basic_name)s();
 """ % {
                     'file': __file__,
-                    'basic_name': self.element.basic_name,
+                    'basic_name': self.element.name,
                     'imports': "\n".join(
                         ["if(!PyImport_ImportModule(\"pyllars::%s\")){return -1;} " % n.replace("::", ".") for n in
                          imports]),
                     'name': self.sanitize(self.element.name),
-                    'full_type_name': self.element.type_.full_param_name,
+                    'full_type_name': self.element.target_type.full_param_name,
                     'pyllars_scope': self.element.pyllars_scope,
-                    'qual': 'Const' if self.element.type_.is_const else "",
-                    'scope': self.element.block_scope,
-                    'template_args': self.element.template_arguments_string(),
-                    'template_decl': template_decl(self),
-                    'typename': 'typename' if not self.element.parent.is_union else ""
+                    'qual': 'Const' if self.element.target_type.is_const else "",
+                    'scope': self.element.scope,
+                    # 'template_args': self.element.template_arguments_string(),
+                    # 'template_decl': template_decl(self),
+                    'typename': 'typename' if not (self.element.parent and self.element.parent.is_union) else ""
                 }).encode('utf-8'))
         else:
             setter_code = """
@@ -530,7 +539,14 @@ class ClassTemplateDecl(Generator):
             code_for_adding_dict = """ PyModule_AddObject(%(module_name)s, "%(name)s", dictionary);
             """ % {
                 'name': self.element.basic_name or "_anonymous%s" % self.element.tag,
-                'module_name': self.element.parent.pyllars_module_name,
+                'module_name': self.element.parent.generated_python_module_name,
+                'full_name': self.element.full_name,
+            }
+        elif isinstance(self.element.parent, parser.NamespaceDecl):
+            code_for_adding_dict = """ PyModule_AddObject(%(module_name)s, "%(name)s", dictionary);
+            """ % {
+                'name': self.element.basic_name or "_anonymous%s" % self.element.tag,
+                'module_name': "pyllars",
                 'full_name': self.element.full_name,
             }
         else:
@@ -581,7 +597,6 @@ class CXXConstructorDecl(CXXMethodDecl):
 
             //generated from %(file)s.generate_body_proper
             // CONSTRUCTOR %(name)s THROWS %(throws)s
-            %(template_decl)s
             status_t %(pyllars_scope)s::%(sanitized_name)s::%(sanitized_name)s_init(PyObject * const global_mod){
                static const char* const argumentNames[] = {%(argument_names)s nullptr};
                status_t status = 0;
@@ -590,12 +605,10 @@ class CXXConstructorDecl(CXXMethodDecl):
                return status;
             }
 
-            %(template_decl)s
             status_t %(pyllars_scope)s::%(sanitized_name)s::%(sanitized_name)s_register(pyllars::Initializer* const init){
                 return 0;
             }
             
-            %(template_decl)s
             typename %(pyllars_scope)s::%(sanitized_name)s::Initializer_%(sanitized_name)s 
             *%(pyllars_scope)s::%(sanitized_name)s::Initializer_%(sanitized_name)s::initializer = 
             new %(pyllars_scope)s::%(sanitized_name)s::Initializer_%(sanitized_name)s();
@@ -605,7 +618,7 @@ class CXXConstructorDecl(CXXMethodDecl):
             'argument_names': ','.join(
                 ["\"%s\"" % (arg.name if arg.name else "_%s" % (index + 1)) for index, arg in
                  enumerate(self.element.params)]) + (',' if self.element.params else ''),
-            'sanitized_name': self.sanitize(self.element.basic_name),
+            'sanitized_name': self.sanitize(self.element.name),  # basic_name
             'file': __file__,
             'func_decl': self._func_declaration(),
             'imports': "\n".join(
@@ -615,7 +628,7 @@ class CXXConstructorDecl(CXXMethodDecl):
             'pyllars_scope': self.element.pyllars_scope,
             'pyname': CXXMethodDecl.METHOD_NAMES.get(self.element.name).replace('addMethod', '') if
             self.element.name in CXXMethodDecl.METHOD_NAMES else self.element.name if self.element.name != "operator=" else "assign_to",
-            'template_decl': template_decl(self),
+            #'template_decl': template_decl(self),
             'throws': "" if self.element.throws is None else "void" if len(self.element.throws) == 0
             else ",".join(self.element.throws),
         }).encode('utf-8'))
@@ -630,12 +643,12 @@ class CXXConstructorDecl(CXXMethodDecl):
 
 """ % {
             'args': ", ".join([p.type_.full_param_name for p in self.element.params]),
-            'basic_name': self.element.parent.basic_name,
-            'is_const': str(self.element.is_const).lower() + "," if not self.element.is_static else "",
-            'names': ",".join(['"%s"' % (e.name or "param_%d" % index) for index, e in enumerate(self.element.params)]),
-            'scope': self.element.block_scope,
-            'template_prefix': 'template ' if self.element.parent.parent.is_template_macro else "",
-            'typename': 'typename' if not self.element.parent.is_union else ""
+            # 'basic_name': self.element.parent.name,  # basic_name
+            # 'is_const': str(self.element.is_const).lower() + "," if not self.element.is_static else "",
+            # 'names': ",".join(['"%s"' % (e.name or "param_%d" % index) for index, e in enumerate(self.element.params)]),
+            'scope': self.element.scope,  # block_scope
+            # 'template_prefix': 'template ' if self.element.parent.parent.is_template_macro else "",
+            'typename': 'typename' if not (self.element.parent and self.element.parent.is_union) else ""
         }
 
 
@@ -653,15 +666,15 @@ class EnumConstantDecl(VarDecl):
         return True
 
     def generate_body_proper(self, scoped: TextIOBase, as_top: bool = False) -> None:
-        if self.element.parent and isinstance(self.element.parent.parent, parser.ClassTemplateDecl):
-            raise Exception("NOT IMPL")
+        #if self.element.parent and isinstance(self.element.parent.parent, parser.ClassTemplateDecl):
+        #    raise Exception("NOT IMPL")
         scoped.write(("\n                    //generated rom: %(file)s:VarDecl.generate_body_proper\n" % {
             'file': os.path.basename(__file__),
         }).encode('utf-8'))
         imports = set([])
-        if self.element.type_ and self.element.type_.namespace_name != self.element.parent.namespace_name:
+        if self.element.target_type and self.element.target_type.namespace_name != self.element.parent.namespace_name:
             imports.add(self.element.namespace_name)
-        if isinstance(self.element.parent, parser.RecordTypeDefn):
+        if isinstance(self.element.parent, code_structure.RecordTypeDefn):
             # static class member var:
             scoped.write(("""
                 constexpr cstring name = "%(basic_name)s";
@@ -693,15 +706,15 @@ class EnumConstantDecl(VarDecl):
                 'parent_name': qualified_name(self.element.parent.name if self.element.parent.name != '::' else ''),
                 'parent_full_name': self.element.parent.full_name,
                 'parent_basic_name': self.element.parent.basic_name,
-                'full_type_name': self.element.type_.full_name,
-                'qual': 'Const' if self.element.type_.is_const else '',
+                'full_type_name': self.element.target_type.full_name,
+                'qual': 'Const' if self.element.target_type.is_const else '',
                 'prefix': "" if not self.element.is_structure else "template ",
                 'suffix': "Value" if not self.element.is_structure else "ClassValue<type_name, %s>" % self.element.parent.full_name,
                 'template_decl': template_decl(self),
                 'template_args': self.element.template_arguments_string(),
                 'type_mod': self.element.pyllars_scope + "::" + self.element.parent.parent.name + "_mod" if self.element.parent.parent.name != '' else "global_mod",
             }).encode('utf-8'))
-        elif isinstance(self.element.parent, parser.NamespaceDecl):
+        elif isinstance(self.element.parent, code_structure.NamespaceDecl):
             # global or namespace var:
             scoped.write(("""
                 constexpr cstring name = "%(name)s";
@@ -736,10 +749,10 @@ class EnumConstantDecl(VarDecl):
                 'name': self.element.full_name or "anonymous_%s" % self.element.tag,
                 'parent_full_name': self.element.parent.full_name if self.element.parent.full_name != '::' else "",
                 'parent_name': qualified_name(self.element.parent.name if self.element.parent.name else "pyllars"),
-                'module_name': self.element.parent.pyllars_module_name,
-                'full_type_name': self.element.type_.full_name,
+                'module_name': self.element.parent.generated_python_module_name,
+                'full_type_name': self.element.target_type.full_name,
                 'template_args': self.element.template_arguments_string(),
                 'template_decl': template_decl(self)
             }).encode('utf-8'))
         else:
-            logging.error("Unknown parent type for global var")
+            log.error("Unknown parent type for global var")

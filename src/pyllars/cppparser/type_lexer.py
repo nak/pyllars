@@ -46,27 +46,33 @@ def t_implicit_explicit(t):
     r"(implicit|explicit)"
     return t
 
+
 def t_restricted(t):
     r"(__restrict)"
     return t
 
+
 def t_qualifier(t):
     r"(const|constexpr|mutable|volatile)"
     return t
+
 
 def t_is_enum(t):
     r"(enum)"
     t.value = True
     return t
 
+
 def t_array_spec(t):
     r"(\[[0-9]*\])"
     t.value = int(t.value[1:-1]) if t.value else ""  # "" indicates a non-specified-size
     return t
 
+
 def t_function_spec(t):
-    r"(.*)\(\*\)\((.*)\)\ *(threo\(.*\))?"
+    r"(.*)\(\*\)\((.*)\)\ *(throw\(.*\))?"
     return t
+
 
 def t_name(t):
     r"((long\ |short\ |unsigned\ |signed\ )?[:_\~\=a-zA-Z0-9,]+)(\<.*\>)?"
@@ -77,6 +83,7 @@ def t_name(t):
 def t_reference(t):
     r"(\*|\&|\&\&)"
     return t
+
 
 type_lexer = lex.lex()
 

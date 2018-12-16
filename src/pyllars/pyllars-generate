@@ -1,18 +1,16 @@
 #!/usr/bin/env python
-import argparse
 import os
 import sys
 
-import pyllars.cppparser.parser as parser
+from pyllars.cppparser.generation.base import Generator
+from pyllars.cppparser.parser.clang_filter import ClangFilter
 
 if __name__ == "__main__":
-
-    args_parser = argparse.ArgumentParser()
-    args_parser.add_argument("--src", help="source file or directory to recurse")
-    args = args_parser.parse_args()
-    top = parser.parse_file(args.src)
-    from pyllars.cppparser.generation import Generator, Folder
-    if not os.path.exists("generated"):
-        os.makedirs("generated")
-    Generator("generated").generate_body(top.top, Folder("generated"), src_path="generated")
+    index = sys.argv.index("--") if "--" in sys.argv else -1
+    sources = sys.argv[1:index]
+    compile_options = sys.argv[index + 1:]
+    os.makedirs("generated", exist_ok=True)
+    for src_path in sources:
+        nodes = ClangFilter.parse(src_path=src_path, flags=compile_options)
+        Generator.generate_code(nodes, src_path=src_path, module_name="pyllarse_gen", output_dir="generated")
     sys.exit(0)

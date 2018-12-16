@@ -9,7 +9,8 @@
 
 #include "pyllars_utils.hpp"
 #include "pyllars_classmethodsemantics.cpp"
-#include "pyllars_constmethodcallsemantics.cpp"
+#include "pyllars_classmembersemantics.cpp"
+//#include "pyllars_constmethodcallsemantics.cpp"
 #include "pyllars_methodcallsemantics.cpp"
 #include "pyllars_object_lifecycle.cpp"
 #include "pyllars_conversions.cpp"

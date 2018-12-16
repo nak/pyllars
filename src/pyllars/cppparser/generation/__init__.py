@@ -1,15 +1,20 @@
-from ..elements import Element
-from .base import *
+import logging
+from io import TextIOBase
+
+from ..parser import code_structure
 from .namespaces import *
 from .fundamentals import *
 from .structs import *
 
+log = logging.getLogger(__name__)
 
-def _get_generator_class(element: Element) -> "Generator":
+
+def _get_generator_class(element: code_structure.Element) -> "Generator":
+    from pyllars.cppparser.generation.base import Generator
     clazz = type(element)
     generator_class = globals().get(clazz.__name__)
     if not generator_class:
-        if not isinstance(element, parser.BuiltinType):
+        if not isinstance(element, code_structure.BuiltinType):
             logging.error("Did not find generator for class %s" % clazz.__name__)
         return Generator
     return generator_class
