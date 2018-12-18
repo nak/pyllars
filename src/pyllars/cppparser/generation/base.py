@@ -3,12 +3,13 @@ import os
 import shlex
 import subprocess
 import sysconfig
-from abc import ABCMeta
+from abc import ABCMeta, ABC
 from contextlib import contextmanager
 from dataclasses import dataclass
 from io import TextIOBase
 from typing import List
 
+from pyllars.cppparser.generation.base2 import GeneratorBody
 from .. import parser
 import pkg_resources
 from ..parser import code_structure
@@ -135,9 +136,7 @@ class Folder(object):
 
     @property
     def path(self) -> str:
-        if self._parent:
-            return os.path.join(self._parent.path, self.base_name)
-        return "."
+        return self._path
 
 
 class Generator(metaclass=ABCMeta):
@@ -398,68 +397,31 @@ extern "C"{
         }).encode('utf-8'))
 
     @staticmethod
-    def generate_code(node_tree: code_structure.TranslationUnitDecl, src_path: str, output_dir: str, module_name: str):
+    def generate_code(node_tree: code_structure.TranslationUnitDecl, src_path: str, output_dir: str, include_paths: List[str], module_name: str):
+        from .base2 import GeneratorHeader
         folder = Folder(output_dir)
         Generator.generator_mapping = {}
+        from .base2 import Compiler
+        compiler = Compiler()
+
+        def generate_element(element, folder, parent):
+            with GeneratorHeader.generator(element=element, src_path=src_path, folder=folder, parent=parent) as header_generator:
+                try:
+                    header_generator.generate()
+                except:
+                    log.exception("Failed to generate for element %s and its children" % element.name)
+                else:
+                    with GeneratorBody.generator(element=element, src_path=src_path, folder=folder, parent=parent) as body_generator:
+                        body_generator.generate()
+                        try:
+                            compiler.compile(body_generator.body_file_path, include_paths=include_paths)
+                        except:
+                            pass
+                    for child in element.children():
+                        generate_element(element=child, folder=header_generator.folder, parent=header_generator)
+
         for element in node_tree.children():
-            generator_class = Generator.get_generator_class(element)
-            generator = generator_class(element, src_path, folder, parent=None)
-            generator.generate_body(src_path=src_path)
-
-    def generate_spec(self):
-        file_name = self.header_file_name()
-        self.folder.purge(file_name)
-        with self.folder.open(file_name) as stream:
-            self.generate_header_code(stream)
-
-    def generate_body(self,  src_path: str):
-        if self.element.is_anonymous_type or self.element.is_implicit:
-            return
-        file_name = self.body_file_name()
-        self.folder.purge(file_name)
-        self.generate_spec()
-        with self.folder.open(file_name) as stream:
-            stream.write((self.COMMON_BODY_INCLUDES % {"my_header_name": self.header_file_name()}).encode('utf-8'))
-            if self.element.is_implicit:
-                return
-            if not self.element.is_anonymous_type:
-            #    self.element._anonymous_types.add(self)
-            #else:
-                self.generate_body_proper(stream)
-
-        for child in self.element.children():
-
-            location = child.location
-            if not bool(location) or (os.path.abspath(location) != os.path.abspath(src_path)):
-                print("SKIPPING %s generation as %s not in source paths" % (child.name, location))
-                continue
-            child_generator_class = self.get_generator_class(child)
-            if child_generator_class.is_generatable():
-                # if as_top:
-                #    root_module = child.root_python_module or "unaccounted_globals"
-                #    subfolder = root_folder.create_subfolder(root_module)
-                # else:
-                #    subfolder = self.folder
-                child_generator = child_generator_class(child,
-                                                        self._src_path,
-                                                        self.folder.create_subfolder(child.safe_name),
-                                                        parent=self)
-                child_generator.generate_body(src_path=src_path)
-        # if as_top:
-        stream.write((self.INIT_IMPL_CODE % {
-            'basic_name': self.element.name,
-            'pyllars_scope': self.element.pyllars_scope
-        }).encode('utf-8'))
-
-
-    @staticmethod
-    def get_generator_class(element: code_structure.Element) -> "Generator":
-        from . import _get_generator_class
-        generator_class = _get_generator_class(element)
-        return generator_class
-
-    def generate_body_proper(self, stream: TextIOBase, as_top: bool = False):
-        pass
+            generate_element(element, folder, None)
 
 
 class ParmVarDecl(Generator):
@@ -633,7 +595,6 @@ class ClassTemplateDecl(Generator):
                 'template_decl': self.element.template_decl,
                 'parent_template_decl': self.element.parent.template_decl if self.element.parent else ""
             }).encode('utf-8'))
-
 
 class BuiltInType(Generator):
 

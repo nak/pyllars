@@ -12,5 +12,6 @@ if __name__ == "__main__":
     os.makedirs("generated", exist_ok=True)
     for src_path in sources:
         nodes = ClangFilter.parse(src_path=src_path, flags=compile_options)
-        Generator.generate_code(nodes, src_path=src_path, module_name="pyllarse_gen", output_dir="generated")
+        Generator.generate_code(nodes, src_path=src_path, module_name="pyllarse_gen", output_dir="generated",
+                                include_paths=["."])
     sys.exit(0)

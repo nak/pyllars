@@ -20,6 +20,28 @@ def _get_generator_class(element: code_structure.Element) -> "Generator":
     return generator_class
 
 
+def _get_generator_header_class(element: code_structure.Element) -> "GeneratorHeader":
+    from pyllars.cppparser.generation.base2 import GeneratorHeader
+    clazz = type(element)
+    generator_class = globals().get("GeneratorHeader" + clazz.__name__)
+    if not generator_class:
+        if not isinstance(element, code_structure.BuiltinType):
+            logging.error("Did not find header generator for class %s" % clazz.__name__)
+        return GeneratorHeader
+    return generator_class
+
+
+def _get_generator_body_class(element: code_structure.Element) -> "GeneratorBody":
+    from pyllars.cppparser.generation.base2 import GeneratorBody
+    clazz = type(element)
+    generator_class = globals().get("GeneratorBody" + clazz.__name__)
+    if not generator_class:
+        if not isinstance(element, code_structure.BuiltinType):
+            logging.error("Did not find body generator for class %s" % clazz.__name__)
+        return GeneratorBody
+    return generator_class
+
+
 class FileWriter(TextIOBase):
 
     INDENT = b"    "

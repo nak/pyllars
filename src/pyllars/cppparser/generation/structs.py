@@ -4,8 +4,9 @@ from io import TextIOBase
 import logging
 import os
 
+from pyllars.cppparser.generation.base2 import GeneratorHeader
 from pyllars.cppparser.parser import code_structure
-from .base import Folder, Generator, qualified_name
+from .base import Generator, qualified_name
 from . import parser
 from .fundamentals import VarDecl
 
@@ -18,6 +19,19 @@ def template_decl(element: Generator):
         return template_decl(element.parent) + (("\n" + element.template_decl) if element.template_decl.strip() else "")
     else:
         return element.template_decl
+
+
+class GeneratorHeaderCXXRecordDecl(GeneratorHeader):
+
+    def output_include_directives(self):
+        super().output_include_directives()
+        for subelement in self._element.base_classes:
+            child_generator = GeneratorHeader._get_generator_class(subelement)
+            self._stream.write(b"#include \"%s\"" % child_generator._header_file_path.encode('utf-8'))
+
+
+class GeneratorHeaderTypedefDecl(GeneratorHeader):
+    pass
 
 
 class CXXRecordDecl(Generator):
