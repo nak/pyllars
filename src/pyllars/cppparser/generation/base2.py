@@ -3,6 +3,7 @@ import os
 import shlex
 import subprocess
 import sysconfig
+import tempfile
 from contextlib import contextmanager
 from dataclasses import dataclass
 from io import TextIOBase
@@ -33,6 +34,8 @@ class Compiler(object):
     CFLAGS = sysconfig.get_config_var('CFLAGS') or ""
     LDFLAGS = sysconfig.get_config_var('LDFLAGS') or ""
     LDCXXSHARED = sysconfig.get_config_var('LDCXXSHARED') or ""
+    LDLIBRARY = sysconfig.get_config_var("LDLIBRARY")
+    LIBDIR = sysconfig.get_config_var("LIBDIR")
     PYINCLUDE = sysconfig.get_config_var('INCLUDEPY')
     CXX = sysconfig.get_config_var('CXX')
     PYLIB = sysconfig.get_config_var('BLDLIBRARY')
@@ -45,25 +48,27 @@ class Compiler(object):
                 debug_flag: str=""):
         if not output_path:
             output_path = os.path.dirname(path)
-
-        cmd = "%(cxx)s -ftemplate-backtrace-limit=0 -O -std=c++14 %(cxxflags)s -c -fPIC %(includes)s -I%(python_include)s " \
+        target =  os.path.join(output_path, os.path.basename(path) + ".o")
+        cmd = "%(cxx)s -ftemplate-backtrace-limit=0 -g -O -std=c++14 %(cxxflags)s -c -fPIC %(includes)s -I%(python_include)s " \
               "-I%(pyllars_include)s -o \"%(target)s\" \"%(compilable)s\"" % {
                   'cxx': Compiler.CXX,
                   'cxxflags': Compiler.CFLAGS,
                   'includes': " ".join(["-I%s" % p for p in include_paths]),
                   'pyllars_include': pyllars_resources_dir,
                   'python_include': Compiler.PYINCLUDE,
-                  'target': output_path + os.path.basename(path) + ".o",
+                  'target': target,
                   'compilable': path,
               }
         cmd = cmd.replace("-O2", optimization_level)
-        cmd = cmd.replace("-g ", debug_flag)
+        cmd = cmd.replace("-O3", optimization_level)
+        cmd = cmd.replace("-g", debug_flag)
         print(cmd)
-        p = subprocess.run(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf-8')
+        p = subprocess.run(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
         if p.returncode != 0:
             print(p.stdout)
             print(p.stderr)
-        return p.returncode
+        assert os.path.exists(target)
+        return target
 
     def compile_all(self, folder: str, src_paths: List[str], output_module_path: str):
         compileables = []
@@ -76,7 +81,7 @@ class Compiler(object):
             target = os.path.join("objects", compilable[10:]).replace(".cpp", ".o")
             if not os.path.exists(os.path.dirname(target)):
                 os.makedirs(os.path.dirname(target))
-            cmd = "%(cxx)s -ftemplate-backtrace-limit=0 -O -std=c++14 %(cxxflags)s -c -fPIC -I%(local_include)s -I%(python_include)s " \
+            cmd = "%(cxx)s -ftemplate-backtrace-limit=0 -g -O -std=c++14 %(cxxflags)s -c -fPIC -I%(local_include)s -I%(python_include)s " \
                   "-I%(pyllars_include)s -o \"%(target)s\" \"%(compilable)s\"" % {
                       'cxx': Compiler.CXX,
                       'cxxflags': Compiler.CFLAGS,
@@ -102,11 +107,63 @@ class Compiler(object):
                   'objs': " ".join(objects),
                   'pyllars_include': pyllars_resources_dir,
                   'python_include': Compiler.PYINCLUDE,
-                  'python_lib_name': Compiler.PYLIB,
+                  'python_lib_name': " %s/%s" % (self.LIBDIR, self.LDLIBRARY),
               }
         print(cmd)
         p = subprocess.run(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf-8')
         return p.returncode, cmd + "\n" + p.stdout + "\n\n" + p.stderr
+
+
+class Linker:
+
+    CODE = b"""
+#include <pyllars/pyllars.hpp>
+#include <string.h>
+extern "C"{
+#if PY_MAJOR_VERSION == 3
+
+    PyObject* PyInit_%(name)s(){
+        static const char* const name = "%(name)s";
+        return PyllarsInit(name);
+    }
+#else
+    PyMODINIT_FUNC
+    init%(name)s{){
+        static const char* const name = "%(name)s";
+        return PyllarsInit(name);
+    }
+    
+#endif
+}
+"""
+
+    @classmethod
+    def link(cls, objects, output_module_path, global_module_name: Optional[str] = None):
+        if global_module_name:
+            code = cls.CODE % {b'name': (global_module_name or "pyllars").encode('utf-8')}
+        else:
+            code = b""
+        with tempfile.NamedTemporaryFile(mode='wb', suffix='.cpp') as f:
+            f.write(code)
+            f.flush()
+            cmd = "%(cxx)s -shared -O -fPIC -std=c++14 %(cxxflags)s -I%(python_include)s -shared -o %(output_module_path)s -Wl,--no-undefined " \
+                  "%(objs)s %(python_lib_name)s -Wl,-R,'$ORIGIN' -lpthread -lffi %(codefile)s -I%(pyllars_include)s %(pyllars_include)s/pyllars/pyllars.cpp" % {
+                      'cxx': Compiler.LDCXXSHARED,
+                      'cxxflags': Compiler.CFLAGS,
+                      'output_module_path': output_module_path,
+                      'objs': " ".join(["\"%s\"" % o for o in objects]),
+                      'pyllars_include': pyllars_resources_dir,
+                      'python_include': Compiler.PYINCLUDE,
+                      'codefile': f.name,
+                      'python_lib_name': " %s/%s" % (Compiler.LIBDIR, Compiler.LDLIBRARY),
+                  }
+            cmd = cmd.replace("-O3", "-O0")
+            print(cmd)
+            p = subprocess.run(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
+            if p.returncode != 0:
+                print(p.stdout)
+                print(p.stderr)
+                raise Exception("Failed to link module")
 
 
 class Folder(object):
@@ -176,18 +233,20 @@ class BaseGenerator(ABC):
 
     @contextmanager
     def _scoped(self, stream, indent=INDENT):
-        stream.write(b"namespace pyllars{\n")
         try:
             if self._parent:
                 indent = indent + INDENT
-                with self._parent._scoped(stream, indent=indent) as scoped:
-                    scoped.write(b"%snamespace %s{\n" % (indent, self._element_name.encode('utf-8')))
-            indent = indent + INDENT
-            self._stream.write(b"%snamespace %s{\n" % (indent, self._element_name.encode('utf-8')))
+                with self._parent._scoped(stream, indent=indent):
+                    stream.write(b"%snamespace %s{\n" % (indent, self._element_name.encode('utf-8')))
+            else:
+                stream.write(b"namespace pyllars{\n")
+                indent = indent + INDENT
+                stream.write(b"%snamespace %s{\n" % (indent, self._element_name.encode('utf-8')))
             yield stream
         finally:
             stream.write(b"%s}\n" % indent)
-            stream.write(b"}\n")
+            if not self._parent:
+                stream.write(b"} // end pyllars\n")
 
 
 class GeneratorBody(BaseGenerator):
@@ -232,7 +291,6 @@ class GeneratorBody(BaseGenerator):
                 init%(basic_name)s(){
                     PyObject *%(basic_name)s_mod = Py_InitModule3(name, nullptr, doc);
                     if(!%(basic_name)s_mod) { return -1;}
-                    PyObject *pyllars_mod = PyImport_ImportModule("pyllars");
                     if (!pyllars_mod){
                         return -1;
                     }
@@ -264,7 +322,7 @@ class GeneratorBody(BaseGenerator):
         self._parent = parent
         self._src_path = src_path
         self._element = element
-        self._element_name = self._element.name or "anonymous-%s" % self._element.tag
+        self._element_name = self._element.name or "anonymous_%s" % self._element.tag
         self._folder = folder.create_subfolder(self._element_name) if not parent else \
             parent._folder.create_subfolder(self._element_name)
         self._header_file_name = (element.name or "global").replace(" ", "_") + ".hpp"
@@ -344,7 +402,7 @@ class GeneratorHeader(BaseGenerator):
         self._parent = parent
         self._src_path = src_path
         self._element = element
-        self._element_name = self._element.name or "anonymous-%s" % self._element.tag
+        self._element_name = self._element.name or "anonymous_%s" % self._element.tag
         self._folder = folder.create_subfolder(self._element_name) if not parent else \
             parent._folder.create_subfolder(self._element_name)
         self._header_file_name = (element.name or "global").replace(" ", "_") + ".hpp"
@@ -355,8 +413,8 @@ class GeneratorHeader(BaseGenerator):
         if self.is_generatable():
             self._stream = open(self._header_file_path, 'w+b')
             self._stream.write(("""
-    #ifndef __%(guard)s__
-    #define __%(guard)s__
+#ifndef __%(guard)s__
+#define __%(guard)s__
     
                       """ % {'guard': self._element.guard}).encode('utf-8'))
             self.output_include_directives()
@@ -407,11 +465,6 @@ class GeneratorHeader(BaseGenerator):
     def generate(self):
         with self._scoped(self._stream):
             self.generate_spec()
-        # for child in self._element.children():
-        #    child_generator_class = self._get_generator_class(child)
-        #    # store for future reference:
-        #    with child_generator_class(child, src_path=self._src_path, folder=self.folder, parent=self) as generator:
-        #        generator.generate()
 
     def generate_spec(self):
         if self._element.is_anonymous_type:  # anonymous directly inaccessible type
@@ -419,12 +472,13 @@ class GeneratorHeader(BaseGenerator):
             return
         self._output_function_spec(comment="static initializer method to register initialization routine for initialization "
                                    "on dynamic load of library",
-                                   spec="status_t %(basic_name)s_register( pyllars::Initializer* const);",
+                                   spec="status_t %s_register( pyllars::Initializer* const);" % self._element_name,
                                    indent=b"                ")
         self._output_function_spec(comment="called back on initialization to initialize Python wrapper for this C construct "
                                    "@param global_mod:  mod to which the wrapper Python object should belong",
-                                   spec="status_t %(basic_name)s_init(PyObject * const global_mod);",
+                                   spec="status_t %s_init(PyObject * const global_mod);" % self._element_name,
                                    indent=b"                ")
+        return
         self._stream.write(b"""
                 /**
                  * Implementation of intitializer interface to initializing this C construct in a Python context
@@ -434,7 +488,7 @@ class GeneratorHeader(BaseGenerator):
                 class Initializer_%(basic_name)s: public pyllars::Initializer{
                 public:
                     Initializer_%(basic_name)s():pyllars::Initializer(){
-                       %(pyllars_scope)s::%(parent_basic_name)s_register(this);
+                       %(pyllars_scope)s%(parent_basic_name)s_register(this);
                     }
 
                     virtual int init(PyObject* const global_mod){
@@ -446,10 +500,10 @@ class GeneratorHeader(BaseGenerator):
                  };
             """ % {
             'name': self._element.name,
-            'basic_name': self.sanitize(self._element.name or "anonymous-%s" % self._element.tag),
+            'basic_name': self.sanitize(self._element.name or "anonymous_%s" % self._element.tag),
             'parent_basic_name': self._element.parent.name if (
-                        self._element.parent and self._element.parent.name) else "pyllars",
+                        self._element.parent and self._element.parent.name) else "global",
             'pyllars_scope': self._element.pyllars_scope,
-            'parent_name': self._element.parent.name if self._element.parent else "pyllars",
+            'parent_name': self._element.parent.name if self._element.parent else "global",
         }).encode('utf-8')
         self._stream.write(decorated_text)

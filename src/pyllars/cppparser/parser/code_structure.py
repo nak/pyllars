@@ -10,6 +10,8 @@ class Element(ABC):
     lookup = {}
     KEYWORDS = ['const', 'volatile', 'mutable']
 
+    _last_location = None
+
     def __init__(self, tag: str, parent: "Element", name: Optional[str], qualifiers: List[str] = [],
                  loc1: Optional[str] = None,
                  loc2: Optional[str] = None):
@@ -21,8 +23,16 @@ class Element(ABC):
         self._name = name
         self._loc1 = loc1
         self._loc2 = loc2
+        fname = loc1.replace("<", "").replace(">", "").split(':')[0] if loc1 else ""
+        if os.path.isfile(fname):
+            self._loc1 = os.path.abspath(fname)
+            Element._last_location = os.path.abspath(fname)
+        elif fname.startswith('line') and self._last_location:
+            # clang is f*ing lazt and we have to use the output of last given explicit path in tree
+            # for location :-(
+            self._loc1 = Element._last_location
         self._namespace = None
-        self._parent = parent
+        self._parent = parent if not isinstance(parent, TypedefDecl) else parent.parent
         self._top_scope = None
         self._current_child_access = self.default_access()
         self._qualifiers = qualifiers
@@ -112,7 +122,7 @@ class Element(ABC):
         """
         :return: c pre-compiler #ifdef macro name for this element
         """
-        if self.parent:
+        if self.parent and not isinstance(self.parent, TranslationUnitDecl):
             prefix = "__PYLLARS__" + self.parent.guard + "__"
         else:
             prefix = "__PYLLARS__"
@@ -365,6 +375,22 @@ class BuiltinType(Element):
     def full_name(self):
         return self.name
 
+    @property
+    def python_type_name(self):
+        if 'unsgiend char' in self.name or 'int' in self.name or 'long' in self.name or 'short' in self.name:
+            return "PyLong_Type"
+        elif 'bool' in self.name:
+            return "PyBool_Type"
+        elif 'float' in self.name or 'double' in self.name:
+            return "PyFloat_Type"
+        elif 'char' in self.name:
+            return "PyByte_Type"
+        elif 'void' in self.name:
+            return "PyNone_Type"
+        else:
+            raise Exception("Unknown python type for %s" % self.name)
+
+
 class TypedefDecl(ScopedElement):
 
     def __init__(self, *args: str, tag: str, parent: Optional[Element]):
@@ -458,10 +484,15 @@ class EnumDecl(ScopedElement):
 
     def __init__(self, *args: str, tag: str, parent: Optional[Element]):
         loc1, loc2, *args = args
+        self._target_type = None
+        self._target_type_spec = None
         if args and args[0] == 'referenced':
-            name = args[1]
-        else:
-            name = args[0] if args else None
+            args = args[1:]
+        if args and args[0] == 'class':
+            if len(args) == 3:
+                self._target_type_spec = args[2]
+            args = args[1:]
+        name = args[0] if args else None
         self._definition = args[2] if len(args) > 2 else 'definition'
         super().__init__(tag=tag, parent=parent, name=name, loc1=loc1, loc2=loc2)
         self._base_classes = []
@@ -473,6 +504,12 @@ class EnumDecl(ScopedElement):
     @property
     def is_definition(self):
         return self._definition == 'definition'
+
+    @property
+    def target_type(self):
+        if self._target_type_spec and not self._target_type:
+            self._target_type = _parse_type_spec(self._target_type_spec, self)
+        return self._target_type
 
 
 class EnumConstantDecl(Element):

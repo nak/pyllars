@@ -36,8 +36,8 @@ class Node:
             transformed = TranformedClass(*self.args, parent=parent, tag=self.node_id)
             for child in self.children:
                 transformed.append_child(child.transform(src_path, parent=transformed))
-            if transformed.location.startswith("line") or transformed.location.startswith("col"):
-                transformed.set_location(src_path)
+            #if transformed.location.startswith("line") or transformed.location.startswith("col"):
+            #    transformed.set_location(src_path)
         except:
             log.error("Failed to transform element")
             import traceback
@@ -88,6 +88,7 @@ class ClangFilter:
     def process(self, lines: Iterator[str]):
         nodes = {}
         for line in lines:
+            print(line)
             if self._root_node is None:
                 assert not line.startswith('|') and not line.startswith('`')
                 node_name, node_id, *args = [p for p in re.split(r'( |\".*?\"|\'.*?\'|\<\<.*?\>\>|\<.*?\>)', line) if
