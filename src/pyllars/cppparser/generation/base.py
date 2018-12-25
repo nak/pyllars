@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from io import TextIOBase
 from typing import List
 
-from pyllars.cppparser.generation.base2 import GeneratorBody
+from pyllars.cppparser.generation.base2 import GeneratorBody, Linker
 from .. import parser
 import pkg_resources
 from ..parser import code_structure
@@ -57,7 +57,7 @@ class Compiler(object):
             target = os.path.join("objects", compilable[10:]).replace(".cpp", ".o")
             if not os.path.exists(os.path.dirname(target)):
                 os.makedirs(os.path.dirname(target))
-            cmd = "%(cxx)s -ftemplate-backtrace-limit=0 -O -std=c++14 %(cxxflags)s -c -fPIC -I%(local_include)s -I%(python_include)s " \
+            cmd = "%(cxx)s -ftemplate-backtrace-limit=0 -g -O -std=c++14 %(cxxflags)s -c -fPIC -I%(local_include)s -I%(python_include)s " \
                   "-I%(pyllars_include)s -o \"%(target)s\" \"%(compilable)s\"" % {
                       'cxx': Compiler.CXX,
                       'cxxflags': Compiler.CFLAGS,
@@ -76,7 +76,7 @@ class Compiler(object):
             if p.returncode != 0:
                 return p.returncode, "Command \"%s\" failed:\n%s" % (cmd, output)
             objects.append("\"%s\"" % target)
-        cmd = "%(cxx)s -O -fPIC -std=c++14 %(cxxflags)s -I%(python_include)s -shared -o objects/%(output_module_path)s -Wl,--no-undefined " \
+        cmd = "%(cxx)s -O -fPIC -std=c++14 %(cxxflags)s -g -I%(python_include)s -shared -o objects/%(output_module_path)s -Wl,--no-undefined " \
               "%(src)s %(objs)s %(python_lib_name)s -Wl,-R,'$ORIGIN' -lpthread -lffi %(pyllars_include)s/pyllars/pyllars.cpp" % {
                   'cxx': Compiler.LDCXXSHARED,
                   'src': " ".join(bodies),
@@ -340,15 +340,6 @@ extern "C"{
             #endif
         """)
 
-    # @property
-    # def template_decl(self):
-    #     template_decl = "\n%s" % parser.Element.template_declaration(self.element.template_arguments)
-    #     return template_decl
-
-    # @property
-    # def template_arguments(self):
-    #     return "" if not self.element.template_arguments else "<%s>" % (", ".join([e.name for e in self.element.template_arguments]))
-
     def generate_header_code(self, stream: TextIOBase) -> None:
         if self.element.is_implicit:
             return
@@ -374,20 +365,7 @@ extern "C"{
                 status_t %(basic_name)s_register( pyllars::Initializer* const);
                 
                 status_t %(basic_name)s_init(PyObject * const global_mod);
-                
-                class Initializer_%(basic_name)s: public pyllars::Initializer{
-                public:
-                    Initializer_%(basic_name)s():pyllars::Initializer(){
-                       %(pyllars_scope)s::%(parent_basic_name)s_register(this);
-                    }
-
-                    virtual int init(PyObject* const global_mod){
-                       int status = pyllars::Initializer::init(global_mod);
-                       return status | %(basic_name)s_init(global_mod);
-                    }
-
-                    static Initializer_%(basic_name)s* initializer;
-                 };
+              
             """ % {
                 'name': self.element.name,
                 'basic_name': self.sanitize(self.element.name or "anonymous-%s" % self.element.tag),
@@ -403,25 +381,31 @@ extern "C"{
         Generator.generator_mapping = {}
         from .base2 import Compiler
         compiler = Compiler()
+        objects = []
 
         def generate_element(element, folder, parent):
+            if os.path.abspath(element.location) != os.path.abspath(src_path):
+                return
             with GeneratorHeader.generator(element=element, src_path=src_path, folder=folder, parent=parent) as header_generator:
                 try:
                     header_generator.generate()
                 except:
                     log.exception("Failed to generate for element %s and its children" % element.name)
-                else:
-                    with GeneratorBody.generator(element=element, src_path=src_path, folder=folder, parent=parent) as body_generator:
-                        body_generator.generate()
-                        try:
-                            compiler.compile(body_generator.body_file_path, include_paths=include_paths)
-                        except:
-                            pass
-                    for child in element.children():
-                        generate_element(element=child, folder=header_generator.folder, parent=header_generator)
+                    return
+            with GeneratorBody.generator(element=element, src_path=src_path, folder=folder, parent=parent) as body_generator:
+                body_generator.generate()
+            try:
+                obj = compiler.compile(body_generator.body_file_path, include_paths=include_paths,
+                                       debug_flag="-g", optimization_level="-O0")
+                objects.append(obj)
+            except:
+                pass
+            for child in element.children():
+                generate_element(element=child, folder=header_generator.folder, parent=header_generator)
 
         for element in node_tree.children():
             generate_element(element, folder, None)
+        Linker.link(objects, output_module_path="./test.so", global_module_name="test")
 
 
 class ParmVarDecl(Generator):
@@ -477,7 +461,7 @@ class ClassTemplateDecl(Generator):
         #include "%(target_file_name)s"
         #include "%(parent_header_name)s"
         """ % {
-                            'parent_header_name': self.header_file_path(self.element.parent),
+                            'parent_header_name': self.header_file_path(),
                             'target_file_name': self._src_path}).encode("utf-8"))
 
                     scoped.write(("""

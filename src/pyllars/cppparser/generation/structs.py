@@ -30,10 +30,6 @@ class GeneratorHeaderCXXRecordDecl(GeneratorHeader):
             self._stream.write(b"#include \"%s\"" % child_generator._header_file_path.encode('utf-8'))
 
 
-class GeneratorHeaderTypedefDecl(GeneratorHeader):
-    pass
-
-
 class CXXRecordDecl(Generator):
 
     @classmethod

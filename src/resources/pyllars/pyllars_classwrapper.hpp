@@ -73,14 +73,18 @@ namespace __pyllars_internal {
         static PyTypeObject Type;
         static TypePtr_t constexpr TypePtr = &Type;
 
-         /**
-          * Python initialization of underlying type, called to init and register type with
-          * underlying Python system
-          *
-          * @param name: Python simple-name of the type
-          * @param module_entry_name: entry as found within module
-          * @param module: The python module holding this type
-          * @param fullname: full name of this type, including scoping module
+        static PyTypeObject* getType(){
+            return &Type;
+        }
+
+        /**
+         * Python initialization of underlying type, called to init and register type with
+         * underlying Python system
+         *
+         * @param name: Python simple-name of the type
+         * @param module_entry_name: entry as found within module
+         * @param module: The python module holding this type
+         * @param fullname: full name of this type, including scoping module
          **/
         static int initialize(const char *const name, const char *const module_entry_name,
                               PyObject *module, const char *const fullname = nullptr) ;

@@ -384,7 +384,7 @@ namespace __pyllars_internal {
         self->_referenced = nullptr;
         PyObject *pydepth = PyDict_GetItemString(kwds, "__internal_depth");
         if (!PyLong_Check(pydepth)) {
-            PyErr_SetString(PyExc_TypeError, "Invalid argument type for depth on pointer-wrapper creation");
+            PyErr_SetString(PyExc_TypeError, "Cannot create an instance of this type directly.  Use \"new\" method in basic type to allocate poitner types");
             return -1;
         }
         self->_depth = PyLong_AsLong(pydepth);

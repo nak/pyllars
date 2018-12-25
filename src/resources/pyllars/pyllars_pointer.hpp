@@ -113,7 +113,7 @@ namespace __pyllars_internal {
 
         static bool checkTypeDereferenced(PyObject *const obj);
 
-        static PyTypeObject *getType(const size_t depth,
+        static PyTypeObject *getType(const size_t depth=1,
                                      const char *const fullname = nullptr);
 
         void set_raw_storage(T_base *const storage, const size_t size);
