@@ -8,7 +8,7 @@
 #include <cstddef>
 #include <Python.h>
 
-#include "pyllars_classwrapper.cpp"
+#include "pyllars_classwrapper.hpp"
 typedef int status_t;
 
 namespace pyllars{

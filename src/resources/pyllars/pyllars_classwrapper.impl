@@ -6,14 +6,13 @@
 #include <utility>
 
 #include "pyllars_classwrapper.hpp"
-
 #include "pyllars_utils.hpp"
-#include "pyllars_classmethodsemantics.cpp"
-#include "pyllars_classmembersemantics.cpp"
-//#include "pyllars_constmethodcallsemantics.cpp"
-#include "pyllars_methodcallsemantics.cpp"
-#include "pyllars_object_lifecycle.cpp"
-#include "pyllars_conversions.cpp"
+
+#include "pyllars_classmethodsemantics.impl"
+#include "pyllars_classmembersemantics.impl"
+#include "pyllars_methodcallsemantics.impl"
+#include "pyllars_object_lifecycle.impl"
+#include "pyllars_conversions.impl"
 
 constexpr int UNKNOWN_SIZE = __pyllars_internal::UNKNOWN_SIZE;
 namespace __pyllars_internal{

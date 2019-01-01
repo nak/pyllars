@@ -62,6 +62,10 @@ class Element(ABC):
         return 'static' in self._qualifiers
 
     @property
+    def is_scoping(self):
+        return False
+
+    @property
     def location(self):
         return self._loc1.replace("<", "").replace(">", "").split(":")[0] if self._loc1 else ""
 
@@ -304,6 +308,9 @@ class NamespaceDecl(ScopedElement):
             return self._full_name
         return "::" + super().full_name
 
+    @property
+    def is_scoping(self):
+        return True
 
 
 ###########
@@ -439,6 +446,10 @@ class RecordTypeDefn(Element):
 
     @property
     def is_definition(self):
+        return True
+
+    @property
+    def is_scoping(self):
         return True
 
 
@@ -855,3 +866,7 @@ class ClassTemplateDecl(ScopedElement):
 
     def __init__(self, *args: str, tag: str, parent: Optional[Element]):
         raise Exception("Not implemented")
+
+    @property
+    def is_scoping(self):
+        return True

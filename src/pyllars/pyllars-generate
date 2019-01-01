@@ -7,11 +7,12 @@ from pyllars.cppparser.parser.clang_filter import ClangFilter
 
 if __name__ == "__main__":
     index = sys.argv.index("--") if "--" in sys.argv else -1
-    sources = sys.argv[1:index]
+    module_name = sys.argv[1]
+    sources = sys.argv[2:index]
     compile_options = sys.argv[index + 1:]
     os.makedirs("generated", exist_ok=True)
     for src_path in sources:
         nodes = ClangFilter.parse(src_path=src_path, flags=compile_options)
-        Generator.generate_code(nodes, src_path=src_path, module_name="pyllarse_gen", output_dir="generated",
+        Generator.generate_code(nodes, src_path=src_path, module_name=module_name, output_dir="generated",
                                 include_paths=["."])
     sys.exit(0)

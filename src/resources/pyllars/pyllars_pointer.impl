@@ -6,7 +6,8 @@
 #define __PYLLARS_INTERNAL__POINTER_CPP_
 
 #include "pyllars_pointer.hpp"
-#include "pyllars_classwrapper.cpp"
+
+#include "pyllars_classwrapper.impl"
 
 namespace __pyllars_internal {
 

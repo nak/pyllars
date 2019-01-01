@@ -138,11 +138,8 @@ extern "C"{
 """
 
     @classmethod
-    def link(cls, objects, output_module_path, global_module_name: Optional[str] = None):
-        if global_module_name:
-            code = cls.CODE % {b'name': (global_module_name or "pyllars").encode('utf-8')}
-        else:
-            code = b""
+    def link(cls, objects, output_module_path, module_name: str, global_module_name: Optional[str] = None):
+        code = cls.CODE % {b'name': (module_name or "pyllars").encode('utf-8')}
         with tempfile.NamedTemporaryFile(mode='wb', suffix='.cpp') as f:
             f.write(code)
             f.flush()
@@ -150,7 +147,7 @@ extern "C"{
                   "%(objs)s %(python_lib_name)s -Wl,-R,'$ORIGIN' -lpthread -lffi %(codefile)s -I%(pyllars_include)s %(pyllars_include)s/pyllars/pyllars.cpp" % {
                       'cxx': Compiler.LDCXXSHARED,
                       'cxxflags': Compiler.CFLAGS,
-                      'output_module_path': output_module_path,
+                      'output_module_path': os.path.join(output_module_path, "%s.so" % module_name),
                       'objs': " ".join(["\"%s\"" % o for o in objects]),
                       'pyllars_include': pyllars_resources_dir,
                       'python_include': Compiler.PYINCLUDE,
@@ -237,16 +234,20 @@ class BaseGenerator(ABC):
             if self._parent:
                 indent = indent + INDENT
                 with self._parent._scoped(stream, indent=indent):
-                    stream.write(b"%snamespace %s{\n" % (indent, self._element_name.encode('utf-8')))
+                    if self._element.is_scoping:
+                        stream.write(b"%snamespace %s{\n" % (indent, self._element_name.encode('utf-8')))
+                    yield stream
             else:
                 stream.write(b"namespace pyllars{\n")
                 indent = indent + INDENT
-                stream.write(b"%snamespace %s{\n" % (indent, self._element_name.encode('utf-8')))
-            yield stream
+                if self._element.is_scoping:
+                    stream.write(b"%snamespace %s{\n" % (indent, self._element_name.encode('utf-8')))
+                yield stream
         finally:
-            stream.write(b"%s}\n" % indent)
+            if self._element.is_scoping:
+                stream.write(b"%s}\n" % indent)
             if not self._parent:
-                stream.write(b"} // end pyllars\n")
+                stream.write(b"%s} // end pyllars\n" % indent)
 
 
 class GeneratorBody(BaseGenerator):
@@ -255,7 +256,7 @@ class GeneratorBody(BaseGenerator):
         b"""
         #include "%(my_header_file_name)s"
         #include <pyllars/pyllars.hpp>
-        #include <pyllars/pyllars_globalmembersemantics.cpp>
+        #include <pyllars/pyllars_globalmembersemantics.impl>
         #include <cstddef>
         """
 
@@ -364,13 +365,14 @@ class GeneratorHeader(BaseGenerator):
         b"""
         #include <Python.h>
         #include <pyllars/pyllars.hpp>
-        #include <pyllars/pyllars_classwrapper.cpp>
         #include <pyllars/pyllars_function_wrapper.hpp>
         
         #include <vector>
         #include <cstddef>
         #include <%(src_path)s>
         %(parent_header_name)s
+
+        #include <pyllars/pyllars_classwrapper.impl>
         """
 
     @staticmethod
@@ -457,7 +459,7 @@ class GeneratorHeader(BaseGenerator):
             self._stream.write(b"%s* %s\n" % (indent, line.encode('utf-8')))
             remainder = leftover.strip() + ' ' + remainder[80:].strip()
         self._stream.write(b"%s*/\n" % indent)
-        self._stream.write(self.decorate(spec).encode('utf-8'))
+        self._stream.write(indent + self.decorate(spec).encode('utf-8'))
         if not spec.endswith(';'):
             self._stream.write(b';')
         self._stream.write(b'\n\n')

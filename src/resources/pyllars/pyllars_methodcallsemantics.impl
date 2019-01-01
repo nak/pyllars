@@ -6,7 +6,8 @@
 #define __PYLLARS_INTERNAL__METHODCALLSEMANTICS_CPP_
 
 #include "pyllars_methodcallsemantics.hpp"
-#include "pyllars_classwrapper.cpp"
+
+#include "pyllars_classwrapper.impl"
 
 namespace __pyllars_internal {
 

@@ -6,8 +6,9 @@
 
 #include "pyllars_utils.hpp"
 #include "pyllars_conversions.hpp"
-#include "pyllars_callbacks.cpp"
-#include "pyllars_pointer.cpp"
+
+#include "pyllars_callbacks.impl"
+#include "pyllars_pointer.impl"
 
 namespace __pyllars_internal {
 
@@ -296,9 +297,14 @@ namespace __pyllars_internal {
     PyObject *ConversionHelpers::PyObjectConversionHelper<T, ClassWrapper, typename std::enable_if<
             std::is_integral<T>::value || std::is_enum<T>::value>::type>::
     toPyObject(const T &var, const bool asReference, const ssize_t array_size, const size_t depth ) {
+        static PyObject *args = PyTuple_New(1);
         (void) asReference;
-        return PyInt_FromLong((long) var);
+	PyTypeObject* type = &PythonClassWrapper<int>::Type;
+	PyTuple_SetItem(args, 0, PyLong_FromLong(var));
+	return PyObject_Call( (PyObject*)type, args, nullptr);
+//        return PyInt_FromLong((long) var);
     }
+
 
     template<typename T, typename ClassWrapper>
     PyObject *

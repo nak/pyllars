@@ -229,6 +229,14 @@ namespace __pyllars_internal {
         template<typename T, typename PtrWrapper, typename E = void>
         class PyObjectConversionHelper;
 
+        template<typename PtrWrapper>
+        class PyObjectConversionHelper<bool, PtrWrapper, void>{
+           static PyObject *toPyObject(const bool &var, const bool asReference, const ssize_t array_size = -1,
+                                       const size_t depth = ptr_depth<bool>::value){
+                                       return var?Py_True:Py_False;
+           }
+        };
+
         /**
          * specialize for non-copiable types
          **/

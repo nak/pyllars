@@ -7,7 +7,7 @@ from abc import ABCMeta, ABC
 from contextlib import contextmanager
 from dataclasses import dataclass
 from io import TextIOBase
-from typing import List
+from typing import List, Optional
 
 from pyllars.cppparser.generation.base2 import GeneratorBody, Linker
 from .. import parser
@@ -375,7 +375,8 @@ extern "C"{
         }).encode('utf-8'))
 
     @staticmethod
-    def generate_code(node_tree: code_structure.TranslationUnitDecl, src_path: str, output_dir: str, include_paths: List[str], module_name: str):
+    def generate_code(node_tree: code_structure.TranslationUnitDecl, src_path: str, output_dir: str,
+                      include_paths: List[str], module_name: str, globals_module_name: Optional[str] = None):
         from .base2 import GeneratorHeader
         folder = Folder(output_dir)
         Generator.generator_mapping = {}
@@ -405,7 +406,7 @@ extern "C"{
 
         for element in node_tree.children():
             generate_element(element, folder, None)
-        Linker.link(objects, output_module_path="./test.so", global_module_name="test")
+        Linker.link(objects, output_module_path=".", module_name="%s" % module_name, global_module_name=globals_module_name or "%s_globals" % module_name)
 
 
 class ParmVarDecl(Generator):
