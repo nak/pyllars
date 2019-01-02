@@ -12,7 +12,8 @@ namespace outside{
     class ExternalDependency{
     public:
         ExternalDependency( ){}
-
+        class Inner{
+        };
     };
 }
 

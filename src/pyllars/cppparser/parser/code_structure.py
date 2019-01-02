@@ -180,7 +180,7 @@ class Element(ABC):
     def scope(self):
         parent = self.parent
         basic_names = []
-        while parent and not parent.is_namespace:
+        while parent and not parent.is_scoping:
             parent = parent.parent
         while parent and parent.name:
             basic_names = [parent.name] + basic_names
@@ -197,7 +197,7 @@ class Element(ABC):
 
     @property
     def python_cpp_module_name(self):
-        return "%s::%s::%s_mod" % (self.pyllars_scope, self.name, self.name)
+        return "%s%s::%s_mod" % (self.pyllars_scope, self.name, self.name)
 
     def append_child(self, element: "Element"):
         assert(element is not None)
@@ -303,14 +303,14 @@ class NamespaceDecl(ScopedElement):
         return True
 
     @property
+    def is_scoping(self):
+        return True
+
+    @property
     def full_name(self):
         if self._full_name:
             return self._full_name
         return "::" + super().full_name
-
-    @property
-    def is_scoping(self):
-        return True
 
 
 ###########

@@ -75,6 +75,15 @@ class GeneratorBodyTypedefDecl(GeneratorBody):
             })
 
 
+class GeneratorHeaderNamespaceDecl(GeneratorHeader):
+
+    def generate_spec(self):
+        super().generate_spec()
+        self._stream.write(b"""
+            extern PyObject * %(name)s_mod;
+        """ % {b'name': self._element.name.encode('utf-8')})
+
+
 class GeneratorBodyNamespaceDecl(GeneratorBody):
 
     def generate(self):
@@ -85,7 +94,7 @@ class GeneratorBodyNamespaceDecl(GeneratorBody):
                        b'pyllars_scope': self._element.pyllars_scope.encode('utf-8')})
             self._stream.write(b"""
                 PyObject * %(name)s_mod = nullptr;
-
+             
                 status_t %(name)s_init(PyObject* global_mod){
                     if (%(name)s_mod) return 0;// if already initialized
                     int status = 0;
@@ -139,12 +148,11 @@ class GeneratorBodyNamespaceDecl(GeneratorBody):
                        int status = %(basic_name)s_init(global_mod);
                        return status == 0? pyllars::Initializer::init(global_mod) : status;
                     }
-                private:
                     static Initializer_%(basic_name)s *initializer;
 
                  };
 
-                Initializer_%(basic_name)s *Initializer_%(basic_name)s::initializer = new Initializer_%(basic_name)s();
+                Initializer_%(basic_name)s *Initializer_%(basic_name)s::initializer = nullptr;
 
                 """ % {
                 b'basic_name': self._element.name.encode('utf-8'),
@@ -157,6 +165,7 @@ class GeneratorBodyNamespaceDecl(GeneratorBody):
                 int %(name)s_register( pyllars::Initializer* const init ){
                     static Initializer_%(name)s _initializer = Initializer_%(name)s();
                     static int status = pyllars%(parent_name)s::%(parent)s_register(&_initializer);
+                    Initializer_%(name)s::initializer = &_initializer;
                     return status==0?_initializer.register_init(init):status;
                  }
 

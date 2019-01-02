@@ -175,17 +175,14 @@ public:
 };
 
 
-  template<>
-  class PythonClassWrapper<short>: public PyNumberCustomObject<short>{
-  public:
-    
-
-  };
 
   template<>
   class PythonClassWrapper<char>: public PyNumberCustomObject<char>{
   };
 
+  template<>
+  class PythonClassWrapper<short>: public PyNumberCustomObject<short>{
+  };
 
   template<>
   class PythonClassWrapper<int>: public PyNumberCustomObject<int>{
