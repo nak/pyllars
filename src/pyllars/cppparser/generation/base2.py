@@ -480,32 +480,4 @@ class GeneratorHeader(BaseGenerator):
                                    "@param global_mod:  mod to which the wrapper Python object should belong",
                                    spec="status_t %s_init(PyObject * const global_mod);" % self._element_name,
                                    indent=b"                ")
-        return
-        self._stream.write(b"""
-                /**
-                 * Implementation of intitializer interface to initializing this C construct in a Python context
-                 **/
-                 """)
-        decorated_text = self.decorate("""
-                class Initializer_%(basic_name)s: public pyllars::Initializer{
-                public:
-                    Initializer_%(basic_name)s():pyllars::Initializer(){
-                       %(pyllars_scope)s%(parent_basic_name)s_register(this);
-                    }
 
-                    virtual int init(PyObject* const global_mod){
-                       int status = pyllars::Initializer::init(global_mod);
-                       return status | %(basic_name)s_init(global_mod);
-                    }
-
-                    static Initializer_%(basic_name)s* initializer;
-                 };
-            """ % {
-            'name': self._element.name,
-            'basic_name': self.sanitize(self._element.name or "anonymous_%s" % self._element.tag),
-            'parent_basic_name': self._element.parent.name if (
-                        self._element.parent and self._element.parent.name) else "global",
-            'pyllars_scope': self._element.pyllars_scope,
-            'parent_name': self._element.parent.name if self._element.parent else "global",
-        }).encode('utf-8')
-        self._stream.write(decorated_text)

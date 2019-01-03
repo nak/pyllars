@@ -5,6 +5,7 @@ from ..parser import code_structure
 from .namespaces import *
 from .fundamentals import *
 from .structs import *
+from .methods import *
 
 log = logging.getLogger(__name__)
 

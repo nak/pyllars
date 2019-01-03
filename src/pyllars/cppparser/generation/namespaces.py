@@ -152,7 +152,7 @@ class GeneratorBodyNamespaceDecl(GeneratorBody):
 
                  };
 
-                Initializer_%(basic_name)s *Initializer_%(basic_name)s::initializer = nullptr;
+                Initializer_%(basic_name)s *Initializer_%(basic_name)s::initializer = new Initializer_%(basic_name)s();
 
                 """ % {
                 b'basic_name': self._element.name.encode('utf-8'),

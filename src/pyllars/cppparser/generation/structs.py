@@ -7,6 +7,9 @@ from .base import qualified_name
 
 class GeneratorBodyCXXRecordDecl(GeneratorBody):
 
+    def has_default_constructor(self):
+        return not [child for child in self._element.children() + self._element._inaccessible_children if isinstance(child, code_structure.CXXConstructorDecl)]
+
     def generate(self):
         if not self._element.is_definition or self._element.is_implicit:
             return
@@ -20,25 +23,25 @@ class GeneratorBodyCXXRecordDecl(GeneratorBody):
         else:
             typename = ""
         with self._scoped(self._stream) as stream:
-            self._stream.write(b"""
-                            class Initializer_%(basic_name)s: public pyllars::Initializer{
-                            public:
-                                Initializer_%(basic_name)s():pyllars::Initializer(){
-                                    %(parent_name)s_register(this);                          
-                                }
+            self._stream.write(self.decorate("""
+                    class Initializer_%(basic_name)s: public pyllars::Initializer{
+                    public:
+                        Initializer_%(basic_name)s():pyllars::Initializer(){
+                            %(parent_name)s_register(this);                          
+                        }
 
-                                virtual int init(PyObject * const global_mod){
-                                   int status = %(basic_name)s_init(global_mod);
-                                   return status == 0? pyllars::Initializer::init(global_mod) : status;
-                                }
-                                static Initializer_%(basic_name)s *initializer;
-                             };
+                        virtual int init(PyObject * const global_mod){
+                           int status = %(basic_name)s_init(global_mod);
+                           return status == 0? pyllars::Initializer::init(global_mod) : status;
+                        }
+                        static Initializer_%(basic_name)s *initializer;
+                     };
 
                             """ % {
-                b'basic_name': self._element.name.encode('utf-8'),
-                b'parent_name': (self._element.parent.name or "pyllars").encode('utf-8'),
-            })
-            stream.write(("""
+                    'basic_name': self._element.name,
+                    'parent_name': self._element.parent.name or "pyllars"
+                }).encode('utf-8'))
+            stream.write(self.decorate("""
                 status_t %(name)s_init(PyObject * const global_mod){
                     using namespace __pyllars_internal;
                     typedef %(typename)s ::%(scope)s::%(name)s  main_type;
@@ -68,6 +71,14 @@ class GeneratorBodyCXXRecordDecl(GeneratorBody):
                     'scope': self._element.scope,
                     'typename': typename
                 }).encode('utf-8'))
+            if self.has_default_constructor():
+                stream.write(("""
+                    static const char* const argumentNames[] = {nullptr};
+                    __pyllars_internal::PythonClassWrapper<::%(scope)s::%(name)s>::template addConstructor<>(argumentNames);
+                """ %{
+                    'scope': self._element.scope,
+                    'name': self._element.name or "_anonymous%s" % self._element.tag
+                }).encode('utf-8'))
 
             if self._element.name:
                 if self._element.parent and self._element.parent.is_namespace:
@@ -96,29 +107,46 @@ class GeneratorBodyCXXRecordDecl(GeneratorBody):
 
                 elif self._element.parent:
                     stream.write(("""
+                    status |=  __pyllars_internal::PythonClassWrapper< main_type >::initialize(
+                                 "%(name)s",
+                                 "%(name)s",
+                                 nullptr,
+                                 "%(full_name)s");  //classes
+                                 
                     __pyllars_internal::PythonClassWrapper< %(typename)s ::%(parent_class_scope)s::%(parent_class_name)s >::addClassMember
                         ("%(class_name)s",
-                         (PyObject*) & __pyllars_internal::PythonClassWrapper< %(typename)s %(scope)s::%(class_name)s >::Type);
+                         (PyObject*) & __pyllars_internal::PythonClassWrapper< %(typename)s ::%(scope)s::%(class_name)s >::Type);
     """ % {
                         'parent_class_name': self._element.parent.name,
                         'parent_class_scope': self._element.parent.scope,
                         'class_name': self._element.name,
+                        'full_name': self._element.full_name,
+                        'name': self._element.name,
                         'scope': self._element.scope,
                         'typename': 'typename' if not self._element.is_union else ""
                     }).encode('utf-8'))
-            stream.write(("""
+            stream.write(b"""
                     _status = status;
                     return status;
                 }
+            """)
+            stream.write(self.decorate("""
     
-    
-                static Initializer_%(basic_name)s* _init(){
-                    static %(name)s::Initializer_%(basic_name)s *_initializer = 
-                      new %(name)s::Initializer_%(basic_name)s();
-                    %(name)s::Initializer_%(basic_name)s::initializer = _initializer;
+                static Initializer_%(name)s* _init(){
+                    static %(name)s::Initializer_%(name)s *_initializer = 
+                      new %(name)s::Initializer_%(name)s();
+                    %(name)s::Initializer_%(name)s::initializer = _initializer;
                     return _initializer;
                 }
-    
+                """ % {
+                'name': self._element.name if self._element.name else "pyllars",
+                'parent_name': qualified_name
+                (self._element.parent.name if (
+                            self._element.parent and self._element.parent.name and self._element.parent.name != "::")
+                 else "pyllars"),
+            }).encode('utf-8'))
+
+            stream.write(self.decorate("""
                 status_t %(qname)s_register( pyllars::Initializer* const init ){ 
                     static Initializer_%(basic_name)s *_initializer = _init();
                     Initializer_%(basic_name)s::initializer = _initializer;
@@ -126,7 +154,7 @@ class GeneratorBodyCXXRecordDecl(GeneratorBody):
                  }
     
     
-    """ % {
+                """ % {
                 'name': self._element.name if self._element.name else "pyllars",
                 'basic_name': self._element.name,
                 'qname': self._element.name if self._element.name else "pyllars",
@@ -136,9 +164,9 @@ class GeneratorBodyCXXRecordDecl(GeneratorBody):
                  else "pyllars"),
             }).encode('utf-8'))
 
-            stream.write(("""
+            stream.write(self.decorate("""
                 %(typename)s %(name)s::Initializer_%(name)s 
-                *%(name)s::Initializer_%(name)s::initializer = _init();
+                *%(name)s::Initializer_%(name)s::initializer = new %(name)s::Initializer_%(name)s();
             """ % {
                 'name': self._element.name,
                 'typename': 'typename' if not self._element.is_union else "",
