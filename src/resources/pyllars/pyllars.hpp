@@ -152,13 +152,13 @@ public:
     PyNumberCustomObject():_referenced(nullptr),_depth(0){
     }
 
-    inline number_type * get_CObject(){
+    template<typename t=number_type>
+    inline t* get_CObject(){
         return &value;
     }
 
 
      static PyMethodDef _methods[];
-
 
     std::function<__int128_t()> asLongLong;
 

@@ -11,7 +11,7 @@ class GeneratorBodyCXXRecordDecl(GeneratorBody):
         return not [child for child in self._element.children() + self._element._inaccessible_children if isinstance(child, code_structure.CXXConstructorDecl)]
 
     def generate(self):
-        if not self._element.is_definition or self._element.is_implicit:
+        if not self._element.is_definition or self._element.is_implicit or self._element.is_referenced:
             return
 
         self._stream.write(("                //From: %(file)s: GeneratorBodyCXXRecordDecl.generate\n" % {
@@ -31,8 +31,8 @@ class GeneratorBodyCXXRecordDecl(GeneratorBody):
                         }
 
                         virtual int init(PyObject * const global_mod){
-                           int status = %(basic_name)s_init(global_mod);
-                           return status == 0? pyllars::Initializer::init(global_mod) : status;
+                           int status = pyllars::Initializer::init(global_mod);
+                           return status == 0?%(basic_name)s_init(global_mod):status;
                         }
                         static Initializer_%(basic_name)s *initializer;
                      };
@@ -166,7 +166,7 @@ class GeneratorBodyCXXRecordDecl(GeneratorBody):
 
             stream.write(self.decorate("""
                 %(typename)s %(name)s::Initializer_%(name)s 
-                *%(name)s::Initializer_%(name)s::initializer = new %(name)s::Initializer_%(name)s();
+                *%(name)s::Initializer_%(name)s::initializer = _init();
             """ % {
                 'name': self._element.name,
                 'typename': 'typename' if not self._element.is_union else "",

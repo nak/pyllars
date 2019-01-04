@@ -147,6 +147,10 @@ class Element(ABC):
         return 'implicit' in self._qualifiers
 
     @property
+    def is_referenced(self):
+        return 'referenced' in self._qualifiers
+
+    @property
     def is_union(self):
         return False
 
@@ -218,13 +222,13 @@ class Element(ABC):
         for child in self._children:
             if child.name == type_name:
                 return child
-        if self.parent:
-            # traverse parents to find type:
-            return self.parent.find(type_name)
         if type_name in Element.lookup:
             return Element.lookup[type_name]
         if "::" + type_name in Element.lookup:
             return Element.lookup["::" + type_name]
+        if self.parent:
+            # traverse parents to find type:
+            return self.parent.find(type_name)
 
     def children(self) -> List["Element"]:
         return self._children
@@ -754,7 +758,7 @@ class _Function(ScopedElement):
     def __init__(self, *args: str, tag: str, parent: Optional[Element]):
         loc1, loc2, name, signature, *qualifiers = args
         super().__init__(tag=tag, parent=parent, name=name, loc1=loc1, loc2=loc2, qualifiers=qualifiers)
-        self._signature = signature
+        self._signature = signature.replace("'", "")
         self._params = None  # set on-demand
         self._return_type_spec = self._signature.split('(', 1)[0].strip()
         self._return_type = self.find(self._return_type_spec)
@@ -779,7 +783,7 @@ class _Function(ScopedElement):
 
     @property
     def return_type(self):
-        self._return_type
+        return self._return_type
 
 
 class FunctionDecl(_Function):
@@ -827,6 +831,17 @@ class LinkageSpecDecl(Element):
 
 class CompoundStmt(Element):
 
+    def __init__(self, *args: str, tag: str, parent: Optional[Element]):
+        super().__init__(tag=tag, parent=parent, name=None, loc1=args[0])
+
+
+class ReturnStmt(Element):
+
+    def __init__(self, *args: str, tag: str, parent: Optional[Element]):
+        super().__init__(tag=tag, parent=parent, name=None, loc1=args[0])
+
+
+class CXXCtorInitializer(Element):
     def __init__(self, *args: str, tag: str, parent: Optional[Element]):
         super().__init__(tag=tag, parent=parent, name=None, loc1=args[0])
 

@@ -8,13 +8,27 @@ typedef const char* const const_str;
 extern const char * const const_ptr_str ;
 extern const char* const * const_ptr_ptr_str;
 
-namespace outside{
-    class ExternalDependency{
+namespace scoped{
+    class TestClass{
     public:
-        ExternalDependency( ){}
-        class Inner{
+        TestClass( ):long_long_member(51), const_int_member(123){
+        }
+
+        float method(const int param_one){
+            return 4.2;
+        }
+
+        class InnerTestClass{
         };
+
+        long long long_long_member;
+        static constexpr float static_const_float_member = 42.1f;
+        const int const_int_member;
     };
+}
+
+namespace outside{
+    class ExternalDependency;
 }
 
 namespace trial{

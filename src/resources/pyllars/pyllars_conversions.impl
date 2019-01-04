@@ -81,7 +81,7 @@ namespace __pyllars_internal {
         } else if (NonConstClassWrapper::checkType(&pyobj)) {
             //casting T to const T:
             return smart_ptr<T, array_allocated>(
-                    reinterpret_cast<NonConstClassWrapper * >(&pyobj)->template get_CObject<std::remove_const<T_bare> >(),
+                    reinterpret_cast<NonConstClassWrapper * >(&pyobj)->template get_CObject<typename std::remove_const<T_bare>::type >(),
                     PTR_IS_NOT_ALLOCATED);
         }
         throw "Invalid type converting to C object";

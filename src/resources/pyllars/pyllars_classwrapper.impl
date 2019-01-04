@@ -812,7 +812,7 @@ addClassMethod(ReturnType(*method)(Args...), const char *const kwlist[]) {
     PyMethodDef pyMeth = {
             name,
             (PyCFunction) ClassMethodContainer<T_NoRef>::template Container<false, name, ReturnType, Args...>::call,
-            METH_KEYWORDS | METH_CLASS,
+            METH_KEYWORDS | METH_CLASS | METH_VARARGS,
             doc_string
     };
 
@@ -834,7 +834,7 @@ addClassMethodVarargs(ReturnType(*method)(Args... ...), const char *const kwlist
     PyMethodDef pyMeth = {
             name,
             (PyCFunction) ClassMethodContainer<T_NoRef>::template Container<true, name, ReturnType, Args...>::call,
-            METH_KEYWORDS | METH_CLASS,
+            METH_KEYWORDS | METH_CLASS | METH_VARARGS,
             doc_string
     };
 
@@ -857,7 +857,7 @@ addMethodTempl(typename _Container::template Container<name, ReturnType, Args...
     PyMethodDef pyMeth = {
             name,
             (PyCFunction) _Container::template Container<name, ReturnType, Args...>::call,
-            METH_KEYWORDS,
+            METH_KEYWORDS | METH_VARARGS,
             doc_string
     };
 
@@ -881,7 +881,7 @@ addMethod__inv__templ(typename _Container::template Container<name, ReturnType, 
         PyMethodDef pyMeth = {
                 name,
                 (PyCFunction) _Container::template Container<name, ReturnType, Args...>::call,
-                METH_KEYWORDS,
+                METH_KEYWORDS | METH_VARARGS,
                 doc_string
         };
 
@@ -1428,7 +1428,7 @@ addMethod__ixor__(typename MethodContainer<T_NoRef>::template Container<name, Re
         PyMethodDef pyMeth = {
                 name,
                 (PyCFunction) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::call,
-                METH_KEYWORDS,
+                METH_KEYWORDS | METH_VARARGS,
                 doc_string
         };
 

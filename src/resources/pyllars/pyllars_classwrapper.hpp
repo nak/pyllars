@@ -475,7 +475,7 @@ namespace __pyllars_internal {
             ClassMemberContainer<T_NoRef>::template Container<name, Type>::member = member;
             PyMethodDef pyMeth = {name,
                                   (PyCFunction) ClassMemberContainer<T_NoRef>::template Container<name, Type>::call,
-                                  METH_KEYWORDS | METH_CLASS,
+                                  METH_VARARGS | METH_KEYWORDS | METH_CLASS,
                                   doc_string
             };
             _addMethod(pyMeth);
@@ -495,7 +495,7 @@ namespace __pyllars_internal {
             ConstClassMemberContainer<T_NoRef>::template Container<name, Type>::member = member;
             PyMethodDef pyMeth = {name,
                                   (PyCFunction) ConstClassMemberContainer<T_NoRef>::template Container<name, Type>::call,
-                                  METH_KEYWORDS | METH_CLASS,
+                                  METH_VARARGS | METH_KEYWORDS | METH_CLASS,
                                   doc_string
             };
             _addMethod(pyMeth);
