@@ -1,4 +1,7 @@
+import asyncio
+import collections
 import logging
+import multiprocessing
 import os
 import shlex
 import subprocess
@@ -9,7 +12,7 @@ from dataclasses import dataclass
 from io import TextIOBase
 from typing import List, Optional
 
-from pyllars.cppparser.generation.base2 import GeneratorBody, Linker
+from pyllars.cppparser.generation.base2 import GeneratorBody, Linker, Compiler
 from .. import parser
 import pkg_resources
 from ..parser import code_structure
@@ -32,66 +35,6 @@ def qualified_name(name):
     if name is None:
         return "pyllars"
     return Generator.sanitize(name.replace("(", "_lparen_").replace(")", "_rparen_").replace(":", "_")).replace(" ", "_")
-
-
-class Compiler(object):
-
-    CFLAGS = sysconfig.get_config_var('CFLAGS') or ""
-    LDFLAGS = sysconfig.get_config_var('LDFLAGS') or ""
-    LDCXXSHARED = sysconfig.get_config_var('LDCXXSHARED') or ""
-    PYINCLUDE = sysconfig.get_config_var('INCLUDEPY')
-    CXX = sysconfig.get_config_var('CXX')
-    PYLIB = sysconfig.get_config_var('BLDLIBRARY')
-
-    def __init__(self, folder):
-        self._compileables = []
-        for root, dirs, files in os.walk(folder):
-            for fil in [f for f in files if f.endswith(".cpp")]:
-                self._compileables.append(os.path.join(root, fil))
-        self._folder = folder
-
-    def compile_all(self, src_paths: List[str], output_module_path: str):
-        objects = []
-        bodies = [src_path.replace(".hpp", ".cpp") for src_path in src_paths]
-        for compilable in self._compileables:
-            target = os.path.join("objects", compilable[10:]).replace(".cpp", ".o")
-            if not os.path.exists(os.path.dirname(target)):
-                os.makedirs(os.path.dirname(target))
-            cmd = "%(cxx)s -ftemplate-backtrace-limit=0 -g -O -std=c++14 %(cxxflags)s -c -fPIC -I%(local_include)s -I%(python_include)s " \
-                  "-I%(pyllars_include)s -o \"%(target)s\" \"%(compilable)s\"" % {
-                      'cxx': Compiler.CXX,
-                      'cxxflags': Compiler.CFLAGS,
-                      'local_include': self._folder,
-                      'pyllars_include': pyllars_resources_dir,
-                      'python_include': Compiler.PYINCLUDE,
-                      'target': target,
-                      'compilable': compilable,
-                  }
-            #cmd = cmd.replace("-O2", "-O0")
-            cmd = cmd.replace("-g ", "")
-            print(cmd)
-            p = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE,
-                                 stderr=subprocess.STDOUT)
-            output = p.communicate()[0].decode('utf-8')
-            if p.returncode != 0:
-                return p.returncode, "Command \"%s\" failed:\n%s" % (cmd, output)
-            objects.append("\"%s\"" % target)
-        cmd = "%(cxx)s -O -fPIC -std=c++14 %(cxxflags)s -g -I%(python_include)s -shared -o objects/%(output_module_path)s -Wl,--no-undefined " \
-              "%(src)s %(objs)s %(python_lib_name)s -Wl,-R,'$ORIGIN' -lpthread -lffi %(pyllars_include)s/pyllars/pyllars.cpp" % {
-                  'cxx': Compiler.LDCXXSHARED,
-                  'src': " ".join(bodies),
-                  'cxxflags': Compiler.CFLAGS,
-                  'output_module_path': output_module_path,
-                  'objs': " ".join(objects),
-                  'pyllars_include': pyllars_resources_dir,
-                  'python_include': Compiler.PYINCLUDE,
-                  'python_lib_name': Compiler.PYLIB,
-              }
-        print(cmd)
-        p = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE,
-                             stderr=subprocess.STDOUT)
-        output = p.communicate()[0].decode('utf-8')
-        return p.returncode, cmd + "\n" + output
 
 
 class Folder(object):
@@ -375,38 +318,58 @@ extern "C"{
         }).encode('utf-8'))
 
     @staticmethod
-    def generate_code(node_tree: code_structure.TranslationUnitDecl, src_path: str, output_dir: str,
-                      include_paths: List[str], module_name: str, globals_module_name: Optional[str] = None):
+    def generate_code(node_tree: code_structure.TranslationUnitDecl,
+                      src_path: str,
+                      output_dir: str,
+                      compiler: Compiler,
+                      linker: Linker,
+                      module_name: str,
+                      globals_module_name: Optional[str] = None,
+                      module_location: str = "."):
         from .base2 import GeneratorHeader
         folder = Folder(output_dir)
         Generator.generator_mapping = {}
-        from .base2 import Compiler
-        compiler = Compiler()
         objects = []
 
-        def generate_element(element, folder, parent):
-            if os.path.abspath(element.location) != os.path.abspath(src_path):
-                return
-            with GeneratorHeader.generator(element=element, src_path=src_path, folder=folder, parent=parent) as header_generator:
-                try:
-                    header_generator.generate()
-                except:
-                    log.exception("Failed to generate for element %s and its children" % element.name)
-                    return
-            with GeneratorBody.generator(element=element, src_path=src_path, folder=folder, parent=parent) as body_generator:
-                body_generator.generate()
-            try:
-                obj = compiler.compile(body_generator.body_file_path, include_paths=include_paths,
-                                       debug_flag="-g", optimization_level="-O0")
-                objects.append(obj)
-            except:
-                pass
-            for child in element.children():
-                generate_element(element=child, folder=header_generator.folder, parent=header_generator)
-
+        queue = collections.deque()
         for element in node_tree.children():
-            generate_element(element, folder, None)
-        Linker.link(objects, output_module_path=".", module_name="%s" % module_name, global_module_name=globals_module_name or "%s_globals" % module_name)
+            queue.append((element, folder, None))
+
+        def pop():
+            try:
+                return queue.pop()
+            except IndexError:
+                return None, None, None
+
+        async def generate_elements():
+            nonlocal objects, queue
+            element, folder, parent = pop()
+            while element is not None:
+                if os.path.abspath(element.location) != os.path.abspath(src_path):
+                    element, folder, parent = pop()
+                    continue
+                with GeneratorHeader.generator(element=element, src_path=src_path, folder=folder, parent=parent) as header_generator:
+                    try:
+                        header_generator.generate()
+                    except:
+                        log.exception("Failed to generate for element %s and its children" % element.name)
+                        return
+                with GeneratorBody.generator(element=element, src_path=src_path, folder=folder, parent=parent) as body_generator:
+                    body_generator.generate()
+                try:
+                    obj = await compiler.compile_async(body_generator.body_file_path)
+                    objects.append(obj)
+
+                except:
+                    pass
+                for child in element.children():
+                    queue.append((child, header_generator.folder, header_generator))
+                element, folder, parent = pop()
+
+        async def main():
+            await asyncio.gather(*[generate_elements() for _ in range(multiprocessing.cpu_count())])
+        asyncio.run(main())
+        linker.link(objects, output_module_path=module_location, module_name="%s" % module_name, global_module_name=globals_module_name or "%s_globals" % module_name)
 
 
 class ParmVarDecl(Generator):

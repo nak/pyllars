@@ -239,7 +239,7 @@ struct NumberType{
         const __int128_t value1 = toLongLong(v1);
         const __int128_t value2 = toLongLong(v2);
         try{
-            *const_cast<typename std::remove_const<number_type>::type*>(&ret->value) = func(value1, value2, return_py);
+            *const_cast<typename std::remove_const<number_type>::type*>(&ret->value) = func(value1, value2, !return_py);
         } catch(const char* const msg){
             PyErr_SetString(PyExc_ValueError, msg);
             return nullptr;
@@ -247,6 +247,7 @@ struct NumberType{
         if (return_py){
             return PyLong_FromLong(ret->value);
         }
+	    Py_INCREF(ret);
         return (PyObject*)ret;
     }
 
@@ -286,6 +287,7 @@ struct NumberType{
             PyErr_SetString(PyExc_ValueError, msg);
             return nullptr;
         }
+	Py_INCREF(ret);
         return (PyObject*) ret;
     }
 
@@ -577,7 +579,7 @@ PyTypeObject PyNumberCustomObject<number_type>::Type = {
   "Number type in pyllars",           /* tp_doc */
   nullptr,                       /* tp_traverse */
   nullptr,                       /* tp_clear */
-  nullptr,                       /* tp_richcompare */
+  PyNumberCustomObject::richcompare,                       /* tp_richcompare */
   0,                               /* tp_weaklistoffset */
   nullptr,                       /* tp_iter */
   nullptr,                       /* tp_iternext */
@@ -735,6 +737,56 @@ int PyNumberCustomObject<number_type>::initialize(const char *const name, const 
 
 
 template<typename number_type>
+PyObject* PyNumberCustomObject<number_type>::richcompare(PyObject* a, PyObject* b, int op){
+    if(!NumberType<number_type>::isIntegerObject(a) || ! NumberType<number_type>::isIntegerObject(b)){
+        PyErr_SetString(PyExc_TypeError, "Invalid operands for comparison");
+        return NULL;
+    }
+    __int128_t value1 = NumberType<number_type>::toLongLong(a);
+    __int128_t value2 = NumberType<number_type>::toLongLong(b);
+    switch(op){
+    case Py_LT:
+        if (value1 < value2){
+            Py_RETURN_TRUE;
+        } else {
+            Py_RETURN_FALSE;
+        }
+    case Py_LE:
+        if(value1 <= value2){
+            Py_RETURN_TRUE;
+        } else {
+            Py_RETURN_FALSE;
+        }
+    case Py_EQ:
+        if (value1 == value2){
+            Py_RETURN_TRUE;
+        } else {
+            Py_RETURN_FALSE;
+        }
+    case Py_NE:
+        if (value1 != value2){
+            Py_RETURN_TRUE;
+        } else {
+            Py_RETURN_FALSE;
+        }
+    case Py_GT:
+        if(value1 > value2){
+            Py_RETURN_TRUE;
+        } else {
+            Py_RETURN_FALSE;
+        }
+    case Py_GE:
+        if(value1 >= value2){
+            Py_RETURN_TRUE;
+        } else {
+            Py_RETURN_FALSE;
+        }
+    default:
+        Py_RETURN_NOTIMPLEMENTED;
+    }
+}
+
+template<typename number_type>
  __pyllars_internal::PythonClassWrapper<number_type> * PyNumberCustomObject<number_type>::createPy
         (const ssize_t arraySize,
 	     __pyllars_internal::ObjContainer<ntype> *const cobj,
@@ -747,6 +799,7 @@ template<typename number_type>
 
     __pyllars_internal::PythonClassWrapper<number_type> *pyobj = (__pyllars_internal::PythonClassWrapper<number_type> *) PyObject_Call((PyObject *) &Type, emptyargs, kwds);
     pyobj->_depth = 0;
+    Py_INCREF(pyobj);
     return pyobj;
 }
 
@@ -782,6 +835,7 @@ PyObject* PyNumberCustomObject<number_type>::create(PyTypeObject* subtype, PyObj
         }
     }
     self->asLongLong = [self]()->__int128_t{return (__int128_t) self->value;};
+    Py_INCREF(self);
     return (PyObject*) self;
 }
 

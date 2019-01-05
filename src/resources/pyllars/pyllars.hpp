@@ -130,6 +130,8 @@ public:
     static int initialize(const char *const name, const char *const module_entry_name,
 			              PyObject *module, const char *const fullname = nullptr);
 
+    static PyObject* richcompare(PyObject* a, PyObject* b, int op);
+
     static __pyllars_internal::PythonClassWrapper<number_type> *createPy
         (const ssize_t arraySize, 
 	     __pyllars_internal::ObjContainer<ntype> *const cobj,

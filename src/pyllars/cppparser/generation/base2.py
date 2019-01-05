@@ -1,3 +1,5 @@
+import asyncio
+import hashlib
 import logging
 import os
 import shlex
@@ -40,28 +42,40 @@ class Compiler(object):
     CXX = sysconfig.get_config_var('CXX')
     PYLIB = sysconfig.get_config_var('BLDLIBRARY')
 
-    def __init__(self):
-        pass
+    def __init__(self, compiler_flags: List[str]=[], output_dir="./objects", optimization_level="-O3", debug=False):
+        self._output_dir = output_dir
+        os.makedirs(output_dir, exist_ok=True)
+        self._compiler_flags = compiler_flags
+        self._optimization_level = optimization_level
+        self._debug = debug
 
-    def compile(self, path: str, include_paths: List[str], output_path: Optional[str] = None,
-                optimization_level: str="-O2",
-                debug_flag: str=""):
-        if not output_path:
-            output_path = os.path.dirname(path)
-        target =  os.path.join(output_path, os.path.basename(path) + ".o")
+    @property
+    def compiler_flags(self):
+        return self._compiler_flags
+
+    def compile(self, path: str):
+        import uuid
+        m = hashlib.md5()
+        m.update(("pyllars" + path).encode('utf-8'))
+        hex = m.hexdigest()
+        uuid = uuid.UUID(hex)
+        target =  os.path.join(self._output_dir, os.path.basename(path) + str(uuid) + ".o")
         cmd = "%(cxx)s -ftemplate-backtrace-limit=0 -g -O -std=c++14 %(cxxflags)s -c -fPIC %(includes)s -I%(python_include)s " \
               "-I%(pyllars_include)s -o \"%(target)s\" \"%(compilable)s\"" % {
                   'cxx': Compiler.CXX,
                   'cxxflags': Compiler.CFLAGS,
-                  'includes': " ".join(["-I%s" % p for p in include_paths]),
+                  'includes': " ".join(self._compiler_flags),
                   'pyllars_include': pyllars_resources_dir,
                   'python_include': Compiler.PYINCLUDE,
                   'target': target,
                   'compilable': path,
               }
-        cmd = cmd.replace("-O2", optimization_level)
-        cmd = cmd.replace("-O3", optimization_level)
-        cmd = cmd.replace("-g", debug_flag)
+        cmd = cmd.replace("-O2", self._optimization_level)
+        cmd = cmd.replace("-O3", self._optimization_level)
+        if not self._debug:
+            cmd = cmd.replace("-g", "")
+        elif " -g" not in cmd:
+            cmd += " -g"
         print(cmd)
         p = subprocess.run(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
         if p.returncode != 0:
@@ -70,48 +84,39 @@ class Compiler(object):
         assert os.path.exists(target)
         return target
 
-    def compile_all(self, folder: str, src_paths: List[str], output_module_path: str):
-        compileables = []
-        for root, dirs, files in os.walk(folder):
-            for fil in [f for f in files if f.endswith(".cpp")]:
-                compileables.append(os.path.join(root, fil))
-        objects = []
-        bodies = [src_path.replace(".hpp", ".cpp") for src_path in src_paths]
-        for compilable in compileables:
-            target = os.path.join("objects", compilable[10:]).replace(".cpp", ".o")
-            if not os.path.exists(os.path.dirname(target)):
-                os.makedirs(os.path.dirname(target))
-            cmd = "%(cxx)s -ftemplate-backtrace-limit=0 -g -O -std=c++14 %(cxxflags)s -c -fPIC -I%(local_include)s -I%(python_include)s " \
-                  "-I%(pyllars_include)s -o \"%(target)s\" \"%(compilable)s\"" % {
-                      'cxx': Compiler.CXX,
-                      'cxxflags': Compiler.CFLAGS,
-                      'local_include': self._folder,
-                      'pyllars_include': pyllars_resources_dir,
-                      'python_include': Compiler.PYINCLUDE,
-                      'target': target,
-                      'compilable': compilable,
-                  }
-            #cmd = cmd.replace("-O2", "-O0")
-            cmd = cmd.replace("-g ", "")
-            print(cmd)
-            p = subprocess.run(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf-8')
-            if p.returncode != 0:
-                return p.returncode, "Command \"%s\" failed:\n%s\n\n%s" % (cmd, p.stdout, p.stderr)
-            objects.append("\"%s\"" % target)
-        cmd = "%(cxx)s -O -fPIC -std=c++14 %(cxxflags)s -I%(python_include)s -shared -o objects/%(output_module_path)s -Wl,--no-undefined " \
-              "%(src)s %(objs)s %(python_lib_name)s -Wl,-R,'$ORIGIN' -lpthread -lffi %(pyllars_include)s/pyllars/pyllars.cpp" % {
-                  'cxx': Compiler.LDCXXSHARED,
-                  'src': " ".join(bodies),
+    async def compile_async(self, path: str, asynchronous=False):
+        import uuid
+        m = hashlib.md5()
+        m.update(("pyllars" + path).encode('utf-8'))
+        hex = m.hexdigest()
+        uuid = uuid.UUID(hex)
+        target =  os.path.join(self._output_dir, os.path.basename(path) + str(uuid) + ".o")
+        cmd = "%(cxx)s -ftemplate-backtrace-limit=0 -g -O -std=c++14 %(cxxflags)s -c -fPIC %(includes)s -I%(python_include)s " \
+              "-I%(pyllars_include)s -o \"%(target)s\" \"%(compilable)s\"" % {
+                  'cxx': Compiler.CXX,
                   'cxxflags': Compiler.CFLAGS,
-                  'output_module_path': output_module_path,
-                  'objs': " ".join(objects),
+                  'includes': " ".join(self._compiler_flags),
                   'pyllars_include': pyllars_resources_dir,
                   'python_include': Compiler.PYINCLUDE,
-                  'python_lib_name': " %s/%s" % (self.LIBDIR, self.LDLIBRARY),
+                  'target': target,
+                  'compilable': path,
               }
+        cmd = cmd.replace("-O2", self._optimization_level)
+        cmd = cmd.replace("-O3", self._optimization_level)
+        if not self._debug:
+            cmd = cmd.replace("-g", "")
+        elif " -g" not in cmd:
+            cmd += " -g"
         print(cmd)
-        p = subprocess.run(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf-8')
-        return p.returncode, cmd + "\n" + p.stdout + "\n\n" + p.stderr
+        p = await asyncio.subprocess.create_subprocess_exec(*shlex.split(cmd),
+                                                            stdout=subprocess.PIPE,
+                                                            stderr=subprocess.PIPE, encoding='utf-8')
+        returncode = await p.wait()
+        if returncode != 0:
+            print(p.stdout)
+            print(p.stderr)
+        assert os.path.exists(target)
+        return target
 
 
 class Linker:
@@ -137,16 +142,22 @@ extern "C"{
 }
 """
 
-    @classmethod
-    def link(cls, objects, output_module_path, module_name: str, global_module_name: Optional[str] = None):
-        code = cls.CODE % {b'name': (module_name or "pyllars").encode('utf-8')}
+    def __init__(self, compiler_flags: List[str], linker_options: List[str], debug=True):
+        self._compiler_flags = compiler_flags
+        self._link_flags = linker_options
+        self._debug = debug
+        self._optimization_level = "-O0"
+
+    def link(self, objects, output_module_path, module_name: str, global_module_name: Optional[str] = None):
+        code = self.CODE % {b'name': (module_name or "pyllars").encode('utf-8')}
         with tempfile.NamedTemporaryFile(mode='wb', suffix='.cpp') as f:
             f.write(code)
             f.flush()
             cmd = "%(cxx)s -shared -O -fPIC -std=c++14 %(cxxflags)s -I%(python_include)s -shared -o %(output_module_path)s -Wl,--no-undefined " \
-                  "%(objs)s %(python_lib_name)s -Wl,-R,'$ORIGIN' -lpthread -lffi %(codefile)s -I%(pyllars_include)s %(pyllars_include)s/pyllars/pyllars.cpp" % {
+                  "%(objs)s %(python_lib_name)s %(linker_flags)s -Wl,-R,'$ORIGIN' -lpthread -lffi %(codefile)s -I%(pyllars_include)s %(pyllars_include)s/pyllars/pyllars.cpp" % {
                       'cxx': Compiler.LDCXXSHARED,
-                      'cxxflags': Compiler.CFLAGS,
+                      'cxxflags': Compiler.CFLAGS + " " + " ".join(self._compiler_flags),
+                      'linker_flags': " ".join(self._link_flags),
                       'output_module_path': os.path.join(output_module_path, "%s.so" % module_name),
                       'objs': " ".join(["\"%s\"" % o for o in objects]),
                       'pyllars_include': pyllars_resources_dir,
@@ -154,7 +165,34 @@ extern "C"{
                       'codefile': f.name,
                       'python_lib_name': " %s/%s" % (Compiler.LIBDIR, Compiler.LDLIBRARY),
                   }
-            cmd = cmd.replace("-O3", "-O0")
+            cmd = cmd.replace("-O2", self._optimization_level)
+            cmd = cmd.replace("-O3", self._optimization_level)
+            if not self._debug:
+                cmd = cmd.replace("-g", "")
+            elif " -g" not in cmd:
+                cmd += " -g"
+            print(cmd)
+            p = subprocess.run(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
+            if p.returncode != 0:
+                print(p.stdout)
+                print(p.stderr)
+                raise Exception("Failed to link module")
+
+    def link_bare(self, objects, output_lib_path):
+            cmd = "%(cxx)s -shared -O -fPIC -std=c++14 %(cxxflags)s -shared -o %(output_lib_path)s -Wl,--no-undefined " \
+                  "%(objs)s %(linker_flags)s -Wl,-R,'$ORIGIN' -lpthread -lffi" % {
+                      'cxx': Compiler.LDCXXSHARED,
+                      'cxxflags': Compiler.CFLAGS + " " + " ".join(self._compiler_flags),
+                      'linker_flags': " ".join(self._link_flags),
+                      'output_lib_path': output_lib_path,
+                      'objs': " ".join(["\"%s\"" % o for o in objects]),
+                  }
+            cmd = cmd.replace("-O2", self._optimization_level)
+            cmd = cmd.replace("-O3", self._optimization_level)
+            if not self._debug:
+                cmd = cmd.replace("-g", "")
+            elif " -g" not in cmd:
+                cmd += " -g"
             print(cmd)
             p = subprocess.run(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
             if p.returncode != 0:
