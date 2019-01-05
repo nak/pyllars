@@ -39,13 +39,13 @@ namespace pyllars{
             int status = 0;
             if(!_initializers_last) return 0;
             for (auto it = _initializers_last->begin(); it != _initializers_last->end(); ++ it){
-                status |= (*it)->init(global_module);
+    	      status |= (*it)->init(global_module);
             }
             _initializers_last->clear();
             return status;
         }
 
-        int register_init( Initializer* const init){
+      int register_init( Initializer* const init){
 	        if(!_initializers){
                 // allocate here as this may be called before main
                 // and do not want to depend on static initailization order of files which is
@@ -78,6 +78,8 @@ namespace pyllars{
     };
 
     int pyllars_register( Initializer* const init);
+
+    int pyllars_register_last( Initializer* const init);
 
     int init(PyObject* global_mod);
 
@@ -149,7 +151,7 @@ public:
 
     static PyObject* repr(PyObject* o);
 
-    static PyObject* create(PyTypeObject* subtype, PyObject* args, PyObject*kwds);
+    static int create(PyObject* subtype, PyObject* args, PyObject*kwds);
 
     PyNumberCustomObject():_referenced(nullptr),_depth(0){
     }
@@ -168,11 +170,13 @@ public:
     size_t _depth;
     number_type value;
 
-    class Initializer{
+    class Initializer: public pyllars::Initializer{
     public:
-        Initializer();
+            Initializer();
 
-        static Initializer* initializer;
+            status_t init(PyObject* const global_module);
+
+            static Initializer* initializer;
     };
 };
 

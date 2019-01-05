@@ -40,12 +40,11 @@ class GeneratorBodyTypedefDecl(GeneratorBody):
                 class Initializer_%(basic_name)s: public pyllars::Initializer{
                 public:
                     Initializer_%(basic_name)s():pyllars::Initializer(){
-                        %(parent_name)s_register(this);                          
+                        pyllars_register_last(this);                          
                     }
     
                     virtual int init(PyObject * const global_mod){
-                       int status = %(basic_name)s_init(global_mod);
-                       return status == 0? pyllars::Initializer::init(global_mod) : status;
+                       return %(basic_name)s_init(global_mod);
                     }
                 private:
                     static Initializer_%(basic_name)s *initializer;
@@ -61,9 +60,6 @@ class GeneratorBodyTypedefDecl(GeneratorBody):
                  * For children to register initializers to be called before this namespace PyObject is inited
                  **/
                 int %(name)s_register( pyllars::Initializer* const init ){
-                    static Initializer_%(name)s _initializer = Initializer_%(name)s();
-                    static int status = pyllars%(parent_name)s::%(parent)s_register(&_initializer);
-                    return status==0?_initializer.register_init_last(init):status;
                  }
                  
                 """ % {

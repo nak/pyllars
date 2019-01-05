@@ -99,7 +99,7 @@ namespace __pyllars_internal {
                                             PyObject *referencing = nullptr, const size_t depth = 0) ;
 
         /**
-         * Add a constructor for this type
+         * Add a constructor for this typeEr
          **/
         static void addConstructorBase(const char *const kwlist[], constructor c) ;
 

@@ -32,22 +32,26 @@ static void _pyllars_import_to_top(PyObject* pyllars_mod, PyObject* module){
 }
 
 #if PY_MAJOR_VERSION == 3
+
 PyObject*
 PyllarsInit(const char* const name){
   static PyObject *const pyllars_mod = PyImport_ImportModule("pyllars");
   static const char* const doc = "Pyllars top-level module";
-  static PyModuleDef moduleDef;
-  memset(&moduleDef, 0, sizeof(moduleDef));
-  moduleDef.m_name = name;
-  moduleDef.m_doc = doc;
-  moduleDef.m_size = -1;
+  static PyModuleDef moduleDef = {
+    PyModuleDef_HEAD_INIT,
+    name,
+    doc,
+    -1,
+    nullptr
+  };
 
   PyObject* mod = PyModule_Create(&moduleDef);
   if(mod){
+    Py_INCREF(mod);
     PyObject_SetAttrString(pyllars_mod, name, mod);
     int rc = pyllars::Initializer::root?pyllars::Initializer::root->init(mod):0;
     if (0 == rc) {
-      rc = pyllars::Initializer::root?pyllars::Initializer::root->init_last(mod):0;
+       rc = pyllars::Initializer::root?pyllars::Initializer::root->init_last(mod):0;
     } 
     if (rc != 0){
       printf("Failed to initializer some components of %s", name);
@@ -80,9 +84,21 @@ int pyllars::pyllars_register( Initializer* const init){
     // may be called during static initialization before root has been assigend
     // a static value
     static Initializer _root;
-    Initializer::root = &_root;
+    if(!Initializer::root)
+      Initializer::root = &_root;
 
     return Initializer::root->register_init(init);
+}
+
+int pyllars::pyllars_register_last( Initializer* const init){
+    // ensure root is "clean" and no static initizlied as this function
+    // may be called during static initialization before root has been assigend
+    // a static value
+    static Initializer _root;
+    if(!Initializer::root)
+      Initializer::root = &_root;
+
+    return Initializer::root->register_init_last(init);
 }
 
 namespace __pyllars_internal{
@@ -132,7 +148,7 @@ PyTypeObject PyNumberCustomBase::Type = {
   0,                         /* tp_dictoffset */
   nullptr,  /* tp_init */
   nullptr,                         /* tp_alloc */
-  nullptr,             /* tp_new */
+  PyType_GenericNew,             /* tp_new */
   nullptr,                         /*tp_free*/
   nullptr,                         /*tp_is_gc*/
   nullptr,                         /*tp_bases*/
@@ -200,8 +216,7 @@ struct NumberType{
         } else if(PyObject_TypeCheck(obj, &PyNumberCustomBase::Type)){
             return ((PyNumberCustomObject<number_type>*) obj)->asLongLong();
         } else {
-            static const char* const msg = "System error: invalid type encountered";
-            throw msg;
+            PyErr_SetString(PyExc_SystemError, "System error: invalid type encountered");
         }
     }
 
@@ -213,60 +228,74 @@ struct NumberType{
     static constexpr number_type max = std::numeric_limits<number_type>::max();
 
     static bool is_out_of_bounds_add(__int128_t value1, __int128_t value2){
-        return (value1 > max || value2 > max || value1 < min || value2 < min ||
-           (value1 > 0 && value1 > max - value2) ||
-           (value1 < 0 && value1 < min - value2));
+      return  ((value1 > 0 && value1 > max - value2) ||
+	       (value1 < 0 && value1 < min - value2));
     }
 
     static bool is_out_of_bounds_subtract(__int128_t value1, __int128_t value2){
-        return (value1 > max || value2 > max || value1 < min || value2 < min ||
-           (value1 > 0 && value1 > max + value2) ||
-           (value1 < 0 && value1 < min +value2));
+      return ((value1 > 0 && value1 > max + value2) ||
+	      (value1 < 0 && value1 < min +value2));
     }
 
-    template<number_type(*func)(__int128_t, __int128_t, const bool check)>
+    template<__int128_t(*func)(__int128_t, __int128_t, const bool check)>
     static PyObject* _baseBinaryFunc(PyObject* v1, PyObject* v2){
         static PyObject *emptyargs = PyTuple_New(0);
         const bool return_py = PyLong_Check(v1) || PyLong_Check(v2);
-        PyNumberCustomObject<number_type>* ret = (PyNumberCustomObject<number_type>*) PyObject_Call((PyObject*) &PyNumberCustomObject<number_type>::Type, emptyargs, nullptr);
-        if (!ret){
-            return nullptr;
-        }
+	
         if(!isIntegerObject(v1) || !isIntegerObject(v2)){
-            PyErr_SetString(PyExc_TypeError, "Invalid types for arguments");
+            static const char* const msg = "Invalid types for arguments";
+            PyErr_SetString(PyExc_TypeError, msg);
             return nullptr;
         }
         const __int128_t value1 = toLongLong(v1);
         const __int128_t value2 = toLongLong(v2);
-        try{
-            *const_cast<typename std::remove_const<number_type>::type*>(&ret->value) = func(value1, value2, !return_py);
-        } catch(const char* const msg){
-            PyErr_SetString(PyExc_ValueError, msg);
+        __int128_t ret_value;
+        ret_value = func(value1, value2, !return_py);
+        if(PyErr_Occurred()){
             return nullptr;
         }
         if (return_py){
-            return PyLong_FromLong(ret->value);
+	    if(ret_value > NumberType<long long>::max || ret_value < NumberType<long long>::min){
+	        PyErr_SetString(PyExc_ValueError, "Result out of range");
+            return nullptr;
+	    }
+	    if (NumberType<number_type>::min == 0){
+	      return PyLong_FromUnsignedLong(ret_value);
+	    }
+            return PyLong_FromLong(ret_value);
+        } else if ( ret_value < min || ret_value > max){
+            PyErr_SetString(PyExc_ValueError, "Result out of range");
+            return nullptr;
         }
-	    Py_INCREF(ret);
+        PyNumberCustomObject<number_type>* ret = (PyNumberCustomObject<number_type>*) PyObject_Call((PyObject*) &PyNumberCustomObject<number_type>::Type, emptyargs, nullptr);
+        if (!ret){
+            return nullptr;
+        }
+        *const_cast<typename std::remove_const<number_type>::type*>(&ret->value) = ret_value;
         return (PyObject*)ret;
     }
 
-    template<void(*func)(number_type&, number_type)>
+    template<void(*func)(__int128_t&, number_type)>
     static PyObject* _baseInplaceBinaryFunc(PyObject* v1, PyObject* v2){
-        PyNumberCustomObject<number_type>* ret = (PyNumberCustomObject<number_type>*)v1;
-        if(!isIntegerObject(v1) || !isIntegerObject(v2)){
+        if(!PyObject_TypeCheck(v1, &PyNumberCustomObject<number_type>::Type)){
             PyErr_SetString(PyExc_TypeError, "Invalid types for arguments");
+            Py_RETURN_NOTIMPLEMENTED;
+        }
+        if(!isIntegerObject(v1) || !isIntegerObject(v2)){
+            PyErr_SetString(PyExc_TypeError,  "Invalid types for arguments");
+            Py_RETURN_NOTIMPLEMENTED;
+        }
+        __int128_t ret_value = ((PyNumberCustomObject<number_type>*)v1)->value;
+        func(ret_value, toLongLong(v2));
+        if(PyErr_Occurred()){
             return nullptr;
         }
-        try{
-            func(*const_cast<typename std::remove_const<number_type>::type*>(&ret->value), toLongLong(v2));
-        } catch(const char* const msg){
-            PyErr_SetString(PyExc_ValueError, msg);
+        if (ret_value < min || ret_value > max){
+            PyErr_SetString(PyExc_ValueError,  "Result out of bounds");
             return nullptr;
         }
-        if (PyLong_Check(v1) || PyLong_Check(v2)){
-            return PyLong_FromLong(ret->value);
-        }
+        *const_cast<typename std::remove_const<number_type>::type*>(&((PyNumberCustomObject<number_type>*)v1)->value) = ret_value;
+	Py_INCREF(v1);
         return v1;
     }
 
@@ -275,43 +304,38 @@ struct NumberType{
         static PyObject *emptyargs = PyTuple_New(0);
         if(!isIntegerObject(obj)){
             PyErr_SetString(PyExc_TypeError, "Invalid types for arguments");
+            Py_RETURN_NOTIMPLEMENTED;
+        }
+        __int128_t ret_value = func(toLongLong(obj));
+        if(PyErr_Occurred()){
             return nullptr;
         }
+
         PyNumberCustomObject<number_type>* ret = (PyNumberCustomObject<number_type>*) PyObject_Call((PyObject*) &PyNumberCustomObject<number_type>::Type, emptyargs, nullptr);
-        if (!ret){
-            return nullptr;
+        if (ret){
+            ret->value = ret_value;
         }
-        try{
-            ret->value = func(toLongLong(obj));
-        } catch( const char* const msg){
-            PyErr_SetString(PyExc_ValueError, msg);
-            return nullptr;
-        }
-	Py_INCREF(ret);
         return (PyObject*) ret;
     }
 
-    static number_type add(__int128_t value1, __int128_t value2, const bool check){
+  static __int128_t add(__int128_t value1, __int128_t value2, const bool check){
         if(check && is_out_of_bounds_add(value1, value2)){
-            static const char* const msg = "sum of values out of range";
-            throw msg;
+            PyErr_SetString(PyExc_ValueError, "sum of values out of range");
         }
         return value1 + value2;
     }
 
-    static number_type subtract(__int128_t value1, __int128_t value2, const bool check){
+    static __int128_t subtract(__int128_t value1, __int128_t value2, const bool check){
         if(check && is_out_of_bounds_subtract(value1, value2)){
-            static const char* const msg = "difference of values out of range";
-            throw msg;
+            PyErr_SetString(PyExc_ValueError, "difference of values out of range");
         }
        return value1 - value2;
     }
 
-    static number_type multiply(__int128_t value1, __int128_t value2, const bool check){
+    static __int128_t multiply(__int128_t value1, __int128_t value2, const bool check){
         const number_type result = value1 * value2;
         if (check && value1 != 0 && result/value1 != value2){
-           static const char* const msg = "multiplication of values is out of range";
-           throw msg;
+           PyErr_SetString(PyExc_ValueError, "multiplication of values is out of range");
         }
         return result;
     }
@@ -340,7 +364,8 @@ struct NumberType{
             v3 = nullptr;
         }
         if(!isIntegerObject(v1) || !isIntegerObject(v2) || (v3 && !isIntegerObject(v3))){
-            PyErr_SetString(PyExc_TypeError, "Invalid types for arguments");
+            static const char* const msg = "Invalid types for arguments";
+            PyErr_SetString(PyExc_TypeError, msg);
             return nullptr;
         }
         const __int128_t value1 = toLongLong(v1);
@@ -350,31 +375,33 @@ struct NumberType{
             pow(value1, value2) % value3:
             pow(value1, value2);
         if (result < min || result > max){
-            PyErr_SetString(PyExc_ValueError, "result is out of range");
+            static const char* const msg = "Result is out of range";
+            PyErr_SetString(PyExc_ValueError, msg);
             return nullptr;
         }
         ret->value = (number_type) result;
-        //Py_INCREF(ret);
         return  (PyObject*) ret;
     }
 
-    static number_type remainder(__int128_t value1, __int128_t value2, const bool check){
-        const __int128_t result = value1 % value2;
+    static __int128_t remainder(__int128_t value1, __int128_t value2, const bool check){
+        __int128_t result = value1 % value2;
+        if(((value1 < 0 and value2 > 0) || (value1 > 0 && value2 < 0)) && (value1 % value2 != 0)){
+	  result = value1 - (floor_div(value1, value2, false) * value2);
+        }
         if(check && (result > max || result < min)){
-            static const char* const msg = "Result is out of range";
-            throw msg;
+            PyErr_SetString(PyExc_ValueError, "Result is out of range");
         }
         return result;
     }
 
     static PyObject* positive(PyObject* v1){
+        Py_INCREF(v1);
         return v1;
     }
 
     static number_type absolute(__int128_t value1){
         if(value1 == min){
-            static const char* const msg = "Result is out of bounds";
-            throw msg;
+            PyErr_SetString(PyExc_ValueError, "Result is out of bounds");
         }
         return value1 > 0?value1:-value1;
     }
@@ -382,8 +409,7 @@ struct NumberType{
     static number_type negative(__int128_t value){
         const __int128_t result = -value;
         if (result < min || result > max){
-            static const char* const msg = "result is out of range";
-            throw msg;
+            PyErr_SetString(PyExc_ValueError, "result is out of range");
         }
         return result;
      }
@@ -405,7 +431,8 @@ struct NumberType{
         const __int128_t quotient = value1/value2;
         const __int128_t remainder = value1 % value2;
         if (quotient < min || quotient > max || remainder < min || remainder> max){
-            PyErr_SetString(PyExc_ValueError, "Results are out of range");
+            static const char* const msg = "Invalid types for arguments";
+            PyErr_SetString(PyExc_ValueError, msg);
             return nullptr;
         }
         PyObject* tuple = PyTuple_New(2);
@@ -430,27 +457,30 @@ struct NumberType{
         return ~(number_type)value;
     }
 
-    static number_type lshift(__int128_t value1, __int128_t value2, const bool){
+    static __int128_t lshift(__int128_t value1, __int128_t value2, const bool){
         return ((number_type)value1) << ((number_type)value2);
     }
 
-    static number_type rshift(__int128_t value1, __int128_t value2, const bool){
+    static __int128_t rshift(__int128_t value1, __int128_t value2, const bool){
         return ((number_type) value1) >> ((number_type)value2);
     }
 
-    static number_type and_(__int128_t value1, __int128_t value2, const bool){
+    static __int128_t and_(__int128_t value1, __int128_t value2, const bool){
         return (number_type)value1 & (number_type) value2;
     }
 
-    static number_type or_(__int128_t value1, __int128_t value2, const bool){
+    static __int128_t or_(__int128_t value1, __int128_t value2, const bool){
         return ((number_type)value1) | ((number_type) value2);
     }
 
-    static number_type xor_(__int128_t value1, __int128_t value2, const bool){
+    static __int128_t xor_(__int128_t value1, __int128_t value2, const bool){
         return ((number_type)value1) ^ ((number_type) value2);
     }
 
     static PyObject* to_pyint(PyObject* value){
+	    if (NumberType<number_type>::min == 0){
+	      return PyLong_FromUnsignedLong(toLongLong(value));
+	    }
         return PyLong_FromLong(toLongLong(value));
     }
 
@@ -458,65 +488,69 @@ struct NumberType{
         return PyFloat_FromDouble((double)toLongLong(value));
     }
 
-    static void inplace_add(number_type &value1, number_type value2){
+    static void inplace_add(__int128_t &value1, number_type value2){
         if (is_out_of_bounds_add(value1, value2)){
-            static const char* const msg = "Values out of range for in place addition";
-            throw msg;
+            PyErr_SetString(PyExc_ValueError, "Values out of range for in place addition");
         }
         value1 += value2;
     }
 
-    static void inplace_subtract(number_type &value1, number_type value2){
+    static void inplace_subtract(__int128_t &value1, number_type value2){
         if (is_out_of_bounds_subtract(value1, value2)){
-            static const char* const msg = "Values out of range for in place subtraction";
-            throw msg;
+            PyErr_SetString(PyExc_ValueError, "Values out of range for in place subtraction");
         }
         value1 -= value2;
     }
 
-    static void inplace_multiply(number_type &value1, number_type value2){
+    static void inplace_multiply(__int128_t &value1, number_type value2){
         const number_type orig = value1;
         value1 *= value2;
          if (value2 != 0 && value1/value2 != orig){
-           static const char* const msg = "multiplication of values is out of range";
-           throw msg;
+           PyErr_SetString(PyExc_ValueError, "multiplication of values is out of range");
         }
     }
 
-    static void inplace_remainder(number_type &value1, number_type value2){
+    static void inplace_remainder(__int128_t &value1, number_type value2){
         value1 %= value2;
     }
 
-    static void inplace_lshift(number_type &value1, number_type value2){
+    static void inplace_lshift(__int128_t &value1, number_type value2){
         value1 <<= value2;
     }
 
-    static void inplace_rshift(number_type &value1, number_type value2){
+    static void inplace_rshift(__int128_t &value1, number_type value2){
         value1 >>= value2;
     }
 
-    static void inplace_and(number_type &value1, number_type value2){
+    static void inplace_and(__int128_t &value1, number_type value2){
         value1 &= value2;
     }
 
-    static void inplace_or(number_type &value1, number_type value2){
+    static void inplace_or(__int128_t &value1, number_type value2){
         value1 |= value2;
     }
 
-    static void inplace_xor(number_type &value1, number_type value2){
+    static void inplace_xor(__int128_t &value1, number_type value2){
         value1 ^= value2;
     }
-    static void inplace_floor_div(number_type &value1, number_type value2){
+    static void inplace_floor_div(__int128_t &value1, number_type value2){
         value1 /= value2;
+	if(((value1 < 0 and value2 > 0) || (value1 > 0 && value2 < 0)) && (value1 % value2 != 0)){
+	  value1 -= 1;
+	}
     }
 
-    static number_type floor_div(__int128_t value1, __int128_t value2, const bool check){
-        return ((number_type)value1)/((number_type)value2);
+    static __int128_t floor_div(__int128_t value1, __int128_t value2, const bool check){
+      if(((value1 < 0 and value2 > 0) || (value1 > 0 && value2 < 0)) && (value1 % value2 != 0)){
+	return value1/value2 -1;
+      }
+        return value1/value2;
     }
 
     static PyObject* divide(PyObject* v1, PyObject* v2){
         if(!isIntegerObject(v1) || !isIntegerObject(v2)){
-            PyErr_SetString(PyExc_TypeError, "Invalid argument types for division");
+            static const char* const msg = "Invalid types for arguments";
+            PyErr_SetString(PyExc_TypeError, msg);
             return nullptr;
         }
         const __int128_t value1 = toLongLong(v1);
@@ -526,7 +560,8 @@ struct NumberType{
 
     static PyObject* inplace_divide(PyObject* v1, PyObject* v2){
          if(!isIntegerObject(v1) || !isIntegerObject(v2)){
-            PyErr_SetString(PyExc_TypeError, "Invalid argument types for in place division");
+            static const char* const msg = "Invalid types for arguments";
+            PyErr_SetString(PyExc_TypeError, msg);
             return nullptr;
         }
         const __int128_t value1 = toLongLong(v1);
@@ -591,9 +626,9 @@ PyTypeObject PyNumberCustomObject<number_type>::Type = {
   nullptr,                         /* tp_descr_get */
   nullptr,                         /* tp_descr_set */
   0,                         /* tp_dictoffset */
-  nullptr,  /* tp_init */
+  PyNumberCustomObject::create,  /* tp_init */
   nullptr,                         /* tp_alloc */
-  PyNumberCustomObject::create,             /* tp_new */
+  nullptr,             /* tp_new */
   nullptr,                         /*tp_free*/
   nullptr,                         /*tp_is_gc*/
   nullptr,                         /*tp_bases*/
@@ -672,19 +707,22 @@ PyObject* PyNumberCustomObject<number_type>::repr(PyObject* o){
 template<typename number_type>
 PythonClassWrapper<number_type*>* PyNumberCustomObject<number_type>::alloc(PyObject *cls, PyObject *args, PyObject *kwds) {
    if(kwds && PyDict_Size(kwds) > 0){
-        PyErr_SetString(PyExc_TypeError, "Allocator does not accept keywords");
+        static const char* const msg = "Allocator does not accept keywords";
+        PyErr_SetString(PyExc_TypeError, msg);
         return nullptr;
    }
    const size_t size = PyTuple_Size(args);
    if (size > 2){
-        PyErr_SetString(PyExc_TypeError, "Too many arguments to call to allocations");
+        static const char* const msg = "Too many arguments to call to allocations";
+        PyErr_SetString(PyExc_TypeError, msg);
         return nullptr;
    }
    number_type value = 0;
    if (size >= 1){
         PyObject* item = PyTuple_GetItem(args, 0);
         if(!item){
-            PyErr_SetString(PyExc_SystemError, "Internal error getting tuple value");
+            static const char* const msg =  "Internal error getting tuple value";
+            PyErr_SetString(PyExc_SystemError, msg);
             return nullptr;
         }
         if(! NumberType<number_type>::isIntegerObject(item)){
@@ -799,7 +837,6 @@ template<typename number_type>
 
     __pyllars_internal::PythonClassWrapper<number_type> *pyobj = (__pyllars_internal::PythonClassWrapper<number_type> *) PyObject_Call((PyObject *) &Type, emptyargs, kwds);
     pyobj->_depth = 0;
-    Py_INCREF(pyobj);
     return pyobj;
 }
 
@@ -811,40 +848,48 @@ void PyNumberCustomObject<number_type>::make_reference(PyObject *obj) {
 }
 
 template<typename number_type>
-PyObject* PyNumberCustomObject<number_type>::create(PyTypeObject* subtype, PyObject* args, PyObject*kwds){
-    PyNumberCustomObject<number_type> * self = (PyNumberCustomObject<number_type>*) subtype->tp_alloc(subtype, 0);
+int PyNumberCustomObject<number_type>::create(PyObject* self_, PyObject* args, PyObject*kwds){
+    PyNumberCustomObject* self = (PyNumberCustomObject*)self_;
     if(self){
         if(PyTuple_Size(args) == 0){
             memset(const_cast<typename std::remove_const<number_type>::type*>(&self->value), 0, sizeof(self->value));
-    } else if (PyTuple_Size(args) == 1){
-        PyObject* value = PyTuple_GetItem(args, 0);
-        if (!NumberType<number_type>::isIntegerObject(value)){
-            PyErr_SetString(PyExc_TypeError, "Argument must be an integer");
-            return nullptr;
+        } else if (PyTuple_Size(args) == 1){
+            PyObject* value = PyTuple_GetItem(args, 0);
+            if (!NumberType<number_type>::isIntegerObject(value)){
+                PyErr_SetString(PyExc_TypeError, "Argument must be an integer");
+                return -1;
             }
             __int128_t longvalue = NumberType<number_type>::toLongLong(value);
             if( longvalue < (__int128_t)std::numeric_limits<number_type>::min() ||
                 longvalue > (__int128_t)std::numeric_limits<number_type>::max()){
                 PyErr_SetString(PyExc_ValueError, "Argument value out of range");
-                return nullptr;
+                return -1;
             }
             *(const_cast<typename std::remove_const<number_type>::type *>(&self->value)) = (number_type) longvalue;
         } else {
             PyErr_SetString(PyExc_TypeError, "Should only call with at most one arument");
-            return nullptr;
+            return -1;
         }
+	self->asLongLong = [self]()->__int128_t{return (__int128_t) self->value;};
+	return 0;
     }
-    self->asLongLong = [self]()->__int128_t{return (__int128_t) self->value;};
-    Py_INCREF(self);
-    return (PyObject*) self;
+    PyErr_SetString(PyExc_TypeError, "Recevied null self !?#");
+    return -1;
 }
 
 
 template<typename number_type>
 PyNumberCustomObject<number_type>::Initializer::Initializer(){
+  pyllars_register(this);
+}
+
+template<typename number_type>
+status_t PyNumberCustomObject<number_type>::Initializer::init(PyObject * const global_mod){
     static PyObject* module = PyImport_ImportModule("pyllars");
     PyType_Ready(&PyNumberCustomBase::Type);
     const int rc = PyType_Ready(&PyNumberCustomObject::Type);
+    Py_INCREF(&PyNumberCustomBase::Type);
+    Py_INCREF(&PyNumberCustomObject::Type);
     if(module && rc == 0){
         PyModule_AddObject(module, _type_name<number_type>(), (PyObject*) &PyNumberCustomObject::Type);
     }

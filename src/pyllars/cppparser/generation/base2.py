@@ -150,7 +150,7 @@ extern "C"{
 
     def link(self, objects, output_module_path, module_name: str, global_module_name: Optional[str] = None):
         code = self.CODE % {b'name': (module_name or "pyllars").encode('utf-8')}
-        with tempfile.NamedTemporaryFile(mode='wb', suffix='.cpp') as f:
+        with open('/tmp/test.cpp', mode='wb') as f:
             f.write(code)
             f.flush()
             cmd = "%(cxx)s -shared -O -fPIC -std=c++14 %(cxxflags)s -I%(python_include)s -shared -o %(output_module_path)s -Wl,--no-undefined " \

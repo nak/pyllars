@@ -10,7 +10,8 @@ TEST_RESOURCES_DIR=os.path.join(os.path.dirname(__file__), "resources")
 TEST_LIBS_DIR = os.path.join(os.path.dirname(__file__), "libs")
 os.makedirs(TEST_LIBS_DIR, exist_ok=True)
 
-@pytest.fixture
+
+@pytest.fixture(scope='session')
 def linker_flags():
     files = glob.glob(os.path.join(TEST_RESOURCES_DIR, "*.cpp"))
     compiler = Compiler(compiler_flags=["-I%s" % TEST_RESOURCES_DIR, "-I."])

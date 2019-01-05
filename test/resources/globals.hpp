@@ -2,8 +2,10 @@
 #define __GLOBALFUNCTIONS__
 #include <time.h>
 
+
 typedef char * str;
 typedef const char* const const_str;
+
 
 extern const char * const const_ptr_str ;
 extern const char* const * const_ptr_ptr_str;
@@ -26,6 +28,7 @@ namespace scoped{
         const int const_int_member;
     };
 }
+
 
 namespace outside{
     class ExternalDependency;
