@@ -271,11 +271,11 @@ class GeneratorBodyVarDecl(GeneratorBody):
 
                                    %(imports)s
                                    __pyllars_internal::PythonClassWrapper<decltype(%(parent)s::%(name)s)>::initialize("%(basic_type_name)s",
-                                                                                                          "%(basic_type_name)s",
+                                                                                                          "%(basic_type_name)s method",
                                                                                                           %(type_mod)s,
-                                                                                                          "%(full_type_name)s");
+                                                                                                          "%(full_type_name)s method");
                                    if( !__pyllars_internal::GlobalVariable::createGlobalVariable<decltype(%(parent)s::%(name)s)>("%(name)s", "%(tp_name)s",
-                                      &static_var)){
+                                      &static_var,  %(type_mod)s, %(array_size)s)){
                                       status = -1;
                                     }
                                    return status;

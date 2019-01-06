@@ -21,6 +21,8 @@ namespace scoped{
         }
 
         class InnerTestClass{
+        public:
+            float value;
         };
 
         long long long_long_member;
@@ -28,6 +30,8 @@ namespace scoped{
         const int const_int_member;
         static InnerTestClass inner_instance;
     };
+
+    long long scoped_function(const TestClass::InnerTestClass &inner);
 }
 
 
@@ -38,6 +42,7 @@ namespace outside{
 namespace trial{
 
     int some_global_function(const double & value, outside::ExternalDependency &d) throw(double );
+
 
     static constexpr double double_value = 2.33;
 }

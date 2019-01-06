@@ -1,90 +1,17 @@
 /**
  * holds top-level namespace fo Pyllars and common definitions
  */
-#ifndef PYLLARS
-#define PYLLARS
+#ifndef PYLLARS_CONST
+#define PYLLARS_CONST
 
 #include <vector>
 #include <cstddef>
 #include <Python.h>
-#include <functional>
 
-#include "pyllars_defns.hpp"
+#include "pyllars.hpp"
+#include "pyllars_classwrapper.hpp"
 typedef int status_t;
 
-namespace pyllars{
-
-    /**
-     * class for registering a hierarchy of initializers to execute on load of library
-     */
-    class Initializer{
-    public:
-
-        Initializer():_initializers(nullptr){
-        }
-
-        /**
-         * Call all initializers, passing in the global pyllars module
-         */
-        virtual status_t init(PyObject* const global_module){
-            int status = 0;
-            if(!_initializers) return 0;
-            for (auto it = _initializers->begin(); it != _initializers->end(); ++ it){
-                status |= (*it)->init(global_module);
-            }
-            _initializers->clear();
-            return status;
-        }
-
-        virtual status_t init_last(PyObject* const global_module){
-            int status = 0;
-            if(!_initializers_last) return 0;
-            for (auto it = _initializers_last->begin(); it != _initializers_last->end(); ++ it){
-    	      status |= (*it)->init(global_module);
-            }
-            _initializers_last->clear();
-            return status;
-        }
-
-      int register_init( Initializer* const init){
-	        if(!_initializers){
-                // allocate here as this may be called before main
-                // and do not want to depend on static initailization order of files which is
-                // unpredictable in C++
-	            _initializers = new std::vector<Initializer*>();
-	        }
-            _initializers->push_back(init);
-            return 0;
-        }
-
-        int register_init_last( Initializer* const init){
-	        if(!_initializers_last){
-                // allocate here as this may be called before main
-                // and do not want to depend on static initailization order of files which is
-                // unpredictable in C++
-	            _initializers_last = new std::vector<Initializer*>();
-	        }
-            _initializers_last->push_back(init);
-            return 0;
-        }
-
-        // ths root (top-level) initializer
-        static Initializer *root;
-
-    private:
-
-        std::vector<Initializer*> *_initializers;
-        std::vector<Initializer*> *_initializers_last;
-
-    };
-
-    int pyllars_register( Initializer* const init);
-
-    int pyllars_register_last( Initializer* const init);
-
-    int init(PyObject* global_mod);
-
-}  // namespace pyllars
 
 namespace __pyllars_internal{
 
@@ -95,19 +22,19 @@ static const char* const _type_name();
 
 
 template<typename number_type>
-struct NumberType;
+struct ConstNumberType;
 
 template<typename number_type>
-struct FloatingPointType;
+struct ConstFloatingPointType;
 
-struct PyNumberCustomBase{
+struct PyConstNumberCustomBase{
   static PyTypeObject Type;
 
   std::function<long long()> asLongLong;
 };
 
 template<typename number_type>
-struct PyNumberCustomObject{
+struct PyConstNumberCustomObject{
 public:
     PyObject_HEAD
     typedef number_type ntype;
@@ -155,11 +82,11 @@ public:
 
     static int create(PyObject* subtype, PyObject* args, PyObject*kwds);
 
-    PyNumberCustomObject():_referenced(nullptr),_depth(0){
+    PyConstNumberCustomObject():_referenced(nullptr),_depth(0), value(0){
     }
 
     template<typename t=number_type>
-    inline t* get_CObject(){
+    inline const t* get_CObject(){
         return &value;
     }
 
@@ -185,56 +112,56 @@ public:
 
 
   template<>
-  class PythonClassWrapper<char>: public PyNumberCustomObject<char>{
+  struct PythonClassWrapper<const char>: public PyConstNumberCustomObject<const char>{
   };
 
   template<>
-  class PythonClassWrapper<short>: public PyNumberCustomObject<short>{
+  struct PythonClassWrapper<const short>: public PyConstNumberCustomObject<const short>{
   };
 
   template<>
-  class PythonClassWrapper<int>: public PyNumberCustomObject<int>{
+  struct PythonClassWrapper<const int>: public PyConstNumberCustomObject<const int>{
   };
 
   template<>
-  class PythonClassWrapper<long>: public PyNumberCustomObject<long>{
+  struct PythonClassWrapper<const long>: public PyConstNumberCustomObject<const long>{
   };
 
   template<>
-  class PythonClassWrapper<long long>: public PyNumberCustomObject<long long>{
+  struct PythonClassWrapper<const long long>: public PyConstNumberCustomObject<const long long>{
   };
 
   template<>
-  class PythonClassWrapper<unsigned char>: public PyNumberCustomObject<unsigned char>{
+  struct PythonClassWrapper<const unsigned char>: public PyConstNumberCustomObject<const unsigned char>{
   };
 
   template<>
-  class PythonClassWrapper<unsigned short>: public PyNumberCustomObject<unsigned short>{
+  struct PythonClassWrapper<const unsigned short>: public PyConstNumberCustomObject<const unsigned short>{
   };
 
   template<>
-  class PythonClassWrapper<unsigned int>: public PyNumberCustomObject<unsigned int>{
+  struct PythonClassWrapper<const unsigned int>: public PyConstNumberCustomObject<const unsigned int>{
   };
 
   template<>
-  class PythonClassWrapper<unsigned long>: public PyNumberCustomObject<unsigned long>{
+  struct PythonClassWrapper<const unsigned long>: public PyConstNumberCustomObject<const unsigned long>{
   };
 
   template<>
-  class PythonClassWrapper<unsigned long long>: public PyNumberCustomObject<unsigned long long>{
+  struct PythonClassWrapper<const unsigned long long>: public PyConstNumberCustomObject<const unsigned long long>{
   };
 
 
 
 
-struct PyFloatingPtCustomBase{
+struct PyConstFloatingPtCustomBase{
   static PyTypeObject Type;
 
   std::function<double()> asDouble;
 };
 
 template<typename number_type>
-struct PyFloatingPtCustomObject{
+struct PyConstFloatingPtCustomObject{
 public:
     PyObject_HEAD
     typedef number_type ntype;
@@ -282,11 +209,11 @@ public:
 
     static int create(PyObject* subtype, PyObject* args, PyObject*kwds);
 
-    PyFloatingPtCustomObject():_referenced(nullptr),_depth(0){
+    PyConstFloatingPtCustomObject():_referenced(nullptr),_depth(0), value(0.0){
     }
 
     template<typename t=number_type>
-    inline t* get_CObject(){
+    inline const t* get_CObject(){
         return &value;
     }
 
@@ -311,64 +238,60 @@ public:
 
 
   template<>
-  class PythonClassWrapper<float>: public PyFloatingPtCustomObject<float>{
-  };
+  struct PythonClassWrapper<const float>;
 
   template<>
-  class PythonClassWrapper<double>: public PyFloatingPtCustomObject<double>{
+  struct PythonClassWrapper<const double>;
+
+  template<>
+  struct PythonClassWrapper<const double>: public PyConstFloatingPtCustomObject<const double>{
   };
 
 
- template<>
- const char* const _type_name<char>();
-
-
- template<>
- const char* const _type_name<short>();
+  template<>
+  struct PythonClassWrapper<const float>: public PyConstFloatingPtCustomObject<const float>{
+  };
 
  template<>
- const char* const _type_name<int>();
-
- template<>
- const char* const _type_name<long>();
+ const char* const _type_name<const char>();
 
 
  template<>
- const char* const _type_name<long long>();
+ const char* const _type_name<const short>();
+
+ template<>
+ const char* const _type_name<const int>();
+
+ template<>
+ const char* const _type_name<const long>();
 
 
  template<>
- const char* const _type_name<unsigned char>();
-
- template<>
- const char* const _type_name<unsigned int>();
-
- template<>
- const char* const _type_name<unsigned short>();
-
- template<>
- const char* const _type_name<unsigned long>();
+ const char* const _type_name<const long long>();
 
 
  template<>
- const char* const _type_name<unsigned long long>();
+ const char* const _type_name<const unsigned char>();
 
  template<>
- const char* const _type_name<float>();
+ const char* const _type_name<const unsigned int>();
 
  template<>
- const char* const _type_name<double>();
+ const char* const _type_name<const unsigned short>();
+
+ template<>
+ const char* const _type_name<const unsigned long>();
+
+
+ template<>
+ const char* const _type_name<const unsigned long long>();
+
+ template<>
+ const char* const _type_name<const float>();
+
+ template<>
+ const char* const _type_name<const double>();
 
 }
-#include "pyllars_const.hpp"
-
-#if PY_MAJOR_VERSION == 3
-PyObject*
-#else
-PyMODINIT_FUNC
-int
-#endif
-PyllarsInit(const char* const name);
-
 #endif
 //PYLLARS

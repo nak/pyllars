@@ -1,3 +1,6 @@
+#ifndef PYLLARS_TEMPLATES_H
+#define PYLLARS_TEMPLATES_H
+
 #include "pyllars_templates.hpp"
 #include <string.h>
 
@@ -194,3 +197,5 @@ namespace __pyllars_internal {
     }
 
 }
+
+#endif

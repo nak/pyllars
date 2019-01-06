@@ -358,6 +358,8 @@ extern "C"{
                     try:
                         body_generator.generate()
                     except:
+                        import traceback
+                        traceback.print_exc()
                         log.exception("Failed to generate body for element %s" % element.name)
                         return
                 try:

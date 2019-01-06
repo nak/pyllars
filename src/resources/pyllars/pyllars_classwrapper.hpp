@@ -15,6 +15,7 @@
 
 
 //#include "pyllars_utils.hpp"
+#include "pyllars.hpp"
 #include "pyllars_defns.hpp"
 #include "pyllars_classmethodsemantics.hpp"
 #include "pyllars_classmembersemantics.hpp"
@@ -44,12 +45,13 @@ namespace __pyllars_internal {
     template<bool is_base_return_complete, bool with_ellipsis, typename ReturnType, typename ...Args>
     struct PythonFunctionWrapper;
 
+
     /**
      * Class to define Python wrapper to C class/type
      **/
     template<typename T>
     struct PythonClassWrapper<T,
-            typename std::enable_if<!std::is_array<T>::value && !std::is_pointer<T>::value>::type>
+			      typename std::enable_if<!std::is_arithmetic<T>::value && !std::is_floating_point<T>::value && !std::is_array<T>::value && !std::is_pointer<T>::value>::type>
             : public CommonBaseWrapper {
         // Convenience typedefs
         typedef CommonBaseWrapper::Base Base;
@@ -710,6 +712,12 @@ namespace __pyllars_internal {
       public:
         size_t _depth;
     };
+
+
+  template<>
+  struct PythonClassWrapper<const double>;
+
+
 
 }
 #endif

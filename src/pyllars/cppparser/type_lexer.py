@@ -6,6 +6,7 @@ tokens = (
     'qualifier',
     'reference',
     'name',
+    'scope',
     'structured_type',
     'is_definition',
     'is_referenced',
@@ -57,6 +58,12 @@ def t_qualifier(t):
     return t
 
 
+def t_scope(t):
+    r"([_\~\=a-zA-Z0-9]+::)"
+    t.value = t.value[:-2]
+    return t
+
+
 def t_is_enum(t):
     r"(enum)"
     t.value = True
@@ -75,7 +82,7 @@ def t_function_spec(t):
 
 
 def t_name(t):
-    r"((long\ |short\ |unsigned\ |signed\ )?[:_\~\=a-zA-Z0-9,]+)(\<.*\>)?"
+    r"((class\ |struct\ |enum\ |long\ |short\ |unsigned\ |signed\ )?[:_\~\=a-zA-Z0-9,]+)(\<.*\>)?"
     t.value = t.value.strip()
     return t
 

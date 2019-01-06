@@ -13,6 +13,10 @@ float global_number(){
     return 4.2f;
 }
 
+long long scoped::scoped_function(const scoped::TestClass::InnerTestClass &inner){
+    return (long long)inner.value;
+}
+
 const char * const const_ptr_str = 0;
 const char* const * const_ptr_ptr_str = 0;
 

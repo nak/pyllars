@@ -347,11 +347,40 @@ def _parse_type_spec(target_spec: str, element: Element):
     tag = element.tag
     kind = None
 
+    def parse_pieces(pieces):
+        return None
+
+    current_scope = None
+
+    def find(element: Element, name: str):
+        if element is None:
+            return None
+        for child in element.children():
+            if child.name == name:
+                return child
+        raise Exception("Unknown scope: %s" % (current_scope.full_name + '::' + name))
+
+    def scoping_element(element: Element):
+        parent = element.parent
+        while parent and not parent.is_scoping:
+            parent = parent.parent
+        return parent
+
     while True:
         token = type_lexer.token()
         if token is None:
             break
-        if token.type == 'name':
+        if token.type == 'scope':
+            current_scope = Element.lookup.get(token.value) if current_scope is None else find(current_scope, token.value)
+            if not current_scope:
+                current_scope = find(scoping_element(element), token.value)
+            if not current_scope:
+                raise Exception("Unknown scope: %s in this context" % token.value)
+        elif token.type == 'name':
+            if current_scope is not None:
+                return_type = find(current_scope, token.value)
+                if return_type:
+                    return return_type
             target_type = element.find(token.value)
             if not target_type and kind:
                 target_type = element.find(kind + " " + token.value)
@@ -378,10 +407,11 @@ def _parse_type_spec(target_spec: str, element: Element):
         elif token.type == 'reference':
             assert target_type is not None
             tag += "_%s" % token.value
+            spec = target_spec + token.value if not target_spec[-1] == token.value else target_spec
             if token.value == '*':
-                target_type = PointerType(target_spec + '*', tag=tag, parent=None)
+                target_type = PointerType(spec, tag=tag, parent=None)
             elif token.value == '&':
-                target_type = ReferenceType(target_spec + '&', tag=tag, parent=None)
+                target_type = ReferenceType(spec, tag=tag, parent=None)
         elif token.type == 'structured_type':
             kind = token.value
     Element.lookup[target_spec] = target_type
@@ -693,7 +723,7 @@ class QualType(Element):
                 qualifier = args[0]
                 args = args[1:]
         type_spec = " ".join(args).replace("'", "").strip()
-        super().__init__(tag=tag, parent=parent, name=type_spec)
+        super().__init__(tag=tag, parent=parent, name=qualifier + ' ' + type_spec)
         self._qualifier = qualifier
         self._target_type_spec = type_spec.replace(self._qualifier, "").strip()
         self._target_type = None
@@ -782,8 +812,8 @@ class _Function(ScopedElement):
         self._return_type = self.find(self._return_type_spec)
         self._throws = None
         if "throw" in signature:
-            throws = signature.split("throw", 1)[-1].strip()
-            self._throws = throws[1:-1].split(',')
+            throws = signature.split("throw", 1)[-1].replace(')', '').replace('(', '').replace("'", '').strip()
+            self._throws = throws.split(',')
 
     @property
     def throws(self):

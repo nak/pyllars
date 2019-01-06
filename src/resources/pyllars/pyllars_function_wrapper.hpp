@@ -56,7 +56,7 @@ namespace __pyllars_internal {
                         };
                         ArgType extra_arg_values[sizeof...(Args) + extra_args_size];
                         for (size_t i = sizeof...(Args); i < sizeof...(Args) + extra_args_size; ++i) {
-                            PyObject *const nextArg = PyTuple_GetItem(extra_args, i - sizeof...(Args));
+                            PyObject * nextArg = PyTuple_GetItem(extra_args, i - sizeof...(Args));
                             const int subtype = getType(nextArg, arg_types[i]);
                             switch (arg_types[i]->type) {
                                 case FFI_TYPE_SINT32:
@@ -77,7 +77,8 @@ namespace __pyllars_internal {
                                     break;
                                 case FFI_TYPE_POINTER:
                                     if (STRING_TYPE == subtype) {
-                                        extra_arg_values[i].ptrvalue = PyString_AsString(nextArg);
+                                        const char* const string_value = PyString_AsString(nextArg);
+                                        extra_arg_values[i].ptrvalue = (void*) string_value;
                                         arg_values[i] = &extra_arg_values[i].ptrvalue;
                                     } else if (COBJ_TYPE == subtype) {
                                         static const size_t offset = offset_of<ObjContainer<Arbitrary> *, PythonClassWrapper<Arbitrary> >

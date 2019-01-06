@@ -1,6 +1,7 @@
 import os
 
 from pyllars.cppparser.generation.base2 import GeneratorBody, GeneratorHeader
+from pyllars.cppparser.parser import code_structure
 from .base import qualified_name
 
 
@@ -266,3 +267,139 @@ class GeneratorBodyCXXMethodDecl(GeneratorBody):
                 'name':self._element.name,
 
             }).encode('utf-8'))
+
+
+class GeneratorBodyFunctionDecl(GeneratorBody):
+    METHOD_NAMES = GeneratorHeaderCXXMethodDecl.METHOD_NAMES
+
+    def _func_declaration(self):
+        def scoped_full_name(typ: code_structure.Element):
+            name = typ.full_name
+            if not isinstance(typ, code_structure.BuiltinType) and not name == "void":
+                name = '::' + name
+            return name
+
+        has_varargs = self._element.has_varargs
+        altenative_code = self._element.full_name
+        argslambda = ", ".join([scoped_full_name(arg.target_type) + " " + arg.as_function_argument(index) for
+                                index, arg in enumerate(self._element.params)])
+        if self._element.is_template:
+            template_args = "< %s >" % ",".join([arg.type_and_var_name(index) for index, arg in
+                                                 enumerate(self._element.template_args)])
+        else:
+            template_args = ""
+
+        arguments = ((',' if len(self._element.params) > 0 else "") +
+                         ', '.join([scoped_full_name(t.target_type) for t in self._element.params]))
+        lambda_code = "[](%(argslambda)s)->%(return_type)s{%(return_cast)s ::%(func_name)s%(template_args)s(%(params)s);}" % {
+            'return_type': scoped_full_name(self._element.return_type) if self._element.return_type else "void",
+            'func_name': self._element.full_name,
+            'return_cast': "" if self._element.return_type is None or self._element.return_type.full_name == "void" else
+                "return (%s)" % scoped_full_name(self._element.return_type),
+            'argslambda': argslambda,
+            'template_args': template_args,
+            'params': ", ".join(["%s" % arg.name if arg.name else
+                                 "p%s" % index for index, arg in enumerate(self._element.params)]),
+        } if not has_varargs else altenative_code
+        return """
+            __pyllars_internal::FuncContainer<%(has_varargs)s, %(return_type)s %(arguments)s>::Type<0, %(throws)s> func_container;
+            func_container._cfunc = %(lambdacode)s;
+            return  PyModule_AddObject(
+                        %(module_name)s, "%(func_name)s",
+                        (PyObject*)__pyllars_internal::PythonFunctionWrapper<__pyllars_internal::
+                        is_complete< %(return_type)s >::value, %(has_varargs)s, %(return_type)s %(arguments)s>::
+                        template Wrapper<%(throws)s>::create("%(func_name)s", func_container, argumentNames));
+""" % {
+            'module_name': self._element.parent.python_cpp_module_name if not isinstance(self._element.parent, code_structure.TranslationUnitDecl) else "global_mod",
+            'return_type': scoped_full_name(self._element.return_type) if self._element.return_type else "void",
+            'arguments': arguments,
+            'lambdacode': lambda_code,
+            'has_varargs': str(self._element.has_varargs).lower(),
+            'throws': ",".join(self._element.throws) if self._element.throws else "void",
+            'func_name': self._element.name,
+        }
+
+    def write_include_directives(self):
+        if 'operator delete' in self._element.name or 'operator new' in self._element.name:
+            return
+        super().write_include_directives()
+
+    def generate(self) -> None:
+        if 'operator delete' in self._element.name or 'operator new' in self._element.name:
+            return
+        imports = set([])
+        ##for elem in self._element.params:
+        ##    if elem and elem.target_type.scope != self._element.scope and elem.target_type.scope != "::":
+        ##        imports.add(elem.scope)
+        ##if self._element.return_type \
+        ##        and self._element.return_type.scope != self._element.scope \
+        ##        and self._element.return_type.scope != "::":
+        ##    imports.add(self._element.return_type.namespace.name)
+        with self._scoped(self._stream) as stream:
+            arg_count = len(self._element.params)
+            stream.write(self.decorate("""
+                  class Initializer_%(name)s: public pyllars::Initializer{
+                  public:
+                      Initializer_%(name)s():pyllars::Initializer(){
+                          %(parent_name)s::%(parent_name)s_register(this);                          
+                      }
+
+                      virtual int init(PyObject * const global_mod){
+                         int status = %(name)s_init(global_mod);
+                         return status == 0? pyllars::Initializer::init(global_mod) : status;
+                      }
+                      static Initializer_%(name)s *initializer;
+                   };
+
+                                                  """ % {
+                'name': self._element.name,
+                'parent_name': self._element.parent.name if not isinstance(self._element.parent, code_structure.TranslationUnitDecl) else "pyllars"
+            }).encode('utf-8'))
+
+            stream.write(("""
+                constexpr cstring name = "%(pyname)s";
+    
+                //generated from %(file)s.generate_body_proper
+                // FUNCTION %(name)s THROWS %(throws)s
+                """ % {
+                'name': self._element.name,
+                'pyname': self.METHOD_NAMES.get(self._element.name) if
+                   self._element.name in self.METHOD_NAMES else self._element.name if self._element.name != "operator=" else "assign_to",
+                'throws': "" if self._element.throws is None else "void" if len(self._element.throws) == 0
+                          else ",".join(self._element.throws),
+                         'file': __file__,
+            }).encode('utf-8'))
+            argument_names = ','.join(["\"%s\"" % (arg.name if arg.name else "_%s" % (index + 1)) for index, arg in
+                                            enumerate(self._element.params)]) + (',' if self._element.params else '')
+            stream.write(self.decorate("""
+                status_t %(name)s_init(PyObject * const global_mod){
+                   static const char* const argumentNames[] = {%(argument_names)s nullptr};
+                   status_t status = 0;
+                   %(imports)s
+                   %(func_decl)s
+                   return status;
+                }
+                
+                """ % {
+                'argument_names': argument_names,
+                'func_decl': self._func_declaration(),
+                'imports': "\n".join(
+                    ["if(!PyImport_ImportModule(\"pylllars.%s\")){PyErr_Clear();} " % n.replace("::", ".") for n in
+                     imports if n]),
+                'name': self._element.name,
+            }).encode('utf-8'))
+            stream.write(self.decorate("""
+                status_t %(name)s_register(pyllars::Initializer*){
+                    //do nothing, functions have no children
+                    return 0;
+                }
+            """ % {
+                'name': self._element.name,
+            }).encode('utf-8'))
+            stream.write(("""
+               Initializer_%(name)s *Initializer_%(name)s::initializer = new Initializer_%(name)s();
+    
+    """ % {
+                'name': self._element.name,
+            }).encode('utf-8'))
+

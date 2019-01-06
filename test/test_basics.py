@@ -63,6 +63,14 @@ class TestBasics:
         assert isinstance(testinstance.inner_instance(), testglobals.scoped.TestClass.InnerTestClass)
         assert testglobals.null_long_ptr is not None
         assert testglobals.null_long_ptr2 is not None
+        assert abs(testglobals.trial.double_value() - 2.33) < 0.00001
+
+    def test_global_funcs(self, testglobals):
+        instance = testglobals.scoped.TestClass.InnerTestClass()
+        instance.value = 5.9
+        assert testglobals.scoped.scoped_function(instance) == 5
+        instance.value = 123983.2
+        assert testglobals.scoped.scoped_function(instance) == 123983
 
     def test_signed_add(self, c_signed_type_and_size):
         c_type, size = c_signed_type_and_size

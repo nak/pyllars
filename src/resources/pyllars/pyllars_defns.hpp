@@ -48,6 +48,13 @@ namespace __pyllars_internal {
     template <typename T, typename E = void>
     struct PythonClassWrapper;
 
+  template<>
+  class PythonClassWrapper<const float>;
+
+
+  template<>
+  class PythonClassWrapper<const double>;
+
     /**
      * Class common to all C++ wrapper classes
      **/
