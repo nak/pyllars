@@ -100,6 +100,10 @@ class Element(ABC):
         return 'const' in (self._qualifiers or [])
 
     @property
+    def is_constexpr(self):
+        return 'constexpr' in (self._qualifiers or [])
+
+    @property
     def full_name(self):
         """
         :return: fully scoped name of this type/element
@@ -396,7 +400,7 @@ class BuiltinType(Element):
 
     @property
     def python_type_name(self):
-        if 'unsgiend char' in self.name or 'int' in self.name or 'long' in self.name or 'short' in self.name:
+        if 'unsigned char' in self.name or 'int' in self.name or 'long' in self.name or 'short' in self.name:
             return "PyLong_Type"
         elif 'bool' in self.name:
             return "PyBool_Type"
@@ -573,6 +577,7 @@ class FieldDecl(ScopedElement):
         self._target_type = None
         self._basic_type = basic_type
         self._bit_size = None
+        self._array_size = 1;
 
     @property
     def target_type(self):
@@ -593,6 +598,7 @@ class VarDecl(ScopedElement):
         super().__init__(tag=tag, parent=parent, name=name, loc1=loc1, loc2=loc2)
         self._type_spec = type_spec
         self._target_type = None
+        self._qualifiers = qualifiers
 
     @property
     def type_spec(self):
@@ -637,6 +643,7 @@ class _DecoratingType(UnscopedElement):
     def __init__(self, tag: str, parent: Optional[Element], qualifier: str, target_spec: str):
         super().__init__(tag=tag, parent=parent, name=target_spec)
         self._qualifier = qualifier
+        self._qualifiers = [qualifier]
         self._target_spec = target_spec
 
     @property
@@ -688,10 +695,16 @@ class QualType(Element):
         type_spec = " ".join(args).replace("'", "").strip()
         super().__init__(tag=tag, parent=parent, name=type_spec)
         self._qualifier = qualifier
+        self._target_type_spec = type_spec.replace(self._qualifier, "").strip()
+        self._target_type = None
 
     @property
     def target_type(self):
-        return self.children()[0]
+        if self.children():
+            return self.children()[0]
+        if not self._target_type:
+            self._target_type = _parse_type_spec(self._target_type_spec, self)
+        return self._target_type
 
     @property
     def qualifier(self):
@@ -700,8 +713,13 @@ class QualType(Element):
     @property
     def name(self):
         if self._qualifier in ['*', '&', '&&', '[]']:
-            return self.target_type + ' ' + self._qualifier
+            return self.target_type.name + ' ' + self._qualifier
         return self._qualifier + ' ' + self.target_type.name
+
+    @property
+    def is_const(self):
+         return 'const' == self.qualifier
+
 
 
 #################

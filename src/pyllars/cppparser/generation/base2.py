@@ -150,16 +150,21 @@ extern "C"{
 
     def link(self, objects, output_module_path, module_name: str, global_module_name: Optional[str] = None):
         code = self.CODE % {b'name': (module_name or "pyllars").encode('utf-8')}
-        with open('/tmp/test.cpp', mode='wb') as f:
+        compiler = Compiler(compiler_flags=self._compiler_flags + ["-I%s" % pyllars_resources_dir],
+                            output_dir=output_module_path, optimization_level=self._optimization_level,
+                            debug=self._debug)
+        pyllars_obj = compiler.compile(os.path.join(pyllars_resources_dir, "pyllars", "pyllars.cpp"))
+
+        with tempfile.NamedTemporaryFile(mode='wb', suffix='.cpp') as f:
             f.write(code)
             f.flush()
             cmd = "%(cxx)s -shared -O -fPIC -std=c++14 %(cxxflags)s -I%(python_include)s -shared -o %(output_module_path)s -Wl,--no-undefined " \
-                  "%(objs)s %(python_lib_name)s %(linker_flags)s -Wl,-R,'$ORIGIN' -lpthread -lffi %(codefile)s -I%(pyllars_include)s %(pyllars_include)s/pyllars/pyllars.cpp" % {
+                  "%(objs)s %(python_lib_name)s %(linker_flags)s -Wl,-R,'$ORIGIN' -lpthread -lffi %(codefile)s -I%(pyllars_include)s" % {
                       'cxx': Compiler.LDCXXSHARED,
                       'cxxflags': Compiler.CFLAGS + " " + " ".join(self._compiler_flags),
                       'linker_flags': " ".join(self._link_flags),
                       'output_module_path': os.path.join(output_module_path, "%s.so" % module_name),
-                      'objs': " ".join(["\"%s\"" % o for o in objects]),
+                      'objs': "%s " % pyllars_obj + " ".join(["\"%s\"" % o for o in objects]),
                       'pyllars_include': pyllars_resources_dir,
                       'python_include': Compiler.PYINCLUDE,
                       'codefile': f.name,
@@ -475,7 +480,7 @@ class GeneratorHeader(BaseGenerator):
         """
         Write include directives at top of file.  Method allows children to inherit and expand on this if needed
         """
-        parent_header_name = "#include \"%s\"" % self._parent._header_file_path if self._parent else ""
+        parent_header_name = "#include \"%s\"\n" % self._parent._header_file_path if self._parent else ""
         self._stream.write(self.COMMON_HEADER_INCLUDES % {b"parent_header_name": parent_header_name.encode('utf-8'),
                                                           b'src_path': self._src_path.encode('utf-8')})
 

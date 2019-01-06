@@ -92,11 +92,6 @@ template<typename number_type>
 static const char* const _type_name();
 
 
- template<>
- const char* const _type_name<char>(){
-  static const char* const name = "c_char";
-  return name;
-}
 
 template<typename number_type>
 struct NumberType;
@@ -112,6 +107,9 @@ struct PyNumberCustomObject{
 public:
     PyObject_HEAD
     typedef number_type ntype;
+    typedef PythonClassWrapper<number_type const,   void> ConstWrapper;
+    typedef PythonClassWrapper<typename std::remove_const<number_type>::type> NonConstWrapper;
+    typedef PythonClassWrapper<typename std::remove_reference<number_type>::type> NoRefWrapper;
 
     static PyTypeObject Type;
 
@@ -221,6 +219,36 @@ public:
   template<>
   class PythonClassWrapper<unsigned long long>: public PyNumberCustomObject<unsigned long long>{
   };
+
+
+ template<>
+ const char* const _type_name<char>();
+
+
+ template<>
+ const char* const _type_name<short>();
+
+ template<>
+ const char* const _type_name<long>();
+
+
+ template<>
+ const char* const _type_name<long long>();
+
+
+ template<>
+ const char* const _type_name<unsigned char>();
+
+
+ template<>
+ const char* const _type_name<unsigned short>();
+
+ template<>
+ const char* const _type_name<unsigned long>();
+
+
+ template<>
+ const char* const _type_name<unsigned long long>();
 }
 
 #if PY_MAJOR_VERSION == 3

@@ -26,6 +26,7 @@ namespace scoped{
         long long long_long_member;
         static constexpr float static_const_float_member = 42.1f;
         const int const_int_member;
+        static InnerTestClass inner_instance;
     };
 }
 
@@ -36,7 +37,7 @@ namespace outside{
 
 namespace trial{
 
-  int some_global_function(const double & value, outside::ExternalDependency &d) throw(double );
+    int some_global_function(const double & value, outside::ExternalDependency &d) throw(double );
 
     static constexpr double double_value = 2.33;
 }

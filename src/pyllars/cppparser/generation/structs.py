@@ -11,7 +11,7 @@ class GeneratorBodyCXXRecordDecl(GeneratorBody):
         return not [child for child in self._element.children() + self._element._inaccessible_children if isinstance(child, code_structure.CXXConstructorDecl)]
 
     def generate(self):
-        if not self._element.is_definition or self._element.is_implicit or self._element.is_referenced:
+        if not self._element.is_definition or self._element.is_implicit:
             return
 
         self._stream.write(("                //From: %(file)s: GeneratorBodyCXXRecordDecl.generate\n" % {

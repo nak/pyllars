@@ -217,6 +217,7 @@ struct NumberType{
             return ((PyNumberCustomObject<number_type>*) obj)->asLongLong();
         } else {
             PyErr_SetString(PyExc_SystemError, "System error: invalid type encountered");
+            return 0;
         }
     }
 
@@ -640,6 +641,13 @@ PyTypeObject PyNumberCustomObject<number_type>::Type = {
   0,                          /*tp_version_tag*/
 };
  
+
+
+ template<>
+ const char* const _type_name<char>(){
+  static const char* const name = "c_char";
+  return name;
+}
 
 
 template<>

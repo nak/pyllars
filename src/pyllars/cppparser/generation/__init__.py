@@ -6,6 +6,7 @@ from .namespaces import *
 from .fundamentals import *
 from .structs import *
 from .methods import *
+from .attributes import *
 
 log = logging.getLogger(__name__)
 

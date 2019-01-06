@@ -355,7 +355,11 @@ extern "C"{
                         log.exception("Failed to generate for element %s and its children" % element.name)
                         return
                 with GeneratorBody.generator(element=element, src_path=src_path, folder=folder, parent=parent) as body_generator:
-                    body_generator.generate()
+                    try:
+                        body_generator.generate()
+                    except:
+                        log.exception("Failed to generate body for element %s" % element.name)
+                        return
                 try:
                     obj = await compiler.compile_async(body_generator.body_file_path)
                     objects.append(obj)

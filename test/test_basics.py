@@ -51,6 +51,19 @@ class TestBasics:
         assert abs(4.2 - testinstance.method(1)) < 0.00001
         assert testinstance.InnerTestClass() is not None
 
+    def test_basic_class_members(self, testglobals):
+        testinstance = testglobals.scoped.TestClass()
+        assert testinstance.long_long_member == 51
+        assert testinstance.const_int_member == 123
+        assert abs(testglobals.scoped.TestClass.static_const_float_member() - 42.1) < 0.00001
+        testinstance.long_long_member = 21234;
+        assert testinstance.long_long_member == 21234;
+        with pytest.raises(ValueError):
+            testinstance.const_int_member = 1
+        assert isinstance(testinstance.inner_instance(), testglobals.scoped.TestClass.InnerTestClass)
+        assert testglobals.null_long_ptr is not None
+        assert testglobals.null_long_ptr2 is not None
+
     def test_signed_add(self, c_signed_type_and_size):
         c_type, size = c_signed_type_and_size
         max = (1<<(size-1)) - 1

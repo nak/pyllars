@@ -15,3 +15,5 @@ float global_number(){
 
 const char * const const_ptr_str = 0;
 const char* const * const_ptr_ptr_str = 0;
+
+scoped::TestClass::InnerTestClass  scoped::TestClass::inner_instance;
