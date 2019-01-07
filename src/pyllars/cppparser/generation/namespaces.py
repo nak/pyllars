@@ -7,11 +7,14 @@ class GeneratorBodyTypedefDecl(GeneratorBody):
 
     def generate(self):
         with self._scoped(self._stream, indent=b"            "):
-            self._stream.write(b"""
+            self._stream.write(self.decorate(self.INITIALIZER_CODE% {
+                'name': self._element.name,
+                'parent_name': self._element.parent.name or "pyllars"
+            }).encode('utf-8'))
 
-                """ % {b'name': self._element.name.encode('utf-8'),
-                       b'pyllars_scope': self._element.pyllars_scope.encode('utf-8')})
-
+            self._stream.write(self.decorate(self.INITIALIZER_INSTANTIATION_CODE % {
+                'name': self._element.name
+            }).encode('utf-8'))
             suffix = + b'_mod' if isinstance(self._element, code_structure.NamespaceDecl) else b''
             self._stream.write(b"""
                 
@@ -36,25 +39,7 @@ class GeneratorBodyTypedefDecl(GeneratorBody):
                 b'name': self._element.name.encode('utf-8'),
                 b'fullname': self._element.full_name.encode('utf-8'),
             })
-            self._stream.write(b"""
-                class Initializer_%(basic_name)s: public pyllars::Initializer{
-                public:
-                    Initializer_%(basic_name)s():pyllars::Initializer(){
-                        pyllars_register_last(this);                          
-                    }
-    
-                    virtual int init(PyObject * const global_mod){
-                       return %(basic_name)s_init(global_mod);
-                    }
-                private:
-                    static Initializer_%(basic_name)s *initializer;
-                 };
-                 
-                Initializer_%(basic_name)s *Initializer_%(basic_name)s::initializer = new Initializer_%(basic_name)s();
-                """ % {
-                b'basic_name': self._element.name.encode('utf-8'),
-                b'parent_name': (self._element.parent.name or "pyllars").encode('utf-8'),
-            })
+
             self._stream.write(b"""
                 /**
                  * For children to register initializers to be called before this namespace PyObject is inited

@@ -220,7 +220,7 @@ public:
 
      static PyMethodDef _methods[];
 
-    std::function<__int128_t()> asDouble;
+    std::function<double()> asDouble;
 
     PyObject* _referenced;
     size_t _depth;

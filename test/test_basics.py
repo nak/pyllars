@@ -12,6 +12,32 @@ TEST_LIBS_DIR = os.path.join(os.path.dirname(__file__), "libs")
 
 sys.path.insert(0, TEST_LIBS_DIR)
 
+sizes = {'c_char': 8,
+         'c_short': 16,
+         'c_int': 32,
+         'c_long': 64,
+         'c_long_long': 64,
+         'c_unsigned_char': 8,
+         'c_unsigned_short': 16,
+         'c_unsigned_int': 32,
+         'c_unsigned_long': 64,
+         'c_unsigned_long_long': 64,
+         'c_const_unsigned_char': 8,
+         'c_const_unsigned_short': 16,
+         'c_const_unsigned_int': 32,
+         'c_const_unsigned_long': 64,
+         'c_const_unsigned_long_long': 64,
+         'c_const_char': 8,
+         'c_const_short': 16,
+         'c_const_int': 32,
+         'c_const_long': 64,
+         'c_const_long_long': 64,
+         'c_const_float': 32,
+         'c_const_double': 64,
+         'c_float': 32,
+         'c_double': 64,
+
+         }
 
 @pytest.fixture(scope='session')
 def testglobals(linker_flags):
@@ -34,12 +60,57 @@ def testglobals(linker_flags):
 @pytest.fixture(params=['c_char', 'c_short', 'c_int', 'c_long', 'c_long_long'])
 def c_signed_type_and_size(testglobals, request):
     # CUATION: These are known to be good only for Linux 64-bit systems
-    sizes = {'c_char': 8,
-             'c_short': 16,
-             'c_int': 32,
-             'c_long': 64,
-             'c_long_long': 64,
-             }
+
+    import pyllars
+    return getattr(pyllars, request.param), sizes[request.param]
+
+
+@pytest.fixture(params=['c_const_char', 'c_const_short', 'c_const_int', 'c_const_long', 'c_const_long_long'])
+def c_const_signed_type_and_size(testglobals, request):
+    # CUATION: These are known to be good only for Linux 64-bit systems
+    import pyllars
+    return getattr(pyllars, request.param), sizes[request.param]
+
+
+@pytest.fixture(params=['c_char', 'c_short', 'c_int', 'c_long', 'c_long_long', 'c_const_char', 'c_const_short', 'c_const_int', 'c_const_long', 'c_const_long_long'])
+def c_all_signed_type_and_size(testglobals, request):
+    # CUATION: These are known to be good only for Linux 64-bit systems
+    import pyllars
+    return getattr(pyllars, request.param), sizes[request.param]
+
+
+@pytest.fixture(params=['c_unsigned_char', 'c_unsigned_short', 'c_unsigned_int', 'c_unsigned_long', 'c_unsigned_long_long'])
+def c_unsigned_type_and_size(testglobals, request):
+    # CUATION: These are known to be good only for Linux 64-bit systems
+    import pyllars
+    return getattr(pyllars, request.param), sizes[request.param]
+
+
+@pytest.fixture(params=['c_const_unsigned_char', 'c_const_unsigned_short', 'c_const_unsigned_int', 'c_const_unsigned_long', 'c_const_unsigned_long_long'])
+def c_const_unsigned_type_and_size(testglobals, request):
+    # CUATION: These are known to be good only for Linux 64-bit systems
+    import pyllars
+    return getattr(pyllars, request.param), sizes[request.param]
+
+
+@pytest.fixture(params=['c_unsigned_char', 'c_unsigned_short', 'c_unsigned_int', 'c_unsigned_long', 'c_unsigned_long_long',
+                        'c_const_unsigned_char', 'c_const_unsigned_short', 'c_const_unsigned_int', 'c_const_unsigned_long', 'c_const_unsigned_long_long'])
+def c_all_unsigned_type_and_size(testglobals, request):
+    # CUATION: These are known to be good only for Linux 64-bit systems
+    import pyllars
+    return getattr(pyllars, request.param), sizes[request.param]
+
+
+@pytest.fixture(params=['c_const_float', 'c_const_double'])
+def c_const_float_type_and_size(testglobals, request):
+    # CUATION: These are known to be good only for Linux 64-bit systems
+    import pyllars
+    return getattr(pyllars, request.param), sizes[request.param]
+
+
+@pytest.fixture(params=['c_float', 'c_double'])
+def c_float_type_and_size(testglobals, request):
+    # CUATION: These are known to be good only for Linux 64-bit systems
     import pyllars
     return getattr(pyllars, request.param), sizes[request.param]
 
@@ -72,8 +143,13 @@ class TestBasics:
         instance.value = 123983.2
         assert testglobals.scoped.scoped_function(instance) == 123983
 
-    def test_signed_add(self, c_signed_type_and_size):
-        c_type, size = c_signed_type_and_size
+    def test_float_add(self, c_float_type_and_size):
+        c_type, size = c_float_type_and_size
+        tolerance = 0.00001 if size == 32 else 0.00000001
+        assert abs((c_type(1.2) + c_type(123.9)) - c_type(125.1)) < tolerance
+
+    def test_signed_add(self, c_all_signed_type_and_size):
+        c_type, size = c_all_signed_type_and_size
         max = (1<<(size-1)) - 1
         min = -(1<<(size-1))
         assert c_type(1) + c_type(max//2) == c_type((max//2) + 1)
@@ -83,7 +159,18 @@ class TestBasics:
         with pytest.raises(ValueError):
             c_type(min) + c_type(-2)
         import pyllars
-        if c_type not in [pyllars.c_long, pyllars.c_long_long]:
+        if size < 64:
+            assert c_type(max) + max == 2*max  # convert to Python int: no bounds
+
+    def test_unsigned_add(self, c_all_unsigned_type_and_size):
+        c_type, size = c_all_unsigned_type_and_size
+        max = (1<<size)-1
+        assert c_type(1) + c_type(max//2) == c_type((max//2) + 1)
+        assert c_type(12) + c_type(max//2) == c_type((max//2) + 12)
+        with pytest.raises(ValueError):
+            c_type(max) + c_type(1)
+        import pyllars
+        if size < 64:
             assert c_type(max) + max == 2*max  # convert to Python int: no bounds
 
     def test_signed_inplace_add(self, c_signed_type_and_size):
@@ -100,8 +187,19 @@ class TestBasics:
             j = c_type(-121)
             j += min
 
-    def test_signed_subtract(self, c_signed_type_and_size):
-        c_type, size = c_signed_type_and_size
+    def test_unsigned_inplace_add(self, c_unsigned_type_and_size):
+        c_type, size = c_unsigned_type_and_size
+        max = c_type((1 << size) - 1)
+        i = c_type(12)
+        i += c_type(30)
+        assert i == c_type(42)
+        assert i == 42  # compare to normal Python int
+        with pytest.raises(ValueError):
+            j = c_type(121)
+            j += max
+
+    def test_signed_subtract(self, c_all_signed_type_and_size):
+        c_type, size = c_all_signed_type_and_size
         max = c_type((1<<(size-1)) - 1)
         min = c_type(-(1<<(size-1)))
         assert c_type(1) - c_type(max//2) == c_type(-(max//2) + 1)
@@ -111,8 +209,18 @@ class TestBasics:
         with pytest.raises(ValueError):
             assert c_type(min) - c_type(1)
         import pyllars
-        if c_type not in [pyllars.c_long, pyllars.c_long_long]:
+        if size < 64:
             assert c_type(max) - (1<<(size-1)) == max - (1<<(size-1))  # convert to Python int: no bounds
+
+    def test_unsigned_subtract(self, c_all_unsigned_type_and_size):
+        c_type, size = c_all_unsigned_type_and_size
+        max = c_type((1<<size) - 1)
+        assert c_type(max//2) -  c_type(1)  == c_type((max//2) - 1)
+        with pytest.raises(ValueError):
+            assert c_type(0) - c_type(1)
+        import pyllars
+        if size < 64:
+            assert c_type(max) - (1<<size) == max - (1<<size)  # convert to Python int: no bounds
 
     def test_signed_inplace_subtract(self, c_signed_type_and_size):
         c_type, size = c_signed_type_and_size
@@ -128,8 +236,22 @@ class TestBasics:
             j = c_type(-121)
             j -= max
 
-    def test_signed_multiply(self, c_signed_type_and_size):
-        c_type, size = c_signed_type_and_size
+    def test_unsigned_inplace_subtract(self, c_unsigned_type_and_size):
+        c_type, size = c_unsigned_type_and_size
+        max = c_type(1<<size-1)
+        i = c_type(30)
+        i -= c_type(12)
+        assert i == c_type(18)
+        assert i == 18  # compare to normal Python int
+        j = c_type(121)
+        j -= 2
+        assert j == 119
+        with pytest.raises(ValueError):
+            j = c_type(121)
+            j -= max
+
+    def test_signed_multiply(self, c_all_signed_type_and_size):
+        c_type, size = c_all_signed_type_and_size
         max = c_type((1 << (size - 1)) - 1)
         min = c_type(-(1 << (size - 1)))
         assert c_type(3) * c_type(12) == c_type(36)
@@ -150,8 +272,8 @@ class TestBasics:
             j *= i
         assert j == c_type(min)
 
-    def test_signed_divide(self, c_signed_type_and_size):
-        c_type, size = c_signed_type_and_size
+    def test_signed_divide(self, c_all_signed_type_and_size):
+        c_type, size = c_all_signed_type_and_size
         assert c_type(12)/c_type(3) == 4.0
         assert c_type(13)/c_type(2) == 6.5
         assert c_type(15)/c_type(-2) == -7.5
@@ -162,8 +284,8 @@ class TestBasics:
         i /= 3
         assert i == 40.0
 
-    def test_signed_floordiv(self, c_signed_type_and_size):
-        c_type, size = c_signed_type_and_size
+    def test_signed_floordiv(self, c_all_signed_type_and_size):
+        c_type, size = c_all_signed_type_and_size
         assert c_type(121)//c_type(2) == c_type(60)
         assert c_type(-121)//c_type(3) == c_type(-41)
         assert c_type(-120)//c_type(3) == c_type(-40)

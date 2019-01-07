@@ -111,9 +111,12 @@ namespace __pyllars_internal{
             return &obj;
         }
 
-        static long long toLongLong(PyObject* obj){
+        static __int128_t toLongLong(PyObject* obj){
             if(PyLong_Check(obj)){
-                return PyLong_AsLong(obj);
+	      if (min == 0){
+		return PyLong_AsUnsignedLongLong(obj);
+	      }
+                return PyLong_AsLongLong(obj);
             } else if(PyObject_TypeCheck(obj, &PyConstNumberCustomBase::Type)){
                 return ((PyConstNumberCustomObject<number_type>*) obj)->asLongLong();
             } else {
@@ -157,14 +160,10 @@ namespace __pyllars_internal{
                 return nullptr;
             }
             if (return_py){
-            if(ret_value > ConstNumberType<long long>::max || ret_value < ConstNumberType<long long>::min){
-                PyErr_SetString(PyExc_ValueError, "Result out of range");
-                return nullptr;
-            }
-            if (ConstNumberType<number_type>::min == 0){
-              return PyLong_FromUnsignedLong(ret_value);
-            }
-                return PyLong_FromLong(ret_value);
+                if (ConstNumberType<number_type>::min == 0){
+                   return PyLong_FromUnsignedLongLong(ret_value);
+                }
+                return PyLong_FromLongLong(ret_value);
             } else if ( ret_value < min || ret_value > max){
                 PyErr_SetString(PyExc_ValueError, "Result out of range");
                 return nullptr;
@@ -198,16 +197,12 @@ namespace __pyllars_internal{
         }
 
        static __int128_t add(__int128_t value1, __int128_t value2, const bool check){
-            if(check && is_out_of_bounds_add(value1, value2)){
-                PyErr_SetString(PyExc_ValueError, "sum of values out of range");
-            }
+           
             return value1 + value2;
         }
 
         static __int128_t subtract(__int128_t value1, __int128_t value2, const bool check){
-            if(check && is_out_of_bounds_subtract(value1, value2)){
-                PyErr_SetString(PyExc_ValueError, "difference of values out of range");
-            }
+           
            return value1 - value2;
         }
 
@@ -869,7 +864,7 @@ namespace __pyllars_internal{
             }
             const double value1 = toDouble(v1);
             const double value2 = toDouble(v2);
-            const double quotient = (double)((long long)value1/(long long)value2);
+            const double quotient = (double)((__int128_t)value1/(__int128_t)value2);
             const double remainder = value1 - ((double)quotient)* value2;
             if (quotient < min || quotient > max || remainder < min || remainder> max){
                 static const char* const msg = "Invalid types for arguments";
@@ -904,9 +899,9 @@ namespace __pyllars_internal{
         }
 
         static double floor_div(double v1, double v2, const bool check){
-            long long value1 = (long long)v1;
-            long long value2 = (long long)v2;
-             if(((value1 < 0 and value2 > 0) || (value1 > 0 && value2 < 0)) && fmod(value1, value2) != 0.0){
+            __int128_t value1 = (__int128_t)v1;
+            __int128_t value2 = (__int128_t)v2;
+             if(((value1 < 0 and value2 > 0) || (value1 > 0 && value2 < 0)) && (value1 % value2) != 0.0){
                 return (double)(value1/value2 -1);
             }
             return (double)(value1/value2);

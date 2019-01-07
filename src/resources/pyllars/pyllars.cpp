@@ -211,9 +211,12 @@ namespace __pyllars_internal{
             return &obj;
         }
 
-        static long long toLongLong(PyObject* obj){
+      static __int128_t toLongLong(PyObject* obj){
             if(PyLong_Check(obj)){
-                return PyLong_AsLong(obj);
+	        if(min == 0){
+	            return PyLong_AsUnsignedLongLong(obj);
+	        }
+                return PyLong_AsLongLong(obj);
             } else if(PyObject_TypeCheck(obj, &PyNumberCustomBase::Type)){
                 return ((PyNumberCustomObject<number_type>*) obj)->asLongLong();
             } else {
@@ -257,17 +260,13 @@ namespace __pyllars_internal{
                 return nullptr;
             }
             if (return_py){
-            if(ret_value > NumberType<long long>::max || ret_value < NumberType<long long>::min){
-                PyErr_SetString(PyExc_ValueError, "Result out of range");
-                return nullptr;
-            }
-            if (NumberType<number_type>::min == 0){
-              return PyLong_FromUnsignedLong(ret_value);
-            }
-                return PyLong_FromLong(ret_value);
+                if (NumberType<number_type>::min == 0){
+                  return PyLong_FromUnsignedLongLong(ret_value);
+                }
+                return PyLong_FromLongLong(ret_value);
             } else if ( ret_value < min || ret_value > max){
-                PyErr_SetString(PyExc_ValueError, "Result out of range");
-                return nullptr;
+                    PyErr_SetString(PyExc_ValueError, "Result out of range");
+                    return nullptr;
             }
             PyNumberCustomObject<number_type>* ret = (PyNumberCustomObject<number_type>*) PyObject_Call((PyObject*) &PyNumberCustomObject<number_type>::Type, emptyargs, nullptr);
             if (!ret){
@@ -293,7 +292,7 @@ namespace __pyllars_internal{
                 return nullptr;
             }
             if (ret_value < min || ret_value > max){
-                PyErr_SetString(PyExc_ValueError,  "Result out of bounds");
+                PyErr_SetString(PyExc_ValueError,  "Result out of range");
                 return nullptr;
             }
             *const_cast<typename std::remove_const<number_type>::type*>(&((PyNumberCustomObject<number_type>*)v1)->value) = ret_value;
@@ -321,16 +320,10 @@ namespace __pyllars_internal{
         }
 
       static __int128_t add(__int128_t value1, __int128_t value2, const bool check){
-            if(check && is_out_of_bounds_add(value1, value2)){
-                PyErr_SetString(PyExc_ValueError, "sum of values out of range");
-            }
             return value1 + value2;
         }
 
         static __int128_t subtract(__int128_t value1, __int128_t value2, const bool check){
-            if(check && is_out_of_bounds_subtract(value1, value2)){
-                PyErr_SetString(PyExc_ValueError, "difference of values out of range");
-            }
            return value1 - value2;
         }
 
@@ -411,7 +404,7 @@ namespace __pyllars_internal{
         static number_type negative(__int128_t value){
             const __int128_t result = -value;
             if (result < min || result > max){
-                PyErr_SetString(PyExc_ValueError, "result is out of range");
+                PyErr_SetString(PyExc_ValueError, "Result is out of range");
             }
             return result;
          }
@@ -947,10 +940,7 @@ namespace __pyllars_internal{
             }
             if (return_py){
                 return PyFloat_FromDouble(ret_value);
-            } else if ( ret_value < min || ret_value > max){
-                PyErr_SetString(PyExc_ValueError, "Result out of range");
-                return nullptr;
-            }
+            } 
             PyFloatingPtCustomObject<number_type>* ret = (PyFloatingPtCustomObject<number_type>*) PyObject_Call((PyObject*) &PyFloatingPtCustomObject<number_type>::Type, emptyargs, nullptr);
             if (!ret){
                 return nullptr;
@@ -972,10 +962,6 @@ namespace __pyllars_internal{
             double ret_value = ((PyFloatingPtCustomObject<number_type>*)v1)->value;
             func(ret_value, toDouble(v2));
             if(PyErr_Occurred()){
-                return nullptr;
-            }
-            if (ret_value < min || ret_value > max){
-                PyErr_SetString(PyExc_ValueError,  "Result out of bounds");
                 return nullptr;
             }
             *const_cast<typename std::remove_const<number_type>::type*>(&((PyFloatingPtCustomObject<number_type>*)v1)->value) = ret_value;
@@ -1042,11 +1028,6 @@ namespace __pyllars_internal{
             const double value1 = toDouble(v1);
             const double value2 = toDouble(v2);
             const double result = ::pow(value1, value2);
-            if (result < min || result > max){
-                static const char* const msg = "Result is out of range";
-                PyErr_SetString(PyExc_ValueError, msg);
-                return nullptr;
-            }
             ret->value = (number_type) result;
             return  (PyObject*) ret;
         }
@@ -1057,9 +1038,6 @@ namespace __pyllars_internal{
                 result = value1 - (floor_div(value1, value2, false) * value2);
             } else {
                 result = fmod(value1, value2);
-            }
-            if(check && (result > max || result < min)){
-                PyErr_SetString(PyExc_ValueError, "Result is out of range");
             }
             return result;
         }
@@ -1126,16 +1104,10 @@ namespace __pyllars_internal{
         }
 
         static void inplace_add(double &value1, double value2){
-            if (is_out_of_bounds_add(value1, value2)){
-                PyErr_SetString(PyExc_ValueError, "Values out of range for in place addition");
-            }
             value1 += value2;
         }
 
         static void inplace_subtract(double &value1, double value2){
-            if (is_out_of_bounds_subtract(value1, value2)){
-                PyErr_SetString(PyExc_ValueError, "Values out of range for in place subtraction");
-            }
             value1 -= value2;
         }
 
@@ -1148,8 +1120,8 @@ namespace __pyllars_internal{
         }
 
         static void inplace_floor_div(double &value1, double value2){
-            long long intv1 = (long long)value1;
-            long long intv2 = (long long)value2;
+            __int128_t intv1 = (__int128_t)value1;
+            __int128_t intv2 = (__int128_t)value2;
             intv1 /= intv2;
 
             if(((intv1 < 0 and intv2 > 0) || (intv1 > 0 && intv2 < 0)) && (intv1 % intv2 != 0)){
@@ -1159,11 +1131,8 @@ namespace __pyllars_internal{
         }
 
         static double floor_div(double v1, double v2, const bool check){
-            long long value1 = (long long)v1;
-            long long value2 = (long long)v2;
-             if(((value1 < 0 and value2 > 0) || (value1 > 0 && value2 < 0)) && fmod(value1, value2) != 0.0){
-                return (double)(value1/value2 -1);
-            }
+            __int128_t value1 = (__int128_t)v1;
+            __int128_t value2 = (__int128_t)v2;
             return (double)(value1/value2);
         }
 

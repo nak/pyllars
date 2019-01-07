@@ -350,6 +350,26 @@ class GeneratorBody(BaseGenerator):
         }
         """
 
+    INITIALIZER_CODE = """
+                class Initializer_%(name)s: public pyllars::Initializer{
+                public:
+                    Initializer_%(name)s():pyllars::Initializer(){
+                        %(parent_name)s_register(this);                          
+                    }
+
+                    virtual int init(PyObject * const global_mod){
+                       int status = pyllars::Initializer::init(global_mod);
+                       return status == 0?%(name)s_init(global_mod):status;
+                    }
+                    static Initializer_%(name)s *initializer;
+                 };
+
+                """
+
+    INITIALIZER_INSTANTIATION_CODE = """
+                Initializer_%(name)s * Initializer_%(name)s::initializer = new Initializer_%(name)s();
+    """
+
     @staticmethod
     def _get_generator_class(element: code_structure.Element) -> Type["GeneratorBody"]:
         from . import _get_generator_body_class

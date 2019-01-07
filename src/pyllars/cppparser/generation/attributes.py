@@ -27,23 +27,13 @@ class GeneratorBodyFieldDecl(GeneratorBody):
         ##    imports.add(self._element.scope)
         with self._scoped(self._stream) as stream:
 
-            self._stream.write(self.decorate("""
-                    class Initializer_%(name)s: public pyllars::Initializer{
-                    public:
-                        Initializer_%(name)s():pyllars::Initializer(){
-                            %(parent_name)s_register(this);                          
-                        }
-
-                        virtual int init(PyObject * const global_mod){
-                           int status = pyllars::Initializer::init(global_mod);
-                           return status == 0?%(name)s_init(global_mod):status;
-                        }
-                        static Initializer_%(name)s *initializer;
-                     };
-
-                            """ % {
+            self._stream.write(self.decorate(self.INITIALIZER_CODE % {
                 'name': self._element.name,
                 'parent_name': self._element.parent.name or "pyllars"
+            }).encode('utf-8'))
+
+            self._stream.write(self.decorate(self.INITIALIZER_INSTANTIATION_CODE % {
+                'name': self._element.name
             }).encode('utf-8'))
             if self._element.bit_size is None:
                 if self._element.target_type.array_size is not None:
@@ -74,13 +64,7 @@ class GeneratorBodyFieldDecl(GeneratorBody):
                         'scope': self._element.scope,
                         'typename': 'typename' if not self._element.parent.is_union else "" ,
                     }).encode('utf-8'))
-                    stream.write(("""
-    
-                            typename Initializer_%(name)s * Initializer_%(name)s::initializer =
-                            new Initializer_%(name)s();
-                """ % {
-                        'name': self._element.name,
-                    }).encode('utf-8'))
+
                 else:
                     stream.write(("""
                         constexpr cstring name = "%(name)s";
@@ -95,13 +79,7 @@ class GeneratorBodyFieldDecl(GeneratorBody):
                            return status;
                         }
 
-                        status_t %(name)s_register(pyllars::Initializer*){
-                                //do nothing, functions have no children
-                                return 0;
-                        }
 
-                        Initializer_%(name)s * Initializer_%(name)s::initializer =
-                        new Initializer_%(name)s();
             """ % {
                         'file': __file__,
                         'name': self._element.name,
@@ -138,16 +116,9 @@ class GeneratorBodyFieldDecl(GeneratorBody):
                                return status;
                             }
     
-                            %(template_decl)s
-                            status_t %(pyllars_scope)s::%(name)s_register(pyllars::Initializer*){
-                                //do nothing, functions have no children
-                                return 0;
-                            }
+                          
     
-                            %(template_decl)s
-                            typename %(pyllars_scope)s::Initializer_%(name)s
-                            * %(pyllars_scope)s::Initializer_%(name)s::initializer =
-                            new %(pyllars_scope)s::Initializer_%(name)s();
+                          
             """ % {
                     'file': __file__,
                     'bit_size': self._element.bit_size,
@@ -177,25 +148,25 @@ class GeneratorBodyVarDecl(GeneratorBody):
                 'file': os.path.basename(__file__),
             }).encode('utf-8'))
 
-            self._stream.write(self.decorate("""
-                    class Initializer_%(name)s: public pyllars::Initializer{
-                    public:
-                        Initializer_%(name)s():pyllars::Initializer(){
-                            %(parent_name)s_register(this);                          
-                        }
-
-                        virtual int init(PyObject * const global_mod){
-                           int status = pyllars::Initializer::init(global_mod);
-                           return status == 0?%(name)s_init(global_mod):status;
-                        }
-                        static Initializer_%(name)s *initializer;
-                     };
-
-                            """ % {
+            self._stream.write(self.decorate(self.INITIALIZER_CODE % {
                 'name': self._element.name,
                 'parent_name': self._element.parent.name or "pyllars"
             }).encode('utf-8'))
 
+            self._stream.write(self.decorate(self.INITIALIZER_INSTANTIATION_CODE % {
+                'name': self._element.name
+            }).encode('utf-8'))
+            stream.write(("""
+                        status_t %(name)s_register( pyllars::Initializer* const){
+                            status_t status = 0;
+                            // do nothing
+                            return status;
+                        }
+
+
+                        """ % {
+                'name': self._element.name or "anonymous_%s" % self._element.tag,
+            }).encode('utf-8'))
             imports = set([])
             ##if self._element.parent and self._element.target_type and self._element.target_type.scope != self._element.parent.scope:
             ##    imports.add(self._element.scope)
@@ -248,18 +219,7 @@ class GeneratorBodyVarDecl(GeneratorBody):
                              imports if n]),
                         'qual': 'Const' if self._element.target_type.is_const else '',
                     }).encode('utf-8'))
-                stream.write(("""
-                        status_t %(name)s_register( pyllars::Initializer* const){
-                            status_t status = 0;
-                            // do nothing
-                            return status;
-                        }
 
-                        Initializer_%(name)s *Initializer_%(name)s::initializer = new Initializer_%(name)s;
-    
-            """ % {
-                    'name': self._element.name or "anonymous_%s" % self._element.tag,
-                }).encode('utf-8'))
             elif isinstance(self._element.parent, (code_structure.NamespaceDecl, code_structure.TranslationUnitDecl)):
                 # global or namespace var:
                 if self._element.is_constexpr:
@@ -281,14 +241,6 @@ class GeneratorBodyVarDecl(GeneratorBody):
                                    return status;
                                }
 
-
-                               status_t %(name)s_register( pyllars::Initializer* const){
-                                   status_t status = 0;
-                                   // do nothing
-                                   return status;
-                               }
-
-                                Initializer_%(name)s *Initializer_%(name)s::initializer = new Initializer_%(name)s();
                            """ % {
                         'pyllars_scope': self._element.pyllars_scope,
                         'basic_type_name': self._element.target_type.name,  # name
@@ -327,15 +279,7 @@ class GeneratorBodyVarDecl(GeneratorBody):
                                      }
                                     return status;
                                 }
-        
-        
-                                status_t %(name)s_register( pyllars::Initializer* const){
-                                    status_t status = 0;
-                                    // do nothing
-                                    return status;
-                                }
-        
-                                 Initializer_%(name)s *Initializer_%(name)s::initializer = new Initializer_%(name)s();
+    
                 """ % {
                         'pyllars_scope': self._element.pyllars_scope,
                         'basic_type_name': self._element.target_type.name,  # name
