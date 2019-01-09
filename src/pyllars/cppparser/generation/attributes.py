@@ -180,10 +180,10 @@ class GeneratorBodyVarDecl(GeneratorBody):
                 if self._element.is_constexpr:
                     stream.write(self.decorate("""
                            status_t %(name)s_init(PyObject * const global_mod){
-                               static decltype(::%(parent_full_name)s::%(name)s) static_var = ::%(parent_full_name)s::%(name)s;
+                               static decltype(%(parent_full_name)s::%(name)s) static_var = %(parent_full_name)s::%(name)s;
                                status_t status = 0;
                                %(imports)s
-                                  __pyllars_internal::PythonClassWrapper<::%(parent_full_name)s>::addClassAttribute%(qual)s<name, decltype(::%(parent_full_name)s::%(name)s)>
+                                  __pyllars_internal::PythonClassWrapper<%(parent_full_name)s>::addClassAttribute%(qual)s<name, decltype(%(parent_full_name)s::%(name)s)>
                                  ( &static_var);
                                return status;
                            }
@@ -191,7 +191,7 @@ class GeneratorBodyVarDecl(GeneratorBody):
                         'basic_type_name': self._element.target_type.name,
                         'name': self._element.name or "anonymous_%s" % self._element.tag,
                         'parent_full_name': self._element.parent.full_name,
-                        'type_mod': self._element.pyllars_scope + "::" + self._element.parent.name + "_mod" if self._element.parent.name != '' else "global_mod",
+                        'type_mod': self._element.pyllars_scope + "::" + self._element.parent.name + "_module()" if self._element.parent.name != '' else "global_mod",
                         'full_type_name': self._element.target_type.full_name,
                         'imports': "\n".join(
                             ["if(!PyImport_ImportModule(\"pylllars.%s\")){PyErr_Clear(); } " % n.replace("::", ".") for
@@ -204,15 +204,15 @@ class GeneratorBodyVarDecl(GeneratorBody):
                             status_t %(name)s_init(PyObject * const global_mod){
                                 status_t status = 0;
                                 %(imports)s
-                                   __pyllars_internal::PythonClassWrapper<::%(parent_full_name)s>::addClassAttribute%(qual)s<name, decltype(::%(parent_full_name)s::%(name)s)>
-                                  ( &::%(parent_full_name)s::%(name)s);
+                                   __pyllars_internal::PythonClassWrapper<%(parent_full_name)s>::addClassAttribute%(qual)s<name, decltype(%(parent_full_name)s::%(name)s)>
+                                  ( &%(parent_full_name)s::%(name)s);
                                 return status;
                             }
                             """% {
                         'basic_type_name': self._element.target_type.name,
                         'name': self._element.name or "anonymous_%s" % self._element.tag,
                         'parent_full_name': self._element.parent.full_name,
-                        'type_mod': self._element.pyllars_scope + "::" + self._element.parent.name + "_mod" if self._element.parent.name != '' else "global_mod",
+                        'type_mod': self._element.pyllars_scope + "::" + self._element.parent.name + "_module()" if self._element.parent.name != '' else "global_mod",
                         'full_type_name': self._element.target_type.full_name,
                         'imports': "\n".join(
                             ["if(!PyImport_ImportModule(\"pylllars.%s\")){PyErr_Clear(); } " % n.replace("::", ".") for n in
@@ -252,7 +252,7 @@ class GeneratorBodyVarDecl(GeneratorBody):
                             self._element.parent,
                             code_structure.TranslationUnitDecl) else "PyImport_Module(\"pyllars\")",
                         'full_type_name': self._element.target_type.full_name,
-                        'type_mod': self._element.pyllars_scope + "::" + self._element.parent.name + "_mod" if not isinstance(
+                        'type_mod': self._element.pyllars_scope + "::" + self._element.parent.name + "_module()" if not isinstance(
                             self._element.parent, code_structure.TranslationUnitDecl) else "global_mod",
                         'array_size': self._element.target_type.array_size or 0,
                         'qual': 'Const' if self._element.target_type.is_const else 'cont',
@@ -288,7 +288,7 @@ class GeneratorBodyVarDecl(GeneratorBody):
                         'parent': ('::' + self._element.parent.full_name) if not isinstance(self._element.parent, code_structure.TranslationUnitDecl) else "",
                         'module_name': self._element.parent.python_cpp_module_name  if not isinstance(self._element.parent, code_structure.TranslationUnitDecl)  else "PyImport_Module(\"pyllars\")",
                         'full_type_name': self._element.target_type.full_name,
-                        'type_mod': self._element.pyllars_scope + "::" + self._element.parent.name + "_mod" if not isinstance(self._element.parent, code_structure.TranslationUnitDecl)  else "global_mod",
+                        'type_mod': self._element.pyllars_scope + "::" + self._element.parent.name + "_module()" if not isinstance(self._element.parent, code_structure.TranslationUnitDecl)  else "global_mod",
                         'array_size': self._element.target_type.array_size or 0,
                         'qual': 'Const' if self._element.target_type.is_const else 'cont',
                         'imports': "\n".join(

@@ -8,6 +8,8 @@ from .base import qualified_name
 class GeneratorBodyCXXConstructorDecl(GeneratorBody):
 
     def generate(self):
+        if not self._element.parent.is_definition:
+            return
         imports = set([])
         for elem in self._element.params:
             if elem and elem.target_type.namespace_name != self._element.namespace_name and elem.target_type.namespace_name != "::":
@@ -25,23 +27,12 @@ class GeneratorBodyCXXConstructorDecl(GeneratorBody):
             stream.write(b"""
             namespace %s_constructor{
             """ % self._element_name.encode('utf-8'))
-            stream.write(self.decorate("""
-                        class Initializer_%(name)s: public pyllars::Initializer{
-                        public:
-                            Initializer_%(name)s():pyllars::Initializer(){
-                                %(parent_name)s::%(parent_name)s_register(this);                          
-                            }
-
-                            virtual int init(PyObject * const global_mod){
-                               int status = %(name)s_init(global_mod);
-                               return status == 0? pyllars::Initializer::init(global_mod) : status;
-                            }
-                            static Initializer_%(name)s *initializer;
-                         };
-
-                                        """ % {
+            stream.write(self.decorate(self.INITIALIZER_CODE % {
                 'name': self._element.name,
-                'parent_name': self._element.parent.name or "pyllars"
+                'parent_name': "pyllars" + self._element.parent.full_name + "::" + self._element.parent.name  or "pyllars"
+            }).encode('utf-8'))
+            stream.write(self.decorate(self.INITIALIZER_INSTANTIATION_CODE % {
+                'name': self._element.name,
             }).encode('utf-8'))
             stream.write(("""
     
@@ -59,7 +50,6 @@ class GeneratorBodyCXXConstructorDecl(GeneratorBody):
                             return 0;
                         }
     
-                        Initializer_%(name)s *Initializer_%(name)s::initializer = new Initializer_%(name)s();
                     """ % {
                 'arguments': arguments,
                 'argument_names': argument_names,
@@ -273,15 +263,9 @@ class GeneratorBodyFunctionDecl(GeneratorBody):
     METHOD_NAMES = GeneratorHeaderCXXMethodDecl.METHOD_NAMES
 
     def _func_declaration(self):
-        def scoped_full_name(typ: code_structure.Element):
-            name = typ.full_name
-            if not isinstance(typ, code_structure.BuiltinType) and not name == "void":
-                name = '::' + name
-            return name
-
         has_varargs = self._element.has_varargs
         altenative_code = self._element.full_name
-        argslambda = ", ".join([scoped_full_name(arg.target_type) + " " + arg.as_function_argument(index) for
+        argslambda = ", ".join([arg.target_type.full_name + " " + arg.as_function_argument(index) for
                                 index, arg in enumerate(self._element.params)])
         if self._element.is_template:
             template_args = "< %s >" % ",".join([arg.type_and_var_name(index) for index, arg in
@@ -290,12 +274,12 @@ class GeneratorBodyFunctionDecl(GeneratorBody):
             template_args = ""
 
         arguments = ((',' if len(self._element.params) > 0 else "") +
-                         ', '.join([scoped_full_name(t.target_type) for t in self._element.params]))
-        lambda_code = "[](%(argslambda)s)->%(return_type)s{%(return_cast)s ::%(func_name)s%(template_args)s(%(params)s);}" % {
-            'return_type': scoped_full_name(self._element.return_type) if self._element.return_type else "void",
+                         ', '.join([p.target_type.full_name for p in self._element.params]))
+        lambda_code = "[](%(argslambda)s)->%(return_type)s{%(return_cast)s %(func_name)s%(template_args)s(%(params)s);}" % {
+            'return_type': self._element.return_type.full_name if self._element.return_type else "void",
             'func_name': self._element.full_name,
             'return_cast': "" if self._element.return_type is None or self._element.return_type.full_name == "void" else
-                "return (%s)" % scoped_full_name(self._element.return_type),
+                "return (%s)" % self._element.return_type.full_name,
             'argslambda': argslambda,
             'template_args': template_args,
             'params': ", ".join(["%s" % arg.name if arg.name else
@@ -311,7 +295,7 @@ class GeneratorBodyFunctionDecl(GeneratorBody):
                         template Wrapper<%(throws)s>::create("%(func_name)s", func_container, argumentNames));
 """ % {
             'module_name': self._element.parent.python_cpp_module_name if not isinstance(self._element.parent, code_structure.TranslationUnitDecl) else "global_mod",
-            'return_type': scoped_full_name(self._element.return_type) if self._element.return_type else "void",
+            'return_type': self._element.return_type.full_name if self._element.return_type else "void",
             'arguments': arguments,
             'lambdacode': lambda_code,
             'has_varargs': str(self._element.has_varargs).lower(),

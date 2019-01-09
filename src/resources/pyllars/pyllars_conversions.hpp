@@ -43,6 +43,7 @@ namespace __pyllars_internal {
         typedef typename ClassWrapper::NoRefWrapper NoRefClassWrapper;
         typedef typename ClassWrapper::NonConstWrapper NonConstClassWrapper;
         typedef typename ClassWrapper::ConstWrapper ConstClassWrapper;
+        typedef typename ClassWrapper::NoRefNonConstWrapper NoRefNonConstClassWrapper;
 
         typedef typename std::remove_reference<T>::type T_bare;
         typedef smart_ptr<T_bare, array_allocated> ptr_t;

@@ -345,9 +345,10 @@ extern "C"{
             nonlocal objects, queue
             element, folder, parent = pop()
             while element is not None:
-                if os.path.abspath(element.location) != os.path.abspath(src_path):
+                if os.path.abspath(element.location) != os.path.abspath(src_path) or element.is_implicit:
                     element, folder, parent = pop()
                     continue
+
                 with GeneratorHeader.generator(element=element, src_path=src_path, folder=folder, parent=parent) as header_generator:
                     try:
                         header_generator.generate()
@@ -366,16 +367,16 @@ extern "C"{
                     obj = await compiler.compile_async(body_generator.body_file_path)
                     objects.append(obj)
 
+                    for child in element.children():
+                        queue.append((child, header_generator.folder, header_generator))
                 except:
-                    pass
-                for child in element.children():
-                    queue.append((child, header_generator.folder, header_generator))
+                    log.exception("Failed to compile %s" % body_generator.body_file_path)
                 element, folder, parent = pop()
 
         async def main():
             await asyncio.gather(*[generate_elements() for _ in range(multiprocessing.cpu_count())])
         asyncio.run(main())
-        linker.link(objects, output_module_path=module_location, module_name="%s" % module_name, global_module_name=globals_module_name or "%s_globals" % module_name)
+        linker.link(set(objects), output_module_path=module_location, module_name="%s" % module_name, global_module_name=globals_module_name or "%s_globals" % module_name)
 
 
 class ParmVarDecl(Generator):

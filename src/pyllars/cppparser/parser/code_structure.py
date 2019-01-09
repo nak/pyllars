@@ -27,7 +27,7 @@ class Element(ABC):
         if os.path.isfile(fname):
             self._loc1 = os.path.abspath(fname)
             Element._last_location = os.path.abspath(fname)
-        elif fname.startswith('line') and self._last_location:
+        elif (fname.startswith('line') or fname.startswith('col')) and self._last_location:
             # clang is f*ing lazt and we have to use the output of last given explicit path in tree
             # for location :-(
             self._loc1 = Element._last_location
@@ -113,8 +113,8 @@ class Element(ABC):
                 self._full_name = self.name or "anonymous_%s" % self.tag
             else:
                 self._full_name = self.scope + ("::" if self.scope != '::' else "") + \
-                                  (self.name if self.name else "anonymous_%s" % self.tag)
-        return self._full_name
+                                  (self.name or "anonymous_%s" % self.tag)
+        return "::" + self._full_name
 
     @property
     def namespace(self):
@@ -205,7 +205,7 @@ class Element(ABC):
 
     @property
     def python_cpp_module_name(self):
-        return "%s%s::%s_mod" % (self.pyllars_scope, self.name, self.name)
+        return "%s%s::%s_module()" % (self.pyllars_scope, self.name, self.name)
 
     def append_child(self, element: "Element"):
         assert(element is not None)
@@ -263,12 +263,7 @@ class Element(ABC):
 class ScopedElement(Element):
     """
     """
-
-    @property
-    def full_name(self):
-        if self._full_name:
-            return self._full_name
-        return "::" + super().full_name
+    pass
 
 
 class UnscopedElement(Element):
@@ -300,6 +295,10 @@ class TranslationUnitDecl(Element):
     def full_name(self):
         return None
 
+    @property
+    def is_definition(self):
+        return False
+
 
 class NamespaceDecl(ScopedElement):
 
@@ -319,6 +318,10 @@ class NamespaceDecl(ScopedElement):
         if self._full_name:
             return self._full_name
         return "::" + super().full_name
+
+    @property
+    def is_definition(self):
+        return True
 
 
 ###########
@@ -347,8 +350,6 @@ def _parse_type_spec(target_spec: str, element: Element):
     tag = element.tag
     kind = None
 
-    def parse_pieces(pieces):
-        return None
 
     current_scope = None
 
@@ -380,15 +381,16 @@ def _parse_type_spec(target_spec: str, element: Element):
             if current_scope is not None:
                 return_type = find(current_scope, token.value)
                 if return_type:
-                    return return_type
-            target_type = element.find(token.value)
-            if not target_type and kind:
-                target_type = element.find(kind + " " + token.value)
+                    target_type = return_type
+            else:
+                target_type = element.find(token.value)
+                if not target_type and kind:
+                    target_type = element.find(kind + " " + token.value)
             assert target_type is not None
             spec = token.value
             for index, qualifier in enumerate(reversed(qualifiers)):
                 tag = "%s_%s" % (qualifier, tag)
-                qt = QualType(spec, qualifier=qualifier, tag=tag, parent=None)
+                qt = QualType(spec, qualifier=qualifier, tag=tag, parent=element)
                 # qt._target_type = target_type
                 qt.append_child(target_type)
                 target_type = qt
@@ -401,7 +403,7 @@ def _parse_type_spec(target_spec: str, element: Element):
             else:
                 tag += "_%s" % token.value
                 spec = "%s %s" % (spec, token.value)
-                qt = QualType(spec, qualifier=token.value, tag=tag, parent=None)
+                qt = QualType(spec, qualifier=token.value, tag=tag, parent=element)
                 target_type.append_child(qt)
                 target_type = qt
         elif token.type == 'reference':
@@ -409,9 +411,9 @@ def _parse_type_spec(target_spec: str, element: Element):
             tag += "_%s" % token.value
             spec = target_spec + token.value if not target_spec[-1] == token.value else target_spec
             if token.value == '*':
-                target_type = PointerType(spec, tag=tag, parent=None)
+                target_type = PointerType(spec, tag=tag, parent=element)
             elif token.value == '&':
-                target_type = ReferenceType(spec, tag=tag, parent=None)
+                target_type = ReferenceType(spec, tag=tag, parent=element)
         elif token.type == 'structured_type':
             kind = token.value
     Element.lookup[target_spec] = target_type
@@ -536,6 +538,10 @@ class CXXRecordDecl(RecordTypeDefn):
     def add_base_class(self, base_class: "CXXRecordDecl"):
         self._base_classes.append(base_class)
 
+    @property
+    def is_definition(self):
+        return self._is_definition
+
 
 class EnumDecl(ScopedElement):
 
@@ -543,8 +549,8 @@ class EnumDecl(ScopedElement):
         loc1, loc2, *args = args
         self._target_type = None
         self._target_type_spec = None
-        if args and args[0] == 'referenced':
-            args = args[1:]
+        if 'referenced' in args:
+            args.remove('referenced')
         if args and args[0] == 'class':
             if len(args) == 3:
                 self._target_type_spec = args[2]
@@ -568,10 +574,29 @@ class EnumDecl(ScopedElement):
             self._target_type = _parse_type_spec(self._target_type_spec, self)
         return self._target_type
 
+    @property
+    def is_scoping(self):
+        return bool(self.name)
+
+
+    @property
+    def full_name(self):
+        element = self
+        while element and not element.name:
+            element = element.parent
+        if not element or not element.name or isinstance(element, TranslationUnitDecl):
+            return None
+        if not self.name:
+            return None
+        return element.parent.full_name + "::" + self.name if element.parent.name else "::" + self.name
+
 
 class EnumConstantDecl(Element):
 
     def __init__(self, *args: str, tag: str, parent: Optional[Element]):
+        if 'referenced' in args:
+            args = list(args)
+            args.remove('referenced')
         loc1, loc2, name, *spec_info = args
         super().__init__(tag=tag, parent=parent, name=name, loc1=loc1, loc2=loc2)
         spec_info[0] = spec_info[0].replace("'", "")
@@ -580,6 +605,7 @@ class EnumConstantDecl(Element):
             Element.lookup[spec_info[0]] = parent
         self._target_type_spec = None
         self._target_type = None
+        self._full_name = None
 
     @property
     def target_type(self):
@@ -588,6 +614,21 @@ class EnumConstantDecl(Element):
         if self._target_type is None:
             self._target_type = _parse_type_spec(self._target_type_spec, self)
         return self._target_type
+
+    @property
+    def full_name(self):
+        parent = self.parent
+        while parent and not parent.name:
+            parent = parent.parent
+        if not parent or isinstance(parent, TranslationUnitDecl):
+            return "::" + self.name
+        return  parent.full_name + "::" + self.name
+
+    @property
+    def python_cpp_module_name(self):
+        if not self.name:
+            return "PyImport_ImportModule(\"pyllars\")"
+        return super().python_cpp_module_name
 
 
 class FieldDecl(ScopedElement):
@@ -678,7 +719,14 @@ class _DecoratingType(UnscopedElement):
 
     @property
     def target_type(self):
-        return self.children()[0]
+        if self._children:
+            return self.children()[0]
+        else:
+            return _parse_type_spec(self._target_spec[:-1].strip(), self)
+
+    @property
+    def full_name(self):
+        return self.target_type.full_name + ' ' + self._qualifier
 
 
 class PointerType(_DecoratingType):
@@ -747,6 +795,10 @@ class QualType(Element):
         return self._qualifier + ' ' + self.target_type.name
 
     @property
+    def full_name(self):
+        return self.qualifier + ' ' + self.target_type.full_name
+
+    @property
     def is_const(self):
          return 'const' == self.qualifier
 
@@ -755,6 +807,9 @@ class QualType(Element):
 #################
 # literals
 #################
+class UnaryOperator(Element):
+    def __init__(self, *args: str, tag: str, parent: Optional[Element]):
+        super().__init__(tag=tag, parent=parent, name=None, loc1=args[0])
 
 
 class IntegerLiteral(Element):
@@ -853,7 +908,7 @@ class ParmVarDecl(ScopedElement):
             args = args[:args.index(':')]
         loc1, loc2, name, type_spec, *qualifiers = args
         super().__init__(tag=tag, parent=parent, name=name, loc1=loc1, loc2=loc2, qualifiers=qualifiers)
-        self._type_spec = type_spec
+        self._type_spec = type_spec.replace("\'", "")
         self._target_type = None
 
     @property
@@ -861,6 +916,10 @@ class ParmVarDecl(ScopedElement):
         if self._target_type is None:
             self._target_type = _parse_type_spec(self._type_spec, self)
         return self._target_type
+
+    @property
+    def full_name(self):
+        return self.name
 
 ###################
 # Linkage

@@ -114,6 +114,7 @@ public:
     typedef PythonClassWrapper<number_type const,   void> ConstWrapper;
     typedef PythonClassWrapper<typename std::remove_const<number_type>::type> NonConstWrapper;
     typedef PythonClassWrapper<typename std::remove_reference<number_type>::type> NoRefWrapper;
+    typedef PythonClassWrapper<typename std::remove_const<typename std::remove_reference<number_type>::type>::type> NoRefNonConstWrapper;
 
     static PyTypeObject Type;
 

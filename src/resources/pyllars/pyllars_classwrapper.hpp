@@ -59,6 +59,7 @@ namespace __pyllars_internal {
         typedef PythonClassWrapper<T const,   void> ConstWrapper;
         typedef PythonClassWrapper<typename std::remove_const<T>::type> NonConstWrapper;
         typedef PythonClassWrapper<typename std::remove_reference<T>::type> NoRefWrapper;
+        typedef PythonClassWrapper<typename std::remove_const<typename std::remove_reference<T>::type>::type> NoRefNonConstWrapper;
         typedef typename ObjectLifecycleHelpers::BasicAlloc<T>::ConstructorContainer ConstructorContainer;
         typedef typename ConstructorContainer::constructor constructor;
         typedef typename std::remove_reference<T>::type T_NoRef;
@@ -349,9 +350,10 @@ namespace __pyllars_internal {
         /**
          * Add an enum value to the class
          */
-        static int addEnumValue( const char* const name, long int value){
+         template<typename EnumT>
+        static int addEnumValue( const char* const name, EnumT value){
 
-            addClassMember(name, PyInt_FromLong(value));
+            addClassMember(name, PyInt_FromLong((long int)value));
             return 0;
         }
 

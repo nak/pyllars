@@ -361,14 +361,30 @@ class GeneratorBody(BaseGenerator):
                        int status = pyllars::Initializer::init(global_mod);
                        return status == 0?%(name)s_init(global_mod):status;
                     }
-                    static Initializer_%(name)s *initializer;
+                    
+                    static Initializer_%(name)s* initializer;
+                    
+                    static Initializer_%(name)s *singleton(){
+                        static  Initializer_%(name)s _initializer;
+                        return &_initializer;
+                    }
                  };
-
+                 
                 """
 
     INITIALIZER_INSTANTIATION_CODE = """
-                Initializer_%(name)s * Initializer_%(name)s::initializer = new Initializer_%(name)s();
+                //ensure instance is created on global static initialization, otherwise this
+                //element would never be reigstered and picked up
+                Initializer_%(name)s * Initializer_%(name)s::initializer = singleton();
     """
+
+    REGISTRATION_CODE = """
+                status_t %(name)s_register( pyllars::Initializer* const init ){ 
+                    // DO NOT RELY SOLEY ON global static initializatin as order is not guaranteed, so 
+                    // initializer initializer var here:
+                    
+                    return Initializer_%(name)s::singleton()->register_init(init);
+                }"""
 
     @staticmethod
     def _get_generator_class(element: code_structure.Element) -> Type["GeneratorBody"]:

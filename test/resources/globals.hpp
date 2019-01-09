@@ -29,6 +29,8 @@ namespace scoped{
         static constexpr float static_const_float_member = 42.1f;
         const int const_int_member;
         static InnerTestClass inner_instance;
+
+        enum {INNNER_ONE=1, INNNER_TWO, INNER_THREE};
     };
 
     long long scoped_function(const TestClass::InnerTestClass &inner);
@@ -60,7 +62,7 @@ constexpr Enumeration enum_var = TWO;
 
 enum class UnsizedClassEnum { A, B, C};
 
-enum class SizedClassEnum: long { A, B, C};
+enum class SizedClassEnum: long { A = -1, B=-2, C=-3};
 
 
 #endif

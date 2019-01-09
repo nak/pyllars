@@ -42,7 +42,10 @@ namespace __pyllars_internal {
         } else if (NonConstClassWrapper::checkType(&pyobj)) {
             return smart_ptr<T_bare, array_allocated>(reinterpret_cast<NonConstClassWrapper *>(&pyobj)->
                     template get_CObject<typename std::remove_const<T_bare>::type>(), PTR_IS_NOT_ALLOCATED);
-        } else {
+        } else if (NoRefNonConstClassWrapper::checkType(&pyobj)){
+            return smart_ptr<T_bare, array_allocated>(reinterpret_cast<NoRefNonConstClassWrapper *>(&pyobj)->
+                    template get_CObject<typename std::remove_const<T_bare>::type>(), PTR_IS_NOT_ALLOCATED);
+        }else {
             fprintf(stderr, "\n");
             PyObject_Print(&pyobj, stderr, 0);
             fprintf(stderr, "\n");
@@ -300,7 +303,7 @@ namespace __pyllars_internal {
         static PyObject *args = PyTuple_New(1);
         (void) asReference;
 	PyTypeObject* type = &PythonClassWrapper<int>::Type;
-	PyTuple_SetItem(args, 0, PyLong_FromLong(var));
+	PyTuple_SetItem(args, 0, PyLong_FromLong((long int)var));
 	return PyObject_Call( (PyObject*)type, args, nullptr);
 //        return PyInt_FromLong((long) var);
     }
