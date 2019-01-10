@@ -169,8 +169,8 @@ class GeneratorBodyEnumConstantDecl(GeneratorBody):
             parent = self._element.parent
             while parent and not parent.name:
                 parent = parent.parent
-            if parent and self._element.parent.full_name:
-                parent_full_name = self._element.parent.full_name
+            if parent and parent.full_name:
+                parent_full_name = parent.full_name
             else:
                 parent_full_name = "decltype(%s)" % self._element.full_name
             if isinstance(parent, (code_structure.EnumDecl, code_structure.RecordTypeDefn)):
@@ -196,7 +196,7 @@ class GeneratorBodyEnumConstantDecl(GeneratorBody):
                     'full_name': self._element.full_name,
                     'parent_full_name': parent_full_name,
                     'parent_name': self._element.parent.name if self._element.parent.name else 'decltype(%s)' % self._element.full_name,
-                    'suffix': "Value" if not isinstance(parent, code_structure.CXXRecordDecl) else "ClassValue<type_name, %s>" % parent_full_name,
+                    'suffix': "Value" if not isinstance(parent, code_structure.CXXRecordDecl) else "ClassValue<type_name, decltype(%s)>" % self._element.full_name,
                 }).encode('utf-8'))
                 stream.write(self.decorate("""
                     

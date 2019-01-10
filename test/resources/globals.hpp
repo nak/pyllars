@@ -30,7 +30,7 @@ namespace scoped{
         const int const_int_member;
         static InnerTestClass inner_instance;
 
-        enum {INNNER_ONE=1, INNNER_TWO, INNER_THREE};
+        enum {INNER_ONE=1, INNER_TWO, INNER_THREE};
     };
 
     long long scoped_function(const TestClass::InnerTestClass &inner);
