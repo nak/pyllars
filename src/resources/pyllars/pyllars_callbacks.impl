@@ -1,6 +1,8 @@
 //
 // Created by jrusnak on 7/22/16.
 //
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "OCUnusedGlobalDeclarationInspection"
 #ifndef __PYLLARS__INTERNAL__CALLBACKS_CPP__
 #define __PYLLARS__INTERNAL__CALLBACKS_CPP__
 
@@ -26,3 +28,4 @@ namespace __pyllars_internal {
 }
 
 #endif
+#pragma clang diagnostic pop

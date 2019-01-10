@@ -66,6 +66,10 @@ class Element(ABC):
         return False
 
     @property
+    def is_typename(self):
+        return False
+
+    @property
     def location(self):
         return self._loc1.replace("<", "").replace(">", "").split(":")[0] if self._loc1 else ""
 
@@ -390,11 +394,11 @@ def _parse_type_spec(target_spec: str, element: Element):
             spec = token.value
             for index, qualifier in enumerate(reversed(qualifiers)):
                 tag = "%s_%s" % (qualifier, tag)
+                spec = "%s %s" % (qualifier, spec)
                 qt = QualType(spec, qualifier=qualifier, tag=tag, parent=element)
                 # qt._target_type = target_type
                 qt.append_child(target_type)
                 target_type = qt
-                spec = "%s %s" % (qualifier, spec)
             spec = target_type.name
             qualifiers = []
         elif token.type == 'qualifier':
@@ -404,12 +408,12 @@ def _parse_type_spec(target_spec: str, element: Element):
                 tag += "_%s" % token.value
                 spec = "%s %s" % (spec, token.value)
                 qt = QualType(spec, qualifier=token.value, tag=tag, parent=element)
-                target_type.append_child(qt)
+                qt.append_child(target_type)
                 target_type = qt
         elif token.type == 'reference':
             assert target_type is not None
             tag += "_%s" % token.value
-            spec = target_spec + token.value if not target_spec[-1] == token.value else target_spec
+            spec = spec + token.value
             if token.value == '*':
                 target_type = PointerType(spec, tag=tag, parent=element)
             elif token.value == '&':
@@ -490,6 +494,10 @@ class RecordTypeDefn(Element):
 
     @property
     def is_scoping(self):
+        return True
+
+    @property
+    def is_typename(self):
         return True
 
 
@@ -578,6 +586,9 @@ class EnumDecl(ScopedElement):
     def is_scoping(self):
         return bool(self.name)
 
+    @property
+    def is_typename(self):
+        return True
 
     @property
     def full_name(self):
@@ -715,14 +726,16 @@ class _DecoratingType(UnscopedElement):
         super().__init__(tag=tag, parent=parent, name=target_spec)
         self._qualifier = qualifier
         self._qualifiers = [qualifier]
-        self._target_spec = target_spec
+        self._target_spec = target_spec[:-1]
+        self._target_type = None
 
     @property
     def target_type(self):
         if self._children:
-            return self.children()[0]
-        else:
-            return _parse_type_spec(self._target_spec[:-1].strip(), self)
+            raise Exception()  #return self.children()[0]
+        elif not self._target_type:
+            self._target_type = _parse_type_spec(self._target_spec.strip(), self)
+        return self._target_type
 
     @property
     def full_name(self):
@@ -771,9 +784,13 @@ class QualType(Element):
                 qualifier = args[0]
                 args = args[1:]
         type_spec = " ".join(args).replace("'", "").strip()
-        super().__init__(tag=tag, parent=parent, name=qualifier + ' ' + type_spec)
+        super().__init__(tag=tag, parent=parent, name=type_spec)
         self._qualifier = qualifier
-        self._target_type_spec = type_spec.replace(self._qualifier, "").strip()
+        if '*' not in type_spec and '&' not in type_spec and type_spec.startswith('const'):
+            type_spec = type_spec[5:]
+        else:
+            assert type_spec.endswith('const')
+        self._target_type_spec = type_spec[:-5].strip()
         self._target_type = None
 
     @property
@@ -790,17 +807,16 @@ class QualType(Element):
 
     @property
     def name(self):
-        if self._qualifier in ['*', '&', '&&', '[]']:
-            return self.target_type.name + ' ' + self._qualifier
-        return self._qualifier + ' ' + self.target_type.name
+        return self.target_type.name + ' ' + self._qualifier
 
     @property
     def full_name(self):
-        return self.qualifier + ' ' + self.target_type.full_name
+        return self.target_type.full_name + ' ' + self._qualifier
 
     @property
     def is_const(self):
          return 'const' == self.qualifier
+
 
 
 
@@ -886,6 +902,8 @@ class _Function(ScopedElement):
 
     @property
     def return_type(self):
+        if not self._return_type and self._return_type_spec != 'void':
+            self._return_type = _parse_type_spec(self._return_type_spec, self)
         return self._return_type
 
 

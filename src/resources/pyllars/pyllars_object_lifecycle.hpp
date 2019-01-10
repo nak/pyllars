@@ -285,6 +285,7 @@ namespace __pyllars_internal {
                 typename std::enable_if<
                         !std::is_void<T>::value && !std::is_pointer<T>::value && !std::is_array<T>::value>::type> {
         public:
+            typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
 
             static PyObject *getObjectAt(T const from, const size_t index, const ssize_t elements_array_size,
                                          const size_t depth, const bool asArgument = true);
@@ -324,6 +325,7 @@ namespace __pyllars_internal {
         class ObjectContent<T, PtrWrapper,
                 typename std::enable_if<std::is_function<typename std::remove_pointer<T>::type>::value>::type> {
         public:
+            typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
 
             static PyObject *getObjectAt(T const from, const size_t index, const ssize_t elements_array_size,
                                          const size_t depth, const bool asArgument = true);
@@ -343,6 +345,7 @@ namespace __pyllars_internal {
                                         !std::is_function<typename std::remove_pointer<T>::type>::value &&
                                         !std::is_void<typename std::remove_pointer<T>::type>::value>::type> {
         public:
+            typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
 
             static PyObject *getObjectAt(T const from, const size_t index, const ssize_t elements_array_size,
                                          const size_t depth, const bool asArgument = true);

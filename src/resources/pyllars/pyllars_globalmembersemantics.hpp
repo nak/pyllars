@@ -116,8 +116,7 @@ namespace __pyllars_internal {
             typedef typename std::remove_reference<T>::type T_NoRef;
             PyObject_HEAD
 
-            static PyTypeObject
-                    Type;
+            static PyTypeObject Type;
             typedef const T **member_t;
 
             member_t member;

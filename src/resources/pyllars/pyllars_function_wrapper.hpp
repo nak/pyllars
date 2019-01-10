@@ -394,6 +394,9 @@ namespace __pyllars_internal {
                 } else {
                     inited = true;
                     auto pyfuncobj = (Wrapper *) PyObject_CallObject((PyObject *) type, nullptr);
+		    if(!pyfuncobj){
+		      throw "Unable to create function wrapper";
+		    }
                     pyfuncobj->_cfunc = func;
                     while (names[index]) {
                         pyfuncobj->_kwlist.push_back(names[index++]);
@@ -458,7 +461,7 @@ namespace __pyllars_internal {
                                     break;
                                 case FFI_TYPE_POINTER:
                                     if (STRING_TYPE == subtype) {
-                                        extra_arg_values[i].ptrvalue = PyString_AsString(nextArg);
+                                        extra_arg_values[i].ptrvalue = const_cast<char*>(PyString_AsString(nextArg));
                                         arg_values[i] = &extra_arg_values[i].ptrvalue;
                                     } else if (COBJ_TYPE == subtype) {
                                         static const size_t offset = offset_of<ObjContainer<Arbitrary> *, PythonClassWrapper<Arbitrary> >
@@ -625,12 +628,11 @@ namespace __pyllars_internal {
         (void) self;
         (void) args;
         (void) kwds;
-        if (PyType_Ready(&Type) < 0) {
+        if (PyType_Ready(self->ob_type) < 0) {
             PyErr_SetString(PyExc_RuntimeError, "Unable to initialize Python type");
             return -1;
         }
-        PyObject *const type = reinterpret_cast<PyObject *>(&Type);
-        Py_INCREF(type);
+        Py_INCREF(self->ob_type);
         return 0;
     }
 

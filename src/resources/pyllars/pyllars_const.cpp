@@ -401,7 +401,7 @@ namespace __pyllars_internal{
       PyObject_HEAD_INIT(nullptr)
       0,                         /*ob_size*/
     #endif
-      _type_name<number_type>(), /*tp_name*/
+      __pyllars_internal::type_name<number_type>(), /*tp_name*/
       sizeof(PyConstNumberCustomObject<number_type>), /*tp_basicsize*/
       0, /*tp_itemsize*/
       nullptr, /*tp_dealloc*/
@@ -454,7 +454,7 @@ namespace __pyllars_internal{
     template<typename number_type>
     PyObject* PyConstNumberCustomObject<number_type>::repr(PyObject* o){
         PyConstNumberCustomObject<number_type>* obj = (PyConstNumberCustomObject<number_type>*)o;
-        std::string name = std::string("<pyllars." ) + std::string(_type_name<number_type>()) + std::string("> value=") + std::to_string(obj->value);
+        std::string name = std::string("<pyllars." ) + std::string(__pyllars_internal::type_name<number_type>()) + std::string("> value=") + std::to_string(obj->value);
         return PyString_FromString(name.c_str());
     }
 
@@ -523,7 +523,7 @@ namespace __pyllars_internal{
         PyType_Ready(&PyConstNumberCustomBase::Type);
         const int rc = PyType_Ready(&PyConstNumberCustomObject::Type);
         if(module && rc == 0){
-            PyModule_AddObject(module, _type_name<ntype>(), (PyObject*) &PyConstNumberCustomObject::Type);
+            PyModule_AddObject(module, __pyllars_internal::type_name<ntype>(), (PyObject*) &PyConstNumberCustomObject::Type);
         }
         return rc;
     }
@@ -646,7 +646,7 @@ namespace __pyllars_internal{
         Py_INCREF(&PyConstNumberCustomBase::Type);
         Py_INCREF(&PyConstNumberCustomObject::Type);
         if(module && rc == 0){
-            PyModule_AddObject(module, _type_name<number_type>(), (PyObject*) &PyConstNumberCustomObject::Type);
+            PyModule_AddObject(module, __pyllars_internal::type_name<number_type>(), (PyObject*) &PyConstNumberCustomObject::Type);
         }
         return rc;
     }
@@ -991,7 +991,7 @@ namespace __pyllars_internal{
       PyObject_HEAD_INIT(nullptr)
       0,                         /*ob_size*/
     #endif
-      _type_name<number_type>(), /*tp_name*/
+      __pyllars_internal::type_name<number_type>(), /*tp_name*/
       sizeof(PyConstFloatingPtCustomObject<number_type>), /*tp_basicsize*/
       0, /*tp_itemsize*/
       nullptr, /*tp_dealloc*/
@@ -1043,7 +1043,7 @@ namespace __pyllars_internal{
     template<typename number_type>
     PyObject* PyConstFloatingPtCustomObject<number_type>::repr(PyObject* o){
         PyConstFloatingPtCustomObject<number_type>* obj = (PyConstFloatingPtCustomObject<number_type>*)o;
-        std::string name = std::string("<pyllars." ) + std::string(_type_name<number_type>()) + std::string("> value=") + std::to_string(obj->value);
+        std::string name = std::string("<pyllars." ) + std::string(__pyllars_internal::type_name<number_type>()) + std::string("> value=") + std::to_string(obj->value);
         return PyString_FromString(name.c_str());
     }
 
@@ -1235,7 +1235,7 @@ namespace __pyllars_internal{
         Py_INCREF(&PyConstFloatingPtCustomBase::Type);
         Py_INCREF(&PyConstFloatingPtCustomObject::Type);
         if(module && rc == 0){
-            PyModule_AddObject(module, _type_name<number_type>(), (PyObject*) &PyConstFloatingPtCustomObject::Type);
+            PyModule_AddObject(module, __pyllars_internal::type_name<number_type>(), (PyObject*) &PyConstFloatingPtCustomObject::Type);
         }
         return rc;
     }
@@ -1246,76 +1246,76 @@ namespace __pyllars_internal{
     ///////////////////////////////////////
 
      template<>
-     const char* const _type_name<const char>(){
+     const char* const type_name<const char>(){
       static const char* const name = "c_const_char";
       return name;
     }
 
 
     template<>
-    const char* const _type_name<const short>(){
+    const char* const type_name<const short>(){
       static const char* const name = "c_const_short";
       return name;
     }
 
     template<>
-    const char* const _type_name<const int>(){
+    const char* const type_name<const int>(){
       static const char* const name = "c_const_int";
       return name;
     }
 
     template<>
-    const char* const _type_name<const long>(){
+    const char* const type_name<const long>(){
       static const char* const name = "c_const_long";
       return name;
     }
 
     template<>
-    const char* const _type_name<const long long>(){
+    const char* const type_name<const long long>(){
       static const char* const name = "c_const_long_long";
       return name;
     }
 
     template<>
-    const char* const _type_name<const unsigned char>(){
+    const char* const type_name<const unsigned char>(){
       static const char* const name = "c_const_unsigned_char";
       return name;
     }
 
     template<>
-    const char* const _type_name<const unsigned short>(){
+    const char* const type_name<const unsigned short>(){
       static const char* const name = "c_const_unsigned_short";
       return name;
     }
 
     template<>
-    const char* const _type_name<const unsigned int>(){
+    const char* const type_name<const unsigned int>(){
       static const char* const name = "c_const_unsigned_int";
       return name;
     }
 
     template<>
-    const char* const _type_name<const unsigned long>(){
+    const char* const type_name<const unsigned long>(){
       static const char* const name = "c_const_unsigned_long";
       return name;
     }
 
     template<>
-    const char* const _type_name<const unsigned long long>(){
+    const char* const type_name<const unsigned long long>(){
       static const char* const name = "c_const_unsigned_long_long";
       return name;
     }
 
 
     template<>
-    const char* const _type_name<const float>(){
+    const char* const type_name<const float>(){
       static const char* const name = "c_const_float";
       return name;
     }
 
 
     template<>
-    const char* const _type_name<const double>(){
+    const char* const type_name<const double>(){
       static const char* const name = "c_const_double";
       return name;
     }

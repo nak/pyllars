@@ -1,20 +1,23 @@
 import glob
-import os
-import subprocess
+import os, sys
 
+from pyllars.cppparser.generation import Generator
+from pyllars.cppparser.generation.base2 import Compiler, Linker
+from pyllars.cppparser.parser.clang_filter import ClangFilter
 import pytest
 
-from pyllars.cppparser.generation.base2 import Compiler, Linker
 
 TEST_RESOURCES_DIR=os.path.join(os.path.dirname(__file__), "resources")
 TEST_LIBS_DIR = os.path.join(os.path.dirname(__file__), "libs")
 os.makedirs(TEST_LIBS_DIR, exist_ok=True)
 
+sys.path.insert(0, TEST_LIBS_DIR)
+
 
 @pytest.fixture(scope='session')
 def linker_flags():
     files = glob.glob(os.path.join(TEST_RESOURCES_DIR, "*.cpp"))
-    compiler = Compiler(compiler_flags=["-I%s" % TEST_RESOURCES_DIR, "-I."])
+    compiler = Compiler(compiler_flags=["-I%s" % TEST_RESOURCES_DIR, "-I."], debug=True)
     objects = []
     for file in files:
         objects.append(compiler.compile(file))
@@ -24,3 +27,20 @@ def linker_flags():
     return linker_flags
 
 
+@pytest.fixture(scope='session')
+def testglobals(linker_flags):
+    compiler = Compiler(compiler_flags=["-I%s" % TEST_RESOURCES_DIR, "-I."],
+                        optimization_level="-O0",
+                        debug=True,
+                        output_dir="generated")
+    src_paths = [os.path.join(TEST_RESOURCES_DIR, filename) for filename in ("globals.hpp", "opaque_types.hpp")]
+    for src_path in src_paths:
+        nodes = ClangFilter.parse(src_path=src_path, flags=compiler.compiler_flags)
+
+    linker = Linker(linker_options=linker_flags, compiler_flags=compiler.compiler_flags,
+                    debug=True)
+
+    Generator.generate_code(nodes, src_paths=src_paths, module_name="testglobals", output_dir="generated",
+                            compiler=compiler, linker=linker, module_location=TEST_LIBS_DIR)
+    import testglobals
+    return testglobals

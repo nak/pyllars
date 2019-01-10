@@ -319,7 +319,7 @@ extern "C"{
 
     @staticmethod
     def generate_code(node_tree: code_structure.TranslationUnitDecl,
-                      src_path: str,
+                      src_paths: List[str],
                       output_dir: str,
                       compiler: Compiler,
                       linker: Linker,
@@ -327,55 +327,56 @@ extern "C"{
                       globals_module_name: Optional[str] = None,
                       module_location: str = "."):
         from .base2 import GeneratorHeader
-        folder = Folder(output_dir)
-        Generator.generator_mapping = {}
         objects = []
+        for src_path in src_paths:
+            folder = Folder(output_dir)
+            Generator.generator_mapping = {}
 
-        queue = collections.deque()
-        for element in node_tree.children():
-            queue.append((element, folder, None))
+            queue = collections.deque()
+            for element in node_tree.children():
+                queue.append((element, folder, None))
 
-        def pop():
-            try:
-                return queue.pop()
-            except IndexError:
-                return None, None, None
-
-        async def generate_elements():
-            nonlocal objects, queue
-            element, folder, parent = pop()
-            while element is not None:
-                if os.path.abspath(element.location) != os.path.abspath(src_path) or element.is_implicit:
-                    element, folder, parent = pop()
-                    continue
-
-                with GeneratorHeader.generator(element=element, src_path=src_path, folder=folder, parent=parent) as header_generator:
-                    try:
-                        header_generator.generate()
-                    except:
-                        log.exception("Failed to generate for element %s and its children" % element.name)
-                        return
-                with GeneratorBody.generator(element=element, src_path=src_path, folder=folder, parent=parent) as body_generator:
-                    try:
-                        body_generator.generate()
-                    except:
-                        import traceback
-                        traceback.print_exc()
-                        log.exception("Failed to generate body for element %s" % element.name)
-                        return
+            def pop():
                 try:
-                    obj = await compiler.compile_async(body_generator.body_file_path)
-                    objects.append(obj)
+                    return queue.pop()
+                except IndexError:
+                    return None, None, None
 
-                    for child in element.children():
-                        queue.append((child, header_generator.folder, header_generator))
-                except:
-                    log.exception("Failed to compile %s" % body_generator.body_file_path)
+            async def generate_elements():
+                nonlocal objects, queue
                 element, folder, parent = pop()
+                while element is not None:
+                    if os.path.abspath(element.location) != os.path.abspath(src_path) or element.is_implicit:
+                        element, folder, parent = pop()
+                        continue
 
-        async def main():
-            await asyncio.gather(*[generate_elements() for _ in range(multiprocessing.cpu_count())])
-        asyncio.run(main())
+                    with GeneratorHeader.generator(element=element, src_path=src_path, folder=folder, parent=parent) as header_generator:
+                        try:
+                            header_generator.generate()
+                        except:
+                            log.exception("Failed to generate for element %s and its children" % element.name)
+                            return
+                    with GeneratorBody.generator(element=element, src_path=src_path, folder=folder, parent=parent) as body_generator:
+                        try:
+                            body_generator.generate()
+                        except:
+                            import traceback
+                            traceback.print_exc()
+                            log.exception("Failed to generate body for element %s" % element.name)
+                            return
+                    try:
+                        obj = await compiler.compile_async(body_generator.body_file_path)
+                        objects.append(obj)
+
+                        for child in element.children():
+                            queue.append((child, header_generator.folder, header_generator))
+                    except:
+                        log.exception("Failed to compile %s" % body_generator.body_file_path)
+                    element, folder, parent = pop()
+
+            async def main():
+                await asyncio.gather(*[generate_elements() for _ in range(multiprocessing.cpu_count())])
+            asyncio.run(main())
         linker.link(set(objects), output_module_path=module_location, module_name="%s" % module_name, global_module_name=globals_module_name or "%s_globals" % module_name)
 
 

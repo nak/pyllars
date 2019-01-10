@@ -97,7 +97,6 @@ namespace __pyllars_internal {
 
             static PyObject *call(PyObject *cls, PyObject *args, PyObject *kwds);
 
-            static void setFromPyObject(PyObject *pyobj) ;
         };
     };
 
@@ -116,7 +115,10 @@ namespace __pyllars_internal {
 
             static member_t member;
 
-            static int set(PyObject *self, PyObject* value);
+            static int set(PyObject *self, PyObject* value){
+                PyErr_SetString(PyExc_TypeError, "Cannot change a const member value");
+                return -1;
+            }
 
             static PyObject* get(PyObject* self);
 
@@ -127,7 +129,6 @@ namespace __pyllars_internal {
     template<const char *const name, typename T>
     typename ConstMemberContainer<CClass>::template Container<name, T>::member_t
             ConstMemberContainer<CClass>::Container<name, T>::member;
-
 
 }
 

@@ -27,6 +27,8 @@ typedef const char cstring[];
 static constexpr cstring operatormapname = "operator[]";
 
 namespace __pyllars_internal {
+
+
     typedef int (*_setattrfunc)(PyObject*, PyObject*);
     typedef PyObject* (*_getattrfunc)(PyObject*);
 
@@ -707,12 +709,12 @@ namespace __pyllars_internal {
         static std::map<std::string, _setattrfunc > _member_setters;
         static std::vector<_setattrfunc > _assigners;
         static std::vector<PyTypeObject *> _baseClasses;
-        static bool _isInitialized;
         size_t _arraySize;
         bool _allocated;
         bool _inPlace;
       public:
         size_t _depth;
+        static bool _isInitialized;
     };
 
 

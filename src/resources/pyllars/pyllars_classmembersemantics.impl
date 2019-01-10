@@ -99,9 +99,9 @@ namespace __pyllars_internal{
         if (!self) return nullptr;
         typedef PythonClassWrapper<CClass> ClassWrapper;
         auto _this = reinterpret_cast<ClassWrapper *>(self);
-        const ssize_t array_size = ArraySize<T>::size;//sizeof(_this->template get_CObject<CClass>()->*member) / sizeof(T_base);
-        if (_this->template get_CObject<CClass>()) {
-            return toPyObject<T>((_this->template get_CObject<CClass>()->*member), false, array_size);
+        const ssize_t array_size = ArraySize<T>::size;//sizeof(_this->get_CObject()->*member) / sizeof(T_base);
+        if (_this->get_CObject()) {
+            return toPyObject<T>((_this->get_CObject()->*member), false, array_size);
         }
         PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
         return nullptr;

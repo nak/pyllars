@@ -445,10 +445,10 @@ namespace __pyllars_internal {
         if (!self) return nullptr;
         typedef PythonClassWrapper<CClass> Wrapper;
         Wrapper *_this = (Wrapper *) self;
-        if (_this->template get_CObject<CClass>()) {
+        if (_this->get_CObject()) {
             try {
                 return MethodCallSemantics<is_const, false, CClass, ReturnType, Args...>::call(method,
-                                                                              *_this->template get_CObject<CClass>(),
+                                                                              *_this->get_CObject(),
                                                                               args, kwds);
             } catch (...) {
                 return nullptr;
@@ -472,10 +472,10 @@ namespace __pyllars_internal {
     call(PyObject *self, PyObject *args, PyObject *kwds) {
         if (!self) return nullptr;
         PythonClassWrapper<CClass> *_this = (PythonClassWrapper<CClass> *) self;
-        if (_this->template get_CObject<CClass>()) {
+        if (_this->get_CObject()) {
             try {
                 return MethodCallSemantics<is_const, false, CClass, ReturnType, Args...>::call(method,
-                                                                              *_this->template get_CObject<CClass>(),
+                                                                              *_this->get_CObject(),
                                                                               args, kwds);
             } catch (...) {
                 return nullptr;
@@ -504,10 +504,10 @@ namespace __pyllars_internal {
         if (!self) return nullptr;
         typedef PythonClassWrapper<CClass> Wrapper;
         Wrapper *_this = (Wrapper *) self;
-        if (_this->template get_CObject<CClass>()) {
+        if (_this->get_CObject()) {
             try {
                 return MethodCallSemantics<is_const, true, CClass, ReturnType, Args...>::call(method,
-                                                                              *_this->template get_CObject<CClass>(),
+                                                                              *_this->get_CObject(),
                                                                               args, kwds);
             } catch (...) {
                 return nullptr;
@@ -531,10 +531,10 @@ namespace __pyllars_internal {
     call(PyObject *self, PyObject *args, PyObject *kwds) {
         if (!self) return nullptr;
         PythonClassWrapper<CClass> *_this = (PythonClassWrapper<CClass> *) self;
-        if (_this->template get_CObject<CClass>()) {
+        if (_this->get_CObject()) {
             try {
                 return MethodCallSemantics<is_const, true, CClass, ReturnType, Args...>::call(method,
-                                                                              *_this->template get_CObject<CClass>(),
+                                                                              *_this->get_CObject(),
                                                                               args, kwds);
             } catch (...) {
                 return nullptr;

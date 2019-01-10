@@ -9,6 +9,8 @@ typedef const char* const const_str;
 
 extern const char * const const_ptr_str ;
 extern const char* const * const_ptr_ptr_str;
+static constexpr long* null_long_ptr = (long*)0;
+static long* null_long_ptr2 = (long*)0;
 
 namespace scoped{
     class TestClass{
@@ -30,7 +32,7 @@ namespace scoped{
         const int const_int_member;
         static InnerTestClass inner_instance;
 
-        enum {INNNER_ONE=1, INNNER_TWO, INNER_THREE};
+        enum {INNER_ONE=1, INNER_TWO, INNER_THREE};
     };
 
     long long scoped_function(const TestClass::InnerTestClass &inner);
@@ -51,17 +53,11 @@ namespace trial{
 
 float global_number();
 
-static constexpr long* null_long_ptr = (long*)0;
-
-static long* null_long_ptr2 = (long*)0;
 
 enum {FIRST=1, SECOND=2, THIRD=3} anonymous_enum_var;
-
 enum  Enumeration {ZERO, ONE, TWO, THREE};
 constexpr Enumeration enum_var = TWO;
-
 enum class UnsizedClassEnum { A, B, C};
-
 enum class SizedClassEnum: long { A = -1, B=-2, C=-3};
 
 

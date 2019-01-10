@@ -2,15 +2,6 @@ import os, sys
 
 import pytest
 
-from pyllars.cppparser.generation import Generator
-from pyllars.cppparser.generation.base2 import Compiler, Linker
-from pyllars.cppparser.parser.clang_filter import ClangFilter
-
-TEST_RESOURCES_DIR = os.path.join(os.path.dirname(__file__), "resources")
-TEST_LIBS_DIR = os.path.join(os.path.dirname(__file__), "libs")
-
-
-sys.path.insert(0, TEST_LIBS_DIR)
 
 sizes = {'c_char': 8,
          'c_short': 16,
@@ -38,23 +29,6 @@ sizes = {'c_char': 8,
          'c_double': 64,
 
          }
-
-@pytest.fixture(scope='session')
-def testglobals(linker_flags):
-    compiler = Compiler(compiler_flags=["-I%s" % TEST_RESOURCES_DIR, "-I."],
-                        optimization_level="-O0",
-                        debug=True,
-                        output_dir="generated")
-    src_path = os.path.join(TEST_RESOURCES_DIR, "globals.hpp")
-    nodes = ClangFilter.parse(src_path=src_path, flags=compiler.compiler_flags)
-
-    linker = Linker(linker_options=linker_flags, compiler_flags=compiler.compiler_flags,
-                    debug=True)
-
-    Generator.generate_code(nodes, src_path=src_path, module_name="testglobals", output_dir="generated",
-                            compiler=compiler, linker=linker, module_location=TEST_LIBS_DIR)
-    import testglobals
-    return testglobals
 
 
 @pytest.fixture(params=['c_char', 'c_short', 'c_int', 'c_long', 'c_long_long'])
@@ -142,6 +116,9 @@ class TestBasics:
         assert testglobals.scoped.scoped_function(instance) == 5
         instance.value = 123983.2
         assert testglobals.scoped.scoped_function(instance) == 123983
+
+    def test_global_vars(self, testglobals):
+        assert testglobals.const_ptr_str() == "HELLO WORLD!"
 
     def test_float_add(self, c_float_type_and_size):
         c_type, size = c_float_type_and_size

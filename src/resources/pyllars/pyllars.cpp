@@ -583,7 +583,7 @@ namespace __pyllars_internal{
       PyObject_HEAD_INIT(nullptr)
       0,                         /*ob_size*/
     #endif
-      _type_name<number_type>(), /*tp_name*/
+      __pyllars_internal::type_name<number_type>(), /*tp_name*/
       sizeof(PyNumberCustomObject<number_type>), /*tp_basicsize*/
       0, /*tp_itemsize*/
       nullptr, /*tp_dealloc*/
@@ -636,7 +636,7 @@ namespace __pyllars_internal{
     template<typename number_type>
     PyObject* PyNumberCustomObject<number_type>::repr(PyObject* o){
         PyNumberCustomObject<number_type>* obj = (PyNumberCustomObject<number_type>*)o;
-        std::string name = std::string("<pyllars." ) + std::string(_type_name<number_type>()) + std::string("> value=") + std::to_string(obj->value);
+        std::string name = std::string("<pyllars." ) + std::string(__pyllars_internal::type_name<number_type>()) + std::string("> value=") + std::to_string(obj->value);
         return PyString_FromString(name.c_str());
     }
 
@@ -705,7 +705,7 @@ namespace __pyllars_internal{
         PyType_Ready(&PyNumberCustomBase::Type);
         const int rc = PyType_Ready(&PyNumberCustomObject::Type);
         if(module && rc == 0){
-            PyModule_AddObject(module, _type_name<ntype>(), (PyObject*) &PyNumberCustomObject::Type);
+            PyModule_AddObject(module, __pyllars_internal::type_name<ntype>(), (PyObject*) &PyNumberCustomObject::Type);
         }
         return rc;
     }
@@ -828,7 +828,7 @@ namespace __pyllars_internal{
         Py_INCREF(&PyNumberCustomBase::Type);
         Py_INCREF(&PyNumberCustomObject::Type);
         if(module && rc == 0){
-            PyModule_AddObject(module, _type_name<number_type>(), (PyObject*) &PyNumberCustomObject::Type);
+            PyModule_AddObject(module, __pyllars_internal::type_name<number_type>(), (PyObject*) &PyNumberCustomObject::Type);
         }
         return rc;
     }
@@ -1223,7 +1223,7 @@ namespace __pyllars_internal{
       PyObject_HEAD_INIT(nullptr)
       0,                         /*ob_size*/
     #endif
-      _type_name<number_type>(), /*tp_name*/
+      __pyllars_internal::type_name<number_type>(), /*tp_name*/
       sizeof(PyFloatingPtCustomObject<number_type>), /*tp_basicsize*/
       0, /*tp_itemsize*/
       nullptr, /*tp_dealloc*/
@@ -1275,7 +1275,7 @@ namespace __pyllars_internal{
     template<typename number_type>
     PyObject* PyFloatingPtCustomObject<number_type>::repr(PyObject* o){
         PyFloatingPtCustomObject<number_type>* obj = (PyFloatingPtCustomObject<number_type>*)o;
-        std::string name = std::string("<pyllars." ) + std::string(_type_name<number_type>()) + std::string("> value=") + std::to_string(obj->value);
+        std::string name = std::string("<pyllars." ) + std::string(__pyllars_internal::type_name<number_type>()) + std::string("> value=") + std::to_string(obj->value);
         return PyString_FromString(name.c_str());
     }
 
@@ -1344,7 +1344,7 @@ namespace __pyllars_internal{
         PyType_Ready(&PyFloatingPtCustomBase::Type);
         const int rc = PyType_Ready(&PyFloatingPtCustomObject::Type);
         if(module && rc == 0){
-            PyModule_AddObject(module, _type_name<ntype>(), (PyObject*) &PyFloatingPtCustomObject::Type);
+            PyModule_AddObject(module, __pyllars_internal::type_name<ntype>(), (PyObject*) &PyFloatingPtCustomObject::Type);
         }
         return rc;
     }
@@ -1468,7 +1468,7 @@ namespace __pyllars_internal{
         Py_INCREF(&PyFloatingPtCustomBase::Type);
         Py_INCREF(&PyFloatingPtCustomObject::Type);
         if(module && rc == 0){
-            PyModule_AddObject(module, _type_name<number_type>(), (PyObject*) &PyFloatingPtCustomObject::Type);
+            PyModule_AddObject(module, __pyllars_internal::type_name<number_type>(), (PyObject*) &PyFloatingPtCustomObject::Type);
         }
         return rc;
     }
@@ -1478,80 +1478,7 @@ namespace __pyllars_internal{
 
     ///////////////////////////////////////
 
-     template<>
-     const char* const _type_name<char>(){
-      static const char* const name = "c_char";
-      return name;
-    }
 
-
-    template<>
-    const char* const _type_name<short>(){
-      static const char* const name = "c_short";
-      return name;
-    }
-
-    template<>
-    const char* const _type_name<int>(){
-      static const char* const name = "c_int";
-      return name;
-    }
-
-    template<>
-    const char* const _type_name<long>(){
-      static const char* const name = "c_long";
-      return name;
-    }
-
-    template<>
-    const char* const _type_name<long long>(){
-      static const char* const name = "c_long_long";
-      return name;
-    }
-
-    template<>
-    const char* const _type_name<unsigned char>(){
-      static const char* const name = "c_unsigned_char";
-      return name;
-    }
-
-    template<>
-    const char* const _type_name<unsigned short>(){
-      static const char* const name = "c_unsigned_short";
-      return name;
-    }
-
-    template<>
-    const char* const _type_name<unsigned int>(){
-      static const char* const name = "c_unsigned_int";
-      return name;
-    }
-
-    template<>
-    const char* const _type_name<unsigned long>(){
-      static const char* const name = "c_unsigned_long";
-      return name;
-    }
-
-    template<>
-    const char* const _type_name<unsigned long long>(){
-      static const char* const name = "c_unsigned_long_long";
-      return name;
-    }
-
-
-    template<>
-    const char* const _type_name<float>(){
-      static const char* const name = "c_float";
-      return name;
-    }
-
-
-    template<>
-    const char* const _type_name<double>(){
-      static const char* const name = "c_double";
-      return name;
-    }
   int getType(PyObject *obj, ffi_type *&type) {
             int subtype = 0;
             if (PyInt_Check(obj)) {
@@ -1590,5 +1517,79 @@ namespace __pyllars_internal{
             return subtype;
         }
 }
+     template<>
+     const char* const __pyllars_internal::type_name<char>(){
+      static const char* const name = "c_char";
+      return name;
+    }
+
+
+    template<>
+    const char* const __pyllars_internal::type_name<short>(){
+      static const char* const name = "c_short";
+      return name;
+    }
+
+    template<>
+    const char* const __pyllars_internal::type_name<int>(){
+      static const char* const name = "c_int";
+      return name;
+    }
+
+    template<>
+    const char* const __pyllars_internal::type_name<long>(){
+      static const char* const name = "c_long";
+      return name;
+    }
+
+    template<>
+    const char* const __pyllars_internal::type_name<long long>(){
+      static const char* const name = "c_long_long";
+      return name;
+    }
+
+    template<>
+    const char* const __pyllars_internal::type_name<unsigned char>(){
+      static const char* const name = "c_unsigned_char";
+      return name;
+    }
+
+    template<>
+    const char* const __pyllars_internal::type_name<unsigned short>(){
+      static const char* const name = "c_unsigned_short";
+      return name;
+    }
+
+    template<>
+    const char* const __pyllars_internal::type_name<unsigned int>(){
+      static const char* const name = "c_unsigned_int";
+      return name;
+    }
+
+    template<>
+    const char* const __pyllars_internal::type_name<unsigned long>(){
+      static const char* const name = "c_unsigned_long";
+      return name;
+    }
+
+    template<>
+    const char* const __pyllars_internal::type_name<unsigned long long>(){
+      static const char* const name = "c_unsigned_long_long";
+      return name;
+    }
+
+
+    template<>
+    const char* const __pyllars_internal::type_name<float>(){
+      static const char* const name = "c_float";
+      return name;
+    }
+
+
+    template<>
+    const char* const __pyllars_internal::type_name<double>(){
+      static const char* const name = "c_double";
+      return name;
+    }
 
 #include "pyllars_const.cpp"

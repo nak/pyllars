@@ -20,6 +20,100 @@ namespace __pyllars_internal {
         extern const char alloc_name_[] = "new";
     }
 
+
+
+    template<typename T>
+    struct Types{
+        static const char* const type_name();
+    };
+
+    template<typename T>
+    struct Types<const T>{
+        static const char* const type_name(){
+            static const std::string namebase = std::string("const ") + std::string(Types<typename std::remove_const<T>::type>::type_name());
+            return namebase.c_str();
+        }
+    };
+
+    template<typename T>
+    struct Types<volatile T>{
+        static const char* const type_name(){
+            static const std::string namebase = std::string("volatile ") + std::string(Types<typename std::remove_volatile<T>::type>::type_name());
+            return namebase.c_str();
+        }
+    };
+
+
+    template<typename T>
+    struct Types<T*>{
+        static const char* const type_name(){
+            static std::string namebase = std::string(Types<typename std::remove_pointer<T>::type>::type_name() + '*');
+            return namebase.c_str();
+        }
+    };
+
+    template<typename T>
+    struct Types<T&>{
+        static const char* const type_name(){
+            static std::string namebase = std::string(Types<typename std::remove_reference<T>::type>::type_name() + '&');
+            return namebase.c_str();
+        }
+    };
+
+    template<typename T>
+    struct Types<T&&>{
+        static const char* const type_name(){
+            static std::string namebase = std::string(Types<typename std::remove_reference<T>::type>::type_name() + "&&");
+            return namebase.c_str();
+        }
+     };
+
+     template<typename T>
+     const char* const type_name(){
+        return Types<T>::type_name();
+     }
+
+
+     template<>
+     const char* const type_name<char>();
+
+
+     template<>
+     const char* const type_name<short>();
+
+     template<>
+     const char* const type_name<int>();
+
+     template<>
+     const char* const type_name<long>();
+
+
+     template<>
+     const char* const type_name<long long>();
+
+
+     template<>
+     const char* const type_name<unsigned char>();
+
+     template<>
+     const char* const type_name<unsigned int>();
+
+     template<>
+     const char* const type_name<unsigned short>();
+
+     template<>
+     const char* const type_name<unsigned long>();
+
+
+     template<>
+     const char* const type_name<unsigned long long>();
+
+     template<>
+     const char* const type_name<float>();
+
+     template<>
+     const char* const type_name<double>();
+
     ///////////
     // Helper conversion functions
     //////////

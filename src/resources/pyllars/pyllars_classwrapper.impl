@@ -324,7 +324,7 @@ int  __pyllars_internal::InitHelper<T, typename std::enable_if<
                 return -1;
             }
             self->_CObject = new typename std::remove_reference<T>::type
-                    (*(reinterpret_cast<PythonClassWrapper <T> *>(pyobj)->template get_CObject<T>()));
+                    (*(reinterpret_cast<PythonClassWrapper <T> *>(pyobj)->get_CObject()));
         } else if ((!kwds || PyDict_Size(kwds) == 0) && (!args || PyTuple_Size(args) == 0)) {
             self->_CObject = new typename std::remove_reference<T>::type();
             memset(self->_CObject, 0, sizeof(typename std::remove_reference<T>::type));
@@ -421,7 +421,7 @@ int __pyllars_internal::InitHelper<T,  typename std::enable_if<!std::is_void<T>:
                 PyErr_SetString(PyExc_TypeError, "Invalid type to constructor");
                 return -1;
             }
-            self->_CObject = pyclass->template get_CObject<T>();
+            self->_CObject = pyclass->get_CObject();
         } else if ((!args || PyTuple_Size(args) == 0) && kwds && PyDict_Size(kwds) == 1) {
             if (PyDict_GetItemString(kwds, "__internal_allow_null") == Py_True) {
                 PyErr_Clear();
@@ -682,7 +682,7 @@ int __pyllars_internal::PythonClassWrapper<T,
     if (!module_entry_name || strlen(module_entry_name) == 0) return -1;
     if (!fullname || strlen(fullname) == 0) return -1;
     int status = 0;
-    _name = name;
+    //_name = name;
     _module_entry_name = module_entry_name;
     _full_name = fullname;
     if (Type.tp_name) {/*already initialized*/ return status; }
@@ -1615,7 +1615,7 @@ getType(const size_t unused_depth) {
 template<typename T>
 std::string __pyllars_internal::PythonClassWrapper<T,
         typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value &&  !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
-get_name() { return _name; }
+get_name() { return std::string(type_name<T>()); }
 
 template<typename T>
 std::string __pyllars_internal::PythonClassWrapper<T, 
