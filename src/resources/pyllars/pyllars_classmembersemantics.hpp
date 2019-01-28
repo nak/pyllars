@@ -19,23 +19,24 @@
 namespace __pyllars_internal {
 
     /**
-     * Class to hold pointer to a public member of a class, specialized for
+     * Class to hold pointer to a public non-const member of a class, specialized for
      * various types of elements (arrays, pointer, etc...)
+     *
      * @param CClass class that holds the member to be accessed
      **/
-    template<class CClass>
-    class ClassMemberContainer {
+    template<typename CClass>
+    class ClassMember {
     public:
 
         /**
          * Class to hold a named non-const flat (non-array, non-pointer) class member
          */
-        template<const char *const name, typename T>
+        template<const char *const name, typename AttrType>
         class Container {
         public:
 
             typedef typename std::remove_reference<CClass>::type CClass_NoRef;
-            typedef T *member_t;
+            typedef AttrType *member_t;
 
             static member_t member;
 
@@ -48,11 +49,11 @@ namespace __pyllars_internal {
         /**
           * Class to hold a named non-const explicit array class member
           */
-        template<const char *const name, size_t size, typename T>
-        class Container<name, T[size]> {
+        template<const char *const name, size_t size, typename AttrType>
+        class Container<name, AttrType[size]> {
         public:
             typedef typename std::remove_reference<CClass>::type CClass_NoRef;
-            typedef T *member_t[size];
+            typedef AttrType *member_t[size];
 
             static member_t member;
 
@@ -66,17 +67,17 @@ namespace __pyllars_internal {
      * Class member container for const class members
      **/
     template<class CClass>
-    class ConstClassMemberContainer {
+    class ConstClassMember {
     public:
 
         /**
          * Class to hold a named const flat (non-array, non-pointer) class member
          */
-        template<const char *const name, typename T>
+        template<const char *const name, typename AttrType>
         class Container {
         public:
             typedef typename std::remove_reference<CClass>::type CClass_NoRef;
-            typedef T const *member_t;
+            typedef AttrType const *member_t;
 
             static member_t member;
 
@@ -87,11 +88,11 @@ namespace __pyllars_internal {
         /**
         * Class to hold a named const explicit array class member
         */
-        template<const char *const name, size_t size, typename T>
-        class Container<name, T[size]> {
+        template<const char *const name, size_t size, typename AttrType>
+        class Container<name, AttrType[size]> {
         public:
             typedef typename std::remove_reference<CClass>::type CClass_NoRef;
-            typedef T const *member_t[size];
+            typedef AttrType const *member_t[size];
 
             static member_t member;
 
@@ -107,11 +108,11 @@ namespace __pyllars_internal {
     class ConstMemberContainer {
     public:
 
-        template<const char *const name, typename T>
+        template<const char *const name, typename AttrType>
         class Container {
         public:
             typedef typename std::remove_reference<CClass>::type CClass_NoRef;
-            typedef T const CClass_NoRef::* member_t;
+            typedef AttrType const CClass_NoRef::* member_t;
 
             static member_t member;
 
@@ -126,11 +127,11 @@ namespace __pyllars_internal {
     };
 
     template<class CClass>
-    template<const char *const name, typename T>
-    typename ConstMemberContainer<CClass>::template Container<name, T>::member_t
-            ConstMemberContainer<CClass>::Container<name, T>::member;
+    template<const char *const name, typename AttrType>
+    typename ConstMemberContainer<CClass>::template Container<name, AttrType>::member_t
+            ConstMemberContainer<CClass>::Container<name, AttrType>::member;
 
 }
 
-#endif // __PYLLARS_INTERNAL__METHODCALLSEMANTICS_H2
+#endif // __PYLLARS_INTERNAL__METHODCALLSEMANAttrTypeICS_H2
 

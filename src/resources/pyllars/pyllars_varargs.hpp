@@ -5,9 +5,6 @@
 
 namespace __pyllars_internal {
 
-/*********
-  * Class to define Python wrapper to C class/type
-  **/
     static constexpr int COBJ_TYPE = 1;
     static constexpr int FUNC_TYPE = 2;
     static constexpr int STRING_TYPE = 3;
@@ -81,13 +78,6 @@ namespace __pyllars_internal {
             }
         }
     };
-
-    namespace{
-        struct Arbitrary{
-            float fdata;
-            int idata;
-        };
-    }
 
 }
 #endif

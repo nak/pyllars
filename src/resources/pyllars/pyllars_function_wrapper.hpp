@@ -13,6 +13,13 @@
 
 namespace __pyllars_internal {
 
+    namespace{
+        struct Arbitrary{
+            float fdata;
+            int idata;
+        };
+    }
+
 
 
     template<bool is_base_return_complete, bool with_ellipsis, typename ReturnType, typename ...Args>

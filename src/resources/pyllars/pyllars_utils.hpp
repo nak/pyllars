@@ -144,7 +144,6 @@ namespace __pyllars_internal {
 
     };
 
-
     /**
      *  Types used to define a smart pointer that knows if contained
      *  element is dynamically allocated and should be deleted (or not)

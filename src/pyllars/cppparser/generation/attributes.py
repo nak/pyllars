@@ -143,6 +143,31 @@ class GeneratorBodyFieldDecl(GeneratorBody):
 class GeneratorBodyVarDecl(GeneratorBody):
     
     def generate(self):
+        if not self._element.target_type.name:
+            self._stream.write(("""
+                              namespace __pyllars_internal{
+                                  template<>
+                                  const char* const
+                                  type_name<decltype(%(name)s)>(){
+                                      static const char* const name = "anonymous type";
+                                      return name;
+                                  }
+
+                                   template<>
+                                  const char* const
+                                  type_name<decltype(%(name)s) const>(){
+                                      static const char* const name = "const anonymous type";
+                                      return name;
+                                  }
+
+                                  template<>
+                                  const char* const
+                                  Types<decltype(%(name)s)>::type_name(){
+                                      static const char* const name = "anonymous type";
+                                      return name;
+                                  }
+                              }
+                      """ % {'name': self._element.full_name}).encode('utf-8'))
         with self._scoped(self._stream) as stream:
             stream.write(("\n                    //generated from: %(file)s GeneratorBodyVarDecl.generate\n" % {
                 'file': os.path.basename(__file__),

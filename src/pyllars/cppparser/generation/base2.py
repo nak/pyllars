@@ -113,8 +113,10 @@ class Compiler(object):
                                                             stderr=subprocess.PIPE, encoding='utf-8')
         returncode = await p.wait()
         if returncode != 0:
-            print(p.stdout)
-            print(p.stderr)
+            stdout = await p.stdout.read()
+            stderr - await p.stderr.read()
+            print(stdout)
+            print(stderr)
         assert os.path.exists(target)
         return target
 

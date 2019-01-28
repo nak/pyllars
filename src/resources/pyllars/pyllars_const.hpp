@@ -1,9 +1,6 @@
 /**
  * holds top-level namespace fo Pyllars and common definitions
  */
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "OCUnusedStructInspection"
-#pragma ide diagnostic ignored "OCUnusedGlobalDeclarationInspection"
 #ifndef PYLLARS_CONST
 #define PYLLARS_CONST
 
@@ -299,5 +296,3 @@ namespace __pyllars_internal {
 }
 #endif
 //PYLLARS
-
-#pragma clang diagnostic pop

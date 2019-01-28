@@ -34,13 +34,14 @@ def testglobals(linker_flags):
                         debug=True,
                         output_dir="generated")
     src_paths = [os.path.join(TEST_RESOURCES_DIR, filename) for filename in ("globals.hpp", "opaque_types.hpp")]
+    objects = []
     for src_path in src_paths:
         nodes = ClangFilter.parse(src_path=src_path, flags=compiler.compiler_flags)
+        objects += Generator.generate_code(nodes, src_paths=[src_path], output_dir="generated", compiler=compiler)
 
     linker = Linker(linker_options=linker_flags, compiler_flags=compiler.compiler_flags,
                     debug=True)
+    Generator.link(objects, module_name="testglobals", linker=linker, module_location=TEST_LIBS_DIR)
 
-    Generator.generate_code(nodes, src_paths=src_paths, module_name="testglobals", output_dir="generated",
-                            compiler=compiler, linker=linker, module_location=TEST_LIBS_DIR)
     import testglobals
     return testglobals

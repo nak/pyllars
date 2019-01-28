@@ -1,9 +1,6 @@
 /**
  * holds top-level namespace fo Pyllars and common definitions
  */
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "OCUnusedGlobalDeclarationInspection"
-#pragma ide diagnostic ignored "OCUnusedStructInspection"
 #ifndef PYLLARS
 #define PYLLARS
 
@@ -93,24 +90,23 @@ namespace pyllars {
 namespace __pyllars_internal {
 
 
-    template<typename number_type>
-    struct NumberType;
-
-    template<typename number_type>
-    struct FloatingPointType;
-
+    /**
+     Struct (non-template) to hold a common number (integer) base Type that is not instantiable,
+     but provide for common reference base type
+    */
     struct PyNumberCustomBase {
         static PyTypeObject Type;
-
-        std::function<long long()> asLongLong;
     };
 
     template<typename number_type>
     struct PyNumberCustomObject {
     public:
+        /**
+        Templated class representing a c-type integer in Python based on a number-class-type that implements
+        Python's number methods
+        */
         PyObject_HEAD
-        typedef number_type
-        ntype;
+        typedef number_type ntype;
         typedef PythonClassWrapper<number_type const, void> ConstWrapper;
         typedef PythonClassWrapper<typename std::remove_const<number_type>::type> NonConstWrapper;
         typedef PythonClassWrapper<typename std::remove_reference<number_type>::type> NoRefWrapper;
@@ -302,7 +298,7 @@ namespace __pyllars_internal {
         public:
             Initializer();
 
-            status_t init(PyObject *const global_module) override;
+            status_t init(PyObject *const global_module);
 
             static Initializer *initializer;
         };
@@ -332,5 +328,3 @@ PyllarsInit(const char *const name);
 
 #endif
 //PYLLARS
-
-#pragma clang diagnostic pop

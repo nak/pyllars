@@ -105,6 +105,7 @@ namespace __pyllars_internal {
         struct FuncDef<false, val> {
             typedef void(*func_type)(Args...);
         };
+
         template<int val>
         struct FuncDef<true, val> {
             typedef void(*func_type)(Args... ...);

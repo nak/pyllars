@@ -16,10 +16,10 @@ namespace __pyllars_internal {
         typedef PythonClassWrapper<CClass> Wrapper;
         Wrapper *_this = (Wrapper *) self;
         const ssize_t base_size = ArrayHelper<T>::base_sizeof();
-        const ssize_t array_size = base_size > 0 ? sizeof(_this->get_CObject<CClass>()->*member) / base_size
+        const ssize_t array_size = base_size > 0 ? sizeof(_this->get_CObject()->*member) / base_size
                                                  : UNKNOWN_SIZE;
-        if (_this->get_CObject<CClass>()) {
-            return toPyObject<T>(_this->get_CObject<CClass>()->*member, true, array_size);
+        if (_this->get_CObject()) {
+            return toPyObject<T>(_this->get_CObject()->*member, true, array_size);
         }
         PyErr_SetString(PyExc_RuntimeError, "Internal Pyllars Error: No C Object found to get member attribute value!");
         return nullptr;
@@ -42,7 +42,7 @@ namespace __pyllars_internal {
             return -1;
         }
         try {
-            Assign<T>::assign((_this->get_CObject<CClass_NoRef>()->*member),
+            Assign<T>::assign((_this->get_CObject()->*member),
                               *toCObject<T, false, PythonClassWrapper<T> >(*pyVal));
         }catch(const char* const msg){
             PyErr_SetString(PyExc_RuntimeError, msg);
@@ -69,10 +69,10 @@ namespace __pyllars_internal {
         Wrapper *_this = (Wrapper *) self;
         const ssize_t base_size = ArrayHelper<T>::base_sizeof();
         const ssize_t array_size =
-                base_size > 0 ? sizeof(_this->get_CObject<CClass>()->*member) / base_size
+                base_size > 0 ? sizeof(_this->get_CObject()->*member) / base_size
                               : UNKNOWN_SIZE;
-        if (_this->get_CObject<CClass>()) {
-            return toPyObject<T>(_this->get_CObject<CClass>()->*member, false, array_size);
+        if (_this->get_CObject()) {
+            return toPyObject<T>(_this->get_CObject()->*member, false, array_size);
         }
         PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
         return nullptr;
@@ -105,12 +105,12 @@ namespace __pyllars_internal {
         if (!self) return nullptr;
         typedef PythonClassWrapper<CClass> Wrapper;
         Wrapper *_this = (Wrapper *) self;
-        if (_this->get_CObject<CClass_NoRef>()) {
+        if (_this->get_CObject()) {
             const ssize_t base_size = ArrayHelper<T>::base_sizeof();
             const ssize_t array_size =
-                    base_size > 0 ? sizeof(_this->get_CObject<CClass>()->*member) / base_size
+                    base_size > 0 ? sizeof(_this->get_CObject()->*member) / base_size
                                   : UNKNOWN_SIZE;
-            return toPyObject<T>(_this->get_CObject<CClass_NoRef>()->*member, true, array_size);
+            return toPyObject<T>(_this->get_CObject()->*member, true, array_size);
         }
         PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
         return nullptr;
@@ -139,13 +139,13 @@ namespace __pyllars_internal {
                 PyErr_SetString(PyExc_TypeError, msg);
                 return nullptr;
             }
-            if (_this->get_CObject<CClass>()) {
+            if (_this->get_CObject()) {
                 const ssize_t base_size = ArrayHelper<T_array>::base_sizeof();
                 const ssize_t array_size =
-                        base_size > 0 ? sizeof(_this->get_CObject<CClass>()->*member) / base_size
+                        base_size > 0 ? sizeof(_this->get_CObject()->*member) / base_size
                                       : UNKNOWN_SIZE;
 
-               PyObject* obj = toPyObject<T_array>(_this->get_CObject<CClass>()->*member, false,
+               PyObject* obj = toPyObject<T_array>(_this->get_CObject()->*member, false,
                                             array_size);
                 ((PythonClassWrapper<T> *) obj)->make_reference(self);
                 return obj;
@@ -171,7 +171,7 @@ namespace __pyllars_internal {
             if (PyTuple_Check(pyVal)) {
                 if (PyTuple_Size(pyVal) == size) {
                     for (size_t i = 0; i < size; ++i)
-                        Assign<T>::assign((_this->get_CObject<CClass_NoRef>()->*
+                        Assign<T>::assign((_this->get_CObject()->*
                          member)[i],  *toCObject<T, true, PythonClassWrapper<T> >(
                                 *PyTuple_GetItem(pyVal, i)));
                 } else {
@@ -183,9 +183,9 @@ namespace __pyllars_internal {
                     return -1;
                 }
             } else if (PythonClassWrapper<T_array>::checkType(pyVal)) {
-                T_array *val = ((PythonClassWrapper<T_array> *) pyVal)->get_CObject<T_array>();
+                T_array *val = ((PythonClassWrapper<T_array> *) pyVal)->get_CObject();
                 for (size_t i = 0; i < size; ++i)
-                    Assign<T>::assign((_this->get_CObject<T_array>()->*member)[i] , (*val)[i]);
+                    Assign<T>::assign((_this->get_CObject()->*member)[i] , (*val)[i]);
 
             }
         } catch (const char *const msg) {
@@ -216,14 +216,14 @@ namespace __pyllars_internal {
 
         const ssize_t base_size = ArrayHelper<T_array>::base_sizeof();
         const ssize_t array_size =
-                base_size > 0 ? sizeof(_this->get_CObject<CClass>()->*member) / base_size
+                base_size > 0 ? sizeof(_this->get_CObject()->*member) / base_size
                               : UNKNOWN_SIZE;
         if (array_size != size) {
             PyErr_SetString(PyExc_TypeError, "Mismatched array sizes");
             return nullptr;
         }
-        if (_this->get_CObject<CClass>()) {
-            return toPyObject<T_array, size>(*(_this->get_CObject<CClass>()->*member), true,
+        if (_this->get_CObject()) {
+            return toPyObject<T_array, size>(*(_this->get_CObject()->*member), true,
                                              array_size);
         }
 
@@ -251,8 +251,8 @@ namespace __pyllars_internal {
         if (!self) return nullptr;
         PythonClassWrapper<CClass> *_this = (PythonClassWrapper<CClass> *) self;
 
-        if (_this->get_CObject<CClass>()) {
-            PyObject *obj = toPyObject<T[]>(*(_this->get_CObject<CClass>()->*member), true, array_size);
+        if (_this->get_CObject()) {
+            PyObject *obj = toPyObject<T[]>(*(_this->get_CObject()->*member), true, array_size);
             ((PythonClassWrapper<T> *) obj)->make_reference(self);
             return obj;
         }
@@ -279,7 +279,7 @@ namespace __pyllars_internal {
             if (PyTuple_Check(pyVal)) {
                 if (PyTuple_Size(pyVal) == array_size) {
                     for (size_t i = 0; i < array_size; ++i)
-                        Assign<T>::assign((_this->get_CObject<CClass_NoRef>()->*
+                        Assign<T>::assign((_this->get_CObject()->*
                                            member)[i], *toCObject<T, false, PythonClassWrapper<T> >(
                                 *PyTuple_GetItem(pyVal, i)));
                 } else {
@@ -291,10 +291,10 @@ namespace __pyllars_internal {
                     return nullptr;
                 }
             } else if (PythonClassWrapper<T_array>::checkType(pyVal)) {
-                T_array *val = ((PythonClassWrapper<T_array> *) pyVal)->get_CObject<T_array>();
+                T_array *val = ((PythonClassWrapper<T_array> *) pyVal)->get_CObject();
                 //TODO: check size????
                 for (size_t i = 0; i < array_size; ++i)
-                    Assign<T>::assign((_this->get_CObject<T_array>()->*member)[i], (*val)[i]);
+                    Assign<T>::assign((_this->get_CObject()->*member)[i], (*val)[i]);
 
             } else {
                 PyErr_SetString(PyExc_ValueError, "Invalid argument type when setting attribute");
@@ -410,8 +410,8 @@ namespace __pyllars_internal {
         typedef PythonClassWrapper<CClass> Wrapper;
         Wrapper *_this = (Wrapper *) self;
 
-        if (_this->get_CObject<CClass>()) {
-            return toPyObject<T>(_getter(*(_this->get_CObject<CClass>())), false, 1);
+        if (_this->get_CObject()) {
+            return toPyObject<T>(_getter(*(_this->get_CObject())), false, 1);
         }
         PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
         return nullptr;
@@ -436,7 +436,7 @@ namespace __pyllars_internal {
             PyErr_SetString(PyExc_ValueError, "Value out of bounds");
             return -1;
         }
-        _setter(*(_this->get_CObject<CClass_NoRef>()), *value);
+        _setter(*(_this->get_CObject()), *value);
         return 0;
     }
 
@@ -459,8 +459,8 @@ namespace __pyllars_internal {
         typedef PythonClassWrapper<CClass> Wrapper;
         Wrapper *_this = (Wrapper *) self;
 
-        if (_this->get_CObject<CClass>()) {
-            return toPyObject<T>(_getter(*(_this->get_CObject<CClass>())), false, 1);
+        if (_this->get_CObject()) {
+            return toPyObject<T>(_getter(*(_this->get_CObject())), false, 1);
         }
         PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
         return nullptr;

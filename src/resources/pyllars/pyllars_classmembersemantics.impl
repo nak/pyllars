@@ -10,9 +10,9 @@
 
 namespace __pyllars_internal{
 
-    template<class CClass>
-    template<const char *const name, typename T>
-    PyObject *ClassMemberContainer<CClass>::Container<name, T>::
+    template<typename CClass>
+    template<const char *const name, typename AttrType>
+    PyObject *ClassMember<CClass>::Container<name, AttrType>::
     call(PyObject *cls, PyObject *args, PyObject *kwds) {
         (void) cls;
         static const char *kwlist[] = {"value", nullptr};
@@ -26,53 +26,53 @@ namespace __pyllars_internal{
             PyErr_SetString(PyExc_ValueError, "Invalid argument keyword name or type to method call");
             return nullptr;
         } else if (kwds) {
-            Assign<T>::assign(*member,*toCObject<T, std::is_array<T>::value, PythonClassWrapper<T> >(*pyarg));
+            Assign<AttrType>::assign(*member,*toCObject<AttrType, std::is_array<AttrType>::value, PythonClassWrapper<AttrType> >(*pyarg));
             return Py_None;
         }
-        return toPyObject<T>(*member, false, ArraySize<T>::size);
+        return toPyObject<AttrType>(*member, false, ArraySize<AttrType>::size);
     }
 
     template<class CClass>
-    template<const char *const name, typename T>
-    void ClassMemberContainer<CClass>::Container<name, T>::
+    template<const char *const name, typename AttrType>
+    void ClassMember<CClass>::Container<name, AttrType>::
     setFromPyObject(PyObject *pyobj) {
-        Assign<T>::assign(*member ,*toCObject<T, false, PythonClassWrapper<T>>(*pyobj));
+        Assign<AttrType>::assign(*member ,*toCObject<AttrType, false, PythonClassWrapper<AttrType>>(*pyobj));
     }
 
     template<class CClass>
-    template<const char *const name, typename T>
-    typename ClassMemberContainer<CClass>::template Container<name, T>::member_t
-            ClassMemberContainer<CClass>::Container<name, T>::member;
+    template<const char *const name, typename AttrType>
+    typename ClassMember<CClass>::template Container<name, AttrType>::member_t
+            ClassMember<CClass>::Container<name, AttrType>::member;
 
 
 
     template<class CClass>
-    template<const char *const name, typename T>
-    PyObject *ConstClassMemberContainer<CClass>::Container<name, T>::
+    template<const char *const name, typename AttrType>
+    PyObject *ConstClassMember<CClass>::Container<name, AttrType>::
     call(PyObject *cls, PyObject *args, PyObject *kwds) {
         (void) cls;
         if (PyTuple_Size(args) > 0 || kwds) {
             PyErr_SetString(PyExc_ValueError, "C++: const static members cannot change value");
             return nullptr;
         }
-        return toPyObject<T>(*member, false, ArraySize<T>::size);
+        return toPyObject<AttrType>(*member, false, ArraySize<AttrType>::size);
     }
 
     template<class CClass>
-    template<const char *const name, typename T>
-    typename ConstClassMemberContainer<CClass>::template Container<name, T>::member_t
-            ConstClassMemberContainer<CClass>::Container<name, T>::member;
+    template<const char *const name, typename AttrType>
+    typename ConstClassMember<CClass>::template Container<name, AttrType>::member_t
+            ConstClassMember<CClass>::Container<name, AttrType>::member;
 
     template<class CClass>
-    template<const char *const name, size_t size, typename T>
-    void ClassMemberContainer<CClass>::Container<name, T[size]>::setFromPyObject(PyObject* pyobj){
-        T val[] = *toCObject<T[size], false, PythonClassWrapper<T[size]>>(*pyobj);
+    template<const char *const name, size_t size, typename AttrType>
+    void ClassMember<CClass>::Container<name, AttrType[size]>::setFromPyObject(PyObject* pyobj){
+        AttrType val[] = *toCObject<AttrType[size], false, PythonClassWrapper<AttrType[size]>>(*pyobj);
         for (size_t i = 0; i < size; ++i)member[i] = val[i];
     }
 
     template<class CClass>
-    template<const char *const name, size_t size, typename T>
-    PyObject * ClassMemberContainer<CClass>::Container<name, T[size]>::call(PyObject *cls, PyObject *args, PyObject *kwds){
+    template<const char *const name, size_t size, typename AttrType>
+    PyObject * ClassMember<CClass>::Container<name, AttrType[size]>::call(PyObject *cls, PyObject *args, PyObject *kwds){
         (void) cls;
         static const char *kwlist[] = {"value", nullptr};
         static char format[2] = {'O', 0};
@@ -88,20 +88,20 @@ namespace __pyllars_internal{
             setFromPyObject(pyarg);
             return Py_None;
         }
-        return toPyObject<T>(member, false);
+        return toPyObject<AttrType>(member, false);
     }
 
     template<class CClass>
-    template<const char *const name, typename T>
-    PyObject *ConstMemberContainer<CClass>::Container<name, T>::
+    template<const char *const name, typename AttrType>
+    PyObject *ConstMemberContainer<CClass>::Container<name, AttrType>::
     get(PyObject *self) {
 
         if (!self) return nullptr;
         typedef PythonClassWrapper<CClass> ClassWrapper;
         auto _this = reinterpret_cast<ClassWrapper *>(self);
-        const ssize_t array_size = ArraySize<T>::size;//sizeof(_this->get_CObject()->*member) / sizeof(T_base);
+        const ssize_t array_size = ArraySize<AttrType>::size;
         if (_this->get_CObject()) {
-            return toPyObject<T>((_this->get_CObject()->*member), false, array_size);
+            return toPyObject<AttrType>((_this->get_CObject()->*member), false, array_size);
         }
         PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
         return nullptr;

@@ -1,5 +1,3 @@
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "OCUnusedStructInspection"
 #ifndef __PYLLARS__CONVERSIONS
 #define __PYLLARS__CONVERSIONS
 
@@ -321,5 +319,3 @@ namespace __pyllars_internal {
 }
 
 #endif
-
-#pragma clang diagnostic pop

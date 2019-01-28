@@ -39,10 +39,10 @@ namespace __pyllars_internal {
     class ConstMemberContainer;
 
     template<class CClass>
-    class ClassMemberContainer;
+    class ClassMember;
 
     template<class CClass>
-    class ConstClassMemberContainer;
+    class ConstClassMember;
 
     template<bool is_base_return_complete, bool with_ellipsis, typename ReturnType, typename ...Args>
     struct PythonFunctionWrapper;
@@ -65,18 +65,13 @@ namespace __pyllars_internal {
         typedef typename ObjectLifecycleHelpers::BasicAlloc<T>::ConstructorContainer ConstructorContainer;
         typedef typename ConstructorContainer::constructor constructor;
         typedef typename std::remove_reference<T>::type T_NoRef;
-
         typedef PyTypeObject *TypePtr_t;
 
 
         /**
          * return the C-likde object associated with this Python wrapper
          */
-        template<typename Z = T>
         typename PythonClassWrapper::T_NoRef *get_CObject() ;
-
-        static PyTypeObject Type;
-        static TypePtr_t constexpr TypePtr = &Type;
 
         static PyTypeObject* getType(){
             return &Type;
@@ -232,8 +227,6 @@ namespace __pyllars_internal {
             addMethod__div__templ< MethodContainer<T_NoRef, is_const>, name, ReturnType, Args...>(method, kwlist);
          }
 
-
-
         template<typename _Container, const char *const name, typename ReturnType, typename ...Args>
         static void addMethod__and__templ(
                 typename _Container::template Container<name, ReturnType, Args...>::method_t method,
@@ -380,132 +373,55 @@ namespace __pyllars_internal {
         /**
          * Add a mutable bit field to this Python type definition
          **/
-        template<const char *const name, typename Type, const size_t bits>
+        template<const char *const name, typename FieldType, const size_t bits>
         static void addBitField(
-                typename BitFieldContainer<T_NoRef>::template Container<name, Type, bits>::getter_t &getter,
-                typename BitFieldContainer<T_NoRef>::template Container<name, Type,  bits>::setter_t &setter){
-            static const char *const doc = "Get bit-field attribute ";
-            char *doc_string = new char[strlen(name) + strlen(doc) + 1];
-            snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
-            BitFieldContainer<T_NoRef>::template Container<name, Type, bits>::_getter = getter;
-            BitFieldContainer<T_NoRef>::template Container<name, Type, bits>::_setter = setter;
-            _member_getters[name] =  BitFieldContainer<T_NoRef>::template Container<name, Type, bits>::get;
-            _member_setters[name] =  BitFieldContainer<T_NoRef>::template Container<name, Type, bits>::set;
-
-        }
+                typename BitFieldContainer<T_NoRef>::template Container<name, FieldType, bits>::getter_t &getter,
+                typename BitFieldContainer<T_NoRef>::template Container<name, FieldType,  bits>::setter_t &setter);
 
         /**
          * Add a constant bit field to this Python type definition
          **/
-        template<const char *const name, typename Type, const size_t bits>
+        template<const char *const name, typename FieldType, const size_t bits>
         static void addBitFieldConst(
-                typename BitFieldContainer<T_NoRef>::template Container<name, Type, bits>::getter_t &getter){
-            static const char *const doc = "Get bit-field attribute ";
-            char *doc_string = new char[strlen(name) + strlen(doc) + 1];
-            snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
-            BitFieldContainer<T_NoRef>::template ConstContainer<name, Type, bits>::_getter = getter;
-            _member_getters[name] = BitFieldContainer<T_NoRef>::template ConstContainer<name, Type, bits>::get;
-        }
+                typename BitFieldContainer<T_NoRef>::template Container<name, FieldType, bits>::getter_t &getter);
 
         /**
          * add a getter method for the given compile-time-known named public class member
          **/
-        template<const char *const name, typename Type>
-        static void addAttribute(typename MemberContainer<T_NoRef>::template Container<name, Type>::member_t member){
+        template<const char *const name, typename FieldType>
+        static void addAttribute(typename MemberContainer<T_NoRef>::template Container<name, FieldType>::member_t member);
 
-            static const char *const doc = "Get attribute ";
-            char *doc_string = new char[strlen(name) + strlen(doc) + 1];
-            snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
-            const ssize_t array_size = ArraySize<Type>::size;
-            MemberContainer<T_NoRef>::template Container<name, Type>::member = member;
-            MemberContainer<T_NoRef>::template Container<name, Type>::array_size = array_size;
-            _member_getters[name] =  MemberContainer<T_NoRef>::template Container<name, Type>::get;
-            _member_setters[name] =   MemberContainer<T_NoRef>::template Container<name, Type>::set;
-        }
-
-         template<const char *const name, ssize_t size, typename Type>
-        static void addConstAttribute(
-                typename MemberContainer<T_NoRef>::template Container<name, Type[size]>::member_t member,
-                const ssize_t array_size){
-            assert(array_size == size);
-            static const char *const doc = "Get attribute ";
-            char *doc_string = new char[strlen(name) + strlen(doc) + 1];
-            snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
-            MemberContainer<T_NoRef>::template Container<name, Type[size]>::member = member;
-            _member_getters[name] = MemberContainer<T_NoRef>::template Container<name, Type[size]>::get;
-        }
-
+       template<const char *const name, ssize_t size, typename FieldType>
+       static void addConstAttribute(
+                typename MemberContainer<T_NoRef>::template Container<name, FieldType[size]>::member_t member,
+                const ssize_t array_size);
 
         /**
          * add a getter method for the given compile-time-known named public class member
          **/
-        template<const char *const name, typename Type>
+        template<const char *const name, typename FieldType>
         static void addAttributeConst(
-                typename ConstMemberContainer<T_NoRef>::template Container<name, Type>::member_t member){
+                typename ConstMemberContainer<T_NoRef>::template Container<name, FieldType>::member_t member);
 
-            static const char *const doc = "Get attribute ";
-            char *doc_string = new char[strlen(name) + strlen(doc) + 1];
-            snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
-            ConstMemberContainer<T_NoRef>::template Container<name, Type>::member = member;
-            _member_getters[name] = ConstMemberContainer<T_NoRef>::template Container<name, Type>::get;
-        }
         /**
           * add a getter method for the given compile-time-known named public class member
           **/
-        template<const char *const name, ssize_t size, typename Type>
+        template<const char *const name, ssize_t size, typename FieldType>
         static void addArrayAttribute(
-                typename MemberContainer<T_NoRef>::template Container<name, Type[size]>::member_t member,
-                const ssize_t array_size){
-            assert(array_size == size);
-            static const char *const doc = "Get attribute ";
-            char *doc_string = new char[strlen(name) + strlen(doc) + 1];
-            snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
-            //static const char *const getter_prefix = "get_";
-            //char *getter_name = new char[strlen(name) +strlen(getter_prefix)+1];
-            //snprintf(getter_name, strlen(name) +strlen(getter_prefix)+1, "%s%s_",getter_prefix,name);
-            MemberContainer<T_NoRef>::template Container<name, Type[size]>::member = member;
-            _member_getters[name] = MemberContainer<T_NoRef>::template Container<name, Type[size]>::get;
-            _member_setters[name] = MemberContainer<T_NoRef>::template Container<name, Type[size]>::set;
-        }
-
+                typename MemberContainer<T_NoRef>::template Container<name, FieldType[size]>::member_t member,
+                const ssize_t array_size);
 
         /**
          * add a getter method for the given compile-time-known named public static class member
          **/
-        template<const char *const name, typename Type>
-        static void addClassAttribute(Type *member){
-
-            static const char *const doc = "Get attribute ";
-            char *doc_string = new char[strlen(name) + strlen(doc) + 1];
-            snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
-            ClassMemberContainer<T_NoRef>::template Container<name, Type>::member = member;
-            PyMethodDef pyMeth = {name,
-                                  (PyCFunction) ClassMemberContainer<T_NoRef>::template Container<name, Type>::call,
-                                  METH_VARARGS | METH_KEYWORDS | METH_CLASS,
-                                  doc_string
-            };
-            _addMethod(pyMeth);
-	    //UPDATE?? _memberSettersDict[name] = ClassMemberContainer<T>::template Container<name, Type>::setFromPyObject;
-        }
-
+        template<const char *const name, typename FieldType>
+        static void addClassAttribute(FieldType *member);
 
         /**
          * add a getter method for the given compile-time-known named public static class member
          **/
-        template<const char *const name, typename Type>
-        static void addClassAttributeConst(Type const *member){
-
-            static const char *const doc = "Get attribute ";
-            char *doc_string = new char[strlen(name) + strlen(doc) + 1];
-            snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
-            ConstClassMemberContainer<T_NoRef>::template Container<name, Type>::member = member;
-            PyMethodDef pyMeth = {name,
-                                  (PyCFunction) ConstClassMemberContainer<T_NoRef>::template Container<name, Type>::call,
-                                  METH_VARARGS | METH_KEYWORDS | METH_CLASS,
-                                  doc_string
-            };
-            _addMethod(pyMeth);
-        }
+        template<const char *const name, typename FieldType>
+        static void addClassAttributeConst(FieldType const *member);
 
         void set_contents(typename std::remove_reference<T>::type *ptr, const bool allocated, const bool inPlace);
 
@@ -518,8 +434,6 @@ namespace __pyllars_internal {
         static std::string get_module_entry_name();
 
         static std::string get_full_name();
-
-        static PyObject *parent_module;
 
         static bool isInitialized(){return _isInitialized;}
 
@@ -712,7 +626,12 @@ namespace __pyllars_internal {
         size_t _arraySize;
         bool _allocated;
         bool _inPlace;
+
       public:
+        static PyTypeObject Type;
+        static TypePtr_t constexpr TypePtr = &Type;
+        static PyObject *parent_module;
+
         size_t _depth;
         static bool _isInitialized;
     };

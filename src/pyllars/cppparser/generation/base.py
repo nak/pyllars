@@ -321,11 +321,7 @@ extern "C"{
     def generate_code(node_tree: code_structure.TranslationUnitDecl,
                       src_paths: List[str],
                       output_dir: str,
-                      compiler: Compiler,
-                      linker: Linker,
-                      module_name: str,
-                      globals_module_name: Optional[str] = None,
-                      module_location: str = "."):
+                      compiler: Compiler):
         from .base2 import GeneratorHeader
         objects = []
         for src_path in src_paths:
@@ -377,6 +373,15 @@ extern "C"{
             async def main():
                 await asyncio.gather(*[generate_elements() for _ in range(multiprocessing.cpu_count())])
             asyncio.run(main())
+        return objects
+
+    @staticmethod
+    def link(objects: List[str],
+             linker: Linker,
+             module_name: str,
+             globals_module_name: Optional[str] = None,
+             module_location: str = ".",
+            ):
         linker.link(set(objects), output_module_path=module_location, module_name="%s" % module_name, global_module_name=globals_module_name or "%s_globals" % module_name)
 
 

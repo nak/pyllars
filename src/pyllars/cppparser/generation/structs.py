@@ -16,6 +16,31 @@ class GeneratorBodyCXXRecordDecl(GeneratorBody):
                not [child for child in self._element.children() + self._element._inaccessible_children if isinstance(child, code_structure.CXXConstructorDecl)]
 
     def generate(self):
+        if not self._element.name and self._element.children():
+            self._stream.write(("""
+                    namespace __pyllars_internal{
+                        template<>
+                        const char* const
+                        type_name<decltype(%(name)s)>(){
+                            static const char* const name = "anonymous enum";
+                            return name;
+                        }
+
+                         template<>
+                        const char* const
+                        type_name<decltype(%(name)s) const>(){
+                            static const char* const name = "const anonymous enum";
+                            return name;
+                        }
+
+                        template<>
+                        const char* const
+                        Types<decltype(%(name)s)>::type_name(){
+                            static const char* const name = "anonymous enum";
+                            return name;
+                        }
+                    }
+            """ % {'name': self._element.children()[0].full_name}).encode('utf-8'))
         if not self._element.is_definition or self._element.is_implicit or not self._element.name:
             return
 
@@ -155,7 +180,6 @@ class GeneratorBodyEnumConstantDecl(GeneratorBody):
         self._stream.write(("                //From: %(file)s: GeneratorBodyEnumConstantDecl.generate\n" % {
             'file': os.path.basename(__file__),
         }).encode('utf-8'))
-
         with self._scoped(self._stream) as stream:
             self._stream.write(self.decorate(self.INITIALIZER_CODE % {
                 'name': self._element.name,

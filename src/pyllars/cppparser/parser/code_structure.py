@@ -415,9 +415,9 @@ def _parse_type_spec(target_spec: str, element: Element):
             tag += "_%s" % token.value
             spec = spec + token.value
             if token.value == '*':
-                target_type = PointerType(spec, tag=tag, parent=element)
+                target_type = PointerType(spec, tag=tag, parent=target_type)
             elif token.value == '&':
-                target_type = ReferenceType(spec, tag=tag, parent=element)
+                target_type = ReferenceType(spec, tag=tag, parent=target_type)
         elif token.type == 'structured_type':
             kind = token.value
     Element.lookup[target_spec] = target_type
@@ -731,9 +731,11 @@ class _DecoratingType(UnscopedElement):
 
     @property
     def target_type(self):
-        if self._children:
-            raise Exception()  #return self.children()[0]
-        elif not self._target_type:
+        if self._children and len(self._children) > 1:
+            raise Exception()
+        elif self._children:
+            self._target_type = self.children()[0]
+        if not self._target_type:
             self._target_type = _parse_type_spec(self._target_spec.strip(), self)
         return self._target_type
 

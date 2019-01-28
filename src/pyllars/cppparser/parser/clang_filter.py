@@ -54,7 +54,6 @@ class ClangFilter:
         self._root_node = None
         self._src_path = src_path
 
-
     @classmethod
     def parse(cls, src_path: str, flags:str):
         processor = ClangFilter(src_path)

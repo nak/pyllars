@@ -47,21 +47,6 @@ namespace __pyllars_internal {
             return nullptr;
         }
 
-        static PyObject *_concat(PyObject *self, PyObject *other);
-
-        static PyObject *_inplace_repeat(PyObject *self, Py_ssize_t count);
-
-        static PyObject *_repeat(PyObject *self, Py_ssize_t count);
-
-        static int _set_item(PyObject *self, Py_ssize_t index, PyObject *obj);
-
-        static int _contains(PyObject *self, PyObject *obj);
-
-        static PyObject *_at(PyObject *self, PyObject *args, PyObject *kwds);
-
-        static PyObject *_get_item(PyObject *self, Py_ssize_t index);
-
-        static PyObject *_get_item2(PyObject *self, Py_ssize_t index, const bool make_copy);
 
         ssize_t getArraySize();
 
@@ -150,6 +135,24 @@ namespace __pyllars_internal {
         ssize_t _max;
         ssize_t _arraySize;
         size_t _raw_size;
+
+    private:
+        static PyObject *_concat(PyObject *self, PyObject *other);
+
+        static PyObject *_inplace_repeat(PyObject *self, Py_ssize_t count);
+
+        static PyObject *_repeat(PyObject *self, Py_ssize_t count);
+
+        static int _set_item(PyObject *self, Py_ssize_t index, PyObject *obj);
+
+        static int _contains(PyObject *self, PyObject *obj);
+
+        static PyObject *_at(PyObject *self, PyObject *args, PyObject *kwds);
+
+        static PyObject *_get_item(PyObject *self, Py_ssize_t index);
+
+        static PyObject *_get_item2(PyObject *self, Py_ssize_t index, const bool make_copy);
+
     public:
         size_t _depth;
         bool _allocated;
