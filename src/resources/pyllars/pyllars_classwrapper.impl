@@ -182,9 +182,7 @@ namespace __pyllars_internal{
     template<typename T>
     std::string PythonClassWrapper<T,
             typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value &&  !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::_module_entry_name;
-    template<typename T>
-    std::string PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value &&  !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::_full_name;
+
     template<typename T>
     std::map<std::string, std::pair<std::function<PyObject*(PyObject*, PyObject*)>,
                                      std::function<int(PyObject*, PyObject*, PyObject*)>
@@ -691,22 +689,19 @@ namespace __pyllars_internal{
     template<typename T>
     int PythonClassWrapper<T,
                     typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value  && !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::initialize
-                    (const char *const name, const char *const module_entry_name,
-                     PyObject *module, const char *const fullname) {
+                    (const char *const name, const char *const module_entry_name, PyObject* module) {
         static bool inited = false;
         if (inited) return 0;
         inited = true;
         if (!name || strlen(name) == 0) return -1;
         if (!module_entry_name || strlen(module_entry_name) == 0) return -1;
-        if (!fullname || strlen(fullname) == 0) return -1;
         int status = 0;
         //_name = name;
         _module_entry_name = module_entry_name;
-        _full_name = fullname;
         if (Type.tp_name) {/*already initialized*/ return status; }
-        char *tp_name = new char[strlen(fullname ? fullname : name) + 1 + tp_name_prefix_len];
+        char *tp_name = new char[strlen(name) + 1 + tp_name_prefix_len];
         strcpy(tp_name, tp_name_prefix);
-        strcpy(tp_name + strlen(tp_name_prefix), fullname ? fullname : name);
+        strcpy(tp_name + strlen(tp_name_prefix), name);
         Type.tp_name = tp_name;
 
         PyMethodDef pyMethAlloc = {
@@ -1659,13 +1654,6 @@ namespace __pyllars_internal{
                                     !std::is_pointer<T>::value>::type>::
     get_module_entry_name() { return _module_entry_name; }
 
-    template<typename T>
-    std::string PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&
-                                    !std::is_floating_point<T>::value &&
-                                    !std::is_array<T>::value &&
-                                    !std::is_pointer<T>::value>::type>::
-    get_full_name() { return _full_name; }
 
     template<typename T>
     PyObject *PythonClassWrapper<T,

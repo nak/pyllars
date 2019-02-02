@@ -47,18 +47,13 @@ namespace __pyllars_internal {
             return std::string(__pyllars_internal::type_name<ntype>());
         }
 
-        inline static std::string get_full_name() {
-            return std::string(__pyllars_internal::type_name<ntype>());
-        }
-
         inline static std::string get_module_entry_name() {
             return std::string(__pyllars_internal::type_name<ntype>());
         }
 
         static PythonClassWrapper<number_type *> *alloc(PyObject *cls, PyObject *args, PyObject *kwds);
 
-        static int initialize(const char *const name, const char *const module_entry_name,
-                              PyObject *module, const char *const fullname = nullptr);
+        static int initialize(const char *const name, const char *const module_entry_name,PyObject *module);
 
         static PyObject *richcompare(PyObject *a, PyObject *b, int op);
 
@@ -172,18 +167,13 @@ namespace __pyllars_internal {
             return std::string(__pyllars_internal::type_name<ntype>());
         }
 
-        inline static std::string get_full_name() {
-            return std::string(__pyllars_internal::type_name<ntype>());
-        }
-
         inline static std::string get_module_entry_name() {
             return std::string(__pyllars_internal::type_name<ntype>());
         }
 
         static PythonClassWrapper<number_type *> *alloc(PyObject *cls, PyObject *args, PyObject *kwds);
 
-        static int initialize(const char *const name, const char *const module_entry_name,
-                              PyObject *module, const char *const fullname = nullptr);
+        static int initialize(const char *const name, const char *const module_entry_name, PyObject *module);
 
         static PyObject *richcompare(PyObject *a, PyObject *b, int op);
 

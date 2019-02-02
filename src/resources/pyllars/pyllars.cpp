@@ -701,7 +701,7 @@ namespace __pyllars_internal{
 
     template<typename number_type>
     int PyNumberCustomObject<number_type>::initialize(const char *const name, const char *const module_entry_name,
-                              PyObject *module, const char *const fullname){
+            PyObject* module){
         PyType_Ready(&PyNumberCustomBase::Type);
         const int rc = PyType_Ready(&PyNumberCustomObject::Type);
         if(module && rc == 0){
@@ -1340,7 +1340,7 @@ namespace __pyllars_internal{
 
     template<typename number_type>
     int PyFloatingPtCustomObject<number_type>::initialize(const char *const name, const char *const module_entry_name,
-                              PyObject *module, const char *const fullname){
+                     PyObject* module){
         PyType_Ready(&PyFloatingPtCustomBase::Type);
         const int rc = PyType_Ready(&PyFloatingPtCustomObject::Type);
         if(module && rc == 0){

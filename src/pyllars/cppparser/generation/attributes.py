@@ -257,8 +257,7 @@ class GeneratorBodyVarDecl(GeneratorBody):
                                    %(imports)s
                                    __pyllars_internal::PythonClassWrapper<decltype(%(parent)s::%(name)s)>::initialize("%(basic_type_name)s",
                                                                                                           "%(basic_type_name)s method",
-                                                                                                          %(type_mod)s,
-                                                                                                          "%(full_type_name)s method");
+                                                                                                          %(type_mod)s);
                                    if( !__pyllars_internal::GlobalVariable::createGlobalVariable<decltype(%(parent)s::%(name)s)>("%(name)s", "%(tp_name)s",
                                       &static_var,  %(type_mod)s, %(array_size)s)){
                                       status = -1;
@@ -276,7 +275,6 @@ class GeneratorBodyVarDecl(GeneratorBody):
                         'module_name': self._element.parent.python_cpp_module_name if not isinstance(
                             self._element.parent,
                             code_structure.TranslationUnitDecl) else "PyImport_Module(\"pyllars\")",
-                        'full_type_name': self._element.target_type.full_name,
                         'type_mod': self._element.pyllars_scope + "::" + self._element.parent.name + "_module()" if not isinstance(
                             self._element.parent, code_structure.TranslationUnitDecl) else "global_mod",
                         'array_size': self._element.target_type.array_size or 0,
@@ -296,8 +294,7 @@ class GeneratorBodyVarDecl(GeneratorBody):
                                     %(imports)s
                                     __pyllars_internal::PythonClassWrapper<decltype(%(parent)s::%(name)s)>::initialize("%(basic_type_name)s",
                                                                                                            "%(basic_type_name)s",
-                                                                                                           %(type_mod)s,
-                                                                                                           "%(full_type_name)s");
+                                                                                                           %(type_mod)s);
                                     if( !__pyllars_internal::GlobalVariable::createGlobalVariable<decltype(%(parent)s::%(name)s)>("%(name)s", "%(tp_name)s",
                                         &%(parent)s::%(name)s, %(type_mod)s, %(array_size)s)){
                                        status = -1;
@@ -312,7 +309,6 @@ class GeneratorBodyVarDecl(GeneratorBody):
                         'tp_name': self._element.target_type.name,
                         'parent': ('::' + self._element.parent.full_name) if not isinstance(self._element.parent, code_structure.TranslationUnitDecl) else "",
                         'module_name': self._element.parent.python_cpp_module_name  if not isinstance(self._element.parent, code_structure.TranslationUnitDecl)  else "PyImport_Module(\"pyllars\")",
-                        'full_type_name': self._element.target_type.full_name,
                         'type_mod': self._element.pyllars_scope + "::" + self._element.parent.name + "_module()" if not isinstance(self._element.parent, code_structure.TranslationUnitDecl)  else "global_mod",
                         'array_size': self._element.target_type.array_size or 0,
                         'qual': 'Const' if self._element.target_type.is_const else 'cont',

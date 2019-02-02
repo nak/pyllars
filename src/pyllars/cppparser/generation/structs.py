@@ -106,12 +106,10 @@ class GeneratorBodyCXXRecordDecl(GeneratorBody):
                     status |=  __pyllars_internal::PythonClassWrapper< main_type >::initialize(
                                  "%(name)s",
                                  "%(name)s",
-                                 %(module_name)s,
-                                 "%(full_name)s");  //classes
+                                 %(module_name)s);  //classes
         """ % {
                         'name': self._element.name or "_anonymous%s" % self._element.tag,
                         'module_name': self._element.parent.python_cpp_module_name,
-                        'full_name': self._element.full_name,
                     }).encode('utf-8'))
                 elif isinstance(self._element.parent, code_structure.TranslationUnitDecl):
                     stream.write(("""
@@ -119,11 +117,9 @@ class GeneratorBodyCXXRecordDecl(GeneratorBody):
                             status |=  __pyllars_internal::PythonClassWrapper< main_type >::initialize(
                                          "%(name)s",
                                          "%(name)s",
-                                         global_mod?global_mod:pyllars_mod,
-                                         "%(full_name)s");  //classes
+                                         global_mod?global_mod:pyllars_mod);  //classes
                 """ % {
                         'name': self._element.name or "_anonymous%s" % self._element.tag,
-                        'full_name': self._element.full_name,
                     }).encode('utf-8'))
 
                 elif self._element.parent:
@@ -131,8 +127,7 @@ class GeneratorBodyCXXRecordDecl(GeneratorBody):
                     status |=  __pyllars_internal::PythonClassWrapper< main_type >::initialize(
                                  "%(name)s",
                                  "%(name)s",
-                                 nullptr,
-                                 "%(full_name)s");  //classes
+                                 nullptr);  //classes
                                  
                     __pyllars_internal::PythonClassWrapper< %(typename)s ::%(parent_class_scope)s::%(parent_class_name)s >::addClassMember
                         ("%(class_name)s",
@@ -141,7 +136,6 @@ class GeneratorBodyCXXRecordDecl(GeneratorBody):
                         'parent_class_name': self._element.parent.name,
                         'parent_class_scope': self._element.parent.scope,
                         'class_name': self._element.name,
-                        'full_name': self._element.full_name,
                         'name': self._element.name,
                         'scope': self._element.scope,
                         'typename': 'typename' if not self._element.is_union else ""
@@ -211,8 +205,7 @@ class GeneratorBodyEnumConstantDecl(GeneratorBody):
                         PyObject* pyllars_mod = PyImport_ImportModule("pyllars");
                         __pyllars_internal::PythonClassWrapper<%(parent_full_name)s>::initialize("%(parent_name)s",
                                                                       "%(parent_name)s",
-                                                                      global_mod?global_mod:pyllars_mod,
-                                                                      "%(parent_full_name)s");
+                                                                      global_mod?global_mod:pyllars_mod);
                         return __pyllars_internal::PythonClassWrapper<%(parent_full_name)s>::template addEnum%(suffix)s("%(name)s", %(full_name)s);
                     }
                 """ % {

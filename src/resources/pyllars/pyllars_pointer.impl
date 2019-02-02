@@ -250,12 +250,10 @@ namespace __pyllars_internal {
         int status = 0;// PythonClassWrapper<T_base>::initialize();
         static std::string name = PythonClassWrapper<T_base>::get_name() + "*";
         static std::string module_name = PythonClassWrapper<T_base>::get_module_entry_name() + "*";
-        static std::string full_name = PythonClassWrapper<T_base>::get_name() + "*";
 
         return status != 0 ? status : initialize(name.c_str(),
                                                  module_name.c_str(),
                                                  PythonClassWrapper<T_base>::parent_module,
-                                                 full_name.c_str(),
                                                  depth);
     }
 
@@ -265,7 +263,7 @@ namespace __pyllars_internal {
             !std::is_function<typename std::remove_pointer<T>::type>::value &&
             (std::is_pointer<T>::value || std::is_array<T>::value)>::type>::
     initialize(const char *const name, const char *const module_entry_name,
-               PyObject *module, const char *const fullname,
+               PyObject *module,
                const size_t depth) {
         static bool initialized = false;
         if (initialized) return 0;
@@ -273,8 +271,7 @@ namespace __pyllars_internal {
         if (!name) {
             return -1;
         }
-        if (PythonClassWrapper<T_base>::initialize(name, module_entry_name,
-                                                   module, fullname) != 0) {
+        if (PythonClassWrapper<T_base>::initialize(name, module_entry_name, module) != 0) {
             return -1;
         }
         static std::vector<int> status;
@@ -284,8 +281,7 @@ namespace __pyllars_internal {
         while (status.size() < depth + 1) {
             status.push_back(-2);
         }
-        _full_name = fullname ? fullname : (name ? name : "NONAME");
-        PyTypeObject *type = getType(depth, fullname);
+        PyTypeObject *type = getType(depth, name);
         if (!type) {
             return -1;
         }
@@ -769,10 +765,7 @@ namespace __pyllars_internal {
     PySequenceMethods PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
             !std::is_function<typename std::remove_pointer<T>::type>::value &&
             (std::is_pointer<T>::value || std::is_array<T>::value)>::type>::_seqmethods;
-    template<typename T>
-    std::string PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-            !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            (std::is_pointer<T>::value || std::is_array<T>::value)>::type>::_full_name;
+
 
 }
 

@@ -98,13 +98,13 @@ namespace __pyllars_internal {
         static PyTypeObject Type;
     };
 
+    /**
+     Templated class representing a c-type integer in Python based on a number-class-type that implements
+     Python's number methods
+    */
     template<typename number_type>
     struct PyNumberCustomObject {
     public:
-        /**
-        Templated class representing a c-type integer in Python based on a number-class-type that implements
-        Python's number methods
-        */
         PyObject_HEAD
         typedef number_type ntype;
         typedef PythonClassWrapper<number_type const, void> ConstWrapper;
@@ -118,18 +118,13 @@ namespace __pyllars_internal {
             return std::string(__pyllars_internal::type_name<ntype>());
         }
 
-        inline static std::string get_full_name() {
-            return std::string(__pyllars_internal::type_name<ntype>());
-        }
-
         inline static std::string get_module_entry_name() {
             return std::string(__pyllars_internal::type_name<ntype>());
         }
 
         static PythonClassWrapper<number_type *> *alloc(PyObject *cls, PyObject *args, PyObject *kwds);
 
-        static int initialize(const char *const name, const char *const module_entry_name,
-                              PyObject *module, const char *const fullname = nullptr);
+        static int initialize(const char *const name, const char *const module_entry_name, PyObject *module);
 
         static PyObject *richcompare(PyObject *a, PyObject *b, int op);
 
@@ -243,18 +238,13 @@ namespace __pyllars_internal {
             return std::string(__pyllars_internal::type_name<ntype>());
         }
 
-        inline static std::string get_full_name() {
-            return std::string(__pyllars_internal::type_name<ntype>());
-        }
-
         inline static std::string get_module_entry_name() {
             return std::string(__pyllars_internal::type_name<ntype>());
         }
 
         static PythonClassWrapper<number_type *> *alloc(PyObject *cls, PyObject *args, PyObject *kwds);
 
-        static int initialize(const char *const name, const char *const module_entry_name,
-                              PyObject *module, const char *const fullname = nullptr);
+        static int initialize(const char *const name, const char *const module_entry_name, PyObject *module);
 
         static PyObject *richcompare(PyObject *a, PyObject *b, int op);
 

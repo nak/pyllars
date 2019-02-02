@@ -84,10 +84,10 @@ namespace __pyllars_internal {
          * @param name: Python simple-name of the type
          * @param module_entry_name: entry as found within module
          * @param module: The python module holding this type
-         * @param fullname: full name of this type, including scoping module
          **/
-        static int initialize(const char *const name, const char *const module_entry_name,
-                              PyObject *module, const char *const fullname = nullptr) ;
+        static int initialize(const char *const name,
+                              const char *const module_entry_name,
+                              PyObject *module);
 
         /**
          * create a Python object of this class type
@@ -433,8 +433,6 @@ namespace __pyllars_internal {
 
         static std::string get_module_entry_name();
 
-        static std::string get_full_name();
-
         static bool isInitialized(){return _isInitialized;}
 
         template<typename C, const ssize_t size, typename depth>
@@ -612,7 +610,6 @@ namespace __pyllars_internal {
 
         static std::string _name;
         static std::string _module_entry_name;
-        static std::string _full_name;
         static std::vector<ConstructorContainer> _constructors;
         static std::vector<PyMethodDef> _methodCollection;
         static std::map<std::string, std::pair<std::function<PyObject*(PyObject*, PyObject*)>,

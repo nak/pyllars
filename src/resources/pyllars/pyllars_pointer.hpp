@@ -58,14 +58,13 @@ namespace __pyllars_internal {
 
         static std::string get_name(const size_t depth = 1);
 
-        static std::string get_full_name(const size_t depth = 1) { return _full_name; }
-
         static std::string get_module_entry_name(const size_t depth = 1);
 
         static int initialize(const size_t depth = ptr_depth<T>::value);
 
-        static int initialize(const char *const name, const char *const module_entry_name,
-                              PyObject *module, const char *const fullname = nullptr,
+        static int initialize(const char *const name,
+                              const char *const module_entry_name,
+                              PyObject *module,
                               const size_t depth = ptr_depth<T>::value);
 
 
@@ -127,7 +126,6 @@ namespace __pyllars_internal {
 
         static PyMethodDef _methods[];
         static PySequenceMethods _seqmethods;
-        static std::string _full_name;
         ObjContainer<T> *_CObject;
         //use objcontainer only for compatability with non-pointer defn
         T_base *_raw_storage;
