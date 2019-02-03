@@ -168,7 +168,7 @@ namespace __pyllars_internal{
                 PyErr_SetString(PyExc_ValueError, "Result out of range");
                 return nullptr;
             }
-            PyConstNumberCustomObject<number_type>* ret = (PyConstNumberCustomObject<number_type>*) PyObject_Call((PyObject*) &PyConstNumberCustomObject<number_type>::Type, emptyargs, nullptr);
+            PyConstNumberCustomObject<number_type>* ret = (PyConstNumberCustomObject<number_type>*) PyObject_Call((PyObject*) PyConstNumberCustomObject<number_type>::getPyType(), emptyargs, nullptr);
             if (!ret){
                 return nullptr;
             }
@@ -189,7 +189,7 @@ namespace __pyllars_internal{
                 return nullptr;
             }
 
-            PyConstNumberCustomObject<number_type>* ret = (PyConstNumberCustomObject<number_type>*) PyObject_Call((PyObject*) &PyConstNumberCustomObject<number_type>::Type, emptyargs, nullptr);
+            PyConstNumberCustomObject<number_type>* ret = (PyConstNumberCustomObject<number_type>*) PyObject_Call((PyObject*) PyConstNumberCustomObject<number_type>::getPyType(), emptyargs, nullptr);
             if (ret){
                  *const_cast<typename std::remove_const<number_type>::type*>(&ret->value) = ret_value;
             }
@@ -230,7 +230,7 @@ namespace __pyllars_internal{
 
         static PyObject* power(PyObject* v1, PyObject* v2, PyObject* v3){
             static PyObject *emptyargs = PyTuple_New(0);
-            PyConstNumberCustomObject<number_type>* ret = (PyConstNumberCustomObject<number_type>*) PyObject_Call((PyObject*) &PyConstNumberCustomObject<number_type>::Type, emptyargs, nullptr);
+            PyConstNumberCustomObject<number_type>* ret = (PyConstNumberCustomObject<number_type>*) PyObject_Call((PyObject*) PyConstNumberCustomObject<number_type>::getPyType(), emptyargs, nullptr);
             if (!ret){
                 return nullptr;
             }
@@ -290,8 +290,8 @@ namespace __pyllars_internal{
 
         static PyObject* divmod(PyObject* v1, PyObject* v2){
             static PyObject *emptyargs = PyTuple_New(0);
-            PyConstNumberCustomObject<number_type>* retq = (PyConstNumberCustomObject<number_type>*) PyObject_Call((PyObject*) &PyConstNumberCustomObject<number_type>::Type, emptyargs, nullptr);
-            PyConstNumberCustomObject<number_type>* retr = (PyConstNumberCustomObject<number_type>*) PyObject_Call((PyObject*) &PyConstNumberCustomObject<number_type>::Type, emptyargs, nullptr);
+            PyConstNumberCustomObject<number_type>* retq = (PyConstNumberCustomObject<number_type>*) PyObject_Call((PyObject*) PyConstNumberCustomObject<number_type>::getPyType(), emptyargs, nullptr);
+            PyConstNumberCustomObject<number_type>* retr = (PyConstNumberCustomObject<number_type>*) PyObject_Call((PyObject*) PyConstNumberCustomObject<number_type>::getPyType(), emptyargs, nullptr);
             if (!retq || !retr){
                 return nullptr;
             }
@@ -518,13 +518,9 @@ namespace __pyllars_internal{
     }
 
     template<typename number_type>
-    int PyConstNumberCustomObject<number_type>::initialize(const char *const name, const char *const module_entry_name,
-                              PyObject *module){
+    int PyConstNumberCustomObject<number_type>::initialize(const char *const name){
         PyType_Ready(&PyConstNumberCustomBase::Type);
         const int rc = PyType_Ready(&PyConstNumberCustomObject::Type);
-        if(module && rc == 0){
-            PyModule_AddObject(module, __pyllars_internal::type_name<ntype>(), (PyObject*) &PyConstNumberCustomObject::Type);
-        }
         return rc;
     }
 
@@ -748,7 +744,8 @@ namespace __pyllars_internal{
                 PyErr_SetString(PyExc_ValueError, "Result out of range");
                 return nullptr;
             }
-            PyConstFloatingPtCustomObject<number_type>* ret = (PyConstFloatingPtCustomObject<number_type>*) PyObject_Call((PyObject*) &PyConstFloatingPtCustomObject<number_type>::Type, emptyargs, nullptr);
+            PyConstFloatingPtCustomObject<number_type>* ret = (PyConstFloatingPtCustomObject<number_type>*)
+                    PyObject_Call((PyObject*) PyConstFloatingPtCustomObject<number_type>::getPyType(), emptyargs, nullptr);
             if (!ret){
                 return nullptr;
             }
@@ -768,7 +765,8 @@ namespace __pyllars_internal{
                 return nullptr;
             }
 
-            PyConstFloatingPtCustomObject<number_type>* ret = (PyConstFloatingPtCustomObject<number_type>*) PyObject_Call((PyObject*) &PyConstFloatingPtCustomObject<number_type>::Type, emptyargs, nullptr);
+            PyConstFloatingPtCustomObject<number_type>* ret = (PyConstFloatingPtCustomObject<number_type>*)
+                    PyObject_Call((PyObject*) PyConstFloatingPtCustomObject<number_type>::getPyType(), emptyargs, nullptr);
             if (ret){
                 *const_cast<typename std::remove_const<number_type>::type*>(&ret->value) = ret_value;
             }
@@ -799,7 +797,8 @@ namespace __pyllars_internal{
 
         static PyObject* power(PyObject* v1, PyObject* v2, PyObject* v3){
             static PyObject *emptyargs = PyTuple_New(0);
-            PyConstFloatingPtCustomObject<number_type>* ret = (PyConstFloatingPtCustomObject<number_type>*) PyObject_Call((PyObject*) &PyConstFloatingPtCustomObject<number_type>::Type, emptyargs, nullptr);
+            PyConstFloatingPtCustomObject<number_type>* ret = (PyConstFloatingPtCustomObject<number_type>*)
+                    PyObject_Call((PyObject*) PyConstFloatingPtCustomObject<number_type>::getPyType(), emptyargs, nullptr);
             if (!ret){
                 return nullptr;
             }
@@ -852,8 +851,8 @@ namespace __pyllars_internal{
 
         static PyObject* divmod(PyObject* v1, PyObject* v2){
             static PyObject *emptyargs = PyTuple_New(0);
-            PyConstFloatingPtCustomObject<number_type>* retq = (PyConstFloatingPtCustomObject<number_type>*) PyObject_Call((PyObject*) &PyConstFloatingPtCustomObject<number_type>::Type, emptyargs, nullptr);
-            PyConstFloatingPtCustomObject<number_type>* retr = (PyConstFloatingPtCustomObject<number_type>*) PyObject_Call((PyObject*) &PyConstFloatingPtCustomObject<number_type>::Type, emptyargs, nullptr);
+            PyConstFloatingPtCustomObject<number_type>* retq = (PyConstFloatingPtCustomObject<number_type>*) PyObject_Call((PyObject*) PyConstFloatingPtCustomObject<number_type>::getPyType(), emptyargs, nullptr);
+            PyConstFloatingPtCustomObject<number_type>* retr = (PyConstFloatingPtCustomObject<number_type>*) PyObject_Call((PyObject*) PyConstFloatingPtCustomObject<number_type>::getPyType(), emptyargs, nullptr);
             if (!retq || !retr){
                 return nullptr;
             }
@@ -1107,9 +1106,11 @@ namespace __pyllars_internal{
 
 
     template<typename number_type>
-    int PyConstFloatingPtCustomObject<number_type>::initialize(const char *const name, const char *const module_entry_name,
-                              PyObject *module){
-        return PyConstFloatingPtCustomObject<number_type>::Initializer::initializer->init(module);
+    int PyConstFloatingPtCustomObject<number_type>::initialize(const char *const name){
+        PyType_Ready(&PyConstFloatingPtCustomBase::Type);
+        const int rc = PyType_Ready(&PyConstFloatingPtCustomObject::Type);
+        return rc;
+        //return PyConstFloatingPtCustomObject<number_type>::Initializer::initializer->init();
     }
 
     template<typename number_type>

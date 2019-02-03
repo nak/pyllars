@@ -255,12 +255,17 @@ class GeneratorBodyVarDecl(GeneratorBody):
                                    status_t status = 0;
 
                                    %(imports)s
-                                   __pyllars_internal::PythonClassWrapper<decltype(%(parent)s::%(name)s)>::initialize("%(basic_type_name)s",
-                                                                                                          "%(basic_type_name)s method",
-                                                                                                          %(type_mod)s);
-                                   if( !__pyllars_internal::GlobalVariable::createGlobalVariable<decltype(%(parent)s::%(name)s)>("%(name)s", "%(tp_name)s",
-                                      &static_var,  %(type_mod)s, %(array_size)s)){
-                                      status = -1;
+                                   if(!__pyllars_internal::PythonClassWrapper<decltype(%(parent)s::%(name)s)>::initialize("%(basic_type_name)s")){
+                                       status = -1;
+                                   } else {
+                                       PyObject *module = %(type_mod)s;
+                                       if(module){
+                                           PyModule_AddObject(module, "%(name)s", (PyObject*) &__pyllars_internal::PythonClassWrapper<decltype(%(parent)s::%(name)s)>::getPyType());
+                                       }
+                                       if( !__pyllars_internal::GlobalVariable::createGlobalVariable<decltype(%(parent)s::%(name)s)>("%(name)s", "%(tp_name)s",
+                                          &static_var,  %(type_mod)s, %(array_size)s)){
+                                          status = -1;
+                                        }
                                     }
                                    return status;
                                }
@@ -292,13 +297,17 @@ class GeneratorBodyVarDecl(GeneratorBody):
                                     status_t status = 0;
         
                                     %(imports)s
-                                    __pyllars_internal::PythonClassWrapper<decltype(%(parent)s::%(name)s)>::initialize("%(basic_type_name)s",
-                                                                                                           "%(basic_type_name)s",
-                                                                                                           %(type_mod)s);
-                                    if( !__pyllars_internal::GlobalVariable::createGlobalVariable<decltype(%(parent)s::%(name)s)>("%(name)s", "%(tp_name)s",
-                                        &%(parent)s::%(name)s, %(type_mod)s, %(array_size)s)){
-                                       status = -1;
-                                     }
+                                   status = __pyllars_internal::PythonClassWrapper<decltype(%(parent)s::%(name)s)>::initialize("%(basic_type_name)s");
+                                   if(status == 0){
+                                       PyObject *module = %(type_mod)s;
+                                       if(module){
+                                           PyModule_AddObject(module, "%(name)s", (PyObject*)&__pyllars_internal::PythonClassWrapper<decltype(%(parent)s::%(name)s)>::getPyType());
+                                       }
+                                        if( !__pyllars_internal::GlobalVariable::createGlobalVariable<decltype(%(parent)s::%(name)s)>("%(name)s", "%(tp_name)s",
+                                            &%(parent)s::%(name)s, %(type_mod)s, %(array_size)s)){
+                                           status = -1;
+                                       }
+                                    }
                                     return status;
                                 }
     

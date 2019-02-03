@@ -83,7 +83,7 @@ class GeneratorBodyCXXRecordDecl(GeneratorBody):
                 stream.write(("""
                     status |= pyllars%(base_class_name)s::%(base_class_bare_name)s_init(PyObject* const global_mod);
                      __pyllars_internal::PythonClassWrapper< %(typename)s %(scope)s::%(class_name)s >::addBaseClass
-                        (&PythonClassWrapper< %(typename)s %(base_class_name)s >::Type); /*1*/
+                        (&PythonClassWrapper< %(typename)s %(base_class_name)s >::getPyType()); /*1*/
     """ % {
                     'class_name': self._element.name,
                     'base_class_name': base.full_name,
@@ -103,35 +103,29 @@ class GeneratorBodyCXXRecordDecl(GeneratorBody):
             if self._element.name:
                 if self._element.parent and self._element.parent.is_namespace:
                     stream.write(("""
-                    status |=  __pyllars_internal::PythonClassWrapper< main_type >::initialize(
-                                 "%(name)s",
-                                 "%(name)s",
-                                 %(module_name)s);  //classes
+                    status |=  __pyllars_internal::PythonClassWrapper< main_type >::initialize("%(name)s");  //classes
         """ % {
                         'name': self._element.name or "_anonymous%s" % self._element.tag,
-                        'module_name': self._element.parent.python_cpp_module_name,
                     }).encode('utf-8'))
                 elif isinstance(self._element.parent, code_structure.TranslationUnitDecl):
                     stream.write(("""
                             PyObject* pyllars_mod = PyImport_ImportModule("pyllars");
-                            status |=  __pyllars_internal::PythonClassWrapper< main_type >::initialize(
-                                         "%(name)s",
-                                         "%(name)s",
-                                         global_mod?global_mod:pyllars_mod);  //classes
+                            status |=  __pyllars_internal::PythonClassWrapper< main_type >::initialize("%(name)s");
+                            PyObject *module = global_mod?global_mod : pyllars_mod;
+                            if(module){
+                                PyModule_AddObject(module, "%(name)s", (PyObject*) &__pyllars_internal::PythonClassWrapper< main_type >::getPyType());
+                            }
                 """ % {
                         'name': self._element.name or "_anonymous%s" % self._element.tag,
                     }).encode('utf-8'))
 
                 elif self._element.parent:
                     stream.write(("""
-                    status |=  __pyllars_internal::PythonClassWrapper< main_type >::initialize(
-                                 "%(name)s",
-                                 "%(name)s",
-                                 nullptr);  //classes
+                    status |=  __pyllars_internal::PythonClassWrapper< main_type >::initialize("%(name)s");
                                  
                     __pyllars_internal::PythonClassWrapper< %(typename)s ::%(parent_class_scope)s::%(parent_class_name)s >::addClassMember
                         ("%(class_name)s",
-                         (PyObject*) & __pyllars_internal::PythonClassWrapper< %(typename)s ::%(scope)s::%(class_name)s >::Type);
+                         (PyObject*) & __pyllars_internal::PythonClassWrapper< %(typename)s ::%(scope)s::%(class_name)s >::getPyType());
     """ % {
                         'parent_class_name': self._element.parent.name,
                         'parent_class_scope': self._element.parent.scope,

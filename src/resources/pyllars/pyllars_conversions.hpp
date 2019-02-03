@@ -213,9 +213,9 @@ namespace __pyllars_internal {
         template<typename T, typename E>
         friend PyObject *toPyObject(T &var, const bool asReference);
         template<typename T, typename E>
-        friend PyObject *toPyObject(T &var, const bool asArgument, const ssize_t array_size, const size_t depth);
+        friend PyObject *toPyObject(T &var, const bool asArgument, const ssize_t array_size);
         template<typename T, typename E>
-        friend PyObject *toPyObject(const T &var, const bool asArgument, const ssize_t array_size, const size_t depth);
+        friend PyObject *toPyObject(const T &var, const bool asArgument, const ssize_t array_size);
 
     private:
 
@@ -232,8 +232,7 @@ namespace __pyllars_internal {
 
         template<typename PtrWrapper>
         class PyObjectConversionHelper<bool, PtrWrapper, void>{
-           static PyObject *toPyObject(const bool &var, const bool asReference, const ssize_t array_size = -1,
-                                       const size_t depth = ptr_depth<bool>::value){
+           static PyObject *toPyObject(const bool &var, const bool asReference, const ssize_t array_size = -1){
                                        return var?Py_True:Py_False;
            }
         };
@@ -249,8 +248,7 @@ namespace __pyllars_internal {
         public:
             typedef typename std::remove_reference<T>::type T_NoRef;
 
-            static PyObject *toPyObject(T_NoRef &var, const bool asReference, const ssize_t array_size = -1,
-                                        const size_t depth = ptr_depth<T>::value);
+            static PyObject *toPyObject(T_NoRef &var, const bool asReference, const ssize_t array_size = -1);
 
         };
 
@@ -262,8 +260,7 @@ namespace __pyllars_internal {
         class PyObjectConversionHelper<T, ClassWrapper, typename std::enable_if<
                 std::is_integral<T>::value || std::is_enum<T>::value>::type> {
         public:
-            static PyObject *toPyObject(const T &var, const bool asReference, const ssize_t array_size = -1,
-                                        const size_t depth = 1);
+            static PyObject *toPyObject(const T &var, const bool asReference, const ssize_t array_size = -1);
         };
 
         /**
@@ -272,8 +269,7 @@ namespace __pyllars_internal {
         template<typename T, typename ClassWrapper>
         class PyObjectConversionHelper<T, ClassWrapper, typename std::enable_if<std::is_floating_point<T>::value>::type> {
         public:
-            static PyObject *toPyObject(const T &var, const bool asReference, const ssize_t array_size = -1,
-                                        const size_t depth = 1);
+            static PyObject *toPyObject(const T &var, const bool asReference, const ssize_t array_size = -1);
         };
 
         /**
@@ -282,22 +278,19 @@ namespace __pyllars_internal {
         template<typename ClassWrapper>
         class PyObjectConversionHelper<const char *, ClassWrapper, void> {
         public:
-            static PyObject *toPyObject(const char *const &var, const bool asReference, const ssize_t array_size = -1,
-                                        const size_t depth = 1);
+            static PyObject *toPyObject(const char *const &var, const bool asReference, const ssize_t array_size = -1);
         };
 
         template<typename ClassWrapper>
         class PyObjectConversionHelper<char *, ClassWrapper, void> {
         public:
-            static PyObject *toPyObject(char *const &var, const bool asReference, const ssize_t array_size = -1,
-                                        const size_t depth = 1);
+            static PyObject *toPyObject(char *const &var, const bool asReference, const ssize_t array_size = -1);
         };
 
         template<typename ClassWrapper>
         class PyObjectConversionHelper<const char *const, ClassWrapper, void> {
         public:
-            static PyObject *toPyObject(const char *const &var, const bool asReference, const ssize_t array_size = -1,
-                                        const size_t depth = 1);
+            static PyObject *toPyObject(const char *const &var, const bool asReference, const ssize_t array_size = -1);
 
         };
 
@@ -311,10 +304,10 @@ namespace __pyllars_internal {
      * @param asArgument: whether to be used as argument or not (can determine if copy is made or reference semantics used)
      **/
     template<typename T, typename E>
-    PyObject *toPyObject(T &var, const bool asArgument, const ssize_t array_size, const size_t depth) ;
+    PyObject *toPyObject(T &var, const bool asArgument, const ssize_t array_size) ;
 
     template<typename T, typename E>
-    PyObject *toPyObject(const T &var, const bool asArgument, const ssize_t array_size, const size_t depth) ;
+    PyObject *toPyObject(const T &var, const bool asArgument, const ssize_t array_size) ;
 
 }
 

@@ -82,12 +82,8 @@ namespace __pyllars_internal {
          * underlying Python system
          *
          * @param name: Python simple-name of the type
-         * @param module_entry_name: entry as found within module
-         * @param module: The python module holding this type
          **/
-        static int initialize(const char *const name,
-                              const char *const module_entry_name,
-                              PyObject *module);
+        static int initialize(const char *const name);
 
         /**
          * create a Python object of this class type
@@ -427,11 +423,14 @@ namespace __pyllars_internal {
 
         static bool checkType(PyObject *const obj);
 
-        static PyTypeObject *getType(const size_t unused_depth = 0);
+        static PyTypeObject *getPyType(){
+            if(initialize(Types<T>::type_name()) != 0){
+                return nullptr;
+            }
+            return &Type;
+        }
 
         static std::string get_name();
-
-        static std::string get_module_entry_name();
 
         static bool isInitialized(){return _isInitialized;}
 
@@ -443,7 +442,7 @@ namespace __pyllars_internal {
         friend
         class InitHelper;
 
-        constexpr PythonClassWrapper(): _CObject(nullptr), _arraySize(0), _allocated(false), _inPlace(false), _depth(0){}
+        constexpr PythonClassWrapper(): _CObject(nullptr), _arraySize(0), _allocated(false), _inPlace(false){}
 
         template<bool is_base_return_complete, bool with_ellipsis, typename ReturnType, typename ...Args>
         friend struct PythonFunctionWrapper;
@@ -609,7 +608,6 @@ namespace __pyllars_internal {
         static int _mapSet(PyObject* self, PyObject* key, PyObject* value);
 
         static std::string _name;
-        static std::string _module_entry_name;
         static std::vector<ConstructorContainer> _constructors;
         static std::vector<PyMethodDef> _methodCollection;
         static std::map<std::string, std::pair<std::function<PyObject*(PyObject*, PyObject*)>,
@@ -624,13 +622,12 @@ namespace __pyllars_internal {
         bool _allocated;
         bool _inPlace;
 
-      public:
+        static bool _isInitialized;
+
+      private:
         static PyTypeObject Type;
         static TypePtr_t constexpr TypePtr = &Type;
-        static PyObject *parent_module;
 
-        size_t _depth;
-        static bool _isInitialized;
     };
 
 

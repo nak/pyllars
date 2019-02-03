@@ -288,11 +288,10 @@ namespace __pyllars_internal {
             typename std::enable_if<!std::is_integral<T>::value &&
                                     !std::is_enum<T>::value &&
                                     !std::is_floating_point<T>::value>::type>::
-    toPyObject(typename std::remove_reference<T>::type &var, const bool asReference, const ssize_t array_size,
-               const size_t depth) {
+    toPyObject(typename std::remove_reference<T>::type &var, const bool asReference, const ssize_t array_size) {
         ObjContainer<T_NoRef> *const ref = (asReference ? new ObjContainerPtrProxy<T_NoRef, true>(&var, false, false)
                                                         : ObjectLifecycleHelpers::Copy<T>::new_copy(var));
-        PyObject *pyobj = (PyObject *) ClassWrapper::createPy(array_size, ref, !asReference, false, nullptr, depth);
+        PyObject *pyobj = (PyObject *) ClassWrapper::createPy(array_size, ref, !asReference, false, nullptr);
         if (!pyobj || !ClassWrapper::checkType(pyobj)) {
             PyErr_Format(PyExc_TypeError, "Unable to convert C type object to Python object %s: %s",
                          pyobj ? pyobj->ob_type->tp_name : "NULL OBJ", ClassWrapper::get_name().c_str());
@@ -304,7 +303,7 @@ namespace __pyllars_internal {
     template<typename T, typename ClassWrapper>
     PyObject *ConversionHelpers::PyObjectConversionHelper<T, ClassWrapper, typename std::enable_if<
             std::is_integral<T>::value || std::is_enum<T>::value>::type>::
-    toPyObject(const T &var, const bool asReference, const ssize_t array_size, const size_t depth) {
+    toPyObject(const T &var, const bool asReference, const ssize_t array_size) {
         static PyObject *args = PyTuple_New(1);
         (void) asReference;
         PyTypeObject *type = &PythonClassWrapper<int>::Type;
@@ -317,14 +316,14 @@ namespace __pyllars_internal {
     template<typename T, typename ClassWrapper>
     PyObject *
     ConversionHelpers::PyObjectConversionHelper<T, ClassWrapper, typename std::enable_if<std::is_floating_point<T>::value>::type>::
-    toPyObject(const T &var, const bool asReference, const ssize_t array_size, const size_t depth) {
+    toPyObject(const T &var, const bool asReference, const ssize_t array_size) {
         (void) asReference;
         return PyFloat_FromDouble(var);
     }
 
     template<typename ClassWrapper>
     PyObject *ConversionHelpers::PyObjectConversionHelper<const char *, ClassWrapper, void>::
-    toPyObject(const char *const &var, const bool asReference, const ssize_t array_size, const size_t depth) {
+    toPyObject(const char *const &var, const bool asReference, const ssize_t array_size) {
         (void) asReference;
         if (!var) {
             throw "NULL CHAR* encountered";
@@ -335,7 +334,7 @@ namespace __pyllars_internal {
 
     template<typename ClassWrapper>
     PyObject *ConversionHelpers::PyObjectConversionHelper<char *, ClassWrapper, void>::
-    toPyObject(char *const &var, const bool asReference, const ssize_t array_size, const size_t depth) {
+    toPyObject(char *const &var, const bool asReference, const ssize_t array_size) {
         (void) asReference;
         if (!var) {
             throw "NULL CHAR* encountered";
@@ -346,8 +345,7 @@ namespace __pyllars_internal {
 
     template<typename ClassWrapper>
     PyObject *ConversionHelpers::PyObjectConversionHelper<const char *const, ClassWrapper, void>::
-    toPyObject(const char *const &var, const bool asReference, const ssize_t array_size,
-               const size_t depth) {
+    toPyObject(const char *const &var, const bool asReference, const ssize_t array_size) {
 
         (void) asReference;
         if (!var) {
@@ -358,13 +356,13 @@ namespace __pyllars_internal {
 
 
     template<typename T, typename E>
-    PyObject *toPyObject(T &var, const bool asArgument, const ssize_t array_size, const size_t depth) {
+    PyObject *toPyObject(T &var, const bool asArgument, const ssize_t array_size) {
         return ConversionHelpers::PyObjectConversionHelper<T, PythonClassWrapper<T, E>>::
-        toPyObject(var, asArgument, array_size, depth);
+        toPyObject(var, asArgument, array_size);
     }
 
     template<typename T, typename E>
-    PyObject *toPyObject(const T &var, const bool asArgument, const ssize_t array_size, const size_t depth) {
+    PyObject *toPyObject(const T &var, const bool asArgument, const ssize_t array_size) {
         return ConversionHelpers::PyObjectConversionHelper<const T, PythonClassWrapper<const T, E>>::toPyObject(
                 var, asArgument, array_size);
     }

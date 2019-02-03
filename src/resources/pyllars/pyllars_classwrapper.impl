@@ -116,13 +116,7 @@ namespace __pyllars_internal{
         static int init(PythonClassWrapper<T> *self, PyObject *args, PyObject *kwds) ;
     };
 
-   template<typename T>
-    PyObject *PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&
-                                    !std::is_floating_point<T>::value &&
-                                    !std::is_array<T>::value &&
-                                    !std::is_pointer<T>::value>::type>::
-            parent_module = nullptr;
+
     template<typename T>
     std::vector<PyMethodDef> PythonClassWrapper<T,
             typename std::enable_if<!std::is_arithmetic<T>::value &&
@@ -179,9 +173,6 @@ namespace __pyllars_internal{
     template<typename T>
     bool PythonClassWrapper<T,
             typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value &&  !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::_isInitialized = false;
-    template<typename T>
-    std::string PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value &&  !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::_module_entry_name;
 
     template<typename T>
     std::map<std::string, std::pair<std::function<PyObject*(PyObject*, PyObject*)>,
@@ -689,15 +680,12 @@ namespace __pyllars_internal{
     template<typename T>
     int PythonClassWrapper<T,
                     typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value  && !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::initialize
-                    (const char *const name, const char *const module_entry_name, PyObject* module) {
+                    (const char *const name) {
         static bool inited = false;
         if (inited) return 0;
         inited = true;
         if (!name || strlen(name) == 0) return -1;
-        if (!module_entry_name || strlen(module_entry_name) == 0) return -1;
         int status = 0;
-        //_name = name;
-        _module_entry_name = module_entry_name;
         if (Type.tp_name) {/*already initialized*/ return status; }
         char *tp_name = new char[strlen(name) + 1 + tp_name_prefix_len];
         strcpy(tp_name, tp_name_prefix);
@@ -728,14 +716,6 @@ namespace __pyllars_internal{
         {
             PyObject *const type = reinterpret_cast<PyObject *>(&Type);
             Py_INCREF(type);
-            if (module != nullptr) {
-                if (PyModule_AddObject(module, module_entry_name, type) == 0) {
-                    parent_module = module;
-                } else {
-                    PyErr_Print();
-                    PyErr_SetString(PyExc_RuntimeError, "Failed to add type to module!");
-                }
-            }
         }
         onerror:
             _isInitialized = (status ==0 );
@@ -806,7 +786,6 @@ namespace __pyllars_internal{
             return nullptr;
         }
         std::string ptr_name = std::string(Type.tp_name) + "*";
-        std::string module_ptr_name = std::string(Type.tp_name) + "_ptr";
         PythonClassWrapper<T_NoRef *>::initialize();
         PythonClassWrapper *self_ = reinterpret_cast<PythonClassWrapper *>(self);
         PythonClassWrapper<T_NoRef *> * obj = (PythonClassWrapper<T_NoRef *> * ) (self_->_CObject ? toPyObject<T_NoRef *>(self_->_CObject->ptr(), AS_VARIABLE, 1) : Py_None);
@@ -1613,7 +1592,6 @@ namespace __pyllars_internal{
         _allocated = allocated;
         _inPlace = inPlace;
         _arraySize = 1;
-        _depth = 0;
         _CObject = ptr;
     }
 
@@ -1628,32 +1606,12 @@ namespace __pyllars_internal{
     }
 
     template<typename T>
-    PyTypeObject *PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&
-                                    !std::is_floating_point<T>::value &&
-                                    !std::is_array<T>::value &&
-                                    !std::is_pointer<T>::value>::type>::
-    getType(const size_t unused_depth) {
-                (void) unused_depth;
-                return &Type;
-    }
-
-    template<typename T>
     std::string PythonClassWrapper<T,
             typename std::enable_if<!std::is_arithmetic<T>::value &&
                                     !std::is_floating_point<T>::value &&
                                     !std::is_array<T>::value &&
                                     !std::is_pointer<T>::value>::type>::
     get_name() { return std::string(type_name<T>()); }
-
-    template<typename T>
-    std::string PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&
-                                    !std::is_floating_point<T>::value &&
-                                    !std::is_array<T>::value &&
-                                    !std::is_pointer<T>::value>::type>::
-    get_module_entry_name() { return _module_entry_name; }
-
 
     template<typename T>
     PyObject *PythonClassWrapper<T,

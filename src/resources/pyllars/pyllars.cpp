@@ -700,13 +700,9 @@ namespace __pyllars_internal{
     }
 
     template<typename number_type>
-    int PyNumberCustomObject<number_type>::initialize(const char *const name, const char *const module_entry_name,
-            PyObject* module){
+    int PyNumberCustomObject<number_type>::initialize(const char *const name){
         PyType_Ready(&PyNumberCustomBase::Type);
         const int rc = PyType_Ready(&PyNumberCustomObject::Type);
-        if(module && rc == 0){
-            PyModule_AddObject(module, __pyllars_internal::type_name<ntype>(), (PyObject*) &PyNumberCustomObject::Type);
-        }
         return rc;
     }
 
@@ -941,7 +937,7 @@ namespace __pyllars_internal{
             if (return_py){
                 return PyFloat_FromDouble(ret_value);
             } 
-            PyFloatingPtCustomObject<number_type>* ret = (PyFloatingPtCustomObject<number_type>*) PyObject_Call((PyObject*) &PyFloatingPtCustomObject<number_type>::Type, emptyargs, nullptr);
+            PyFloatingPtCustomObject<number_type>* ret = (PyFloatingPtCustomObject<number_type>*) PyObject_Call((PyObject*) PyFloatingPtCustomObject<number_type>::getPyType(), emptyargs, nullptr);
             if (!ret){
                 return nullptr;
             }
@@ -951,7 +947,7 @@ namespace __pyllars_internal{
 
         template<void(*func)(double&, double)>
         static PyObject* _baseInplaceBinaryFunc(PyObject* v1, PyObject* v2){
-            if(!PyObject_TypeCheck(v1, &PyFloatingPtCustomObject<number_type>::Type)){
+            if(!PyObject_TypeCheck(v1, PyFloatingPtCustomObject<number_type>::getPyType())){
                 PyErr_SetString(PyExc_TypeError, "Invalid types for arguments");
                 Py_RETURN_NOTIMPLEMENTED;
             }
@@ -981,7 +977,7 @@ namespace __pyllars_internal{
                 return nullptr;
             }
 
-            PyFloatingPtCustomObject<number_type>* ret = (PyFloatingPtCustomObject<number_type>*) PyObject_Call((PyObject*) &PyFloatingPtCustomObject<number_type>::Type, emptyargs, nullptr);
+            PyFloatingPtCustomObject<number_type>* ret = (PyFloatingPtCustomObject<number_type>*) PyObject_Call((PyObject*) PyFloatingPtCustomObject<number_type>::getPyType(), emptyargs, nullptr);
             if (ret){
                 ret->value = ret_value;
             }
@@ -1012,7 +1008,7 @@ namespace __pyllars_internal{
 
         static PyObject* power(PyObject* v1, PyObject* v2, PyObject* v3){
             static PyObject *emptyargs = PyTuple_New(0);
-            PyFloatingPtCustomObject<number_type>* ret = (PyFloatingPtCustomObject<number_type>*) PyObject_Call((PyObject*) &PyFloatingPtCustomObject<number_type>::Type, emptyargs, nullptr);
+            PyFloatingPtCustomObject<number_type>* ret = (PyFloatingPtCustomObject<number_type>*) PyObject_Call((PyObject*) PyFloatingPtCustomObject<number_type>::getPyType(), emptyargs, nullptr);
             if (!ret){
                 return nullptr;
             }
@@ -1057,8 +1053,8 @@ namespace __pyllars_internal{
 
         static PyObject* divmod(PyObject* v1, PyObject* v2){
             static PyObject *emptyargs = PyTuple_New(0);
-            PyFloatingPtCustomObject<number_type>* retq = (PyFloatingPtCustomObject<number_type>*) PyObject_Call((PyObject*) &PyFloatingPtCustomObject<number_type>::Type, emptyargs, nullptr);
-            PyFloatingPtCustomObject<number_type>* retr = (PyFloatingPtCustomObject<number_type>*) PyObject_Call((PyObject*) &PyFloatingPtCustomObject<number_type>::Type, emptyargs, nullptr);
+            PyFloatingPtCustomObject<number_type>* retq = (PyFloatingPtCustomObject<number_type>*) PyObject_Call((PyObject*) PyFloatingPtCustomObject<number_type>::getPyType(), emptyargs, nullptr);
+            PyFloatingPtCustomObject<number_type>* retr = (PyFloatingPtCustomObject<number_type>*) PyObject_Call((PyObject*) PyFloatingPtCustomObject<number_type>::getPyType(), emptyargs, nullptr);
             if (!retq || !retr){
                 return nullptr;
             }
@@ -1339,15 +1335,12 @@ namespace __pyllars_internal{
 
 
     template<typename number_type>
-    int PyFloatingPtCustomObject<number_type>::initialize(const char *const name, const char *const module_entry_name,
-                     PyObject* module){
+    int PyFloatingPtCustomObject<number_type>::initialize(const char *const name){
         PyType_Ready(&PyFloatingPtCustomBase::Type);
         const int rc = PyType_Ready(&PyFloatingPtCustomObject::Type);
-        if(module && rc == 0){
-            PyModule_AddObject(module, __pyllars_internal::type_name<ntype>(), (PyObject*) &PyFloatingPtCustomObject::Type);
-        }
         return rc;
     }
+
     template<typename number_type>
     PyObject* PyFloatingPtCustomObject<number_type>::richcompare(PyObject* a, PyObject* b, int op){
         if(!FloatingPointType<number_type>::isFloatingPtObject(a) || ! FloatingPointType<number_type>::isFloatingPtObject(b)){

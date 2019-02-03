@@ -239,16 +239,10 @@ namespace __pyllars_internal {
                                     is_complete<typename std::remove_pointer<T>::type>::value &&
                                     (std::is_array<T>::value || std::is_pointer<T>::value)>::type>::
     getObjectAt(T from, const size_t index, const ssize_t elements_array_size,
-                const size_t depth,
                 const bool asArgument) {
         //TODO add reference to owning element to this object to not have go out of scope
         //until parent does!!!!
-        if (depth == 1) {
-            return toPyObject<T_base>(Array<T>::at(from, index), true, elements_array_size);
-        } else {
-            T *from_real = (T *) from;
-            return toPyObject<T>(from_real[index], asArgument, elements_array_size, depth - 1);
-        }
+        return toPyObject<T_base>(Array<T>::at(from, index), true, elements_array_size);
     }
 
     template<typename T, typename PtrWrapper>

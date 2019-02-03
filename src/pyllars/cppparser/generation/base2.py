@@ -114,7 +114,7 @@ class Compiler(object):
         returncode = await p.wait()
         if returncode != 0:
             stdout = await p.stdout.read()
-            stderr - await p.stderr.read()
+            stderr = await p.stderr.read()
             print(stdout)
             print(stderr)
         assert os.path.exists(target)

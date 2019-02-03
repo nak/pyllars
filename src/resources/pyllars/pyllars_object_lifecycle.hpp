@@ -309,7 +309,6 @@ namespace __pyllars_internal {
             typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
 
             static PyObject *getObjectAt(T from, const size_t index, const ssize_t elements_array_size,
-                                         const size_t depth,
                                          const bool asArgument = true);
 
             static void set(const size_t index, T &to, T const from, const size_t depth);

@@ -18,18 +18,22 @@
 // TODO (jrusnak#1#): All adding of bases, but not through template parameter....
 
 namespace __pyllars_internal {
+    namespace {
+        template<typename T, typename E = void>
+        struct Address;
+
+    }
 
     class ObjectLifecycleHelpers;
 
     template<typename T>
     struct PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
             !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            (std::is_pointer<T>::value || std::is_array<T>::value)>::type> :
+            (std::is_pointer<T>::value || std::is_array<T>::value) &&
+            (ptr_depth<T>::value <= MAX_PTR_DEPTH) >::type> :
             public CommonBaseWrapper {
 
         static constexpr ssize_t last = ArraySize<T>::size - 1;
-
-        static PyObject *parent_module;
 
         template<typename T2>
         using ObjectContent = ObjectLifecycleHelpers::template ObjectContent<T2, void>;
@@ -41,7 +45,6 @@ namespace __pyllars_internal {
         typedef PythonClassWrapper<typename std::remove_const<typename std::remove_reference<T>::type>::type> NoRefNonConstWrapper;
         typedef PythonClassWrapper<typename extent_as_pointer<T>::type> AsPtrWrapper;
 
-        static Py_ssize_t _size(PyObject *self);
 
         static PyObject *_inplace_concat(PyObject *self, PyObject *other) {
             return nullptr;
@@ -56,34 +59,30 @@ namespace __pyllars_internal {
         friend
         class CObjectConversionHelper;
 
-        static std::string get_name(const size_t depth = 1);
+        static std::string get_name();
 
-        static std::string get_module_entry_name(const size_t depth = 1);
+        static PyTypeObject *getPyType(){
+            if(initialize(Types<T>::type_name()) != 0){
+                return nullptr;
+            }
+            return &Type;
+        }
 
-        static int initialize(const size_t depth = ptr_depth<T>::value);
-
-        static int initialize(const char *const name,
-                              const char *const module_entry_name,
-                              PyObject *module,
-                              const size_t depth = ptr_depth<T>::value);
+        static int initialize(const char *const name);
 
 
         static PythonClassWrapper *createPy2(const ssize_t arraySize,
-                                             T *const cobj,
+                                             T * cobj,
                                              const bool isAllocated,
                                              const bool inPlace,
-                                             PyObject *referencing = nullptr, const size_t depth = ptr_depth<T>::value);
+                                             PyObject *referencing = nullptr);
 
         static PythonClassWrapper *createPy(const ssize_t arraySize,
                                             ObjContainer<T> *const cobj,
                                             const bool isAllocated,
                                             const bool inPlace,
-                                            PyObject *referencing = nullptr, const size_t depth = ptr_depth<T>::value);
+                                            PyObject *referencing = nullptr);
 
-
-        static int _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds);
-
-        static int _initbase(PythonClassWrapper *self, PyObject *args, PyObject *kwds, PyTypeObject *pytypeobj);
 
         T *get_CObject();
 
@@ -96,9 +95,6 @@ namespace __pyllars_internal {
         static bool checkType(PyObject *const obj);
 
         static bool checkTypeDereferenced(PyObject *const obj);
-
-        static PyTypeObject *getType(const size_t depth = 1,
-                                     const char *const fullname = nullptr);
 
         void set_raw_storage(T_base *const storage, const size_t size);
 
@@ -120,6 +116,10 @@ namespace __pyllars_internal {
         friend
         struct ObjectLifecycleHelpers::Deallocation;
 
+        template<typename T2, typename E>
+             friend
+        struct Address;
+
     protected:
 
         static Py_ssize_t get_array_index(PythonClassWrapper *const self, PyObject *args, PyObject *kwargs);
@@ -135,6 +135,13 @@ namespace __pyllars_internal {
         size_t _raw_size;
 
     private:
+
+        static int _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds);
+
+        static int _initbase(PythonClassWrapper *self, PyObject *args, PyObject *kwds, PyTypeObject *pytypeobj);
+
+        static Py_ssize_t _size(PyObject *self);
+
         static PyObject *_concat(PyObject *self, PyObject *other);
 
         static PyObject *_inplace_repeat(PyObject *self, Py_ssize_t count);
@@ -151,8 +158,8 @@ namespace __pyllars_internal {
 
         static PyObject *_get_item2(PyObject *self, Py_ssize_t index, const bool make_copy);
 
+        static PyTypeObject Type;
     public:
-        size_t _depth;
         bool _allocated;
         bool _inPlace;
     };
