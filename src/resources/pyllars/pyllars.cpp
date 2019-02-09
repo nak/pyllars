@@ -696,7 +696,7 @@ namespace __pyllars_internal{
             }
        }
        number_type* alloced = new number_type(value);
-       return PythonClassWrapper<number_type*>::createPy2(count, &alloced, true, false, nullptr);
+       return (PythonClassWrapper<number_type*>*) PythonClassWrapper<number_type*>::createPy2(count, &alloced, true, false, nullptr);
     }
 
     template<typename number_type>
@@ -1330,7 +1330,7 @@ namespace __pyllars_internal{
             }
        }
        number_type* alloced = new number_type(value);
-       return PythonClassWrapper<number_type*>::createPy2(count, &alloced, true, false, nullptr);
+       return (PythonClassWrapper<number_type*>* ) PythonClassWrapper<number_type*>::createPy2(count, &alloced, true, false, nullptr);
     }
 
 

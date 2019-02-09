@@ -113,7 +113,7 @@ class GeneratorBodyCXXRecordDecl(GeneratorBody):
                             status |=  __pyllars_internal::PythonClassWrapper< main_type >::initialize("%(name)s");
                             PyObject *module = global_mod?global_mod : pyllars_mod;
                             if(module){
-                                PyModule_AddObject(module, "%(name)s", (PyObject*) &__pyllars_internal::PythonClassWrapper< main_type >::getPyType());
+                                PyModule_AddObject(module, "%(name)s", (PyObject*) __pyllars_internal::PythonClassWrapper< main_type >::getPyType());
                             }
                 """ % {
                         'name': self._element.name or "_anonymous%s" % self._element.tag,

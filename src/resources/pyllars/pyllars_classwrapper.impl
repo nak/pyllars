@@ -640,7 +640,6 @@ namespace __pyllars_internal{
                     self->_inPlace = false;
                     self->_isInitialized = false;
                     self->_arraySize = 0;
-            self->_depth = 0;
                     return 0;
                 }
             } catch (...) {
@@ -730,7 +729,7 @@ namespace __pyllars_internal{
             typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value &&  !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
     createPy
             (const ssize_t arraySize, ObjContainer<T_NoRef> *const cobj, const bool isAllocated,
-             const bool inPlace, PyObject *referencing, const size_t depth) {
+             const bool inPlace, PyObject *referencing) {
         static PyObject *kwds = PyDict_New();
         static PyObject *emptyargs = PyTuple_New(0);
         PyDict_SetItemString(kwds, "__internal_allow_null", Py_True);
@@ -745,7 +744,6 @@ namespace __pyllars_internal{
         pyobj->_allocated = isAllocated;
         pyobj->_inPlace = inPlace;
         pyobj->_arraySize = 0;
-        pyobj->_depth = 0;
         if (referencing) pyobj->_referenced = referencing;
         return pyobj;
     }
@@ -1640,7 +1638,6 @@ namespace __pyllars_internal{
         self->_allocated = false;
         self->_inPlace = false;
         self->_arraySize = 0;
-        self->_depth = 0;
         if (!_member_getters.count("this")){
             _member_getters["this"] = getThis;
         }
@@ -1687,7 +1684,6 @@ namespace __pyllars_internal{
         self->_allocated = false;
         self->_inPlace = false;
         self->_arraySize = 0;
-        self->_depth = 0;
     }
 
     template<typename T>

@@ -11,29 +11,23 @@
 
 namespace __pyllars_internal {
 
-    template<typename T>
+    template<typename T, int variant>
     Py_ssize_t
-    PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-            !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            (ptr_depth<T>::value <= MAX_PTR_DEPTH)>::type>::
-    _size(PyObject *self) {
-        Py_ssize_t length = ((PythonClassWrapper *) self)->_arraySize;
+    PythonPointerWrapperBase<T, variant>::_size(PyObject *self) {
+        const Py_ssize_t length = ((PythonPointerWrapperBase *) self)->_arraySize;
         return length > 0 ? length : 1;
     }
 
-    template<typename T>
+    template<typename T, int variant>
     PyObject *
-    PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-            !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            (ptr_depth<T>::value <= MAX_PTR_DEPTH)>::type>::
+    PythonPointerWrapperBase<T, variant>::
     _concat(PyObject *self, PyObject *other) {
 
-        if (PythonClassWrapper::checkType(other) || NonConstWrapper::checkType(other) ||
+        if (PythonPointerWrapperBase::checkType(other) ||
+            NonConstWrapper::checkType(other) ||
             ConstWrapper::checkType(other)) {
-            PythonClassWrapper *self_ = (PythonClassWrapper *) self;
-            PythonClassWrapper *other_ = (PythonClassWrapper *) other;
+            PythonPointerWrapperBase *self_ = (PythonPointerWrapperBase *) self;
+            PythonPointerWrapperBase *other_ = (PythonPointerWrapperBase *) other;
             if (self_->_arraySize <= 0 || other_->_arraySize <= 0) {
                 PyErr_SetString(PyExc_TypeError, "Cannot concatenate array(s) of unknown size");
                 return nullptr;
@@ -51,35 +45,12 @@ namespace __pyllars_internal {
         return nullptr;
     }
 
-    template<typename T>
-    PyObject *
-    PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-            !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            (ptr_depth<T>::value <= MAX_PTR_DEPTH)>::type>::
-    _inplace_repeat(PyObject *self, Py_ssize_t count) {
-        return nullptr;
-    }
 
-    template<typename T>
-    PyObject *
-    PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-            !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            (ptr_depth<T>::value <= MAX_PTR_DEPTH)>::type>::
-    _repeat(PyObject *self, Py_ssize_t count) {
-        return nullptr;
-    }
-
-
-    template<typename T>
+    template<typename T, int variant>
     int
-    PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-            !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            (ptr_depth<T>::value <= MAX_PTR_DEPTH)>::type>::
+    PythonPointerWrapperBase<T, variant>::
     _set_item(PyObject *self, Py_ssize_t index, PyObject *obj) {
-        PythonClassWrapper *self_ = (PythonClassWrapper *) self;
+        PythonPointerWrapperBase *self_ = (PythonPointerWrapperBase *) self;
         if (index < 0 && self_->_arraySize > 0) { index = self_->_arraySize + index + 1; };
         if (index < 0 || index > self_->_arraySize) { return -1; };
         if (!PythonClassWrapper<T_base>::checkType(obj) || !PythonClassWrapper<const T_base>::checkType(obj)) {
@@ -93,22 +64,16 @@ namespace __pyllars_internal {
         return 0;
     }
 
-    template<typename T>
+    template<typename T, int variant>
     int
-    PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-            !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            (ptr_depth<T>::value <= MAX_PTR_DEPTH)>::type>::
+    PythonPointerWrapperBase<T, variant>::
     _contains(PyObject *self, PyObject *obj) {
         return -1;
     }
 
-    template<typename T>
+    template<typename T, int variant>
     PyObject *
-    PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-            !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            (ptr_depth<T>::value <= MAX_PTR_DEPTH)>::type>::
+    PythonPointerWrapperBase<T, variant>::
     _at(PyObject *self, PyObject *args, PyObject *kwds) {
         try {
             if ((kwds && PyDict_Size(kwds) != 0) || !args || PyTuple_Size(args) != 1 ||
@@ -131,24 +96,18 @@ namespace __pyllars_internal {
         }
     }
 
-    template<typename T>
+    template<typename T, int variant>
     PyObject *
-    PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-            !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            (ptr_depth<T>::value <= MAX_PTR_DEPTH)>::type>::
+    PythonPointerWrapperBase<T, variant>::
     _get_item(PyObject *self, Py_ssize_t index) {
         return _get_item2(self, index, false);
     }
 
-    template<typename T>
+    template<typename T, int variant>
     PyObject *
-    PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-            !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            (ptr_depth<T>::value <= MAX_PTR_DEPTH)>::type>::
+    PythonPointerWrapperBase<T, variant>::
     _get_item2(PyObject *self, Py_ssize_t index, const bool make_copy) {
-        PythonClassWrapper *self_ = (PythonClassWrapper *) self;
+        PythonPointerWrapperBase *self_ = reinterpret_cast<PythonPointerWrapperBase *>(self);
         if (!self_ || !self_->_CObject) {
             PyErr_SetString(PyExc_RuntimeError, "Null pointer dereference");
             return nullptr;
@@ -164,7 +123,7 @@ namespace __pyllars_internal {
             ssize_t element_array_size = std::extent<T_base>::value;
             if (element_array_size == 0) { element_array_size = UNKNOWN_SIZE; }
             if (self_->_referenced_elements) {
-                PythonClassWrapper *item = (PythonClassWrapper *) PyList_GetItem(self_->_referenced_elements,
+                PythonPointerWrapperBase *item = (PythonPointerWrapperBase *) PyList_GetItem(self_->_referenced_elements,
                                                                                  index);
                 element_array_size = item ? item->_arraySize : element_array_size;
             }
@@ -176,60 +135,24 @@ namespace __pyllars_internal {
                 ObjContainer<T_base> *new_copy = ObjectLifecycleHelpers::Copy<T_base>::new_copy(var);
                 PythonClassWrapper<T_base> *res = PythonClassWrapper<T_base>::createPy(element_array_size, new_copy,
                                                                                        true, false, nullptr);
-                result = (PyObject *) res;
+                result = reinterpret_cast<PyObject*>(res);
             } else {
                 typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
                 PythonClassWrapper<T_base> *res = (PythonClassWrapper<T_base> *)
                         (ObjectContent<T>::getObjectAt(*self_->_CObject->ptr(), index, element_array_size));
                 if (!res) return nullptr;
                 res->make_reference(self);
-                result = (PyObject *) res;
+                result = reinterpret_cast<PyObject *>(res);
             }
-            return (PyObject *) result;
+            return result;
         } catch (const char *const msg) {
             PyErr_SetString(PyExc_RuntimeError, msg);
             return nullptr;
         }
     }
 
-    template<typename T>
-    ssize_t
-    PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-            !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            (ptr_depth<T>::value <= MAX_PTR_DEPTH)>::type>::
-    getArraySize() {
-        return _arraySize;
-    }
-
-    template<typename T>
-    void
-    PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-            !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            (ptr_depth<T>::value <= MAX_PTR_DEPTH)>::type>::
-    setArraySize(const ssize_t size) {
-        _arraySize = size;
-        _max = size < 0 ? -1 : size - 1;
-    }
-
-
-    template<typename T>
-    std::string
-    PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-            !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            (ptr_depth<T>::value <= MAX_PTR_DEPTH)>::type>::
-    get_name() {
-        return Types<T>::type_name();
-    }
-
-    template<typename T>
-    int
-    PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-            !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            (ptr_depth<T>::value <= MAX_PTR_DEPTH)>::type>::
+    template<typename T, int variant>
+    int PythonPointerWrapperBase<T, variant>::
     initialize(const char *const name) {
         static bool initialized = false;
         if (initialized) return 0;
@@ -242,7 +165,7 @@ namespace __pyllars_internal {
         }
 
         Type.tp_init = (initproc) _init;
-        Type.tp_methods[0].ml_meth = (PyCFunction) _addr;
+        Type.tp_methods[0].ml_meth = (PyCFunction) PythonClassWrapper<T>::_addr;
         Type.tp_methods[1].ml_meth = (PyCFunction) _at;
 
         _seqmethods.sq_length = _size;
@@ -261,15 +184,9 @@ namespace __pyllars_internal {
     }
 
 
-    template<typename T>
-    PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-            !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            (ptr_depth<T>::value <= MAX_PTR_DEPTH)>::type> *
-    PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-            !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            (ptr_depth<T>::value <= MAX_PTR_DEPTH)>::type>::
+    template<typename T, int variant>
+    PythonClassWrapper<T> *
+    PythonPointerWrapperBase<T, variant>::
     createPy2(const ssize_t arraySize,
               T *const cobj,
               const bool isAllocated,
@@ -279,15 +196,9 @@ namespace __pyllars_internal {
         return createPy(arraySize, new ObjContainerProxy<T, T>(*cobj), isAllocated, inPlace, referencing);
     }
 
-    template<typename T>
-    PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-            !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            (ptr_depth<T>::value <= MAX_PTR_DEPTH)>::type> *
-    PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-            !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            (ptr_depth<T>::value <= MAX_PTR_DEPTH)>::type>::
+    template<typename T, int variant>
+    PythonClassWrapper<T>*
+    PythonPointerWrapperBase<T, variant>::
     createPy(const ssize_t arraySize,
              ObjContainer<T> *const cobj,
              const bool isAllocated,
@@ -302,7 +213,7 @@ namespace __pyllars_internal {
         }
         static PyObject *args = PyTuple_New(0);
         static PyObject *kwds = PyDict_New();
-        PythonClassWrapper *pyobj = (PythonClassWrapper *) PyObject_Call((PyObject *) &Type, args, kwds);
+        PythonPointerWrapperBase *pyobj = (PythonPointerWrapperBase *) PyObject_Call((PyObject *) &Type, args, kwds);
         if (!pyobj) {
             PyErr_SetString(PyExc_RuntimeError, "Unable to create Python Object");
             return nullptr;
@@ -313,17 +224,14 @@ namespace __pyllars_internal {
         pyobj->_arraySize = arraySize;
         if (arraySize > 0) { pyobj->_max = arraySize - 1; }
         if (referencing) pyobj->make_reference(referencing);
-        return pyobj;
+        return reinterpret_cast<PythonClassWrapper<T> *>(pyobj);
     }
 
 
-    template<typename T>
+    template<typename T, int variant>
     int
-    PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-            !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            (ptr_depth<T>::value <= MAX_PTR_DEPTH)>::type>::
-    _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds) {
+    PythonPointerWrapperBase<T, variant>::
+    _init(PythonPointerWrapperBase *self, PyObject *args, PyObject *kwds) {
         if (!self) { return -1; }
 
         self->_arraySize = UNKNOWN_SIZE;
@@ -356,13 +264,10 @@ namespace __pyllars_internal {
         return result;
     }
 
-    template<typename T>
+    template<typename T, int variant>
     int
-    PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-            !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            (ptr_depth<T>::value <= MAX_PTR_DEPTH)>::type>::
-    _initbase(PythonClassWrapper *self, PyObject *args, PyObject *kwds, PyTypeObject *pytypeobj) {
+    PythonPointerWrapperBase<T, variant>::
+    _initbase(PythonPointerWrapperBase *self, PyObject *args, PyObject *kwds, PyTypeObject *pytypeobj) {
         int status = -1;
         if (!self) return status;
         self->_referenced = nullptr;
@@ -418,7 +323,7 @@ namespace __pyllars_internal {
             if (PyObject_TypeCheck(pyobj, pytypeobj)) {
                 // if this is an instance of a basic class:
                 self->make_reference(pyobj);
-                self->_CObject = reinterpret_cast<PythonClassWrapper *>(pyobj)->_CObject;
+                self->_CObject = reinterpret_cast<PythonPointerWrapperBase *>(pyobj)->_CObject;
                 status = self->_CObject ? 0 : -1;
             } else {
                 PyErr_SetString(PyExc_TypeError, "Mismatched types when assigning pointer");
@@ -435,70 +340,21 @@ namespace __pyllars_internal {
         return status;
     }
 
-    template<typename T>
-    T *PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-            !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            (ptr_depth<T>::value <= MAX_PTR_DEPTH)>::type>::
+    template<typename T, int variant>
+    T *PythonPointerWrapperBase<T, variant>::
     get_CObject() {
         return _CObject->ptr();
     }
 
-    namespace{
 
-            template<typename T>
-            struct Address<T, typename std::enable_if<ptr_depth<T>::value >= MAX_PTR_DEPTH-1>::type>{
-                static
-                PyObject* _addr(PyObject *self_, PyObject *args){
-                        PyErr_SetString(PyExc_RuntimeError, "Max pointer depth exceeded");
-                        return nullptr;
-                }
-            };
-
-        template<typename T>
-        struct Address<T, typename std::enable_if<ptr_depth<T>::value < (MAX_PTR_DEPTH-1)>::type>{
-            static
-            PyObject* _addr(PyObject *self_, PyObject *args){
-                PythonClassWrapper<T> *self = (PythonClassWrapper<T> *) self_;
-                if (!self->_CObject || !*self->_CObject) {
-                    PyErr_SetString(PyExc_RuntimeError, "Cannot take address of null pointer!");
-                    return nullptr;
-                }
-                try {
-                    T **obj = self->_CObject ? self->_CObject->ptrptr() : nullptr;
-                    PythonClassWrapper<T**> *pyobj = PythonClassWrapper<T**>::createPy2(1, &obj, false, false, (PyObject *) self);
-                    return reinterpret_cast<PyObject *>(pyobj);
-                } catch (const char *const msg) {
-                    PyErr_SetString(PyExc_RuntimeError, msg);
-                    return nullptr;
-                }
-            }
-        };
-
-        }
-
-
-    template<typename T>
-    PyObject *
-    PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-            !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            (ptr_depth<T>::value <= MAX_PTR_DEPTH)>::type>::
-    _addr(PyObject *self_, PyObject *args) {
-        return Address<T>::_addr(self_, args);
-    }
-
-    template<typename T>
+    template<typename T, int variant>
     void
-    PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-            !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            (ptr_depth<T>::value <= MAX_PTR_DEPTH)>::type>::
+    PythonPointerWrapperBase<T, variant>::
     _dealloc(PyObject *self_) {
-        PythonClassWrapper *self = (PythonClassWrapper *) self_;
+        PythonPointerWrapperBase *self = (PythonPointerWrapperBase *) self_;
         //TODO: track dynamically allocated content and free if so
         if (self != nullptr) {
-            ObjectLifecycleHelpers::Deallocation<T, PythonClassWrapper>::_free(self);
+            ObjectLifecycleHelpers::Deallocation<T, PythonPointerWrapperBase>::_free(self);
             if (self->_allocated) self->_CObject = nullptr;
 #if PY_MAJOR_VERSION == 3
             self->baseClass.ob_base.ob_type->tp_free((PyObject *) self);
@@ -513,17 +369,14 @@ namespace __pyllars_internal {
         }
     }
 
-    template<typename T>
+    template<typename T, int variant>
     PyObject *
-    PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-            !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            (ptr_depth<T>::value <= MAX_PTR_DEPTH)>::type>::
+    PythonPointerWrapperBase<T, variant>::
     _new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
         (void) args;
         (void) kwds;
-        PythonClassWrapper *self;
-        self = (PythonClassWrapper *) type->tp_alloc(type, 0);
+        PythonPointerWrapperBase *self;
+        self = (PythonPointerWrapperBase *) type->tp_alloc(type, 0);
         if (self != nullptr) {
             self->_CObject = nullptr;
         }
@@ -531,97 +384,27 @@ namespace __pyllars_internal {
 
     }
 
-    template<typename T>
+    template<typename T, int variant>
     bool
-    PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-            !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            (ptr_depth<T>::value <= MAX_PTR_DEPTH)>::type>::
+    PythonPointerWrapperBase<T, variant>::
     checkType(PyObject *const obj) {
         if (!obj || !obj->ob_type || (obj->ob_type->tp_init != (initproc) _init)) { return false; }
         return PyObject_TypeCheck(obj, &Type);
     }
 
-    template<typename T>
+    template<typename T, int variant>
     bool
-    PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-            !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            (ptr_depth<T>::value <= MAX_PTR_DEPTH)>::type>::
+    PythonPointerWrapperBase<T, variant>::
     checkTypeDereferenced(PyObject *const obj) {
         if (!obj || !obj->ob_type || (obj->ob_type->tp_init != (initproc) _init)) { return false; }
-        PythonClassWrapper *obj_ = (PythonClassWrapper *) obj;
+        PythonPointerWrapperBase *obj_ = (PythonPointerWrapperBase *) obj;
         //TODO: is base type initialized??
         return PyObject_TypeCheck(obj, &PythonClassWrapper<typename std::remove_pointer<T>::type>::Type);
     }
 
-    template<typename T>
-    PyTypeObject
-    PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-            !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            (ptr_depth<T>::value <= MAX_PTR_DEPTH)>::type>::Type = {
-#if PY_MAJOR_VERSION == 3
-                PyVarObject_HEAD_INIT(NULL, 0)
-#else
-        PyObject_HEAD_INIT(nullptr)
-        0,                         /*ob_size*/
-#endif
-                Types<T>::type_name(),             /*tp_name*/  //set on call to initialize
-                sizeof(PythonClassWrapper) + 8,             /*tp_basicsize*/
-                0,                         /*tp_itemsize*/
-                (destructor) &_dealloc, /*tp_dealloc*/
-                nullptr,                         /*tp_print*/
-                nullptr,                         /*tp_getattr*/
-                nullptr,                         /*tp_setattr*/
-                nullptr,                         /*tp_compare*/
-                nullptr,                         /*tp_repr*/
-                nullptr,                         /*tp_as_number*/
-                &_seqmethods,                         /*tp_as_sequence*/
-                nullptr,                         /*tp_as_mapping*/
-                nullptr,                         /*tp_hash */
-                nullptr,                         /*tp_call*/
-                nullptr,                         /*tp_str*/
-                nullptr,                         /*tp_getattro*/
-                nullptr,                         /*tp_setattro*/
-                nullptr,                         /*tp_as_buffer*/
-                Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /*tp_flags*/
-                "PythonCPointerWrapper object",           /* tp_doc */
-                nullptr,                               /* tp_traverse */
-                nullptr,                               /* tp_clear */
-                nullptr,                               /* tp_richcompare */
-                0,                             /* tp_weaklistoffset */
-                nullptr,                               /* tp_iter */
-                nullptr,                               /* tp_iternext */
-                _methods,             /* tp_methods */
-                nullptr,             /* tp_members */
-                nullptr,                         /* tp_getset */
-                nullptr,                         /* tp_base */
-                nullptr,                         /* tp_dict */
-                nullptr,                         /* tp_descr_get */
-                nullptr,                         /* tp_descr_set */
-                0,                         /* tp_dictoffset */
-                (initproc) _init,      /* tp_init */
-                nullptr,                         /* tp_alloc */
-                _new,                 /* tp_new */
-                nullptr,                         /*tp_free*/ // no freeing of fixed-array
-                nullptr,                         /*tp_is_gc*/
-                nullptr,                         /*tp_base*/
-                nullptr,                         /*tp_mro*/
-                nullptr,                         /*tp_cache*/
-                nullptr,                         /*tp_subclasses*/
-                nullptr,                          /*tp_weaklist*/
-                nullptr,                          /*tp_del*/
-                0,                          /*tp_version_tag*/
-        };
-
-
-    template<typename T>
+    template<typename T, int variant>
     void
-    PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-            !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            (ptr_depth<T>::value <= MAX_PTR_DEPTH)>::type>::
+    PythonPointerWrapperBase<T, variant>::
     set_raw_storage(T_base *const storage, const size_t size) {
         _raw_storage = storage;
         _raw_size = size;
@@ -631,12 +414,9 @@ namespace __pyllars_internal {
         }
     }
 
-    template<typename T>
+    template<typename T, int variant>
     void
-    PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-            !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            (ptr_depth<T>::value <= MAX_PTR_DEPTH)>::type>::
+    PythonPointerWrapperBase<T, variant>::
     delete_raw_storage() {
         if (_raw_storage) {
             for (size_t i = 0; i < _raw_size; ++i) {
@@ -650,13 +430,10 @@ namespace __pyllars_internal {
         }
     }
 
-    template<typename T>
+    template<typename T, int variant>
     Py_ssize_t
-    PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-            !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            (ptr_depth<T>::value <= MAX_PTR_DEPTH)>::type>::
-    get_array_index(PythonClassWrapper *const self, PyObject *args, PyObject *kwargs) {
+    PythonPointerWrapperBase<T, variant>::
+    get_array_index(PythonPointerWrapperBase *const self, PyObject *args, PyObject *kwargs) {
         static const char *kwlist[] = {"index", nullptr};
         static constexpr Py_ssize_t INVALID_INDEX = -1;
         long index = -1;
@@ -674,22 +451,124 @@ namespace __pyllars_internal {
         return index;
     }
 
-    template<typename T>
-    PyMethodDef PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-            !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            (ptr_depth<T>::value <= MAX_PTR_DEPTH)>::type>::_methods[] =
-            {{address_name, (PyCFunction) _addr, METH_KEYWORDS | METH_VARARGS, nullptr},
+    template<typename T, int variant>
+    PyMethodDef
+    PythonPointerWrapperBase<T, variant>::_methods[] =
+            {{address_name, (PyCFunction) PythonClassWrapper<T>::_addr, METH_KEYWORDS | METH_VARARGS, nullptr},
              {"at",         nullptr,             METH_KEYWORDS | METH_VARARGS, nullptr},
              {nullptr,      nullptr, 0, nullptr} /*sentinel*/
             };
 
+    template<typename T, int variant>
+    PySequenceMethods
+    PythonPointerWrapperBase<T, variant>::_seqmethods;
+
+
+    template<typename T, int variant>
+    PyTypeObject PythonPointerWrapperBase<T, variant>::Type = {
+#if PY_MAJOR_VERSION == 3
+        PyVarObject_HEAD_INIT(NULL, 0)
+#else
+PyObject_HEAD_INIT(nullptr)
+        0,                         /*ob_size*/
+#endif
+        Types<T>::type_name(),             /*tp_name*/  //set on call to initialize
+        sizeof(PythonPointerWrapperBase) + 8,             /*tp_basicsize*/
+        0,                         /*tp_itemsize*/
+        (destructor) &_dealloc, /*tp_dealloc*/
+        nullptr,                         /*tp_print*/
+        nullptr,                         /*tp_getattr*/
+        nullptr,                         /*tp_setattr*/
+        nullptr,                         /*tp_compare*/
+        nullptr,                         /*tp_repr*/
+        nullptr,                         /*tp_as_number*/
+        &_seqmethods,                         /*tp_as_sequence*/
+        nullptr,                         /*tp_as_mapping*/
+        nullptr,                         /*tp_hash */
+        nullptr,                         /*tp_call*/
+        nullptr,                         /*tp_str*/
+        nullptr,                         /*tp_getattro*/
+        nullptr,                         /*tp_setattro*/
+        nullptr,                         /*tp_as_buffer*/
+        Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /*tp_flags*/
+        "PythonCPointerWrapper object",           /* tp_doc */
+        nullptr,                               /* tp_traverse */
+        nullptr,                               /* tp_clear */
+        nullptr,                               /* tp_richcompare */
+        0,                             /* tp_weaklistoffset */
+        nullptr,                               /* tp_iter */
+        nullptr,                               /* tp_iternext */
+        _methods,             /* tp_methods */
+        nullptr,             /* tp_members */
+        nullptr,                         /* tp_getset */
+        nullptr,                         /* tp_base */
+        nullptr,                         /* tp_dict */
+        nullptr,                         /* tp_descr_get */
+        nullptr,                         /* tp_descr_set */
+        0,                         /* tp_dictoffset */
+        (initproc) _init,      /* tp_init */
+        nullptr,                         /* tp_alloc */
+        _new,                 /* tp_new */
+        nullptr,                         /*tp_free*/ // no freeing of fixed-array
+        nullptr,                         /*tp_is_gc*/
+        nullptr,                         /*tp_base*/
+        nullptr,                         /*tp_mro*/
+        nullptr,                         /*tp_cache*/
+        nullptr,                         /*tp_subclasses*/
+        nullptr,                          /*tp_weaklist*/
+        nullptr,                          /*tp_del*/
+        0,                          /*tp_version_tag*/
+    };
+
+
+
+
     template<typename T>
-    PySequenceMethods PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
+    PyObject *
+    PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
             !std::is_function<typename std::remove_pointer<T>::type>::value &&
             (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            (ptr_depth<T>::value <= MAX_PTR_DEPTH)>::type>::_seqmethods;
+            (ptr_depth<T>::value == 1)>::type>::
+    _addr(PyObject *self_, PyObject *args) {
+        PythonClassWrapper<T> *self = (PythonClassWrapper<T> *) self_;
+        if (!self->_CObject || !*self->_CObject) {
+            PyErr_SetString(PyExc_RuntimeError, "Cannot take address of null pointer!");
+            return nullptr;
+        }
+        try {
+            T *obj = self->_CObject ? self->_CObject->ptr() : nullptr;
+            PythonClassWrapper<T*> *pyobj = (PythonClassWrapper<T*>* ) PythonClassWrapper<T>::createPy2(1, (typename base_type<T>::type**) &obj, false, false, (PyObject *) self);
+            return reinterpret_cast<PyObject *>(pyobj);
+        } catch (const char *const msg) {
+            PyErr_SetString(PyExc_RuntimeError, msg);
+            return nullptr;
+        }
+    }
 
+
+    template<typename T>
+    PyObject *
+    PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
+            !std::is_function<typename std::remove_pointer<T>::type>::value &&
+            (std::is_pointer<T>::value || std::is_array<T>::value) &&
+                    !std::is_const<typename std::remove_pointer<T>::type>::value &&
+            (ptr_depth<T>::value > 1) &&
+            sizeof(T) == sizeof(void**)>::type>::
+    _addr(PyObject *self_, PyObject *args) {
+        PythonClassWrapper<T> *self = (PythonClassWrapper<T> *) self_;
+        if (!self->_CObject || !*self->_CObject) {
+            PyErr_SetString(PyExc_RuntimeError, "Cannot take address of null pointer!");
+            return nullptr;
+        }
+        try {
+            T *obj = reinterpret_cast<T*>(self->_CObject ? self->_CObject->ptr() : nullptr);
+            PythonClassWrapper<T*> *pyobj = (PythonClassWrapper<T*>* ) PythonPointerWrapperBase<void**>::createPy2(1, (void***) &obj, false, false, (PyObject *) self);
+            return reinterpret_cast<PyObject *>(pyobj);
+        } catch (const char *const msg) {
+            PyErr_SetString(PyExc_RuntimeError, msg);
+            return nullptr;
+        }
+    }
 
 }
 

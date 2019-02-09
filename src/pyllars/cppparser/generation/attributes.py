@@ -260,7 +260,7 @@ class GeneratorBodyVarDecl(GeneratorBody):
                                    } else {
                                        PyObject *module = %(type_mod)s;
                                        if(module){
-                                           PyModule_AddObject(module, "%(name)s", (PyObject*) &__pyllars_internal::PythonClassWrapper<decltype(%(parent)s::%(name)s)>::getPyType());
+                                           PyModule_AddObject(module, "%(name)s", (PyObject*) __pyllars_internal::PythonClassWrapper<decltype(%(parent)s::%(name)s)>::getPyType());
                                        }
                                        if( !__pyllars_internal::GlobalVariable::createGlobalVariable<decltype(%(parent)s::%(name)s)>("%(name)s", "%(tp_name)s",
                                           &static_var,  %(type_mod)s, %(array_size)s)){
@@ -301,7 +301,7 @@ class GeneratorBodyVarDecl(GeneratorBody):
                                    if(status == 0){
                                        PyObject *module = %(type_mod)s;
                                        if(module){
-                                           PyModule_AddObject(module, "%(name)s", (PyObject*)&__pyllars_internal::PythonClassWrapper<decltype(%(parent)s::%(name)s)>::getPyType());
+                                           PyModule_AddObject(module, "%(name)s", (PyObject*)__pyllars_internal::PythonClassWrapper<decltype(%(parent)s::%(name)s)>::getPyType());
                                        }
                                         if( !__pyllars_internal::GlobalVariable::createGlobalVariable<decltype(%(parent)s::%(name)s)>("%(name)s", "%(tp_name)s",
                                             &%(parent)s::%(name)s, %(type_mod)s, %(array_size)s)){

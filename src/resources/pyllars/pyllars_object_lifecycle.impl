@@ -203,7 +203,7 @@ namespace __pyllars_internal {
             typename std::enable_if<
                     !std::is_void<T>::value && !std::is_pointer<T>::value && !std::is_array<T>::value>::type>::
     getObjectAt(T const from, const size_t index, const ssize_t elements_array_size,
-                const size_t depth, const bool asArgument) {
+                const bool asArgument) {
         PyErr_SetString(PyExc_TypeError, "Attempt to get element from non-array object");
         return nullptr;
     }
@@ -213,8 +213,8 @@ namespace __pyllars_internal {
     ObjectContent<T, ClassWrapper,
             typename std::enable_if<
                     !std::is_void<T>::value && !std::is_pointer<T>::value && !std::is_array<T>::value>::type>::
-    set(const size_t index, T *const to, const T *const from, const size_t depth) {
-        if (depth > 1) {
+    set(const size_t index, T *const to, const T *const from) {
+        if (ptr_depth<T>::value > 1) {
             Assign<T *, T *>::assign(((T **) to)[index], *((T **) from));
         } else {
             Assign<T, T>::assign(to[index], *from);
@@ -252,8 +252,8 @@ namespace __pyllars_internal {
                                     !std::is_void<typename std::remove_pointer<T>::type>::value &&
                                     is_complete<typename std::remove_pointer<T>::type>::value &&
                                     (std::is_array<T>::value || std::is_pointer<T>::value)>::type>::
-    set(const size_t index, T &to, T const from, const size_t depth) {
-        if (depth == 1) {
+    set(const size_t index, T &to, T const from) {
+        if (ptr_depth<T>::value == 1) {
             Assign<T, T>::assign(Array<T>::at(to, index), *from);
         } else {
             typedef typename std::remove_reference<T>::type T_NoRef;
@@ -278,7 +278,7 @@ namespace __pyllars_internal {
     ObjectContent<T, PtrWrapper,
             typename std::enable_if<std::is_function<typename std::remove_pointer<T>::type>::value>::type>::
     getObjectAt(T const from, const size_t index, const ssize_t elements_array_size,
-                const size_t depth, const bool asArgument) {
+                const bool asArgument) {
         PyErr_SetString(PyExc_TypeError, "Attempt to get element from non-array object");
         return nullptr;
     }
@@ -287,7 +287,7 @@ namespace __pyllars_internal {
     void ObjectLifecycleHelpers::
     ObjectContent<T, PtrWrapper,
             typename std::enable_if<std::is_function<typename std::remove_pointer<T>::type>::value>::type>::
-    set(const size_t index, T const to, T const from, const size_t depth) {
+    set(const size_t index, T const to, T const from) {
         throw "Attempt to index function pointer";
     }
 
@@ -307,15 +307,10 @@ namespace __pyllars_internal {
                                     !std::is_function<typename std::remove_pointer<T>::type>::value &&
                                     !std::is_void<typename std::remove_pointer<T>::type>::value>::type>::
     getObjectAt(T const from, const size_t index, const ssize_t elements_array_size,
-                const size_t depth, const bool asArgument) {
+                const bool asArgument) {
         //TODO add reference to owning element to this object to not have go out of scope
         //until parent does!!!!
-        if (depth == 1) {
-            return toPyObject<T_base>(Array<T>::at(from, index), asArgument, elements_array_size);
-        } else {
-            T *from_real = (T *) from;
-            return toPyObject<T>(from_real[index], asArgument, elements_array_size, depth - 1);
-        }
+        return toPyObject<T_base>(Array<T>::at(from, index), asArgument, elements_array_size);
     }
 
     template<typename T, typename PtrWrapper>
@@ -324,7 +319,7 @@ namespace __pyllars_internal {
             typename std::enable_if<!is_complete<typename std::remove_pointer<T>::type>::value &&
                                     !std::is_function<typename std::remove_pointer<T>::type>::value &&
                                     !std::is_void<typename std::remove_pointer<T>::type>::value>::type>::
-    set(const size_t index, T const to, T const from, const size_t depth) {
+    set(const size_t index, T const to, T const from) {
         throw "Attempt to index function pointer";
     }
 
@@ -359,7 +354,7 @@ namespace __pyllars_internal {
     >::type>::
     _free(PtrWrapper *self) {
         if (self->_raw_storage) {
-            if (self->_depth == 1 && self->_max >= 0) {
+            if (ptr_depth<T>::value == 1 && self->_max >= 0) {
                 for (Py_ssize_t j = 0; j <= self->_max; ++j) {
                     ((*self->_CObject)[j]).~T_base();
                 }
@@ -1069,7 +1064,7 @@ allocbase(PyObject *cls, PyObject *args, PyObject *kwds,
 
 template<typename T, typename PtrWrapper>
 void ObjectLifecycleHelpers::ObjectContent<T *, PtrWrapper, typename std::enable_if<std::is_void<T>::value>::type>::
-set(const size_t index, T **const to, T **const from, const size_t depth) {
+set(const size_t index, T **const to, T **const from) {
     to[index] = *from;
 }
 
@@ -1077,7 +1072,7 @@ template<typename T, typename PtrWrapper>
 PyObject *
 ObjectLifecycleHelpers::ObjectContent<T *, PtrWrapper, typename std::enable_if<std::is_void<T>::value>::type>::
 getObjectAt(T *const from, const size_t index, const ssize_t elements_array_size,
-            const size_t depth, const bool asArgument) {
+            const bool asArgument) {
     (void) from;
     (void) index;
     (void) elements_array_size;
@@ -1094,14 +1089,14 @@ getObjectPtr(PtrWrapper *const self) {
 
 template<typename T, typename PtrWrapper>
 void ObjectLifecycleHelpers::ObjectContent<T, PtrWrapper, typename std::enable_if<std::is_void<T>::value> >::
-set(const size_t index, void *const to, void *const from, const size_t depth) {
+set(const size_t index, void *const to, void *const from) {
     throw "Attempt to access element from object  of type void";
 }
 
 template<typename T, typename PtrWrapper>
 PyObject *ObjectLifecycleHelpers::ObjectContent<T, PtrWrapper, typename std::enable_if<std::is_void<T>::value> >::
 getObjectAt(void *const from, const size_t index, const ssize_t elements_array_size,
-            const size_t depth, const bool asArgument) {
+            const bool asArgument) {
     (void) from;
     (void) index;
     (void) elements_array_size;
@@ -1119,7 +1114,7 @@ getObjectPtr(PtrWrapper *const self) {
 template<typename T, typename PtrWrapper>
 void
 ObjectLifecycleHelpers::ObjectContent<T *const, PtrWrapper, typename std::enable_if<std::is_void<T>::value>::type>::
-set(const size_t index, T *const *const to, T *const *const from, const size_t depth) {
+set(const size_t index, T *const *const to, T *const *const from) {
     throw "Attempt to assign to const value";
 }
 
@@ -1127,7 +1122,7 @@ template<typename T, typename PtrWrapper>
 PyObject *
 ObjectLifecycleHelpers::ObjectContent<T *const, PtrWrapper, typename std::enable_if<std::is_void<T>::value>::type>::
 getObjectAt(T *const from, const size_t index, const ssize_t elements_array_size,
-            const size_t depth, const bool asArgument) {
+            const bool asArgument) {
     (void) from;
     (void) index;
     (void) elements_array_size;

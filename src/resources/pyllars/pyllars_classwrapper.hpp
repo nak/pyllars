@@ -92,7 +92,7 @@ namespace __pyllars_internal {
 					                        ObjContainer<T_NoRef> *const cobj,
                                             const bool isAllocated,
                                             const bool inPlace,
-                                            PyObject *referencing = nullptr, const size_t depth = 0) ;
+                                            PyObject *referencing = nullptr) ;
 
         /**
          * Add a constructor for this typeEr
@@ -433,10 +433,6 @@ namespace __pyllars_internal {
         static std::string get_name();
 
         static bool isInitialized(){return _isInitialized;}
-
-        template<typename C, const ssize_t size, typename depth>
-        friend
-        struct PythonCPointerWrapper;
 
         template<typename C, typename E>
         friend

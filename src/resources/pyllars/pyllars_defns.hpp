@@ -118,10 +118,10 @@ namespace __pyllars_internal {
     // Helper conversion functions
     //////////
     template<typename T, typename E = void>
-    PyObject *toPyObject(T &var, const bool asArgument, const ssize_t array_size, const size_t depth = ptr_depth<T>::value);
+    PyObject *toPyObject(T &var, const bool asArgument, const ssize_t array_size);
 
     template<typename T,  typename E = void>
-    PyObject *toPyObject(const T &var, const bool asArgument, const ssize_t array_size, const size_t depth = ptr_depth<T>::value);
+    PyObject *toPyObject(const T &var, const bool asArgument, const ssize_t array_size);
 
   //  template<typename T, bool array_allocated, typename ClassWrapper>
   //  smart_ptr<typename std::remove_reference<T>::type, array_allocated> toCObject(PyObject &pyobj);

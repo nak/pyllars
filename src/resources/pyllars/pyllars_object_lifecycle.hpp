@@ -288,9 +288,9 @@ namespace __pyllars_internal {
             typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
 
             static PyObject *getObjectAt(T const from, const size_t index, const ssize_t elements_array_size,
-                                         const size_t depth, const bool asArgument = true);
+                                         const bool asArgument = true);
 
-            static void set(const size_t index, T *const to, const T *const from, const size_t depth);
+            static void set(const size_t index, T *const to, const T *const from);
 
             static T *getObjectPtr(ClassWrapper *const self);
 
@@ -311,7 +311,7 @@ namespace __pyllars_internal {
             static PyObject *getObjectAt(T from, const size_t index, const ssize_t elements_array_size,
                                          const bool asArgument = true);
 
-            static void set(const size_t index, T &to, T const from, const size_t depth);
+            static void set(const size_t index, T &to, T const from);
 
             static T *getObjectPtr(PtrWrapper *const self);
 
@@ -327,9 +327,9 @@ namespace __pyllars_internal {
             typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
 
             static PyObject *getObjectAt(T const from, const size_t index, const ssize_t elements_array_size,
-                                         const size_t depth, const bool asArgument = true);
+                                        const bool asArgument = true);
 
-            static void set(const size_t index, T const to, T const from, const size_t depth);
+            static void set(const size_t index, T const to, T const from);
 
             static T *getObjectPtr(PtrWrapper *const self);
 
@@ -347,9 +347,9 @@ namespace __pyllars_internal {
             typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
 
             static PyObject *getObjectAt(T const from, const size_t index, const ssize_t elements_array_size,
-                                         const size_t depth, const bool asArgument = true);
+                                         const bool asArgument = true);
 
-            static void set(const size_t index, T const to, T const from, const size_t depth);
+            static void set(const size_t index, T const to, T const from);
 
             static T *getObjectPtr(PtrWrapper *const self);
 
@@ -560,10 +560,10 @@ namespace __pyllars_internal {
     class ObjectLifecycleHelpers::ObjectContent<T *, PtrWrapper, typename std::enable_if<std::is_void<T>::value>::type> {
     public:
 
-        static void set(const size_t index, T **const to, T **const from, const size_t depth);
+        static void set(const size_t index, T **const to, T **const from);
 
         static PyObject *getObjectAt(T *const from, const size_t index, const ssize_t elements_array_size,
-                                     const size_t depth, const bool asArgument = true) ;
+                                     const bool asArgument = true) ;
 
         static T **getObjectPtr(PtrWrapper *const self);
 
@@ -574,10 +574,10 @@ namespace __pyllars_internal {
     class ObjectLifecycleHelpers::ObjectContent<T, PtrWrapper, typename std::enable_if<std::is_void<T>::value> > {
     public:
 
-        static void set(const size_t index, void *const to, void *const from, const size_t depth) ;
+        static void set(const size_t index, void *const to, void *const from) ;
 
         static PyObject *getObjectAt(void *const from, const size_t index, const ssize_t elements_array_size,
-                                     const size_t depth, const bool asArgument = true);
+                                     const bool asArgument = true);
 
         static void *getObjectPtr(PtrWrapper *const self);
 
@@ -590,10 +590,10 @@ namespace __pyllars_internal {
     class ObjectLifecycleHelpers::ObjectContent<T *const, PtrWrapper, typename std::enable_if<std::is_void<T>::value>::type> {
     public:
 
-        static void set(const size_t index, T *const *const to, T *const *const from, const size_t depth);
+        static void set(const size_t index, T *const *const to, T *const *const from);
 
         static PyObject *getObjectAt(T *const from, const size_t index, const ssize_t elements_array_size,
-                                     const size_t depth, const bool asArgument = true);
+                                     const bool asArgument = true);
 
         static T *const *getObjectPtr(PtrWrapper *const self);
 
