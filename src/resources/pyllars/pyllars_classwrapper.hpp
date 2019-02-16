@@ -83,7 +83,7 @@ namespace __pyllars_internal {
          *
          * @param name: Python simple-name of the type
          **/
-        static int initialize(const char *const name);
+        static int initialize();
 
         /**
          * create a Python object of this class type
@@ -351,7 +351,6 @@ namespace __pyllars_internal {
         template<const char* const type_name, typename EnumType>
         static int addEnumClassValue( const char* const name, EnumType value){
             const bool inited = PythonClassWrapper<EnumType>::_isInitialized;
-            static PyTypeObject holderType = PythonClassWrapper<EnumType>::Type;
             PyObject* pyval = toPyObject<EnumType>(value, false, 1);
             PythonClassWrapper<EnumType>::_isInitialized = inited; // chicken and egg here, only initialize to create instances that then get added back into class
             int status = pyval?0:-1;
@@ -424,7 +423,7 @@ namespace __pyllars_internal {
         static bool checkType(PyObject *const obj);
 
         static PyTypeObject *getPyType(){
-            if(initialize(Types<T>::type_name()) != 0){
+            if(initialize() != 0){
                 return nullptr;
             }
             return &Type;
@@ -520,6 +519,8 @@ namespace __pyllars_internal {
                 _member_setters["this"] = _pyAssign;
             _assigners.push_back(func);
         }
+        static bool _isInitialized;
+
 
     protected:
 
@@ -618,9 +619,7 @@ namespace __pyllars_internal {
         bool _allocated;
         bool _inPlace;
 
-        static bool _isInitialized;
-
-      private:
+       private:
         static PyTypeObject Type;
         static TypePtr_t constexpr TypePtr = &Type;
 

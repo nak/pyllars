@@ -16,6 +16,7 @@ class GeneratorBodyFieldDecl(GeneratorBody):
         super().write_include_directives()
         self._stream.write(b"\n#include <pyllars/pyllars_classmembersemantics.impl>\n")
         self._stream.write(b"#include <pyllars/pyllars_membersemantics.impl>\n")
+        self._stream.write(b"#include <pyllars/pyllars_pointer.impl>\n")
 
     def generate(self):
         if not self._element.name and not self._element.target_type.name:
@@ -146,26 +147,11 @@ class GeneratorBodyVarDecl(GeneratorBody):
         if not self._element.target_type.name:
             self._stream.write(("""
                               namespace __pyllars_internal{
-                                  template<>
-                                  const char* const
-                                  type_name<decltype(%(name)s)>(){
+                                    template<>
+                                    const char* const _Types<decltype(%(name)s)>::type_name(){
                                       static const char* const name = "anonymous type";
                                       return name;
-                                  }
-
-                                   template<>
-                                  const char* const
-                                  type_name<decltype(%(name)s) const>(){
-                                      static const char* const name = "const anonymous type";
-                                      return name;
-                                  }
-
-                                  template<>
-                                  const char* const
-                                  Types<decltype(%(name)s)>::type_name(){
-                                      static const char* const name = "anonymous type";
-                                      return name;
-                                  }
+                                    } 
                               }
                       """ % {'name': self._element.full_name}).encode('utf-8'))
         with self._scoped(self._stream) as stream:
@@ -255,14 +241,14 @@ class GeneratorBodyVarDecl(GeneratorBody):
                                    status_t status = 0;
 
                                    %(imports)s
-                                   if(!__pyllars_internal::PythonClassWrapper<decltype(%(parent)s::%(name)s)>::initialize("%(basic_type_name)s")){
+                                   if(__pyllars_internal::PythonClassWrapper<decltype(%(parent)s::%(name)s)>::initialize() != 0){
                                        status = -1;
                                    } else {
                                        PyObject *module = %(type_mod)s;
                                        if(module){
                                            PyModule_AddObject(module, "%(name)s", (PyObject*) __pyllars_internal::PythonClassWrapper<decltype(%(parent)s::%(name)s)>::getPyType());
                                        }
-                                       if( !__pyllars_internal::GlobalVariable::createGlobalVariable<decltype(%(parent)s::%(name)s)>("%(name)s", "%(tp_name)s",
+                                       if( !__pyllars_internal::GlobalVariable::createGlobalVariable<decltype(%(parent)s::%(name)s)>("%(name)s", 
                                           &static_var,  %(type_mod)s, %(array_size)s)){
                                           status = -1;
                                         }
@@ -274,7 +260,6 @@ class GeneratorBodyVarDecl(GeneratorBody):
                         'pyllars_scope': self._element.pyllars_scope,
                         'basic_type_name': self._element.target_type.name,  # name
                         'name': self._element.name or "anonymous_%s" % self._element.tag,
-                        'tp_name': self._element.target_type.name,
                         'parent': ('::' + self._element.parent.full_name) if not isinstance(self._element.parent,
                                                                                             code_structure.TranslationUnitDecl) else "",
                         'module_name': self._element.parent.python_cpp_module_name if not isinstance(
@@ -297,13 +282,13 @@ class GeneratorBodyVarDecl(GeneratorBody):
                                     status_t status = 0;
         
                                     %(imports)s
-                                   status = __pyllars_internal::PythonClassWrapper<decltype(%(parent)s::%(name)s)>::initialize("%(basic_type_name)s");
+                                   status = __pyllars_internal::PythonClassWrapper<decltype(%(parent)s::%(name)s)>::initialize();
                                    if(status == 0){
                                        PyObject *module = %(type_mod)s;
                                        if(module){
                                            PyModule_AddObject(module, "%(name)s", (PyObject*)__pyllars_internal::PythonClassWrapper<decltype(%(parent)s::%(name)s)>::getPyType());
                                        }
-                                        if( !__pyllars_internal::GlobalVariable::createGlobalVariable<decltype(%(parent)s::%(name)s)>("%(name)s", "%(tp_name)s",
+                                        if( !__pyllars_internal::GlobalVariable::createGlobalVariable<decltype(%(parent)s::%(name)s)>("%(name)s",
                                             &%(parent)s::%(name)s, %(type_mod)s, %(array_size)s)){
                                            status = -1;
                                        }
@@ -315,7 +300,6 @@ class GeneratorBodyVarDecl(GeneratorBody):
                         'pyllars_scope': self._element.pyllars_scope,
                         'basic_type_name': self._element.target_type.name,  # name
                         'name': self._element.name or "anonymous_%s" % self._element.tag,
-                        'tp_name': self._element.target_type.name,
                         'parent': ('::' + self._element.parent.full_name) if not isinstance(self._element.parent, code_structure.TranslationUnitDecl) else "",
                         'module_name': self._element.parent.python_cpp_module_name  if not isinstance(self._element.parent, code_structure.TranslationUnitDecl)  else "PyImport_Module(\"pyllars\")",
                         'type_mod': self._element.pyllars_scope + "::" + self._element.parent.name + "_module()" if not isinstance(self._element.parent, code_structure.TranslationUnitDecl)  else "global_mod",

@@ -678,11 +678,12 @@ namespace __pyllars_internal{
 
     template<typename T>
     int PythonClassWrapper<T,
-                    typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value  && !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::initialize
-                    (const char *const name) {
+                    typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value  && !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+                    initialize() {
         static bool inited = false;
         if (inited) return 0;
         inited = true;
+        const char* const name = type_name<T>();
         if (!name || strlen(name) == 0) return -1;
         int status = 0;
         if (Type.tp_name) {/*already initialized*/ return status; }

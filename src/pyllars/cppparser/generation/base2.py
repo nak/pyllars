@@ -418,11 +418,11 @@ class GeneratorBody(BaseGenerator):
             self.write_include_directives()
             if self._element.is_typename and self._element.name:
                 self._stream.write(("""
-                   template<>            
-                   const char* const __pyllars_internal::Types<%(full_name)s>::type_name(){
+                    template<>            
+                    const char* const  __pyllars_internal::_Types<%(full_name)s>::type_name(){
                        static const char* const name = "%(full_name)s";
                        return name;
-                   }
+                    }
                 """ % {
                     'full_name': self._element.full_name,
                 }).encode('utf-8'))

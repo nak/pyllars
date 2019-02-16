@@ -13,8 +13,7 @@ namespace __pyllars_internal {
     struct GlobalVariable {
         template<typename T>
         static
-        PyObject *createGlobalVariable(const char *const name, const char *const tp_name,
-                                       //typename extent_as_pointer<T>::type *variable,
+        PyObject *createGlobalVariable(const char *const name,
                                        T *variable,
                                        PyObject *module,
                                        const size_t size);

@@ -24,7 +24,7 @@ class GeneratorBodyTypedefDecl(GeneratorBody):
                      %(name)s_inited = true;
                     
                      int status = 0;
-                     PyTypeObject* obj = __pyllars_internal::PythonClassWrapper<%(fullname)s>::getType();
+                     PyTypeObject* obj = __pyllars_internal::PythonClassWrapper<%(fullname)s>::getPyType();
                      if (!%(parent_mod)s){
                          status = -2;
                      } else {

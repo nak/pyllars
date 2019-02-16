@@ -13,18 +13,18 @@ sizes = {'c_char': 8,
          'c_unsigned_int': 32,
          'c_unsigned_long': 64,
          'c_unsigned_long_long': 64,
-         'c_const_unsigned_char': 8,
-         'c_const_unsigned_short': 16,
-         'c_const_unsigned_int': 32,
-         'c_const_unsigned_long': 64,
-         'c_const_unsigned_long_long': 64,
-         'c_const_char': 8,
-         'c_const_short': 16,
-         'c_const_int': 32,
-         'c_const_long': 64,
-         'c_const_long_long': 64,
-         'c_const_float': 32,
-         'c_const_double': 64,
+         'const_c_unsigned_char': 8,
+         'const_c_unsigned_short': 16,
+         'const_c_unsigned_int': 32,
+         'const_c_unsigned_long': 64,
+         'const_c_unsigned_long_long': 64,
+         'const_c_char': 8,
+         'const_c_short': 16,
+         'const_c_int': 32,
+         'const_c_long': 64,
+         'const_c_long_long': 64,
+         'const_c_float': 32,
+         'const_c_double': 64,
          'c_float': 32,
          'c_double': 64,
 
@@ -39,14 +39,14 @@ def c_signed_type_and_size(testglobals, request):
     return getattr(pyllars, request.param), sizes[request.param]
 
 
-@pytest.fixture(params=['c_const_char', 'c_const_short', 'c_const_int', 'c_const_long', 'c_const_long_long'])
-def c_const_signed_type_and_size(testglobals, request):
+@pytest.fixture(params=['const_c_char', 'const_c_short', 'const_c_int', 'const_c_long', 'const_c_long_long'])
+def const_c_signed_type_and_size(testglobals, request):
     # CUATION: These are known to be good only for Linux 64-bit systems
     import pyllars
     return getattr(pyllars, request.param), sizes[request.param]
 
 
-@pytest.fixture(params=['c_char', 'c_short', 'c_int', 'c_long', 'c_long_long', 'c_const_char', 'c_const_short', 'c_const_int', 'c_const_long', 'c_const_long_long'])
+@pytest.fixture(params=['c_char', 'c_short', 'c_int', 'c_long', 'c_long_long', 'const_c_char', 'const_c_short', 'const_c_int', 'const_c_long', 'const_c_long_long'])
 def c_all_signed_type_and_size(testglobals, request):
     # CUATION: These are known to be good only for Linux 64-bit systems
     import pyllars
@@ -60,23 +60,23 @@ def c_unsigned_type_and_size(testglobals, request):
     return getattr(pyllars, request.param), sizes[request.param]
 
 
-@pytest.fixture(params=['c_const_unsigned_char', 'c_const_unsigned_short', 'c_const_unsigned_int', 'c_const_unsigned_long', 'c_const_unsigned_long_long'])
-def c_const_unsigned_type_and_size(testglobals, request):
+@pytest.fixture(params=['const_c_unsigned_char', 'const_c_unsigned_short', 'const_c_unsigned_int', 'const_c_unsigned_long', 'const_c_unsigned_long_long'])
+def const_c_unsigned_type_and_size(testglobals, request):
     # CUATION: These are known to be good only for Linux 64-bit systems
     import pyllars
     return getattr(pyllars, request.param), sizes[request.param]
 
 
 @pytest.fixture(params=['c_unsigned_char', 'c_unsigned_short', 'c_unsigned_int', 'c_unsigned_long', 'c_unsigned_long_long',
-                        'c_const_unsigned_char', 'c_const_unsigned_short', 'c_const_unsigned_int', 'c_const_unsigned_long', 'c_const_unsigned_long_long'])
+                        'const_c_unsigned_char', 'const_c_unsigned_short', 'const_c_unsigned_int', 'const_c_unsigned_long', 'const_c_unsigned_long_long'])
 def c_all_unsigned_type_and_size(testglobals, request):
     # CUATION: These are known to be good only for Linux 64-bit systems
     import pyllars
     return getattr(pyllars, request.param), sizes[request.param]
 
 
-@pytest.fixture(params=['c_const_float', 'c_const_double'])
-def c_const_float_type_and_size(testglobals, request):
+@pytest.fixture(params=['const_c_float', 'const_c_double'])
+def const_c_float_type_and_size(testglobals, request):
     # CUATION: These are known to be good only for Linux 64-bit systems
     import pyllars
     return getattr(pyllars, request.param), sizes[request.param]

@@ -124,7 +124,7 @@ namespace __pyllars_internal {
 
         static PythonClassWrapper<number_type *> *alloc(PyObject *cls, PyObject *args, PyObject *kwds);
 
-        static int initialize(const char *const name);
+        static int initialize();
 
         static PyObject *richcompare(PyObject *a, PyObject *b, int op);
 
@@ -246,13 +246,13 @@ namespace __pyllars_internal {
         static PythonClassWrapper<number_type *> *alloc(PyObject *cls, PyObject *args, PyObject *kwds);
 
         static PyTypeObject *getPyType(){
-            if(initialize(Types<number_type>::type_name()) != 0){
+            if(initialize() != 0){
                 return nullptr;
             }
             return &Type;
         }
 
-        static int initialize(const char *const name);
+        static int initialize();
 
         static PyObject *richcompare(PyObject *a, PyObject *b, int op);
 

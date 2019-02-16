@@ -27,7 +27,7 @@ namespace __pyllars_internal {
     class ObjectLifecycleHelpers;
 
 
-    template<typename T, int variant = 0>
+    template<typename T>
     struct PythonPointerWrapperBase: public CommonBaseWrapper{
         template<typename T2>
         using ObjectContent = ObjectLifecycleHelpers::template ObjectContent<T2, void>;
@@ -64,7 +64,7 @@ namespace __pyllars_internal {
         typedef PythonClassWrapper<typename extent_as_pointer<T>::type> AsPtrWrapper;
 
         static
-        std::string get_name(){return Types<T>::type_name();}
+        std::string get_name(){return std::string(type_name<T>());}
 
         ssize_t getArraySize(){return _arraySize;}
 
@@ -74,13 +74,13 @@ namespace __pyllars_internal {
         }
 
         static PyTypeObject *getPyType(){
-            if(initialize(Types<T>::type_name()) != 0){
+            if(initialize() != 0){
                 return nullptr;
             }
             return &Type;
         }
 
-        static int initialize(const char *const name = nullptr);
+        static int initialize();
 
         static bool checkType(PyObject *const obj);
 
@@ -102,7 +102,6 @@ namespace __pyllars_internal {
         PythonPointerWrapperBase():_arraySize(UNKNOWN_SIZE), _max(0), _raw_storage(nullptr){
         }
 
-        T *get_CObject();
 
     protected:
         static PyObject *_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
@@ -149,6 +148,8 @@ namespace __pyllars_internal {
         static PyMethodDef _methods[];
         static PySequenceMethods _seqmethods;
 
+        T *_get_CObject();
+
         T_base *_raw_storage;
         ObjContainer<T> *_CObject;
         PyObject *_referenced_elements;
@@ -160,6 +161,10 @@ namespace __pyllars_internal {
     public:
         bool _allocated;
         bool _inPlace;
+        size_t _depth; //only used for classes with pointer depth > 1, kept here for consistent PyType layout
+
+    private:
+        T* get_CObject();
     };
 
 
@@ -176,37 +181,49 @@ namespace __pyllars_internal {
         typedef typename base_type<typename std::remove_pointer<T>::type>::type type;
     };
 
-    template<typename T>
-    struct PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-            !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            (ptr_depth<T>::value == 1) >::type> : public PythonPointerWrapperBase<T> {
 
+    struct _GenericDeepPointerWrapper: public PythonPointerWrapperBase<void**>{
 
         static PyObject *_addr(PyObject *self, PyObject *args);
 
+        _GenericDeepPointerWrapper(const size_t depth){
+            assert(depth > 1);
+            _depth = depth;
+        }
+    private:
+        void*** get_CObject();
     };
 
 
     template<typename T>
-    struct PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
-            !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            !std::is_const<typename std::remove_pointer<T>::type>::value &&
-            (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            (ptr_depth<T>::value > 1) &&
-            sizeof(T) == sizeof(typename base_type<T>::type*) >::type> :
-            public PythonPointerWrapperBase<typename base_type<T>::type*, 1> {
+    struct PythonClassWrapper<T,typename std::enable_if<
+        !std::is_function<typename std::remove_pointer<T>::type>::value &&
+        !std::is_const<typename std::remove_pointer<T>::type>::value &&
+        (std::is_pointer<T>::value || std::is_array<T>::value) &&
+        (ptr_depth<T>::value > 1) &&
+        sizeof(T) == sizeof(typename base_type<T>::type*) >::type> :public _GenericDeepPointerWrapper {
 
+        typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
+        typedef PythonClassWrapper<T const> ConstWrapper;
+        typedef PythonClassWrapper<typename std::remove_const<T>::type> NonConstWrapper;
+        typedef PythonClassWrapper<typename std::remove_reference<T>::type> NoRefWrapper;
+        typedef PythonClassWrapper<typename std::remove_const<typename std::remove_reference<T>::type>::type> NoRefNonConstWrapper;
+        typedef PythonClassWrapper<typename extent_as_pointer<T>::type> AsPtrWrapper;
 
-        static PyObject *_addr(PyObject *self, PyObject *args);
+        static PyObject *_addr(PyObject *self, PyObject *args){
+            return _GenericDeepPointerWrapper::_addr(self, args);
+        }
+
+        PythonClassWrapper():_GenericDeepPointerWrapper(ptr_depth<T>::value){
+        }
 
         T* get_CObject(){
-            static T* value = (T*)(PythonPointerWrapperBase<typename base_type<T>::type*, 1>::get_CObject());
+            static T* value = (T*)(_GenericDeepPointerWrapper::_get_CObject());
             return value;
         }
 
         static
-        std::string get_name(){return Types<T>::type_name();}
+        std::string get_name(){return std::string(type_name<T>());}
 
 
         static PythonClassWrapper *createPy2(const ssize_t arraySize,
@@ -214,7 +231,7 @@ namespace __pyllars_internal {
                                                    const bool isAllocated,
                                                    const bool inPlace,
                                                    PyObject *referencing = nullptr){
-            return (PythonClassWrapper *) PythonPointerWrapperBase<typename base_type<T>::type*, 1>::createPy2(arraySize, (typename base_type<T>::type**) cobj, isAllocated, inPlace, referencing);
+            return (PythonClassWrapper *) _GenericDeepPointerWrapper::createPy2(arraySize, (void***) cobj, isAllocated, inPlace, referencing);
         }
 
         static PythonClassWrapper *createPy(const ssize_t arraySize,
@@ -222,10 +239,23 @@ namespace __pyllars_internal {
                                                   const bool isAllocated,
                                                   const bool inPlace,
                                                   PyObject *referencing = nullptr){
-            return (PythonClassWrapper*) PythonPointerWrapperBase<typename base_type<T>::type*, 1>::createPy(arraySize, (ObjContainer<typename base_type<T>::type*>*) cobj, isAllocated, inPlace, referencing);
+            return (PythonClassWrapper*) _GenericDeepPointerWrapper::createPy(arraySize, (ObjContainer<void**>*) cobj, isAllocated, inPlace, referencing);
         }
     };
 
+
+    struct _GenericDeepPointerConstWrapper: public PythonPointerWrapperBase<const void**>{
+
+        static PyObject *_addr(PyObject *self, PyObject *args);
+
+        _GenericDeepPointerConstWrapper(const size_t depth){
+            assert(depth > 1);
+            _depth = depth;
+        }
+
+    private:
+        void*** get_CObject();
+    };
 
     template<typename T>
     struct PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
@@ -234,18 +264,29 @@ namespace __pyllars_internal {
             (std::is_pointer<T>::value || std::is_array<T>::value) &&
             (ptr_depth<T>::value > 1) &&
             sizeof(T) == sizeof(typename base_type<T>::type*) >::type> :
-            public PythonPointerWrapperBase<const typename base_type<T>::type*, 1> {
+            public _GenericDeepPointerConstWrapper {
 
+        typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
+        typedef PythonClassWrapper<T const> ConstWrapper;
+        typedef PythonClassWrapper<typename std::remove_const<T>::type> NonConstWrapper;
+        typedef PythonClassWrapper<typename std::remove_reference<T>::type> NoRefWrapper;
+        typedef PythonClassWrapper<typename std::remove_const<typename std::remove_reference<T>::type>::type> NoRefNonConstWrapper;
+        typedef PythonClassWrapper<typename extent_as_pointer<T>::type> AsPtrWrapper;
 
-        static PyObject *_addr(PyObject *self, PyObject *args);
+        static PyObject *_addr(PyObject *self, PyObject *args){
+            return _GenericDeepPointerConstWrapper::_addr(self, args);
+        }
+
+        PythonClassWrapper():_GenericDeepPointerConstWrapper(ptr_depth<T>::value){
+        }
 
         T* get_CObject(){
-            static T* value = (T*)(PythonPointerWrapperBase<typename base_type<T>::type*, 1>::get_CObject());
+            static T* value = (T*)(_GenericDeepPointerConstWrapper::_get_CObject());
             return value;
         }
 
         static
-        std::string get_name(){return Types<T>::type_name();}
+        std::string get_name(){return std::string(type_name<T>());}
 
 
         static PythonClassWrapper *createPy2(const ssize_t arraySize,
@@ -253,7 +294,7 @@ namespace __pyllars_internal {
                                              const bool isAllocated,
                                              const bool inPlace,
                                              PyObject *referencing = nullptr){
-            return (PythonClassWrapper *) PythonPointerWrapperBase<typename base_type<T>::type*, 1>::createPy2(arraySize, (typename base_type<T>::type**) cobj, isAllocated, inPlace, referencing);
+            return (PythonClassWrapper *) _GenericDeepPointerConstWrapper::createPy2(arraySize, (const void***) cobj, isAllocated, inPlace, referencing);
         }
 
         static PythonClassWrapper *createPy(const ssize_t arraySize,
@@ -261,9 +302,49 @@ namespace __pyllars_internal {
                                             const bool isAllocated,
                                             const bool inPlace,
                                             PyObject *referencing = nullptr){
-            return (PythonClassWrapper*) PythonPointerWrapperBase<typename base_type<T>::type*, 1>::createPy(arraySize, (ObjContainer<typename base_type<T>::type*>*) cobj, isAllocated, inPlace, referencing);
+            return (PythonClassWrapper*) _GenericDeepPointerConstWrapper::createPy(arraySize, (ObjContainer<const void**>*) cobj, isAllocated, inPlace, referencing);
         }
     };
+
+
+    template<typename T>
+    struct PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
+            !std::is_function<typename std::remove_pointer<T>::type>::value &&
+            (std::is_pointer<T>::value || std::is_array<T>::value) &&
+            (ptr_depth<T>::value == 1) >::type> : public PythonPointerWrapperBase<T> {
+
+
+        T* get_CObject(){
+            return PythonPointerWrapperBase<T>::_get_CObject();
+        }
+
+        static PyObject *_addr(PyObject *self_, PyObject *args){
+            PythonClassWrapper* self = (PythonClassWrapper*)self_;
+            if (!self->_CObject || !*self->_CObject) {
+                PyErr_SetString(PyExc_RuntimeError, "Cannot take address of null pointer!");
+                return nullptr;
+            }
+            try {
+                if (std::is_const<typename std::remove_pointer<T>::type>::value) {
+                    const void **obj = (const void **) (self->_CObject->ptr());
+                    _GenericDeepPointerConstWrapper *pyobj = reinterpret_cast<_GenericDeepPointerConstWrapper *>(
+                            _GenericDeepPointerConstWrapper::createPy2(1, (const void***) &obj, false, false, (PyObject *) self));
+                    pyobj->_depth = self->_depth + 1;
+                    return reinterpret_cast<PyObject *>(pyobj);
+                } else {
+                    const void **obj = (const void **) (self->_CObject->ptr());
+                    _GenericDeepPointerWrapper *pyobj = reinterpret_cast<_GenericDeepPointerWrapper *>(
+                            _GenericDeepPointerWrapper::createPy2(1, (void***) &obj, false, false, (PyObject *) self));
+                    pyobj->_depth = self->_depth + 1;
+                    return reinterpret_cast<PyObject *>(pyobj);
+                }
+            } catch (const char *const msg) {
+                PyErr_SetString(PyExc_RuntimeError, msg);
+                return nullptr;
+            }
+        }
+    };
+
 
 }
 #endif

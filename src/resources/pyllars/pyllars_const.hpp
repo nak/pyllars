@@ -16,8 +16,6 @@ typedef int status_t;
 
 namespace __pyllars_internal {
 
-    template<typename number_type>
-    static const char *const _type_name();
 
 
     template<typename number_type>
@@ -46,7 +44,7 @@ namespace __pyllars_internal {
         }
 
         static PyTypeObject *getPyType(){
-            if(initialize(Types<number_type>::type_name()) != 0){
+            if(initialize() != 0){
                 return nullptr;
             }
             return &Type;
@@ -58,7 +56,7 @@ namespace __pyllars_internal {
 
         static PythonClassWrapper<number_type *> *alloc(PyObject *cls, PyObject *args, PyObject *kwds);
 
-        static int initialize(const char *const name);
+        static int initialize();
 
         static PyObject *richcompare(PyObject *a, PyObject *b, int op);
 
@@ -171,7 +169,7 @@ namespace __pyllars_internal {
 
 
         static PyTypeObject *getPyType(){
-            if(initialize(Types<number_type>::type_name()) != 0){
+            if(initialize() != 0){
                 return nullptr;
             }
             return &Type;
@@ -187,7 +185,7 @@ namespace __pyllars_internal {
 
         static PythonClassWrapper<number_type *> *alloc(PyObject *cls, PyObject *args, PyObject *kwds);
 
-        static int initialize(const char *const name);
+        static int initialize();
 
         static PyObject *richcompare(PyObject *a, PyObject *b, int op);
 
@@ -258,48 +256,5 @@ namespace __pyllars_internal {
 
 }
 
-namespace __pyllars_internal {
-
-    template<>
-    const char *const type_name<const char>();
-
-
-    template<>
-    const char *const type_name<const short>();
-
-    template<>
-    const char *const type_name<const int>();
-
-    template<>
-    const char *const type_name<const long>();
-
-
-    template<>
-    const char *const type_name<const long long>();
-
-
-    template<>
-    const char *const type_name<const unsigned char>();
-
-    template<>
-    const char *const type_name<const unsigned int>();
-
-    template<>
-    const char *const type_name<const unsigned short>();
-
-    template<>
-    const char *const type_name<const unsigned long>();
-
-
-    template<>
-    const char *const type_name<const unsigned long long>();
-
-    template<>
-    const char *const type_name<const float>();
-
-    template<>
-    const char *const type_name<const double>();
-
-}
 #endif
 //PYLLARS
