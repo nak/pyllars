@@ -150,6 +150,8 @@ namespace __pyllars_internal {
 
         static PyObject *_get_item2(PyObject *self, Py_ssize_t index, const bool make_copy);
 
+        static PyObject *_at(PyObject *self, PyObject *args, PyObject *kwds);
+
         static int _contains(PyObject *self, PyObject *obj);
 
         void set_raw_storage(T_base *const storage, const size_t size);
@@ -197,78 +199,11 @@ namespace __pyllars_internal {
 
 
 
-    template<typename T>
-    struct PythonClassWrapper<T,typename std::enable_if<
-        !std::is_function<typename std::remove_pointer<T>::type>::value &&
-        !std::is_const<typename std::remove_pointer<T>::type>::value &&
-        (std::is_pointer<T>::value || std::is_array<T>::value) &&
-        (ptr_depth<T>::value > 1) &&
-        sizeof(T) == sizeof(typename base_type<T>::type*) >::type> :
-    public PythonPointerWrapperBase<T> {
-    public:
-        typedef PythonPointerWrapperBase<T> Base;
-        typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
-        typedef PythonClassWrapper<T const> ConstWrapper;
-        typedef PythonClassWrapper<typename std::remove_const<T>::type> NonConstWrapper;
-        typedef PythonClassWrapper<typename std::remove_reference<T>::type> NoRefWrapper;
-        typedef PythonClassWrapper<typename std::remove_const<typename std::remove_reference<T>::type>::type> NoRefNonConstWrapper;
-        typedef PythonClassWrapper<typename extent_as_pointer<T>::type> AsPtrWrapper;
-
-        PythonClassWrapper():Base(ptr_depth<T>::value){
-        }
-
-        T* get_CObject(){
-            static T* value = (T*)(Base::_get_CObject());
-            return value;
-        }
-
-        static
-        std::string get_name(){return std::string(type_name<T>());}
-
-
-        static PyTypeObject *getPyType(){
-            if(initialize() != 0){
-                return nullptr;
-            }
-            return &Type;
-        }
-        static int initialize(){return Base::_initialize(Type);}
-
-        static bool checkType(PyObject *const obj);
-
-        static bool checkTypeDereferenced(PyObject *const obj);
-
-        static PythonClassWrapper *createPy2(const ssize_t arraySize,
-                                             T * const cobj,
-                                             const bool isAllocated,
-                                             const bool inPlace,
-                                             PyObject *referencing = nullptr){
-            return reinterpret_cast<PythonClassWrapper*>(Base::_createPy2(Type, arraySize, cobj, isAllocated, inPlace, referencing));
-        }
-
-        static PythonClassWrapper *createPy(const ssize_t arraySize,
-                                                  ObjContainer<T> *const cobj,
-                                                  const bool isAllocated,
-                                                  const bool inPlace,
-                                                  PyObject *referencing = nullptr){
-            return reinterpret_cast<PythonClassWrapper*>(Base::_createPy(Type, arraySize, cobj, isAllocated, inPlace, referencing));
-        }
-
-
-    protected:
-        static PyObject *_at(PyObject *self, PyObject *args, PyObject *kwds);
-        static PyObject *_addr(PyObject *self, PyObject *args);
-        static int _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds);
-        static PyTypeObject Type;
-        static PyMethodDef _methods[];
-
-    };
 
 
     template<typename T>
     struct PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
             !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            std::is_const<typename std::remove_pointer<T>::type>::value &&
             (std::is_pointer<T>::value || std::is_array<T>::value) &&
             (ptr_depth<T>::value > 1) &&
             sizeof(T) == sizeof(typename base_type<T>::type*) >::type> :
@@ -325,7 +260,6 @@ namespace __pyllars_internal {
         }
 
     protected:
-        static PyObject *_at(PyObject *self, PyObject *args, PyObject *kwds);
         static PyObject *_addr(PyObject *self, PyObject *args);
 
         static int _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds);
@@ -376,7 +310,6 @@ namespace __pyllars_internal {
         }
 
     protected:
-        static PyObject *_at(PyObject *self, PyObject *args, PyObject *kwds);
         static PyObject *_addr(PyObject *self_, PyObject *args);
         static int _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds);
         static PyTypeObject Type;

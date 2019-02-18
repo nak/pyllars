@@ -401,6 +401,7 @@ TEST_F(PythonBased, TestPointers){
         ASSERT_NE(at, nullptr);
         derefed = PyObject_Call(at, args, nullptr);
         ASSERT_NE(derefed, nullptr);
+        ASSERT_NE(((PythonClassWrapper<PythonBased::BasicClass*>*) derefed)->get_CObject(), nullptr);
         ASSERT_EQ(((PythonClassWrapper<PythonBased::BasicClass*>*) derefed)->get_CObject(),
                   ((PythonClassWrapper<PythonBased::BasicClass*>*)ptrs[i])->get_CObject());
     }
