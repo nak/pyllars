@@ -2,6 +2,7 @@
 #define PYLLARS_TEMPLATES_H
 
 #include "pyllars_templates.hpp"
+#include <Python.h>
 #include <string.h>
 
 namespace __pyllars_internal {
@@ -21,27 +22,32 @@ namespace __pyllars_internal {
         Py_ssize_t index = 0;
         while (*(++argPtr)) {//first is Type to be returned and not to be parsed here
             PyObject *item = PyTuple_GetItem(tuple, index++);
+#if PY_MAJOR_VERSION == 2
             if (PyInt_Check(*argPtr) && PyInt_Check(item)) {
                 if (PyInt_AsLong(*argPtr) != PyInt_AsLong(item)) {
                     return false;
                 }
-            } else if (PyLong_Check(*argPtr) && PyLong_Check(item)) {
+            } else
+#endif
+            if (PyLong_Check(*argPtr) && PyLong_Check(item)) {
                 if (PyLong_AsLong(*argPtr) != PyLong_AsLong(item)) {
                     return false;
                 }
+#if PY_MAJOR_VERSION == 2
             } else if (PyString_Check(*argPtr) && PyString_Check(item)) {
 
                 if (strcmp(PyString_AsString(*argPtr), PyString_AsString(item)) != 0)
                 {
                     return false;
                 }
-                #if PY_MAJOR_VERSION == 3
+#endif
+#if PY_MAJOR_VERSION == 3
             } else if (PyBytes_Check(*argPtr) && PyBytes_Check(item)) {
                 if (strcmp(PyBytes_AsString(*argPtr), PyBytes_AsString(item)) != 0)
                 {
                     return false;
                 }
-                #endif
+#endif
             } else if (PyFloat_Check(*argPtr) && PyFloat_Check(item)) {
                 if (PyFloat_AsDouble(*argPtr) != PyFloat_AsDouble(item)){
                     return false;  //I don't think this case really can happen in C++ anyway
@@ -57,23 +63,29 @@ namespace __pyllars_internal {
                 PyObject* type = PyTuple_GetItem(item, 0);
                 PyObject* str = PyTuple_GetItem(item, 1);
                 if(item1 == (PyObject*) &PyLong_Type){
-		  if(type!= (PyObject*)&PyInt_Type && 
+		  if(
+#if PY_MAJOR_VERSION == 2
+		          type!= (PyObject*)&PyInt_Type &&
+#endif
 		     type != (PyObject*)&PyLong_Type){
                         return false;
                     }
+#if PY_MAJOR_VERSION == 2
                     if(!PyString_Check(str)){ return false;}
-
                     if(!strcmp(PyString_AsString(item2), PyString_AsString(str))==0){
                         return false;
                     }
+#endif
                 } else if(item1 == (PyObject*)&PyFloat_Type){
                     if(!PyFloat_Check(type)){
                         return false;
                     }
+#if PY_MAJOR_VERSION == 2
                     if(!PyString_Check(str)){ return false;}
                     if(!strcmp(PyString_AsString(item2), PyString_AsString(str))==0){
                         return false;
                     }
+#endif
                 } else {
                     return false;
                 }

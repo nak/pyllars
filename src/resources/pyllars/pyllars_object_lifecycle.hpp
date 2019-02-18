@@ -100,7 +100,7 @@ namespace __pyllars_internal {
 
         template<typename T>
         struct Copy<T, typename std::enable_if<std::is_destructible<typename std::remove_reference<T>::type>::value &&
-                                               std::is_assignable<typename std::remove_reference<T>::type, typename std::remove_reference<T>::type>::value &&
+                                               std::is_assignable<typename std::remove_reference<T>::type&, typename std::remove_reference<T>::type>::value &&
                                                std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type> {
             typedef typename std::remove_reference<T>::type T_NoRef;
             static ObjContainer <T_NoRef> *new_copy(const T &value) ;
@@ -113,7 +113,7 @@ namespace __pyllars_internal {
 
         template<typename T>
         struct Copy<T, typename std::enable_if<
-                (!std::is_assignable<typename std::remove_reference<T>::type, typename std::remove_reference<T>::type>::value ||
+                (!std::is_assignable<typename std::remove_reference<T>::type&, typename std::remove_reference<T>::type>::value ||
                  !std::is_destructible<typename std::remove_reference<T>::type>::value) &&
                 std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type> {
             typedef typename std::remove_reference<T>::type T_NoRef;

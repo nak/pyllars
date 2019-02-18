@@ -1,6 +1,6 @@
 
-#ifndef __PYLLARS_INTERNAL__MEMBERSEMANTICS_CPP_
-#define __PYLLARS_INTERNAL__MEMBERSEMANTICS_CPP_
+#ifndef __PYLLARS_INTERNAL__MEMBERSEMANTICS_IMPL_
+#define __PYLLARS_INTERNAL__MEMBERSEMANTICS_IMPL_
 
 #include "pyllars_membersemantics.hpp"
 #include "pyllars_classwrapper.impl"
@@ -11,7 +11,7 @@ namespace __pyllars_internal {
     template<const char *const name, typename T>
     PyObject *MemberContainer<CClass>::Container<name, T, typename std::enable_if<
             !std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value != 0>::type>::
-    get(PyObject *self) {
+    get(PyObject *self, void*) {
         if (!self) return nullptr;
         typedef PythonClassWrapper<CClass> Wrapper;
         Wrapper *_this = (Wrapper *) self;
@@ -30,7 +30,7 @@ namespace __pyllars_internal {
     template<const char *const name, typename T>
     int MemberContainer<CClass>::Container<name, T, typename std::enable_if<
             !std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value != 0>::type>::
-    set(PyObject *self, PyObject* pyVal) {
+    set(PyObject *self, PyObject* pyVal, void*) {
         if (!self) {
             PyErr_SetString(PyExc_RuntimeError, "Unexpceted nullptr value for self");
             return -1;
@@ -63,7 +63,7 @@ namespace __pyllars_internal {
     template<const char *const name, typename T>
     PyObject *MemberContainer<CClass>::Container<name, T, typename std::enable_if<
             !std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value == 0>::type>::
-    get(PyObject *self) {
+    get(PyObject *self, void*) {
         if (!self) return nullptr;
         typedef PythonClassWrapper<CClass> Wrapper;
         Wrapper *_this = (Wrapper *) self;
@@ -82,7 +82,7 @@ namespace __pyllars_internal {
     template<const char *const name, typename T>
     int MemberContainer<CClass>::Container<name, T, typename std::enable_if<
             !std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value == 0>::type>::
-    set(PyObject *self, PyObject *pyVal) {
+    set(PyObject *self, PyObject *pyVal, void*) {
        //nothing to do for zero size item
         return 0;
 
@@ -101,7 +101,7 @@ namespace __pyllars_internal {
     template<const char *const name, typename T>
     PyObject *MemberContainer<CClass>::Container<name, T, typename std::enable_if<
             std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value != 0>::type>::
-    get(PyObject *self) {
+    get(PyObject *self, void* v) {
         if (!self) return nullptr;
         typedef PythonClassWrapper<CClass> Wrapper;
         Wrapper *_this = (Wrapper *) self;
@@ -118,16 +118,25 @@ namespace __pyllars_internal {
 
     template<class CClass>
     template<const char *const name, typename T>
+    int MemberContainer<CClass>::Container<name, T, typename std::enable_if<
+            std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value != 0>::type>::
+    set(PyObject *self, PyObject *pyVal, void*) {
+        throw "Cannot set constant field";
+    }
+
+    template<class CClass>
+    template<const char *const name, typename T>
     void MemberContainer<CClass>::Container<name, T, typename std::enable_if<
             std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value != 0>::type>::
     setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj) {
         PyErr_SetString(PyExc_RuntimeError, "Attempt to set constant field");
+        throw "Attempt to set constant field";
     }
 
     template<class CClass>
     template<const char *const name, ssize_t size, typename T>
     PyObject *MemberContainer<CClass>::Container<name, T[size], void>::
-    get(PyObject *self) {
+    get(PyObject *self, void*) {
         try {
             if (!self) return nullptr;
             PythonClassWrapper<CClass> *_this = (PythonClassWrapper<CClass> *) self;
@@ -147,7 +156,7 @@ namespace __pyllars_internal {
 
                PyObject* obj = toPyObject<T_array>(_this->get_CObject()->*member, false,
                                             array_size);
-                ((PythonClassWrapper<T> *) obj)->make_reference(self);
+                ((PythonClassWrapper<T_array> *) obj)->make_reference(self);
                 return obj;
             }
             PyErr_SetString(PyExc_RuntimeError, "Internal Error:No C Object found to get member attribute value!");
@@ -161,7 +170,7 @@ namespace __pyllars_internal {
     template<class CClass>
     template<const char *const name, ssize_t size, typename T>
     int MemberContainer<CClass>::Container<name, T[size], void>::
-    set(PyObject *self, PyObject* pyVal) {
+    set(PyObject *self, PyObject* pyVal, void*) {
         PythonClassWrapper<CClass> *_this = (PythonClassWrapper<CClass> *) self;
         try{
             if (pyVal == Py_None) {
@@ -210,7 +219,7 @@ namespace __pyllars_internal {
     template<class CClass>
     template<const char *const name, ssize_t size, typename T>
     PyObject *MemberContainer<CClass>::Container<name, const T[size], void>::
-    get(PyObject *self) {
+    get(PyObject *self, void*) {
         if (!self) return nullptr;
         PythonClassWrapper<CClass> *_this = (PythonClassWrapper<CClass> *) self;
 
@@ -247,7 +256,7 @@ namespace __pyllars_internal {
     template<class CClass>
     template<const char *const name, typename T>
     PyObject *MemberContainer<CClass>::Container<name, T[], typename std::enable_if<!std::is_const<T>::value>::type>::
-    get(PyObject *self) {
+    get(PyObject *self, void*) {
         if (!self) return nullptr;
         PythonClassWrapper<CClass> *_this = (PythonClassWrapper<CClass> *) self;
 
@@ -264,7 +273,7 @@ namespace __pyllars_internal {
     template<class CClass>
     template<const char *const name, typename T>
     int MemberContainer<CClass>::Container<name, T[], typename std::enable_if<!std::is_const<T>::value>::type>::
-    set(PyObject *self, PyObject* pyVal) {
+    set(PyObject *self, PyObject* pyVal, void*) {
         if (!self) return nullptr;
         PythonClassWrapper<CClass> *_this = (PythonClassWrapper<CClass> *) self;
         try{
@@ -316,6 +325,8 @@ namespace __pyllars_internal {
             (self->*member)[i] = (*val)[i];
         }
     }
+
+
 
 
     template<class CClass>
@@ -405,7 +416,7 @@ namespace __pyllars_internal {
     template<typename CClass>
     template<const char *const name, typename T, const size_t bits>
     PyObject *BitFieldContainer<CClass>::Container<name, T, bits>::
-    get(PyObject *self) {
+    get(PyObject *self, void*) {
         if (!self) return nullptr;
         typedef PythonClassWrapper<CClass> Wrapper;
         Wrapper *_this = (Wrapper *) self;
@@ -420,9 +431,13 @@ namespace __pyllars_internal {
     template<typename CClass>
     template<const char *const name, typename T, const size_t bits>
     int BitFieldContainer<CClass>::Container<name, T, bits>::
-    set(PyObject *self, PyObject* pyVal) {
+    set(PyObject *self, PyObject* pyVal, void*) {
         if (!self) {
             PyErr_SetString(PyExc_RuntimeError, "Unexpected null value for self");
+            return -1;
+        }
+        if(!pyVal){
+            PyErr_SetString(PyExc_TypeError, "Null reference encountered on setting value");
             return -1;
         }
         typedef PythonClassWrapper<CClass> Wrapper;
@@ -454,7 +469,7 @@ namespace __pyllars_internal {
     template<typename CClass>
     template<const char *const name, typename T, const size_t bits>
     PyObject *BitFieldContainer<CClass>::ConstContainer<name, T, bits>::
-    get(PyObject *self) {
+    get(PyObject *self, void*) {
         if (!self) return nullptr;
         typedef PythonClassWrapper<CClass> Wrapper;
         Wrapper *_this = (Wrapper *) self;

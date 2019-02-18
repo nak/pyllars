@@ -5,7 +5,6 @@
 
 #include "pyllars_const.hpp"
 #include "pyllars_varargs.impl"
-#include "pyllars_templates.impl"
 #include "pyllars_pointer.impl"
 #include "pyllars_classwrapper.impl"
 
@@ -1329,7 +1328,6 @@ namespace __pyllars_internal {
     template
     class PythonClassWrapper<const unsigned long long>;
 
-    template
-    struct Types<const char>;
+
 
 }

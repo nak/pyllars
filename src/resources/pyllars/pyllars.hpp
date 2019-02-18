@@ -28,8 +28,8 @@ namespace pyllars {
          * Call all initializers, passing in the global pyllars module
          */
         virtual status_t init(PyObject *const global_module) {
-            int status = 0;
             if (!_initializers) return 0;
+            int status = 0;
             for (auto &_initializer : *_initializers) {
                 status |= _initializer->init(global_module);
             }
@@ -37,11 +37,15 @@ namespace pyllars {
             return status;
         }
 
+        /**
+         * Call initailizers that are registered to run last, after all others
+         * @return 0 on success, non-zero otherwise
+         */
         virtual status_t init_last(PyObject *const global_module) {
             int status = 0;
             if (!_initializers_last) return 0;
             for (auto &it : *_initializers_last) {
-                status |= it->init(global_module);
+                status |= it->init_last(global_module);
             }
             _initializers_last->clear();
             return status;
@@ -138,7 +142,7 @@ namespace __pyllars_internal {
         void make_reference(PyObject *obj);
 
         inline static bool checkType(PyObject *const obj) {
-            return PyObject_TypeCheck(obj, &Type);
+            return PyObject_TypeCheck(obj, getPyType());
         }
 
         static constexpr PyObject *const parent_module = nullptr;
@@ -155,6 +159,12 @@ namespace __pyllars_internal {
             return &value;
         }
 
+        static PyTypeObject* getPyType(){
+            if(initialize() != 0){
+                return nullptr;
+            }
+            return &Type;
+        }
 
         static PyMethodDef _methods[];
 

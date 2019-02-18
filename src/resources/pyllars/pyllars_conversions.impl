@@ -305,7 +305,7 @@ namespace __pyllars_internal {
     toPyObject(const T &var, const bool asReference, const ssize_t array_size) {
         static PyObject *args = PyTuple_New(1);
         (void) asReference;
-        PyTypeObject *type = &PythonClassWrapper<int>::Type;
+        PyTypeObject *type = PythonClassWrapper<T>::getPyType();
         PyTuple_SetItem(args, 0, PyLong_FromLong((long int) var));
         return PyObject_Call((PyObject *) type, args, nullptr);
 //        return PyInt_FromLong((long) var);

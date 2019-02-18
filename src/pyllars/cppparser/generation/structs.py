@@ -17,7 +17,8 @@ class GeneratorBodyCXXRecordDecl(GeneratorBody):
 
     def generate(self):
         if not self._element.name and self._element.children():
-            self._stream.write(("""
+            self.common_stream().write("""
+                    #include "%(header)s"
                     namespace __pyllars_internal{
                         template<>
                         const char* const _Types<decltype(%(name)s)>::type_name(){
@@ -26,7 +27,8 @@ class GeneratorBodyCXXRecordDecl(GeneratorBody):
                         }
                             
                     }
-            """ % {'name': self._element.children()[0].full_name}).encode('utf-8'))
+            """ % {'name': self._element.children()[0].full_name,
+                   'header': self._src_path})
         if not self._element.is_definition or self._element.is_implicit or not self._element.name:
             return
 

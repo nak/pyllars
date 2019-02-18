@@ -184,61 +184,61 @@ namespace __pyllars_internal{
 
     template<typename T>
     PyTypeObject PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value &&  !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
-            Type = {
+    typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value &&  !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+    Type = {
 #if PY_MAJOR_VERSION == 3
-                    PyVarObject_HEAD_INIT(NULL, 0)
+            PyVarObject_HEAD_INIT(NULL, 0)
 #else
-                    PyObject_HEAD_INIT(nullptr)
-                    0,                         /*ob_size*/
+            PyObject_HEAD_INIT(nullptr)
+            0,                         /*ob_size*/
 #endif
-                    nullptr,             /*tp_name*/ /*filled on init*/
-                    sizeof(PythonClassWrapper),             /*tp_basicsize*/
-                    0,                         /*tp_itemsize*/
-                    (destructor) PythonClassWrapper::_dealloc, /*tp_dealloc*/
-                    nullptr,                         /*tp_print*/
-                    _pyGetAttr,                         /*tp_getattr*/
-                    _pySetAttr,                         /*tp_setattr*/
-                    nullptr,                         /*tp_compare*/
-                    nullptr,                         /*tp_repr*/
-                    new PyNumberMethods{0},          /*tp_as_number*/
-                    nullptr,                         /*tp_as_sequence*/
-                    nullptr,                         /*tp_as_mapping*/
-                    nullptr,                         /*tp_hash */
-                    nullptr,                         /*tp_call*/
-                    nullptr,                         /*tp_str*/
-                    nullptr,                         /*tp_getattro*/
-                    nullptr,                         /*tp_setattro*/
-                    nullptr,                         /*tp_as_buffer*/
-                    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_CHECKTYPES, /*tp_flags*/
-                    "PythonClassWrapper object",           /* tp_doc */
-                    nullptr,                       /* tp_traverse */
-                    nullptr,                       /* tp_clear */
-                    nullptr,                       /* tp_richcompare */
-                    0,                               /* tp_weaklistoffset */
-                    nullptr,                       /* tp_iter */
-                    nullptr,                       /* tp_iternext */
-                    PythonClassWrapper::_methodCollection.data(),             /* tp_methods */
-                    nullptr,             /* tp_members */
-                    nullptr,                         /* tp_getset */
-                    Base::TypePtr,                         /* tp_base */
-                    nullptr,                         /* tp_dict */
-                    nullptr,                         /* tp_descr_get */
-                    nullptr,                         /* tp_descr_set */
-                    0,                         /* tp_dictoffset */
-                    (initproc) PythonClassWrapper::_init,  /* tp_init */
-                    nullptr,                         /* tp_alloc */
-                    PythonClassWrapper::_new,             /* tp_new */
-                    _free,                         /*tp_free*/
-                    nullptr,                         /*tp_is_gc*/
-                    nullptr,                         /*tp_bases*/
-                    nullptr,                         /*tp_mro*/
-                    nullptr,                         /*tp_cache*/
-                    nullptr,                         /*tp_subclasses*/
-                    nullptr,                          /*tp_weaklist*/
-                    nullptr,                          /*tp_del*/
-                    0,                          /*tp_version_tag*/
-            };
+            nullptr,             /*tp_name*/ /*filled on init*/
+            sizeof(PythonClassWrapper),             /*tp_basicsize*/
+            0,                         /*tp_itemsize*/
+            (destructor) PythonClassWrapper::_dealloc, /*tp_dealloc*/
+            nullptr,                         /*tp_print*/
+            _pyGetAttr,                         /*tp_getattr*/
+            _pySetAttr,                         /*tp_setattr*/
+            nullptr,                         /*tp_compare*/
+            nullptr,                         /*tp_repr*/
+            new PyNumberMethods{0},          /*tp_as_number*/
+            nullptr,                         /*tp_as_sequence*/
+            nullptr,                         /*tp_as_mapping*/
+            nullptr,                         /*tp_hash */
+            nullptr,                         /*tp_call*/
+            nullptr,                         /*tp_str*/
+            nullptr,                         /*tp_getattro*/
+            nullptr,                         /*tp_setattro*/
+            nullptr,                         /*tp_as_buffer*/
+            Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_CHECKTYPES, /*tp_flags*/
+            "PythonClassWrapper object",           /* tp_doc */
+            nullptr,                       /* tp_traverse */
+            nullptr,                       /* tp_clear */
+            nullptr,                       /* tp_richcompare */
+            0,                               /* tp_weaklistoffset */
+            nullptr,                       /* tp_iter */
+            nullptr,                       /* tp_iternext */
+            PythonClassWrapper::_methodCollection.data(),             /* tp_methods */
+            nullptr,             /* tp_members */
+            nullptr,                         /* tp_getset */
+            Base::TypePtr,                         /* tp_base */
+            nullptr,                         /* tp_dict */
+            nullptr,                         /* tp_descr_get */
+            nullptr,                         /* tp_descr_set */
+            0,                         /* tp_dictoffset */
+            (initproc) PythonClassWrapper::_init,  /* tp_init */
+            nullptr,                         /* tp_alloc */
+            PythonClassWrapper::_new,             /* tp_new */
+            _free,                         /*tp_free*/
+            nullptr,                         /*tp_is_gc*/
+            nullptr,                         /*tp_bases*/
+            nullptr,                         /*tp_mro*/
+            nullptr,                         /*tp_cache*/
+            nullptr,                         /*tp_subclasses*/
+            nullptr,                          /*tp_weaklist*/
+            nullptr,                          /*tp_del*/
+            0,                          /*tp_version_tag*/
+    };
 
 
 
@@ -706,6 +706,22 @@ namespace __pyllars_internal{
             for (auto it = _baseClasses.begin(); it != _baseClasses.end(); ++it) {
                 PyTuple_SET_ITEM(Type.tp_bases, index++, (PyObject *) *it);
             }
+        }
+        Type.tp_getset = new PyGetSetDef[_member_getters.size()+1];
+        Type.tp_getset[_member_getters.size()] = {0};
+        size_t index = 0;
+        for (auto const& [key, getter]: _member_getters){
+            auto it = _member_setters.find(key);
+            _setattrfunc setter = nullptr;
+            if (it != _member_setters.end()){
+                setter = it->second;
+            }
+            Type.tp_getset[index].name = key.c_str();
+            Type.tp_getset[index].get = getter;
+            Type.tp_getset[index].set = setter;
+            Type.tp_getset[index].doc ="get/set attribute";
+            Type.tp_getset[index].closure = nullptr;
+            index ++;
         }
         if (PyType_Ready(&Type) < 0) {
             PyErr_SetString(PyExc_RuntimeError, "Failed to ready type!");
@@ -1631,7 +1647,7 @@ namespace __pyllars_internal{
                                     !std::is_pointer<T>::value>::type>::
     _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds) {
         if (Type.tp_base && Base::TypePtr->tp_init) {
-        PyObject *empty = PyTuple_New(0);
+            PyObject *empty = PyTuple_New(0);
             Base::TypePtr->tp_init((PyObject *) &self->baseClass, empty, nullptr);
             PyErr_Clear();
             Py_DECREF(empty);
@@ -1639,6 +1655,7 @@ namespace __pyllars_internal{
         self->_allocated = false;
         self->_inPlace = false;
         self->_arraySize = 0;
+        self->_referenced = nullptr;
         if (!_member_getters.count("this")){
             _member_getters["this"] = getThis;
         }
@@ -1656,11 +1673,6 @@ namespace __pyllars_internal{
         (void) kwds;
         PythonClassWrapper *self;
         self = (PythonClassWrapper *) type->tp_alloc(type, 0);
-        /*if( Type.tp_base && Base::TypePtr->tp_new){
-          PyObject* empty = PyTuple_New(0);
-          Base::TypePtr->tp_new( Type.tp_base, empty, nullptr);
-          Py_DECREF(empty);
-          }*/
         if (nullptr != self) {
             self->_CObject = nullptr;
         }
@@ -1677,8 +1689,6 @@ namespace __pyllars_internal{
         PythonClassWrapper *self = (PythonClassWrapper *) self_;
         if (!self->_CObject) return;
         if (self->_allocated) {
-            //Deallocator<T_NoRef>::dealloc(
-            //        self->_CObject->ptr(), self->_inPlace, self->_arraySize);
             if(self->_allocated) delete self->_CObject;
         }
         if (self->_allocated) self->_CObject = nullptr;
@@ -1878,9 +1888,6 @@ namespace __pyllars_internal{
             static const char *const doc = "Get attribute ";
             char *doc_string = new char[strlen(name) + strlen(doc) + 1];
             snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
-            //static const char *const getter_prefix = "get_";
-            //char *getter_name = new char[strlen(name) +strlen(getter_prefix)+1];
-            //snprintf(getter_name, strlen(name) +strlen(getter_prefix)+1, "%s%s_",getter_prefix,name);
             MemberContainer<T_NoRef>::template Container<name, FieldType[size]>::member = member;
             _member_getters[name] = MemberContainer<T_NoRef>::template Container<name, FieldType[size]>::get;
             _member_setters[name] = MemberContainer<T_NoRef>::template Container<name, FieldType[size]>::set;
@@ -1905,12 +1912,6 @@ namespace __pyllars_internal{
                               doc_string
         };
         _addMethod(pyMeth);
-        /*PythonClassWrapper<FieldType>::initializer(name, name, nullptr, nullptr);
-        const ssize_t array_size = ArraySize<FieldType>::size;
-        PyDict_SetAttrString(PythonClassWrapper::Type::tp_dict, name, PythonClassWrapper<FieldType>::createPy(array_size,
-                   new ObjContainerProxy<FieldType, FieldType>(member),
-                   false,
-                   false));*/
     }
 
 
@@ -1933,12 +1934,6 @@ namespace __pyllars_internal{
                                   doc_string
             };
             _addMethod(pyMeth);
-            /*PythonClassWrapper<FieldType>::initializer(name, name, nullptr, nullptr);
-            const ssize_t array_size = ArraySize<FieldType>::size;
-            PyDict_SetAttrString(PythonClassWrapper::Type::tp_dict, name, PythonClassWrapper<FieldType>::createPy(array_size,
-                   new ObjContainerProxy<FieldType, FieldType>(member),
-                   false,
-                   false));*/
     }
 }
 

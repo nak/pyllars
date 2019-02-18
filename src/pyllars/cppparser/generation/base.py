@@ -369,9 +369,12 @@ extern "C"{
                     except:
                         log.exception("Failed to compile %s" % body_generator.body_file_path)
                     element, folder, parent = pop()
+                GeneratorBody.common_stream().flush()
 
             async def main():
                 await asyncio.gather(*[generate_elements() for _ in range(multiprocessing.cpu_count())])
+                obj = await compiler.compile_async(GeneratorBody.common_stream().name);
+                objects.append(obj)
             asyncio.run(main())
         return objects
 

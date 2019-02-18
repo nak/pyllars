@@ -31,8 +31,8 @@ namespace __pyllars_internal {
             static member_t member;
             static size_t array_size;
 
-            static int set(PyObject* o, PyObject* value);
-            static PyObject* get(PyObject* o);
+            static int set(PyObject* o, PyObject* value, void* v=nullptr);
+            static PyObject* get(PyObject* o, void* v=nullptr);
 
             static void setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj);
 
@@ -49,8 +49,8 @@ namespace __pyllars_internal {
             static member_t member;
             static size_t array_size;
 
-            static int set(PyObject* o,  PyObject* value);
-            static PyObject* get(PyObject* o);
+            static int set(PyObject* o,  PyObject* value, void* v=nullptr);
+            static PyObject* get(PyObject* o, void* v=nullptr);
 
 
             static void setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj);
@@ -67,8 +67,8 @@ namespace __pyllars_internal {
             static member_t member;
             static size_t array_size;
 
-            static int set(PyObject* o, PyObject* value);
-            static PyObject* get(PyObject* o);
+            static int set(PyObject* o, PyObject* value, void* v=nullptr);
+            static PyObject* get(PyObject* o, void* v= nullptr);
 
 
             static void setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj);
@@ -84,8 +84,8 @@ namespace __pyllars_internal {
             static member_t member;
             static size_t array_size;
 
-            static int set(PyObject* o, PyObject* value);
-            static PyObject* get(PyObject* o);
+            static int set(PyObject* o, PyObject* value, void* v=nullptr);
+            static PyObject* get(PyObject* o, void* v=nullptr);
 
             static void setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj);
 
@@ -101,8 +101,8 @@ namespace __pyllars_internal {
             static member_t member;
             static size_t array_size;
 
-            static int set(PyObject* o, PyObject* value);
-            static PyObject* get(PyObject* o);
+            static int set(PyObject* o, PyObject* value, void* v=nullptr);
+            static PyObject* get(PyObject* o, void* v=nullptr);
 
             static void setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj);
 
@@ -119,8 +119,8 @@ namespace __pyllars_internal {
             static member_t member;
             static size_t array_size;
 
-            static int set(PyObject* o, PyObject* value);
-            static PyObject* get(PyObject* o);
+            static int set(PyObject* o, PyObject* value, void* v=nullptr);
+            static PyObject* get(PyObject* o, void* v=nullptr);
 
             static void setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj);
 
@@ -136,13 +136,12 @@ namespace __pyllars_internal {
             static member_t member;
             static size_t array_size;
 
-            static int set(PyObject* o, PyObject* value);
-            static PyObject* get(PyObject* o);
+            static int set(PyObject* o, PyObject* value, void* v=nullptr);
+            static PyObject* get(PyObject* o, void* v=nullptr);
 
 
             static void setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj);
         };
-
 
     };
 
@@ -162,8 +161,8 @@ namespace __pyllars_internal {
             static getter_t _getter;
             static setter_t _setter;
 
-            static int set(PyObject* o, PyObject* value);
-            static PyObject* get(PyObject* o);
+            static int set(PyObject* o, PyObject* value, void* v=nullptr);
+            static PyObject* get(PyObject* o, void* v=nullptr);
 
 
             static void setFromPyObject(CClass_NoRef *self, PyObject *pyobj);
@@ -180,8 +179,8 @@ namespace __pyllars_internal {
 
             static getter_t _getter;
 
-            static int set(PyObject* o, PyObject* value);
-            static PyObject* get(PyObject* o);
+            static int set(PyObject* o, PyObject* value, void* v=nullptr);
+            static PyObject* get(PyObject* o, void* v=nullptr);
 
             static void setFromPyObject(CClass_NoRef *self, PyObject *pyobj);
 

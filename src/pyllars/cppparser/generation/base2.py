@@ -3,6 +3,7 @@ import hashlib
 import logging
 import os
 import shlex
+import shutil
 import subprocess
 import sysconfig
 import tempfile
@@ -146,16 +147,15 @@ extern "C"{
 
     def __init__(self, compiler_flags: List[str], linker_options: List[str], debug=True):
         self._compiler_flags = compiler_flags
-        self._link_flags = linker_options
+        self._link_flags = linker_options + ["-L./libs", "-lpyllars"]
         self._debug = debug
         self._optimization_level = "-O0"
 
     def link(self, objects, output_module_path, module_name: str, global_module_name: Optional[str] = None):
+        dir = os.path.dirname(__file__)
+        libpyllars = os.path.join(dir, "..", "..", "..", "resources", "pyllars", "cmake-build-debug", "libpyllars.so")
+        shutil.copy(libpyllars, os.path.join("libs", "libpyllars.so"))
         code = self.CODE % {b'name': (module_name or "pyllars").encode('utf-8')}
-        compiler = Compiler(compiler_flags=self._compiler_flags + ["-I%s" % pyllars_resources_dir],
-                            output_dir=output_module_path, optimization_level=self._optimization_level,
-                            debug=self._debug)
-        pyllars_obj = compiler.compile(os.path.join(pyllars_resources_dir, "pyllars", "pyllars.cpp"))
 
         with tempfile.NamedTemporaryFile(mode='wb', suffix='.cpp') as f:
             f.write(code)
@@ -166,7 +166,7 @@ extern "C"{
                       'cxxflags': Compiler.CFLAGS + " " + " ".join(self._compiler_flags),
                       'linker_flags': " ".join(self._link_flags),
                       'output_module_path': os.path.join(output_module_path, "%s.so" % module_name),
-                      'objs': "%s " % pyllars_obj + " ".join(["\"%s\"" % o for o in objects]),
+                      'objs': " ".join(["\"%s\"" % o for o in objects]),
                       'pyllars_include': pyllars_resources_dir,
                       'python_include': Compiler.PYINCLUDE,
                       'codefile': f.name,
@@ -186,7 +186,10 @@ extern "C"{
                 raise Exception("Failed to link module")
 
     def link_bare(self, objects, output_lib_path):
-            cmd = "%(cxx)s -shared -O -fPIC -std=c++14 %(cxxflags)s -shared -o %(output_lib_path)s -Wl,--no-undefined " \
+        dir = os.path.dirname(__file__)
+        libpyllars = os.path.join(dir, "..", "..", "..", "resources", "pyllars", "cmake-build-debug", "libpyllars.so")
+        shutil.copy(libpyllars, os.path.join("libs", "libpyllars.so"))
+        cmd = "%(cxx)s -shared -O -fPIC -std=c++14 %(cxxflags)s -shared -o %(output_lib_path)s -Wl,--no-undefined " \
                   "%(objs)s %(linker_flags)s -Wl,-R,'$ORIGIN' -lpthread -lffi" % {
                       'cxx': Compiler.LDCXXSHARED,
                       'cxxflags': Compiler.CFLAGS + " " + " ".join(self._compiler_flags),
@@ -194,18 +197,18 @@ extern "C"{
                       'output_lib_path': output_lib_path,
                       'objs': " ".join(["\"%s\"" % o for o in objects]),
                   }
-            cmd = cmd.replace("-O2", self._optimization_level)
-            cmd = cmd.replace("-O3", self._optimization_level)
-            if not self._debug:
-                cmd = cmd.replace("-g", "")
-            elif " -g" not in cmd:
-                cmd += " -g"
-            print(cmd)
-            p = subprocess.run(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
-            if p.returncode != 0:
-                print(p.stdout)
-                print(p.stderr)
-                raise Exception("Failed to link module")
+        cmd = cmd.replace("-O2", self._optimization_level)
+        cmd = cmd.replace("-O3", self._optimization_level)
+        if not self._debug:
+            cmd = cmd.replace("-g", "")
+        elif " -g" not in cmd:
+            cmd += " -g"
+        print(cmd)
+        p = subprocess.run(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
+        if p.returncode != 0:
+            print(p.stdout)
+            print(p.stderr)
+            raise Exception("Failed to link module")
 
 
 class Folder(object):
@@ -388,6 +391,15 @@ class GeneratorBody(BaseGenerator):
                     return Initializer_%(name)s::singleton()->register_init(init);
                 }"""
 
+    _common_stream = None
+
+    @staticmethod
+    def common_stream():
+        if GeneratorBody._common_stream is None:
+            GeneratorBody._common_stream = tempfile.NamedTemporaryFile(mode='w', suffix=".cpp")
+            GeneratorBody._common_stream.write("#include <pyllars/pyllars.hpp>\n")
+        return GeneratorBody._common_stream
+
     @staticmethod
     def _get_generator_class(element: code_structure.Element) -> Type["GeneratorBody"]:
         from . import _get_generator_body_class
@@ -417,7 +429,8 @@ class GeneratorBody(BaseGenerator):
             self._stream = open(self._body_file_path, 'w+b')
             self.write_include_directives()
             if self._element.is_typename and self._element.name:
-                self._stream.write(("""
+                self.common_stream().write("""
+                    #include "%(header)s"
                     template<>            
                     const char* const  __pyllars_internal::_Types<%(full_name)s>::type_name(){
                        static const char* const name = "%(full_name)s";
@@ -425,7 +438,8 @@ class GeneratorBody(BaseGenerator):
                     }
                 """ % {
                     'full_name': self._element.full_name,
-                }).encode('utf-8'))
+                    'header': self._src_path
+                })
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):

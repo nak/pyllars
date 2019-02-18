@@ -5,7 +5,6 @@
 
 #include "pyllars.hpp"
 #include "pyllars_varargs.impl"
-#include "pyllars_templates.impl"
 #include "pyllars_pointer.impl"
 #include "pyllars_classwrapper.impl"
 
@@ -104,44 +103,6 @@ int pyllars::pyllars_register_last( Initializer* const init){
 
 namespace __pyllars_internal {
 
-    PyObject *
-    _GenericDeepPointerWrapper::_addr(PyObject *self_, PyObject *args) {
-        _GenericDeepPointerWrapper *self = reinterpret_cast<_GenericDeepPointerWrapper *>(self_);
-        if (!self->_CObject || !*self->_CObject) {
-            PyErr_SetString(PyExc_RuntimeError, "Cannot take address of null pointer!");
-            return nullptr;
-        }
-        try {
-            void **obj = reinterpret_cast<void **>(self->_CObject->ptr());
-            _GenericDeepPointerWrapper *pyobj = reinterpret_cast<_GenericDeepPointerWrapper *>(
-                    _GenericDeepPointerWrapper::createPy2(1, (void ***) &obj, false, false, (PyObject *) self));
-            pyobj->_depth = self->_depth + 1;
-            return reinterpret_cast<PyObject *>(pyobj);
-        } catch (const char *const msg) {
-            PyErr_SetString(PyExc_RuntimeError, msg);
-            return nullptr;
-        }
-    }
-
-
-    PyObject *
-    _GenericDeepPointerConstWrapper::_addr(PyObject *self_, PyObject *args) {
-        _GenericDeepPointerConstWrapper *self = reinterpret_cast<_GenericDeepPointerConstWrapper *>(self_);
-        if (!self->_CObject || !*self->_CObject) {
-            PyErr_SetString(PyExc_RuntimeError, "Cannot take address of null pointer!");
-            return nullptr;
-        }
-        try {
-            const void **obj = (const void **) (self->_CObject->ptr());
-            _GenericDeepPointerConstWrapper *pyobj = reinterpret_cast<_GenericDeepPointerConstWrapper *>(
-                    _GenericDeepPointerConstWrapper::createPy2(1, &obj, false, false, (PyObject *) self));
-            pyobj->_depth = self->_depth + 1;
-            return reinterpret_cast<PyObject *>(pyobj);
-        } catch (const char *const msg) {
-            PyErr_SetString(PyExc_RuntimeError, msg);
-            return nullptr;
-        }
-    }
 
     PyTypeObject PyNumberCustomBase::Type = {
 #if PY_MAJOR_VERSION == 3
@@ -747,8 +708,12 @@ namespace __pyllars_internal {
 
     template<typename number_type>
     int PyNumberCustomObject<number_type>::initialize() {
-        PyType_Ready(&PyNumberCustomBase::Type);
-        const int rc = PyType_Ready(&PyNumberCustomObject::Type);
+        static bool inited = false;
+        static int rc = -1;
+        if(inited) return rc;
+        inited = true;
+        rc = PyType_Ready(&PyNumberCustomBase::Type);
+        rc = rc | PyType_Ready(&PyNumberCustomObject::Type);
         return rc;
     }
 
@@ -1593,5 +1558,102 @@ namespace __pyllars_internal {
         }*/
         return subtype;
     }
+
+    template<>
+    struct _Types<char> {
+        static const char *const type_name(){
+            static const char* const name = "c_char";
+            return name;
+        }
+    };
+
+    template<>
+    struct _Types<short> {
+        static const char *const type_name(){
+            static const char* const name = "c_short";
+            return name;
+        }
+    };
+
+    template<>
+    struct _Types<int> {
+        static  const char *const type_name(){
+            static const char* const name = "c_int";
+            return name;
+        }
+    };
+
+    template<>
+    struct _Types<long> {
+        static const char *const type_name(){
+            static const char* const name = "c_long";
+            return name;
+        }
+    };
+
+
+    template<>
+    struct _Types<long long> {
+        static const char *const type_name(){
+            static const char* const name = "c_long_long";
+            return name;
+        }
+    };
+
+    template<>
+    struct _Types<unsigned char>{
+        static const char *const type_name(){
+            static const char* const name = "c_unsigned_char";
+            return name;
+        }
+    };
+
+    template<>
+    struct _Types<unsigned short>{
+        static const char *const type_name(){
+            static const char* const name = "c_unsigned_short";
+            return name;
+        }
+    };
+
+    template<>
+    struct _Types<unsigned int>{
+        static const char *const type_name(){
+            static const char* const name = "c_unsigned_int";
+            return name;
+        }
+    };
+
+    template<>
+    struct _Types<unsigned long>{
+        static const char *const type_name(){
+            static const char* const name = "c_unsigned_long";
+            return name;
+        }
+    };
+
+    template<>
+    struct _Types<unsigned long long>{
+        static const char *const type_name(){
+            static const char* const name = "c_unsigned_long_long";
+            return name;
+        }
+    };
+
+    template<>
+    struct _Types<float> {
+        static const char *const type_name(){
+            static const char* const name = "c_float";
+            return name;
+        }
+    };
+
+    template<>
+    struct _Types<double> {
+        static const char *const type_name(){
+            static const char* const name = "c_double";
+            return name;
+        }
+    };
 }
 #include "pyllars_const.cpp"

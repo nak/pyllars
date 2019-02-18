@@ -188,7 +188,7 @@ namespace __pyllars_internal{
                         break;
                     case FFI_TYPE_POINTER:
                         if (STRING_TYPE == subtype) {
-                            extra_arg_values[i].ptrvalue = PyString_AsString(nextArg);
+                            extra_arg_values[i].ptrvalue = (void*) PyString_AsString(nextArg);
                             arg_values[i] = &extra_arg_values[i].ptrvalue;
                         } else if (COBJ_TYPE == subtype) {
                             static const size_t offset = offset_of<ObjContainer<Arbitrary>*, PythonClassWrapper<Arbitrary> >

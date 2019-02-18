@@ -29,8 +29,8 @@ static constexpr cstring operatormapname = "operator[]";
 namespace __pyllars_internal {
 
 
-    typedef int (*_setattrfunc)(PyObject*, PyObject*);
-    typedef PyObject* (*_getattrfunc)(PyObject*);
+    typedef int (*_setattrfunc)(PyObject*, PyObject*, void*);
+    typedef PyObject* (*_getattrfunc)(PyObject*, void*);
 
     template<typename T, typename E=void>
     class InitHelper;
@@ -74,6 +74,9 @@ namespace __pyllars_internal {
         typename PythonClassWrapper::T_NoRef *get_CObject() ;
 
         static PyTypeObject* getType(){
+            if(initialize() != 0){
+                return nullptr;
+            }
             return &Type;
         }
 
@@ -348,11 +351,12 @@ namespace __pyllars_internal {
             return 0;
         }
 
-        template<const char* const type_name, typename EnumType>
+        template<typename EnumType>
         static int addEnumClassValue( const char* const name, EnumType value){
-            const bool inited = PythonClassWrapper<EnumType>::_isInitialized;
+            //const bool inited = PythonClassWrapper<EnumType>::_isInitialized;
+            PythonClassWrapper<EnumType>::initialize();
             PyObject* pyval = toPyObject<EnumType>(value, false, 1);
-            PythonClassWrapper<EnumType>::_isInitialized = inited; // chicken and egg here, only initialize to create instances that then get added back into class
+            //PythonClassWrapper<EnumType>::_isInitialized = inited; // chicken and egg here, only initialize to create instances that then get added back into class
             int status = pyval?0:-1;
             if (pyval){
                 addClassMember(name, pyval);
@@ -521,7 +525,6 @@ namespace __pyllars_internal {
         }
         static bool _isInitialized;
 
-
     protected:
 
         static PyObject *alloc(PyObject *cls, PyObject *args, PyObject *kwds);
@@ -532,14 +535,14 @@ namespace __pyllars_internal {
 
     private:
 
-        static PyObject* getThis(PyObject* self){
+        static PyObject* getThis(PyObject* self, void*){
             return addr(self, nullptr);
         }
 
         static int
         _pyAssign(PyObject* self, PyObject* value){
             for ( _setattrfunc assigner: _assigners){
-                if( assigner(self, value) == 0){
+                if( assigner(self, value, nullptr) == 0){
                     return 0;
                 }
             }
@@ -553,14 +556,14 @@ namespace __pyllars_internal {
                 PyErr_SetString(PyExc_ValueError, "No such attribute or attempt to set const attribute");
                 return -1;
             }
-            return _member_setters[attrname](self, value);
+            return _member_setters[attrname](self, value, nullptr);
         }
 
         static PyObject* _pyGetAttr(PyObject* self,  char* attrname){
             if (!_member_getters.count(attrname)){
               return PyObject_GenericGetAttr(self, PyString_FromString(attrname));
             }
-            return _member_getters[attrname](self);
+            return _member_getters[attrname](self, nullptr);
         }
 
         static int

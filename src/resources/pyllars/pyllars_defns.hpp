@@ -22,7 +22,7 @@ namespace __pyllars_internal {
 
 
 
-    template<typename T, typename E=void>
+    template<typename T>
     struct _Types{
         static const char* const type_name();
     };
@@ -51,11 +51,42 @@ namespace __pyllars_internal {
         }
     };
 
+    template<typename T>
+    struct Types<const volatile T>{
+        static const char* const type_name(){
+            static const std::string namebase = std::string("const_volatile_") + std::string(Types<typename std::remove_volatile<T>::type>::type_name());
+            return namebase.c_str();
+        }
+    };
 
     template<typename T>
     struct Types<T*>{
         static const char* const type_name(){
 	  static std::string namebase = std::string(Types<typename std::remove_pointer<T>::type>::type_name()) + '*';
+            return namebase.c_str();
+        }
+    };
+
+    template<typename T>
+    struct Types<const T*>{
+        static const char* const type_name(){
+            static std::string namebase = std::string("const_") + std::string(Types<typename std::remove_pointer<T>::type>::type_name()) + '*';
+            return namebase.c_str();
+        }
+    };
+
+    template<typename T>
+    struct Types<volatile T*>{
+        static const char* const type_name(){
+            static std::string namebase = std::string("volatile_") + std::string(Types<typename std::remove_pointer<T>::type>::type_name()) + '*';
+            return namebase.c_str();
+        }
+    };
+
+    template<typename T>
+    struct Types<const volatile T*>{
+        static const char* const type_name(){
+            static std::string namebase = std::string("const_volatile") + std::string(Types<typename std::remove_pointer<T>::type>::type_name()) + '*';
             return namebase.c_str();
         }
     };
@@ -68,7 +99,93 @@ namespace __pyllars_internal {
         }
     };
 
+    template<typename T>
+    struct Types<const T&>{
+        static const char* const type_name(){
+            static std::string namebase = std::string("const_") + std::string(Types<typename std::remove_reference<T>::type>::type_name())+ '&';
+            return namebase.c_str();
+        }
+    };
 
+    template<typename T>
+    struct Types<volatile T&>{
+        static const char* const type_name(){
+            static std::string namebase = std::string("volatile_") + std::string(Types<typename std::remove_reference<T>::type>::type_name())+ '&';
+            return namebase.c_str();
+        }
+    };
+
+    template<typename T>
+    struct Types<const volatile T&>{
+        static const char* const type_name(){
+            static std::string namebase = std::string("const_volatile_") + std::string(Types<typename std::remove_reference<T>::type>::type_name())+ '&';
+            return namebase.c_str();
+        }
+    };
+
+    template<typename T>
+    struct Types<T[]>{
+        static const char* const type_name(){
+            static std::string namebase = std::string(Types<typename std::remove_reference<T>::type>::type_name())+ "[]";
+            return namebase.c_str();
+        }
+    };
+
+    template<typename T>
+    struct Types<const T[]>{
+        static const char* const type_name(){
+            static std::string namebase = std::string("const_") + std::string(Types<typename std::remove_reference<T>::type>::type_name())+ "[]";
+            return namebase.c_str();
+        }
+    };
+
+    template<typename T>
+    struct Types<volatile T[]>{
+        static const char* const type_name(){
+            static std::string namebase = std::string("volatile_") + std::string(Types<typename std::remove_reference<T>::type>::type_name())+ "[]";
+            return namebase.c_str();
+        }
+    };
+
+    template<typename T>
+    struct Types<const volatile T[]>{
+        static const char* const type_name(){
+            static std::string namebase = std::string("const_volatile_") + std::string(Types<typename std::remove_reference<T>::type>::type_name())+ "[]";
+            return namebase.c_str();
+        }
+    };
+
+    template<typename T, size_t size>
+    struct Types<T[size]>{
+        static const char* const type_name(){
+            static std::string namebase = std::string(Types<typename std::remove_reference<T>::type>::type_name())+ '[' + std::to_string(size) + ']';
+            return namebase.c_str();
+        }
+    };
+
+    template<typename T, size_t size>
+    struct Types<const T[size]>{
+        static const char* const type_name(){
+            static std::string namebase = std::string("const_") + std::string(Types<typename std::remove_reference<T>::type>::type_name())+ '[' + std::to_string(size) + ']';
+            return namebase.c_str();
+        }
+    };
+
+    template<typename T, size_t size>
+    struct Types<volatile T[size]>{
+        static const char* const type_name(){
+            static std::string namebase = std::string("volatile_") + std::string(Types<typename std::remove_reference<T>::type>::type_name())+ '[' + std::to_string(size) + ']';
+            return namebase.c_str();
+        }
+    };
+
+    template<typename T, size_t size>
+    struct Types<const volatile T[size]>{
+        static const char* const type_name(){
+            static std::string namebase = std::string("const_volatile_") + std::string(Types<typename std::remove_reference<T>::type>::type_name())+ '[' + std::to_string(size) + ']';
+            return namebase.c_str();
+        }
+    };
 
     template<typename T>
     struct Types<T&&>{
@@ -77,6 +194,28 @@ namespace __pyllars_internal {
             return namebase.c_str();
         }
      };
+
+    template<typename T>
+    struct Types<const T&&>{
+        static const char* const type_name(){
+            static std::string namebase = std::string("const_") + std::string(Types<typename std::remove_reference<T>::type>::type_name()) + "&&";
+            return namebase.c_str();
+        }
+    };
+    template<typename T>
+    struct Types<volatile T&&>{
+        static const char* const type_name(){
+            static std::string namebase = std::string("volatile_") + std::string(Types<typename std::remove_reference<T>::type>::type_name()) + "&&";
+            return namebase.c_str();
+        }
+    };
+    template<typename T>
+    struct Types<const volatile T&&>{
+        static const char* const type_name(){
+            static std::string namebase = std::string("const_volatile_") + std::string(Types<typename std::remove_reference<T>::type>::type_name()) + "&&";
+            return namebase.c_str();
+        }
+    };
 
 
     template<>
@@ -91,104 +230,6 @@ namespace __pyllars_internal {
     struct Types<bool> {
         static const char *const type_name(){
             static const char* const name = "c_bool";
-            return name;
-        }
-    };
-
-
-    template<>
-    struct Types<char> {
-        static const char *const type_name(){
-            static const char* const name = "c_char";
-            return name;
-        }
-    };
-
-    template<>
-     struct Types<short> {
-         static const char *const type_name(){
-             static const char* const name = "c_short";
-             return name;
-         }
-     };
-
-     template<>
-     struct Types<int> {
-         static  const char *const type_name(){
-             static const char* const name = "c_int";
-             return name;
-         }
-     };
-
-     template<>
-     struct Types<long> {
-         static const char *const type_name(){
-             static const char* const name = "c_long";
-             return name;
-         }
-     };
-
-
-     template<>
-     struct Types<long long> {
-         static const char *const type_name(){
-             static const char* const name = "c_long_long";
-             return name;
-         }
-     };
-
-    template<>
-    struct Types<unsigned char>{
-        static const char *const type_name(){
-            static const char* const name = "c_unsigned_char";
-            return name;
-        }
-    };
-
-    template<>
-    struct Types<unsigned short>{
-        static const char *const type_name(){
-            static const char* const name = "c_unsigned_short";
-            return name;
-        }
-    };
-
-    template<>
-    struct Types<unsigned int>{
-        static const char *const type_name(){
-            static const char* const name = "c_unsigned_int";
-            return name;
-        }
-    };
-
-    template<>
-    struct Types<unsigned long>{
-        static const char *const type_name(){
-            static const char* const name = "c_unsigned_long";
-            return name;
-        }
-    };
-
-    template<>
-    struct Types<unsigned long long>{
-        static const char *const type_name(){
-            static const char* const name = "c_unsigned_long_long";
-            return name;
-        }
-    };
-
-    template<>
-    struct Types<float> {
-        static const char *const type_name(){
-            static const char* const name = "c_float";
-            return name;
-        }
-    };
-
-    template<>
-    struct Types<double> {
-        static const char *const type_name(){
-            static const char* const name = "c_double";
             return name;
         }
     };
