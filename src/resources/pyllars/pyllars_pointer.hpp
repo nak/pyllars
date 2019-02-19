@@ -80,6 +80,8 @@ namespace __pyllars_internal {
         friend
         struct ObjectLifecycleHelpers::Alloc;
 
+        template<typename Other, typename EE>
+        friend class PythonClassWrapper;
 
         static constexpr ssize_t last = ArraySize<T>::size - 1;
 
@@ -90,15 +92,6 @@ namespace __pyllars_internal {
         typedef PythonClassWrapper<typename std::remove_const<typename std::remove_reference<T>::type>::type> NoRefNonConstWrapper;
         typedef PythonClassWrapper<typename extent_as_pointer<T>::type> AsPtrWrapper;
 
-        static
-        std::string get_name(){return std::string(type_name<T>());}
-
-        ssize_t getArraySize(){return _arraySize;}
-
-        void setArraySize(const ssize_t size){
-            _arraySize = size;
-            _max = size < 0 ? -1 : size - 1;
-        }
 
         PythonPointerWrapperBase():_arraySize(UNKNOWN_SIZE), _max(0), _raw_storage(nullptr){
         }
@@ -174,7 +167,6 @@ namespace __pyllars_internal {
 
         size_t _raw_size;
 
-    public:
         bool _allocated;
         bool _inPlace;
         size_t _depth; //only used for classes with pointer depth > 1, kept here for consistent PyType layout
@@ -198,11 +190,8 @@ namespace __pyllars_internal {
     };
 
 
-
-
-
     template<typename T>
-    struct PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
+    struct PythonClassWrapper<T, typename std::enable_if<
             !std::is_function<typename std::remove_pointer<T>::type>::value &&
             (std::is_pointer<T>::value || std::is_array<T>::value) &&
             (ptr_depth<T>::value > 1) &&
@@ -216,6 +205,8 @@ namespace __pyllars_internal {
         typedef PythonClassWrapper<typename std::remove_const<typename std::remove_reference<T>::type>::type> NoRefNonConstWrapper;
         typedef PythonClassWrapper<typename extent_as_pointer<T>::type> AsPtrWrapper;
 
+        template<typename Other>
+        friend class PythonPointerWrapperBase;
 
         PythonClassWrapper():PythonPointerWrapperBase<T>(){
            Base::_depth = ptr_depth<T>::value;
@@ -237,10 +228,6 @@ namespace __pyllars_internal {
         static int initialize(){return Base::_initialize(Type);}
 
         static bool checkType(PyObject *const obj);
-
-        static
-        std::string get_name(){return std::string(type_name<T>());}
-
 
 
         static PythonClassWrapper *createPy2(const ssize_t arraySize,
@@ -289,9 +276,6 @@ namespace __pyllars_internal {
         static int initialize(){return Base::_initialize(Type);}
 
         static bool checkType(PyObject *const obj);
-
-        static bool checkTypeDereferenced(PyObject *const obj);
-
 
         static PythonClassWrapper *createPy2(const ssize_t arraySize,
                                              T * const cobj,
