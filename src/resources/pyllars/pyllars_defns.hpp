@@ -27,6 +27,68 @@ namespace __pyllars_internal {
         static const char* const type_name();
     };
 
+    template<>
+    struct _Types<double>{
+        static const char* const type_name();
+    };
+
+    template<>
+    struct _Types<float>{
+        static const char* const type_name();
+    };
+
+    template<>
+    struct _Types<char>{
+        static const char* const type_name();
+    };
+
+    template<>
+    struct _Types<short>{
+        static const char* const type_name();
+    };
+
+    template<>
+    struct _Types<int>{
+        static const char* const type_name();
+    };
+
+    template<>
+    struct _Types<long>{
+        static const char* const type_name();
+    };
+
+
+
+    template<>
+    struct _Types<long long>{
+        static const char* const type_name();
+    };
+
+
+    template<>
+    struct _Types<unsigned char>{
+        static const char* const type_name();
+    };
+
+    template<>
+    struct _Types<unsigned short>{
+        static const char* const type_name();
+    };
+
+    template<>
+    struct _Types<unsigned int>{
+        static const char* const type_name();
+    };
+
+    template<>
+    struct _Types<unsigned long>{
+        static const char* const type_name();
+    };
+
+    template<>
+    struct _Types<unsigned long long>{
+        static const char* const type_name();
+    };
 
     template<typename T>
     struct Types{

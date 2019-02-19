@@ -118,12 +118,12 @@ namespace __pyllars_internal{
 
 
     template<typename T>
-    std::vector<PyMethodDef> PythonClassWrapper<T,
+    std::map<std::string, PyMethodDef> PythonClassWrapper<T,
             typename std::enable_if<!std::is_arithmetic<T>::value &&
                                     !std::is_floating_point<T>::value &&
                                     !std::is_array<T>::value &&
                                     !std::is_pointer<T>::value>::type>::
-            _methodCollection = std::vector<PyMethodDef>(emptyMethods, emptyMethods + 1);
+            _methodCollection = std::map<std::string, PyMethodDef>();
     template<typename T>
     std::vector<PyTypeObject *> PythonClassWrapper<T,
             typename std::enable_if<!std::is_arithmetic<T>::value &&
@@ -167,9 +167,6 @@ namespace __pyllars_internal{
                     typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value &&  !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
             _assigners;
 
-    template<typename T>
-    std::string PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value &&  !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::_name;
     template<typename T>
     bool PythonClassWrapper<T,
             typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value &&  !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::_isInitialized = false;
@@ -218,10 +215,10 @@ namespace __pyllars_internal{
             0,                               /* tp_weaklistoffset */
             nullptr,                       /* tp_iter */
             nullptr,                       /* tp_iternext */
-            PythonClassWrapper::_methodCollection.data(),             /* tp_methods */
+            nullptr,             /* tp_methods */
             nullptr,             /* tp_members */
             nullptr,                         /* tp_getset */
-            Base::TypePtr,                         /* tp_base */
+            nullptr,                         /* tp_base */
             nullptr,                         /* tp_dict */
             nullptr,                         /* tp_descr_get */
             nullptr,                         /* tp_descr_set */
@@ -698,18 +695,46 @@ namespace __pyllars_internal{
                 METH_KEYWORDS | METH_CLASS | METH_VARARGS,
                 "allocate array of single dynamic instance of this class"
         };
-        _methodCollection.insert(_methodCollection.begin(), pyMethAlloc);
-        Type.tp_methods = _methodCollection.data();
+        _methodCollection[alloc_name_] = pyMethAlloc;
         if (!_baseClasses.empty()) {
             Type.tp_bases = PyTuple_New(_baseClasses.size());
-            Py_ssize_t index = 0;
+             Py_ssize_t index = 0;
             for (auto it = _baseClasses.begin(); it != _baseClasses.end(); ++it) {
-                PyTuple_SET_ITEM(Type.tp_bases, index++, (PyObject *) *it);
+                PyTuple_SetItem(Type.tp_bases, index, (PyObject*) *it);
+                // tp_bases not usable for inheritance of methods/membser as it doesn't really do the right thing and
+                // causes problems on lookup of base classes,
+                // so do this manually...
+                {
+                    PyMethodDef *def = (*it)->tp_methods;
+                    if (_methodCollection.count(def->ml_name) ==0) {
+                        while (def->ml_name != nullptr) {
+                            _methodCollection[def->ml_name] = *def;
+                            ++def;
+                        }
+                    }
+                }
+                {
+                    auto *def = (*it)->tp_getset;
+                    while (def->name != nullptr) {
+                        if (_member_getters.count(def->name) == 0) {
+                            _member_setters[def->name] = def->set;
+                            _member_getters[def->name] = def->get;
+                        }
+                        ++def;
+                    }
+                }
             }
+        }
+        Type.tp_methods =new PyMethodDef[_methodCollection.size()+1];
+        Type.tp_methods[_methodCollection.size()] = {nullptr};
+        size_t index = 0;
+        for (auto const& [key, methodDef]: _methodCollection){
+            Type.tp_methods[index] = methodDef;
+            ++index;
         }
         Type.tp_getset = new PyGetSetDef[_member_getters.size()+1];
         Type.tp_getset[_member_getters.size()] = {0};
-        size_t index = 0;
+        index = 0;
         for (auto const& [key, getter]: _member_getters){
             auto it = _member_setters.find(key);
             _setattrfunc setter = nullptr;
@@ -1779,8 +1804,7 @@ namespace __pyllars_internal{
                                     !std::is_pointer<T>::value>::type>::
     _addMethod(PyMethodDef method) {
         //insert at beginning to keep null sentinel at end of list:
-        _methodCollection.insert(_methodCollection.begin(), method);
-        Type.tp_methods = _methodCollection.data();
+        _methodCollection[method.ml_name] = method;
     }
 
     template<typename T>

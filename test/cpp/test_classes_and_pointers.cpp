@@ -112,6 +112,39 @@ public:
         E_ONE=1, E_TWO=2
     };
 
+    class InheritanceClass: public BasicClass{
+    public:
+        int new_method(const char* const data) const{
+            return strlen(data);
+        }
+
+    };
+
+    class BasicClass2{
+    public:
+        BasicClass createBasicClass(){
+            return BasicClass();
+        }
+    };
+
+    class MultiInheritanceClass: public BasicClass, public BasicClass2{
+    public:
+        BasicClass2 createBasicClass2(){
+            return BasicClass2();
+        }
+    };
+
+    class NonDestructible{
+    public:
+        static NonDestructible * create(){ return new NonDestructible();}
+        static const NonDestructible * create_const(){ return new const NonDestructible();}
+    private:
+        NonDestructible() = default;
+        ~NonDestructible() = default;
+    };
+
+
+
 protected:
     void SetUp() override{
         Py_Initialize();
@@ -132,6 +165,23 @@ const char* const __pyllars_internal::_Types<PythonBased::BasicClass>::type_name
     return "BasicClass";
 }
 
+
+template<>
+const char* const __pyllars_internal::_Types<PythonBased::InheritanceClass>::type_name() {
+    return "InheritanceClass";
+}
+
+
+template<>
+const char* const __pyllars_internal::_Types<PythonBased::MultiInheritanceClass>::type_name() {
+    return "MultiInheritanceClass";
+}
+
+
+template<>
+const char* const __pyllars_internal::_Types<PythonBased::BasicClass2>::type_name() {
+    return "BasicClass2";
+}
 
 template<>
 const char* const __pyllars_internal::_Types<PythonBased::ClassWithEnum>::type_name() {
@@ -159,6 +209,12 @@ const char* const __pyllars_internal::_Types<PythonBased::Enum>::type_name() {
 template<>
 const char* const __pyllars_internal::_Types<PythonBased::EnumClass>::type_name() {
     return "EnumClass";
+}
+
+
+template<>
+const char* const __pyllars_internal::_Types<PythonBased::NonDestructible>::type_name() {
+    return "NonDestructible";
 }
 
 TEST_F(InitailizerTest, TestRegisterInitializer) {
@@ -207,6 +263,11 @@ TEST(TypesName, TestTypeNameVariants){
 typedef const char c_string[];
 
 constexpr c_string method_name = "public_method";
+constexpr c_string new_method_name = "new_method";
+constexpr c_string create_method_name = "create_method";
+constexpr c_string create_const_method_name = "create_const_method";
+constexpr c_string create_bclass_method_name = "createBasicClass";
+constexpr c_string create_bclass2_method_name = "createBasicClass2";
 constexpr c_string static_method_name = "static_public_method";
 constexpr c_string class_const_member_name = "class_const_member";
 constexpr c_string class_member_name = "class_member";
@@ -274,7 +335,17 @@ TEST_F(PythonBased, TestBasicClass){
     PyObject* mapped = PyMapping_GetItemString(obj, "123");
     ASSERT_NE(mapped, nullptr);
     ASSERT_EQ(PyLong_AsLong(mapped), 123);
-}
+
+
+    PyObject* public_method = PyObject_GetAttrString(obj, method_name);
+    ASSERT_NE(public_method, nullptr);
+    PyObject* dargs = PyTuple_New(1);
+    PyTuple_SetItem(dargs, 0, PyFloat_FromDouble(12.3));
+    PyObject* dbl = PyObject_Call((PyObject*)PythonClassWrapper<double>::getPyType(), dargs, nullptr);
+    ASSERT_NE(dbl, nullptr);
+    PyTuple_SetItem(dargs, 0, dbl);
+    PyObject* intValue = PyObject_Call(public_method, dargs, nullptr);
+    ASSERT_NE(intValue, nullptr);}
 
 TEST_F(PythonBased, TestClassWithEnum){
     using namespace __pyllars_internal;
@@ -405,4 +476,138 @@ TEST_F(PythonBased, TestPointers){
         ASSERT_EQ(((PythonClassWrapper<PythonBased::BasicClass*>*) derefed)->get_CObject(),
                   ((PythonClassWrapper<PythonBased::BasicClass*>*)ptrs[i])->get_CObject());
     }
+}
+
+TEST_F(PythonBased, TestInheritance){
+    using namespace __pyllars_internal;
+    const char* const kwlist[] = {"value", nullptr};
+    const char* const empty_list[] = {nullptr};
+    const char* const kwlist_copy_constr[] = {"obj", nullptr};
+    PythonClassWrapper<PythonBased::BasicClass>::addConstructor<>(empty_list);
+    PythonClassWrapper<PythonBased::BasicClass>::addConstructor<const PythonBased::BasicClass&>(kwlist_copy_constr);
+    PythonClassWrapper<PythonBased::BasicClass>::addConstructor<const PythonBased::BasicClass&&>(kwlist_copy_constr);
+    PythonClassWrapper<PythonBased::BasicClass>::addMethod<false, method_name, int, const double>(&PythonBased::BasicClass::public_method, kwlist);
+    PythonClassWrapper<PythonBased::BasicClass>::addClassMethod<static_method_name, const char* const>(&PythonBased::BasicClass::static_public_method, kwlist);
+    PythonClassWrapper<PythonBased::BasicClass>::addMapOperatorMethod<const char* const, int>(&PythonBased::BasicClass::operator[]);
+    PythonClassWrapper<PythonBased::BasicClass>::addMapOperatorMethodConst<const char* const, int>(&PythonBased::BasicClass::operator[]);
+    PythonClassWrapper<PythonBased::BasicClass>::addClassAttributeConst<class_const_member_name, int>(&PythonBased::BasicClass::class_const_member);
+    PythonClassWrapper<PythonBased::BasicClass>::addClassAttribute<class_member_name, int>(&PythonBased::BasicClass::class_member);
+    PythonClassWrapper<PythonBased::BasicClass>::addAttribute<int_array_member_name, int[3]>(&PythonBased::BasicClass::int_array);
+    PythonClassWrapper<PythonBased::BasicClass>::addAttribute<dbl_ptr_member_name, const double* const>(&PythonBased::BasicClass::double_ptr_member);
+
+    ASSERT_EQ(PythonClassWrapper<PythonBased::BasicClass>::initialize(), 0);
+
+    PythonClassWrapper<PythonBased::InheritanceClass>::addConstructor<>(empty_list);
+    const char* const kwlist2[] = {"data", nullptr};
+    PythonClassWrapper<PythonBased::InheritanceClass>::addMethod<true, new_method_name, int, const char* const>(&PythonBased::InheritanceClass::new_method, kwlist2);
+    PythonClassWrapper<PythonBased::InheritanceClass>::addBaseClass(PythonClassWrapper<PythonBased::BasicClass>::getPyType());
+    ASSERT_EQ(PythonClassWrapper<PythonBased::InheritanceClass>::initialize(), 0);
+
+    PyObject* args = PyTuple_New(0);
+    PyObject* obj = PyObject_Call((PyObject*) PythonClassWrapper<PythonBased::InheritanceClass>::getPyType(),
+                                  args, nullptr);
+    ASSERT_NE(obj, nullptr);
+    auto dbl_ptr = (PythonClassWrapper<const double* const>*) PyObject_GetAttrString(obj, dbl_ptr_member_name);
+    ASSERT_NE(dbl_ptr, nullptr);
+    PyObject* at = PyObject_GetAttrString((PyObject*)dbl_ptr, "at");
+    ASSERT_NE(at, nullptr);
+    PyObject* at_args = PyTuple_New(1);
+    PyTuple_SetItem(at_args, 0, PyLong_FromLong(0));
+    PyObject* dbl_value = PyObject_Call(at, at_args, nullptr);
+    ASSERT_NE(dbl_value, nullptr);
+    ASSERT_NEAR(PyFloat_AsDouble(dbl_value), 2.3, 0.000001);
+
+    PyObject* public_method = PyObject_GetAttrString(obj, method_name);
+    ASSERT_NE(public_method, nullptr);
+    PyObject* dargs = PyTuple_New(1);
+    PyTuple_SetItem(dargs, 0, PyFloat_FromDouble(12.3));
+    PyObject* dbl = PyObject_Call((PyObject*)PythonClassWrapper<double>::getPyType(), dargs, nullptr);
+    ASSERT_NE(dbl, nullptr);
+    PyTuple_SetItem(dargs, 0, dbl);
+    PyObject* intValue = PyObject_Call(public_method, dargs, nullptr);
+    ASSERT_NE(intValue, nullptr);
+}
+
+
+
+TEST_F(PythonBased, TestMultipleInheritance){
+    using namespace __pyllars_internal;
+    const char* const kwlist[] = {"value", nullptr};
+    const char* const empty_list[] = {nullptr};
+    const char* const kwlist_copy_constr[] = {"obj", nullptr};
+    PythonClassWrapper<PythonBased::BasicClass>::addConstructor<>(empty_list);
+    PythonClassWrapper<PythonBased::BasicClass>::addConstructor<const PythonBased::BasicClass&>(kwlist_copy_constr);
+    PythonClassWrapper<PythonBased::BasicClass>::addConstructor<const PythonBased::BasicClass&&>(kwlist_copy_constr);
+    PythonClassWrapper<PythonBased::BasicClass>::addMethod<false, method_name, int, const double>(&PythonBased::BasicClass::public_method, kwlist);
+    PythonClassWrapper<PythonBased::BasicClass>::addClassMethod<static_method_name, const char* const>(&PythonBased::BasicClass::static_public_method, kwlist);
+    PythonClassWrapper<PythonBased::BasicClass>::addMapOperatorMethod<const char* const, int>(&PythonBased::BasicClass::operator[]);
+    PythonClassWrapper<PythonBased::BasicClass>::addMapOperatorMethodConst<const char* const, int>(&PythonBased::BasicClass::operator[]);
+    PythonClassWrapper<PythonBased::BasicClass>::addClassAttributeConst<class_const_member_name, int>(&PythonBased::BasicClass::class_const_member);
+    PythonClassWrapper<PythonBased::BasicClass>::addClassAttribute<class_member_name, int>(&PythonBased::BasicClass::class_member);
+    PythonClassWrapper<PythonBased::BasicClass>::addAttribute<int_array_member_name, int[3]>(&PythonBased::BasicClass::int_array);
+    PythonClassWrapper<PythonBased::BasicClass>::addAttribute<dbl_ptr_member_name, const double* const>(&PythonBased::BasicClass::double_ptr_member);
+
+    ASSERT_EQ(PythonClassWrapper<PythonBased::BasicClass>::initialize(), 0);
+
+    PythonClassWrapper<PythonBased::BasicClass2>::addConstructor<>(empty_list);
+    PythonClassWrapper<PythonBased::BasicClass2>::addMethod<false, create_bclass_method_name, BasicClass>(&PythonBased::BasicClass2::createBasicClass, kwlist);
+    ASSERT_EQ(PythonClassWrapper<PythonBased::BasicClass2>::initialize(), 0);
+
+    PythonClassWrapper<PythonBased::MultiInheritanceClass>::addConstructor<>(empty_list);
+    const char* const kwlist2[] = {"data", nullptr};
+    PythonClassWrapper<PythonBased::MultiInheritanceClass>::addMethod<false, create_bclass2_method_name, PythonBased::BasicClass2>(&PythonBased::MultiInheritanceClass::createBasicClass2, kwlist2);
+    PythonClassWrapper<PythonBased::MultiInheritanceClass>::addBaseClass(PythonClassWrapper<PythonBased::BasicClass>::getPyType());
+    ASSERT_EQ(PythonClassWrapper<PythonBased::MultiInheritanceClass>::initialize(), 0);
+
+    PyObject* args = PyTuple_New(0);
+    auto* obj = PyObject_Call((PyObject*) PythonClassWrapper<PythonBased::MultiInheritanceClass>::getPyType(),
+                                  args, nullptr);
+    ASSERT_NE(obj, nullptr);
+    auto dbl_ptr = (PythonClassWrapper<const double* const>*) PyObject_GetAttrString(obj, dbl_ptr_member_name);
+    ASSERT_NE(dbl_ptr, nullptr);
+    PyObject* at = PyObject_GetAttrString((PyObject*)dbl_ptr, "at");
+    ASSERT_NE(at, nullptr);
+    PyObject* at_args = PyTuple_New(1);
+    PyTuple_SetItem(at_args, 0, PyLong_FromLong(0));
+    PyObject* dbl_value = PyObject_Call(at, at_args, nullptr);
+    ASSERT_NE(dbl_value, nullptr);
+    ASSERT_NEAR(PyFloat_AsDouble(dbl_value), 2.3, 0.000001);
+
+    PyObject* public_method = PyObject_GetAttrString(obj, method_name);
+    ASSERT_NE(public_method, nullptr);
+    PyObject* dargs = PyTuple_New(1);
+    PyTuple_SetItem(dargs, 0, PyFloat_FromDouble(12.3));
+    PyObject* dbl = PyObject_Call((PyObject*)PythonClassWrapper<double>::getPyType(), dargs, nullptr);
+    ASSERT_NE(dbl, nullptr);
+    PyTuple_SetItem(dargs, 0, dbl);
+    PyObject* intValue = PyObject_Call(public_method, dargs, nullptr);
+    ASSERT_NE(intValue, nullptr);
+
+    PyObject* createBaseClass2_method = PyObject_GetAttrString(obj, create_bclass2_method_name);
+    ASSERT_NE(createBaseClass2_method, nullptr);
+    PyObject* bclass2 = PyObject_Call(createBaseClass2_method, PyTuple_New(0), nullptr);
+    ASSERT_NE(bclass2, nullptr);
+    ASSERT_TRUE(PyObject_TypeCheck(bclass2, PythonClassWrapper<PythonBased::BasicClass2>::getPyType()));
+}
+
+TEST_F(PythonBased, TestPrivateCtrDestructor){
+    using namespace __pyllars_internal;
+    const char* const empty_list[] = {nullptr};
+    typedef PythonClassWrapper<PythonBased::NonDestructible> Class;
+
+    Class::addClassMethod<create_method_name, PythonBased::NonDestructible*>(PythonBased::NonDestructible::create, empty_list);
+    Class::addClassMethod<create_const_method_name, const PythonBased::NonDestructible*>(PythonBased::NonDestructible::create_const, empty_list);
+    Class::initialize();
+
+    PyObject* create = PyObject_GetAttrString((PyObject*)Class::getPyType(), create_method_name);
+    ASSERT_NE(create, nullptr);
+    PyObject* instance = PyObject_Call(create, PyTuple_New(0), nullptr);
+    ASSERT_NE(instance, nullptr);
+    ASSERT_TRUE(PyObject_TypeCheck(instance, PythonClassWrapper<PythonBased::NonDestructible*>::getPyType()));
+
+    PyObject* create_const = PyObject_GetAttrString((PyObject*)Class::getPyType(), create_const_method_name);
+    ASSERT_NE(create_const, nullptr);
+    PyObject* instance_const = PyObject_Call(create_const, PyTuple_New(0), nullptr);
+    ASSERT_NE(instance_const, nullptr);
+    ASSERT_TRUE(PyObject_TypeCheck(instance_const, PythonClassWrapper<const PythonBased::NonDestructible*>::getPyType()));
 }

@@ -98,11 +98,6 @@ namespace __pyllars_internal {
                                             PyObject *referencing = nullptr) ;
 
         /**
-         * Add a constructor for this typeEr
-         **/
-        static void addConstructorBase(const char *const kwlist[], constructor c) ;
-
-        /**
          * Create an instance of underlying class based on python arguments converting them to C to call
          * the constructor
          *
@@ -122,6 +117,11 @@ namespace __pyllars_internal {
         static PyObject *addr(PyObject *self, PyObject *args) ;
 
         /**
+         * Add a constructor for this typeEr
+         **/
+        static void addConstructorBase(const char *const kwlist[], constructor c) ;
+
+        /**
          * add a method with given compile-time-known name to the contained collection
          **/
         template<const char *const name, typename ReturnType, typename ...Args>
@@ -137,6 +137,92 @@ namespace __pyllars_internal {
         static void addConstructor(const char *const kwlist[]){
             addConstructorBase(kwlist, &create<Args...>);
         }
+
+        /**
+         * add a class-wide (static) member
+         **/
+        static void addClassMember(const char *const name, PyObject *pyobj) ;
+
+        /**
+         * Add an enum value to the class
+         */
+        template<typename EnumT>
+        static int addEnumValue( const char* const name, EnumT value){
+
+            addClassMember(name, PyInt_FromLong((long int)value));
+            return 0;
+        }
+
+        template<typename EnumType>
+        static int addEnumClassValue( const char* const name, EnumType value){
+            //const bool inited = PythonClassWrapper<EnumType>::_isInitialized;
+            PythonClassWrapper<EnumType>::initialize();
+            PyObject* pyval = toPyObject<EnumType>(value, false, 1);
+            //PythonClassWrapper<EnumType>::_isInitialized = inited; // chicken and egg here, only initialize to create instances that then get added back into class
+            int status = pyval?0:-1;
+            if (pyval){
+                addClassMember(name, pyval);
+            }
+            return status;
+        }
+
+        /**
+        * Add a base class to this Python definition (called before initialize)
+        **/
+        static void addBaseClass(PyTypeObject *base) ;
+
+        /**
+         * Add a mutable bit field to this Python type definition
+         **/
+        template<const char *const name, typename FieldType, const size_t bits>
+        static void addBitField(
+                typename BitFieldContainer<T_NoRef>::template Container<name, FieldType, bits>::getter_t &getter,
+                typename BitFieldContainer<T_NoRef>::template Container<name, FieldType,  bits>::setter_t &setter);
+
+        /**
+         * Add a constant bit field to this Python type definition
+         **/
+        template<const char *const name, typename FieldType, const size_t bits>
+        static void addBitFieldConst(
+                typename BitFieldContainer<T_NoRef>::template Container<name, FieldType, bits>::getter_t &getter);
+
+        /**
+         * add a getter method for the given compile-time-known named public class member
+         **/
+        template<const char *const name, typename FieldType>
+        static void addAttribute(typename MemberContainer<T_NoRef>::template Container<name, FieldType>::member_t member);
+
+        template<const char *const name, ssize_t size, typename FieldType>
+        static void addConstAttribute(
+                typename MemberContainer<T_NoRef>::template Container<name, FieldType[size]>::member_t member,
+                const ssize_t array_size);
+
+        /**
+         * add a getter method for the given compile-time-known named public class member
+         **/
+        template<const char *const name, typename FieldType>
+        static void addAttributeConst(
+                typename ConstMemberContainer<T_NoRef>::template Container<name, FieldType>::member_t member);
+
+        /**
+          * add a getter method for the given compile-time-known named public class member
+          **/
+        template<const char *const name, ssize_t size, typename FieldType>
+        static void addArrayAttribute(
+                typename MemberContainer<T_NoRef>::template Container<name, FieldType[size]>::member_t member,
+                const ssize_t array_size);
+
+        /**
+         * add a getter method for the given compile-time-known named public static class member
+         **/
+        template<const char *const name, typename FieldType>
+        static void addClassAttribute(FieldType *member);
+
+        /**
+         * add a getter method for the given compile-time-known named public static class member
+         **/
+        template<const char *const name, typename FieldType>
+        static void addClassAttributeConst(FieldType const *member);
 
         /**
          * add a method with given compile-time-known name to the contained collection
@@ -336,92 +422,6 @@ namespace __pyllars_internal {
         template< typename KeyType, typename ValueType>
         static void addMapOperatorMethodConst( typename MethodContainer<T_NoRef, true>::template Container<operatormapname, ValueType, KeyType>::method_t method);
 
-        /**
-         * add a class-wide (static) member
-         **/
-        static void addClassMember(const char *const name, PyObject *pyobj) ;
-
-        /**
-         * Add an enum value to the class
-         */
-         template<typename EnumT>
-        static int addEnumValue( const char* const name, EnumT value){
-
-            addClassMember(name, PyInt_FromLong((long int)value));
-            return 0;
-        }
-
-        template<typename EnumType>
-        static int addEnumClassValue( const char* const name, EnumType value){
-            //const bool inited = PythonClassWrapper<EnumType>::_isInitialized;
-            PythonClassWrapper<EnumType>::initialize();
-            PyObject* pyval = toPyObject<EnumType>(value, false, 1);
-            //PythonClassWrapper<EnumType>::_isInitialized = inited; // chicken and egg here, only initialize to create instances that then get added back into class
-            int status = pyval?0:-1;
-            if (pyval){
-                addClassMember(name, pyval);
-            }
-            return status;
-        }
-
-        /**
-        * Add a base class to this Python definition (called before initialize)
-        **/
-        static void addBaseClass(PyTypeObject *base) ;
-
-        /**
-         * Add a mutable bit field to this Python type definition
-         **/
-        template<const char *const name, typename FieldType, const size_t bits>
-        static void addBitField(
-                typename BitFieldContainer<T_NoRef>::template Container<name, FieldType, bits>::getter_t &getter,
-                typename BitFieldContainer<T_NoRef>::template Container<name, FieldType,  bits>::setter_t &setter);
-
-        /**
-         * Add a constant bit field to this Python type definition
-         **/
-        template<const char *const name, typename FieldType, const size_t bits>
-        static void addBitFieldConst(
-                typename BitFieldContainer<T_NoRef>::template Container<name, FieldType, bits>::getter_t &getter);
-
-        /**
-         * add a getter method for the given compile-time-known named public class member
-         **/
-        template<const char *const name, typename FieldType>
-        static void addAttribute(typename MemberContainer<T_NoRef>::template Container<name, FieldType>::member_t member);
-
-       template<const char *const name, ssize_t size, typename FieldType>
-       static void addConstAttribute(
-                typename MemberContainer<T_NoRef>::template Container<name, FieldType[size]>::member_t member,
-                const ssize_t array_size);
-
-        /**
-         * add a getter method for the given compile-time-known named public class member
-         **/
-        template<const char *const name, typename FieldType>
-        static void addAttributeConst(
-                typename ConstMemberContainer<T_NoRef>::template Container<name, FieldType>::member_t member);
-
-        /**
-          * add a getter method for the given compile-time-known named public class member
-          **/
-        template<const char *const name, ssize_t size, typename FieldType>
-        static void addArrayAttribute(
-                typename MemberContainer<T_NoRef>::template Container<name, FieldType[size]>::member_t member,
-                const ssize_t array_size);
-
-        /**
-         * add a getter method for the given compile-time-known named public static class member
-         **/
-        template<const char *const name, typename FieldType>
-        static void addClassAttribute(FieldType *member);
-
-        /**
-         * add a getter method for the given compile-time-known named public static class member
-         **/
-        template<const char *const name, typename FieldType>
-        static void addClassAttributeConst(FieldType const *member);
-
         void set_contents(typename std::remove_reference<T>::type *ptr, const bool allocated, const bool inPlace);
 
         static bool checkType(PyObject *const obj);
@@ -607,9 +607,8 @@ namespace __pyllars_internal {
         static PyObject* _mapGet(PyObject* self, PyObject* key);
         static int _mapSet(PyObject* self, PyObject* key, PyObject* value);
 
-        static std::string _name;
         static std::vector<ConstructorContainer> _constructors;
-        static std::vector<PyMethodDef> _methodCollection;
+        static std::map<std::string, PyMethodDef> _methodCollection;
         static std::map<std::string, std::pair<std::function<PyObject*(PyObject*, PyObject*)>,
                                      std::function<int(PyObject*, PyObject*, PyObject*)>
                                      >
