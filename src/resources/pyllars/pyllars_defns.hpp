@@ -10,6 +10,8 @@
 
 namespace __pyllars_internal {
 
+    typedef const char* const cstring;
+
     namespace {
         constexpr size_t MAX_PTR_DEPTH = 5;
         constexpr int ERROR_TYPE_MISMATCH = -2;
@@ -21,79 +23,78 @@ namespace __pyllars_internal {
     }
 
 
-
     template<typename T>
     struct _Types{
-        static const char* const type_name();
+        static cstring type_name;
     };
 
     template<>
     struct _Types<double>{
-        static const char* const type_name();
+        static constexpr cstring type_name = "c_double";
     };
 
     template<>
     struct _Types<float>{
-        static const char* const type_name();
+        static constexpr cstring type_name = "c_float";
     };
 
     template<>
     struct _Types<char>{
-        static const char* const type_name();
+        static constexpr cstring type_name = "c_char";
     };
 
     template<>
     struct _Types<short>{
-        static const char* const type_name();
+        static constexpr cstring type_name = "c_short";
     };
 
     template<>
     struct _Types<int>{
-        static const char* const type_name();
+        static constexpr cstring type_name = "c_int";
     };
 
     template<>
     struct _Types<long>{
-        static const char* const type_name();
+        static constexpr cstring type_name = "c_long";
     };
 
 
 
     template<>
     struct _Types<long long>{
-        static const char* const type_name();
+        static constexpr cstring type_name = "c_long_long";
     };
 
 
     template<>
     struct _Types<unsigned char>{
-        static const char* const type_name();
+        static constexpr cstring type_name = "c_unsigned_char";
     };
 
     template<>
     struct _Types<unsigned short>{
-        static const char* const type_name();
+        static constexpr cstring type_name = "c_unsigned_short";
     };
 
     template<>
     struct _Types<unsigned int>{
-        static const char* const type_name();
+        static constexpr cstring type_name = "c_unsigned_int";
     };
 
     template<>
     struct _Types<unsigned long>{
-        static const char* const type_name();
+        static constexpr cstring type_name = "c_unsigned_long";
     };
 
     template<>
     struct _Types<unsigned long long>{
-        static const char* const type_name();
+        static constexpr cstring type_name = "c_unsigned_long_long";
     };
 
     template<typename T>
     struct Types{
         static const char* const type_name(){
-            return _Types<T>::type_name();
+            return _Types<T>::type_name;
         }
     };
 

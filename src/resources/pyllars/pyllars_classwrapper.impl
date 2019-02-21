@@ -182,7 +182,7 @@ namespace __pyllars_internal{
     template<typename T>
     PyTypeObject PythonClassWrapper<T,
     typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value &&  !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
-    Type = {
+    _Type = {
 #if PY_MAJOR_VERSION == 3
             PyVarObject_HEAD_INIT(NULL, 0)
 #else
@@ -683,11 +683,11 @@ namespace __pyllars_internal{
         const char* const name = type_name<T>();
         if (!name || strlen(name) == 0) return -1;
         int status = 0;
-        if (Type.tp_name) {/*already initialized*/ return status; }
+        if (_Type.tp_name) {/*already initialized*/ return status; }
         char *tp_name = new char[strlen(name) + 1 + tp_name_prefix_len];
         strcpy(tp_name, tp_name_prefix);
         strcpy(tp_name + strlen(tp_name_prefix), name);
-        Type.tp_name = tp_name;
+        _Type.tp_name = tp_name;
 
         PyMethodDef pyMethAlloc = {
                 alloc_name_,
@@ -697,10 +697,10 @@ namespace __pyllars_internal{
         };
         _methodCollection[alloc_name_] = pyMethAlloc;
         if (!_baseClasses.empty()) {
-            Type.tp_bases = PyTuple_New(_baseClasses.size());
+            _Type.tp_bases = PyTuple_New(_baseClasses.size());
              Py_ssize_t index = 0;
             for (auto it = _baseClasses.begin(); it != _baseClasses.end(); ++it) {
-                PyTuple_SetItem(Type.tp_bases, index, (PyObject*) *it);
+                PyTuple_SetItem(_Type.tp_bases, index, (PyObject*) *it);
                 // tp_bases not usable for inheritance of methods/membser as it doesn't really do the right thing and
                 // causes problems on lookup of base classes,
                 // so do this manually...
@@ -725,15 +725,15 @@ namespace __pyllars_internal{
                 }
             }
         }
-        Type.tp_methods =new PyMethodDef[_methodCollection.size()+1];
-        Type.tp_methods[_methodCollection.size()] = {nullptr};
+        _Type.tp_methods =new PyMethodDef[_methodCollection.size()+1];
+        _Type.tp_methods[_methodCollection.size()] = {nullptr};
         size_t index = 0;
         for (auto const& [key, methodDef]: _methodCollection){
-            Type.tp_methods[index] = methodDef;
+            _Type.tp_methods[index] = methodDef;
             ++index;
         }
-        Type.tp_getset = new PyGetSetDef[_member_getters.size()+1];
-        Type.tp_getset[_member_getters.size()] = {0};
+        _Type.tp_getset = new PyGetSetDef[_member_getters.size()+1];
+        _Type.tp_getset[_member_getters.size()] = {0};
         index = 0;
         for (auto const& [key, getter]: _member_getters){
             auto it = _member_setters.find(key);
@@ -741,21 +741,21 @@ namespace __pyllars_internal{
             if (it != _member_setters.end()){
                 setter = it->second;
             }
-            Type.tp_getset[index].name = key.c_str();
-            Type.tp_getset[index].get = getter;
-            Type.tp_getset[index].set = setter;
-            Type.tp_getset[index].doc ="get/set attribute";
-            Type.tp_getset[index].closure = nullptr;
+            _Type.tp_getset[index].name = key.c_str();
+            _Type.tp_getset[index].get = getter;
+            _Type.tp_getset[index].set = setter;
+            _Type.tp_getset[index].doc ="get/set attribute";
+            _Type.tp_getset[index].closure = nullptr;
             index ++;
         }
-        if (PyType_Ready(&Type) < 0) {
+        if (PyType_Ready(&_Type) < 0) {
             PyErr_SetString(PyExc_RuntimeError, "Failed to ready type!");
             PyErr_Print();
             status = -1;
             goto onerror;
         }
         {
-            PyObject *const type = reinterpret_cast<PyObject *>(&Type);
+            PyObject *const type = reinterpret_cast<PyObject *>(&_Type);
             Py_INCREF(type);
         }
         onerror:
@@ -775,13 +775,13 @@ namespace __pyllars_internal{
         static PyObject *kwds = PyDict_New();
         static PyObject *emptyargs = PyTuple_New(0);
         PyDict_SetItemString(kwds, "__internal_allow_null", Py_True);
-        PyTypeObject* type_ = &Type;
+        PyTypeObject* type_ = &_Type;
 
         if (!type_->tp_name){
           PyErr_SetString(PyExc_RuntimeError, "Uninitialized type when creating object");
           return nullptr;
         }
-        PythonClassWrapper *pyobj = (PythonClassWrapper *) PyObject_Call((PyObject *) &Type, emptyargs, kwds);
+        PythonClassWrapper *pyobj = (PythonClassWrapper *) PyObject_Call((PyObject *) &_Type, emptyargs, kwds);
         pyobj->_CObject = cobj;//new ObjContainerPtrProxy<T_NoRef>(cobj, isAllocated);
         pyobj->_allocated = isAllocated;
         pyobj->_inPlace = inPlace;
@@ -825,7 +825,7 @@ namespace __pyllars_internal{
             PyErr_BadArgument();
             return nullptr;
         }
-        std::string ptr_name = std::string(Type.tp_name) + "*";
+        std::string ptr_name = std::string(_Type.tp_name) + "*";
         PythonClassWrapper<T_NoRef *>::initialize();
         PythonClassWrapper *self_ = reinterpret_cast<PythonClassWrapper *>(self);
         PythonClassWrapper<T_NoRef *> * obj = (PythonClassWrapper<T_NoRef *> * ) (self_->_CObject ? toPyObject<T_NoRef *>(self_->_CObject->ptr(), AS_VARIABLE, 1) : Py_None);
@@ -924,7 +924,7 @@ namespace __pyllars_internal{
             _addMethod(pyMeth);
         } else if (sizeof...(Args) == 0){
             _Container::template Container<name, ReturnType, Args...>::method = method;
-            Type.tp_as_number->nb_invert = (unaryfunc) _Container::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+            _Type.tp_as_number->nb_invert = (unaryfunc) _Container::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
         }
     }
 
@@ -953,10 +953,10 @@ namespace __pyllars_internal{
             _addMethod(pyMeth);
         } else if (sizeof...(Args) == 1){
             _Container::template Container<name, ReturnType, Args...>::method = method;
-            Type.tp_as_number->nb_add = (binaryfunc) _Container::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+            _Type.tp_as_number->nb_add = (binaryfunc) _Container::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
         }else if (sizeof...(Args) == 0){
             _Container::template Container<name, ReturnType, Args...>::method = method;
-            Type.tp_as_number->nb_positive = (unaryfunc) _Container::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+            _Type.tp_as_number->nb_positive = (unaryfunc) _Container::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
         }
     }
 
@@ -984,10 +984,10 @@ namespace __pyllars_internal{
             _addMethod(pyMeth);
         } else if (sizeof...(Args) == 1){
             _Container::template Container<name, ReturnType, Args...>::method = method;
-            Type.tp_as_number->nb_subtract = (binaryfunc) _Container::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+            _Type.tp_as_number->nb_subtract = (binaryfunc) _Container::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
         }else if (sizeof...(Args) == 0){
             _Container::template Container<name, ReturnType, Args...>::method = method;
-            Type.tp_as_number->nb_negative = (unaryfunc) _Container::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+            _Type.tp_as_number->nb_negative = (unaryfunc) _Container::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
         }
     }
 
@@ -1015,7 +1015,7 @@ namespace __pyllars_internal{
             _addMethod(pyMeth);
         } else if (sizeof...(Args) == 1){
             _Container::template Container<name, ReturnType, Args...>::method = method;
-            Type.tp_as_number->nb_multiply = (binaryfunc) _Container::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+            _Type.tp_as_number->nb_multiply = (binaryfunc) _Container::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
         }
     }
 
@@ -1044,7 +1044,7 @@ namespace __pyllars_internal{
         } else if (sizeof...(Args) == 1){
             _Container::template Container<name, ReturnType, Args...>::method = method;
             #if PY_MAJOR_VERSION == 3
-            Type.tp_as_number->nb_true_divide = (binaryfunc) _Container::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+            _Type.tp_as_number->nb_true_divide = (binaryfunc) _Container::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
             #else
             Type.tp_as_number->nb_divide = (binaryfunc) _Container::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
             #endif
@@ -1075,7 +1075,7 @@ namespace __pyllars_internal{
             _addMethod(pyMeth);
         } else if (sizeof...(Args) == 1){
             _Container::template Container<name, ReturnType, Args...>::method = method;
-            Type.tp_as_number->nb_remainder = (binaryfunc) _Container::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+            _Type.tp_as_number->nb_remainder = (binaryfunc) _Container::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
         }
     }
 
@@ -1104,7 +1104,7 @@ namespace __pyllars_internal{
             _addMethod(pyMeth);
         } else if (sizeof...(Args) == 1){
             MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method = method;
-            Type.tp_as_number->nb_lshift = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+            _Type.tp_as_number->nb_lshift = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
         }
     }
 
@@ -1133,7 +1133,7 @@ namespace __pyllars_internal{
             _addMethod(pyMeth);
         } else if (sizeof...(Args) == 1){
             MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method = method;
-            Type.tp_as_number->nb_rshift = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+            _Type.tp_as_number->nb_rshift = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
         }
     }
 
@@ -1161,7 +1161,7 @@ namespace __pyllars_internal{
             _addMethod(pyMeth);
         } else if (sizeof...(Args) == 1){
             _Container::template Container<name, ReturnType, Args...>::method = method;
-            Type.tp_as_number->nb_and = (binaryfunc) _Container::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+            _Type.tp_as_number->nb_and = (binaryfunc) _Container::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
         }
     }
 
@@ -1189,7 +1189,7 @@ namespace __pyllars_internal{
             _addMethod(pyMeth);
         } else if (sizeof...(Args) == 1){
             _Container::template Container<name, ReturnType, Args...>::method = method;
-            Type.tp_as_number->nb_or = (binaryfunc) _Container::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+            _Type.tp_as_number->nb_or = (binaryfunc) _Container::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
         }
     }
 
@@ -1217,7 +1217,7 @@ namespace __pyllars_internal{
             _addMethod(pyMeth);
         } else if (sizeof...(Args) == 1){
             _Container::template Container<name, ReturnType, Args...>::method = method;
-            Type.tp_as_number->nb_xor = (binaryfunc) _Container::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+            _Type.tp_as_number->nb_xor = (binaryfunc) _Container::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
         }
     }
 
@@ -1245,7 +1245,7 @@ namespace __pyllars_internal{
             _addMethod(pyMeth);
         } else if (sizeof...(Args) == 1){
             MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method = method;
-            Type.tp_as_number->nb_inplace_add = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+            _Type.tp_as_number->nb_inplace_add = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
         }
     }
 
@@ -1274,7 +1274,7 @@ namespace __pyllars_internal{
             _addMethod(pyMeth);
         } else if (sizeof...(Args) == 1){
             MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method = method;
-            Type.tp_as_number->nb_inplace_subtract = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+            _Type.tp_as_number->nb_inplace_subtract = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
         }
     }
 
@@ -1306,7 +1306,7 @@ namespace __pyllars_internal{
             _addMethod(pyMeth);
         } else if (sizeof...(Args) == 1){
             MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method = method;
-            Type.tp_as_number->nb_inplace_multiply = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+            _Type.tp_as_number->nb_inplace_multiply = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
         }
     }
 
@@ -1334,7 +1334,7 @@ namespace __pyllars_internal{
             _addMethod(pyMeth);
         } else if (sizeof...(Args) == 1){
             MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method = method;
-            Type.tp_as_number->nb_inplace_remainder = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+            _Type.tp_as_number->nb_inplace_remainder = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
         }
     }
 
@@ -1362,7 +1362,7 @@ namespace __pyllars_internal{
             _addMethod(pyMeth);
         } else if (sizeof...(Args) == 1){
             MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method = method;
-            Type.tp_as_number->nb_inplace_lshift = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+            _Type.tp_as_number->nb_inplace_lshift = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
         }
     }
 
@@ -1390,7 +1390,7 @@ namespace __pyllars_internal{
             _addMethod(pyMeth);
         } else if (sizeof...(Args) == 1){
             MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method = method;
-            Type.tp_as_number->nb_inplace_rshift = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+            _Type.tp_as_number->nb_inplace_rshift = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
         }
     }
 
@@ -1418,7 +1418,7 @@ namespace __pyllars_internal{
             _addMethod(pyMeth);
         } else if (sizeof...(Args) == 1){
             MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method = method;
-            Type.tp_as_number->nb_inplace_and = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+            _Type.tp_as_number->nb_inplace_and = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
         }
     }
 
@@ -1446,7 +1446,7 @@ namespace __pyllars_internal{
             _addMethod(pyMeth);
         } else if (sizeof...(Args) == 1){
             MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method = method;
-            Type.tp_as_number->nb_inplace_or = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+            _Type.tp_as_number->nb_inplace_or = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
         }
     }
 
@@ -1475,7 +1475,7 @@ namespace __pyllars_internal{
             _addMethod(pyMeth);
         } else if (sizeof...(Args) == 1){
             MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::method = method;
-            Type.tp_as_number->nb_inplace_xor = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
+            _Type.tp_as_number->nb_inplace_xor = (binaryfunc) MethodContainer<T_NoRef>::template Container<name, ReturnType, Args...>::callAsBinaryFunc;
         }
     }
 
@@ -1559,7 +1559,7 @@ namespace __pyllars_internal{
                                                 >(getter, setter);
 
         static PyMappingMethods methods = {nullptr, _mapGet, _mapSet};
-        Type.tp_as_mapping = &methods;
+        _Type.tp_as_mapping = &methods;
     }
 
     template<typename T>
@@ -1591,7 +1591,7 @@ namespace __pyllars_internal{
                     > (getter, setter);
         }
         static PyMappingMethods methods = {nullptr, _mapGet, _mapSet};
-        Type.tp_as_mapping = &methods;
+        _Type.tp_as_mapping = &methods;
     }
 
 
@@ -1599,10 +1599,10 @@ namespace __pyllars_internal{
     void PythonClassWrapper<T,
             typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value &&  !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
     addClassMember(const char *const name, PyObject *pyobj) {
-        if (!Type.tp_dict) {
-            Type.tp_dict = PyDict_New();
+        if (!_Type.tp_dict) {
+            _Type.tp_dict = PyDict_New();
         }
-        PyDict_SetItemString(Type.tp_dict, name, pyobj);
+        PyDict_SetItemString(_Type.tp_dict, name, pyobj);
     }
 
     template<typename T>
@@ -1610,12 +1610,12 @@ namespace __pyllars_internal{
             typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value &&  !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
     addBaseClass(PyTypeObject *base) {
         if (!base) return;
-        if (!Type.tp_base && _baseClasses.empty()) {
-            Type.tp_base = base;
+        if (!_Type.tp_base && _baseClasses.empty()) {
+            _Type.tp_base = base;
         } else {
-            if (Type.tp_base) {
-                _baseClasses.push_back(Type.tp_base);
-                Type.tp_base = nullptr;
+            if (_Type.tp_base) {
+                _baseClasses.push_back(_Type.tp_base);
+                _Type.tp_base = nullptr;
             }
             _baseClasses.insert(_baseClasses.begin(), base);
         }
@@ -1642,7 +1642,7 @@ namespace __pyllars_internal{
                                     !std::is_array<T>::value &&
                                     !std::is_pointer<T>::value>::type>::
     checkType(PyObject *const obj) {
-        return PyObject_TypeCheck(obj, &Type);
+        return PyObject_TypeCheck(obj, &_Type);
     }
 
     template<typename T>
@@ -1671,7 +1671,7 @@ namespace __pyllars_internal{
                                     !std::is_array<T>::value &&
                                     !std::is_pointer<T>::value>::type>::
     _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds) {
-        if (Type.tp_base && Base::TypePtr->tp_init) {
+        if (_Type.tp_base && Base::TypePtr->tp_init) {
             PyObject *empty = PyTuple_New(0);
             Base::TypePtr->tp_init((PyObject *) &self->baseClass, empty, nullptr);
             PyErr_Clear();

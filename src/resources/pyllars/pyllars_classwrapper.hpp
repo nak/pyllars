@@ -73,11 +73,15 @@ namespace __pyllars_internal {
          */
         typename PythonClassWrapper::T_NoRef *get_CObject() ;
 
+        /**
+         * Initialize python type if needed
+         * @return Python-based PyTypeObject associated with T
+         */
         static PyTypeObject* getType(){
             if(initialize() != 0){
                 return nullptr;
             }
-            return &Type;
+            return &_Type;
         }
 
         /**
@@ -117,26 +121,49 @@ namespace __pyllars_internal {
         static PyObject *addr(PyObject *self, PyObject *args) ;
 
         /**
-         * Add a constructor for this typeEr
+        * Add a base class to this Python definition (called before initialize)
+        **/
+        static void addBaseClass(PyTypeObject *base) ;
+
+        /**
+         * Add a constructor for this type
+         *
+         * @param kwlist: keyword list of items that can be used in call parameters
+         * @param c: the constructor method to be added
          **/
         static void addConstructorBase(const char *const kwlist[], constructor c) ;
 
         /**
-         * add a method with given compile-time-known name to the contained collection
-         **/
-        template<const char *const name, typename ReturnType, typename ...Args>
-        static void addClassMethod(ReturnType(*method)(Args...), const char *const kwlist[]);
-
-        template<const char *const name, typename ReturnType, typename ...Args>
-        static void addClassMethodVarargs(ReturnType(*method)(Args... ...), const char *const kwlist[]);
-
-       /**
-         * add a method with given compile-time-known name to the contained collection
+         * add a constructor method with given compile-time-known name to the contained collection
+         *
+         * @templateparams Args varidic list of templat argument types
+         *
+         * @param kwlist: list of keyword names of parameter names for name association
          **/
         template< typename ...Args>
         static void addConstructor(const char *const kwlist[]){
             addConstructorBase(kwlist, &create<Args...>);
         }
+
+        /**
+         * add a method with a ReturnType to be avaialable in this classes' corresponding  Python type object
+         *
+         * @templateparameter name: name of the method (as it will appear in Python, but should be same as C name)
+         * @templateparam ReturnType: return type of the method being added
+         * @templteparam Args: variadic list of types for the method's arumgnets
+         *
+         * @param method: the pointer to the metho to be added
+         * @param kwlist: list of keyword names of araguments
+         **/
+        template<const char *const name, typename ReturnType, typename ...Args>
+        static void addClassMethod(ReturnType(*method)(Args...), const char *const kwlist[]);
+
+        /**
+         * add a method with given compile-time-known name to the contained collection
+         **/
+        template<const char *const name, typename ReturnType, typename ...Args>
+        static void addClassMethodVarargs(ReturnType(*method)(Args... ...), const char *const kwlist[]);
+
 
         /**
          * add a class-wide (static) member
@@ -165,11 +192,6 @@ namespace __pyllars_internal {
             }
             return status;
         }
-
-        /**
-        * Add a base class to this Python definition (called before initialize)
-        **/
-        static void addBaseClass(PyTypeObject *base) ;
 
         /**
          * Add a mutable bit field to this Python type definition
@@ -422,15 +444,13 @@ namespace __pyllars_internal {
         template< typename KeyType, typename ValueType>
         static void addMapOperatorMethodConst( typename MethodContainer<T_NoRef, true>::template Container<operatormapname, ValueType, KeyType>::method_t method);
 
-        void set_contents(typename std::remove_reference<T>::type *ptr, const bool allocated, const bool inPlace);
-
         static bool checkType(PyObject *const obj);
 
         static PyTypeObject *getPyType(){
             if(initialize() != 0){
                 return nullptr;
             }
-            return &Type;
+            return &_Type;
         }
 
         static std::string get_name();
@@ -617,13 +637,14 @@ namespace __pyllars_internal {
         static std::map<std::string, _setattrfunc > _member_setters;
         static std::vector<_setattrfunc > _assigners;
         static std::vector<PyTypeObject *> _baseClasses;
+
+        void set_contents(typename std::remove_reference<T>::type *ptr, const bool allocated, const bool inPlace);
+
         size_t _arraySize;
         bool _allocated;
         bool _inPlace;
 
-       private:
-        static PyTypeObject Type;
-        static TypePtr_t constexpr TypePtr = &Type;
+        static PyTypeObject _Type;
 
     };
 

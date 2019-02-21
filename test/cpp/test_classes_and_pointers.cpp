@@ -161,61 +161,34 @@ int PythonBased::BasicClass::class_member = 6234;
 const int PythonBased::BasicClass::class_const_member;
 
 template<>
-const char* const __pyllars_internal::_Types<PythonBased::BasicClass>::type_name() {
-    return "BasicClass";
-}
-
+const char* const __pyllars_internal::_Types<PythonBased::BasicClass>::type_name = "BasicClass";
 
 template<>
-const char* const __pyllars_internal::_Types<PythonBased::InheritanceClass>::type_name() {
-    return "InheritanceClass";
-}
-
+const char* const __pyllars_internal::_Types<PythonBased::InheritanceClass>::type_name = "InheritanceClass";
 
 template<>
-const char* const __pyllars_internal::_Types<PythonBased::MultiInheritanceClass>::type_name() {
-    return "MultiInheritanceClass";
-}
-
+const char* const __pyllars_internal::_Types<PythonBased::MultiInheritanceClass>::type_name ="MultiInheritanceClass";
 
 template<>
-const char* const __pyllars_internal::_Types<PythonBased::BasicClass2>::type_name() {
-    return "BasicClass2";
-}
+const char* const __pyllars_internal::_Types<PythonBased::BasicClass2>::type_name = "BasicClass2";
 
 template<>
-const char* const __pyllars_internal::_Types<PythonBased::ClassWithEnum>::type_name() {
-    return "ClassWithEnum";
-}
-
+const char* const __pyllars_internal::_Types<PythonBased::ClassWithEnum>::type_name = "ClassWithEnum";
 
 template<>
-const char* const __pyllars_internal::_Types<PythonBased::BitFieldContainer>::type_name() {
-    return "BitFieldContainer";
-}
+const char* const __pyllars_internal::_Types<PythonBased::BitFieldContainer>::type_name = "BitFieldContainer";
 
 template<>
-const char* const __pyllars_internal::_Types<decltype(PythonBased::ClassWithEnum::FIRST)>::type_name() {
-    return "anonymous enum";
-}
-
+const char* const __pyllars_internal::_Types<decltype(PythonBased::ClassWithEnum::FIRST)>::type_name = "anonymous enum";
 
 template<>
-const char* const __pyllars_internal::_Types<PythonBased::Enum>::type_name() {
-    return "Enum";
-}
-
+const char* const __pyllars_internal::_Types<PythonBased::Enum>::type_name = "Enum";
 
 template<>
-const char* const __pyllars_internal::_Types<PythonBased::EnumClass>::type_name() {
-    return "EnumClass";
-}
-
+const char* const __pyllars_internal::_Types<PythonBased::EnumClass>::type_name = "EnumClass";
 
 template<>
-const char* const __pyllars_internal::_Types<PythonBased::NonDestructible>::type_name() {
-    return "NonDestructible";
-}
+const char* const __pyllars_internal::_Types<PythonBased::NonDestructible>::type_name = "NonDestructible";
 
 TEST_F(InitailizerTest, TestRegisterInitializer) {
     InitailizerTest::SubInitializer subInitializer;
