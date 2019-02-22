@@ -124,6 +124,7 @@ namespace __pyllars_internal{
                                     !std::is_array<T>::value &&
                                     !std::is_pointer<T>::value>::type>::
             _methodCollection = std::map<std::string, PyMethodDef>();
+
     template<typename T>
     std::vector<PyTypeObject *> PythonClassWrapper<T,
             typename std::enable_if<!std::is_arithmetic<T>::value &&
@@ -131,6 +132,14 @@ namespace __pyllars_internal{
                                     !std::is_array<T>::value &&
                                     !std::is_pointer<T>::value>::type>::
             _baseClasses = std::vector<PyTypeObject *>();
+
+    template<typename T>
+    std::map<std::string, const typename std::remove_reference<T>::type*> PythonClassWrapper<T,
+            typename std::enable_if<!std::is_arithmetic<T>::value &&
+                                    !std::is_floating_point<T>::value &&
+                                    !std::is_array<T>::value &&
+                                    !std::is_pointer<T>::value>::type>::
+            _classEnumValues = std::map<std::string, const T_NoRef *>();
 
     template<typename T>
     std::vector<typename PythonClassWrapper<T, typename std::enable_if<
@@ -699,13 +708,13 @@ namespace __pyllars_internal{
         if (!_baseClasses.empty()) {
             _Type.tp_bases = PyTuple_New(_baseClasses.size());
              Py_ssize_t index = 0;
-            for (auto it = _baseClasses.begin(); it != _baseClasses.end(); ++it) {
-                PyTuple_SetItem(_Type.tp_bases, index, (PyObject*) *it);
+            for (auto const & baseClass: _baseClasses){
+                PyTuple_SetItem(_Type.tp_bases, index, (PyObject*) baseClass);
                 // tp_bases not usable for inheritance of methods/membser as it doesn't really do the right thing and
                 // causes problems on lookup of base classes,
                 // so do this manually...
                 {
-                    PyMethodDef *def = (*it)->tp_methods;
+                    PyMethodDef *def = baseClass->tp_methods;
                     if (_methodCollection.count(def->ml_name) ==0) {
                         while (def->ml_name != nullptr) {
                             _methodCollection[def->ml_name] = *def;
@@ -714,7 +723,7 @@ namespace __pyllars_internal{
                     }
                 }
                 {
-                    auto *def = (*it)->tp_getset;
+                    auto *def = baseClass->tp_getset;
                     while (def->name != nullptr) {
                         if (_member_getters.count(def->name) == 0) {
                             _member_setters[def->name] = def->set;
@@ -753,6 +762,16 @@ namespace __pyllars_internal{
             PyErr_Print();
             status = -1;
             goto onerror;
+        }
+
+        for(auto const& [name, value]: _classEnumValues){
+            //can only call this AFTER call to READY:
+            PyObject* pyval = toPyObject<T>(*const_cast<T*>(value), false, 1);
+            if (pyval){
+                PyDict_SetItemString(_Type.tp_dict, name.c_str(), pyval); // must set this BEFORE call to ready
+            } else {
+                status = -1;
+            }
         }
         {
             PyObject *const type = reinterpret_cast<PyObject *>(&_Type);
@@ -825,7 +844,6 @@ namespace __pyllars_internal{
             PyErr_BadArgument();
             return nullptr;
         }
-        std::string ptr_name = std::string(_Type.tp_name) + "*";
         PythonClassWrapper<T_NoRef *>::initialize();
         PythonClassWrapper *self_ = reinterpret_cast<PythonClassWrapper *>(self);
         PythonClassWrapper<T_NoRef *> * obj = (PythonClassWrapper<T_NoRef *> * ) (self_->_CObject ? toPyObject<T_NoRef *>(self_->_CObject->ptr(), AS_VARIABLE, 1) : Py_None);
@@ -1644,14 +1662,6 @@ namespace __pyllars_internal{
     checkType(PyObject *const obj) {
         return PyObject_TypeCheck(obj, &_Type);
     }
-
-    template<typename T>
-    std::string PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&
-                                    !std::is_floating_point<T>::value &&
-                                    !std::is_array<T>::value &&
-                                    !std::is_pointer<T>::value>::type>::
-    get_name() { return std::string(type_name<T>()); }
 
     template<typename T>
     PyObject *PythonClassWrapper<T,

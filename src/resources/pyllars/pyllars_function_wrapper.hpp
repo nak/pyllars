@@ -149,10 +149,6 @@ namespace __pyllars_internal {
                 Type.tp_name = newname;
             }
 
-            static std::string get_name() {
-                return type_name.c_str();
-            }
-
             static bool checkType(PyObject *const obj) {
                 return PyObject_TypeCheck(obj, &Type);
             }
@@ -374,10 +370,6 @@ namespace __pyllars_internal {
 
             static void initialize_type(const char *const name) {
                 type_name = name;
-            }
-
-            static std::string get_name() {
-                return type_name.c_str();
             }
 
             static bool checkType(PyObject *const obj) {

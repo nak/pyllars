@@ -326,20 +326,20 @@ TEST_F(PythonBased, TestClassWithEnum){
     static const char* const value[] = {"value", nullptr};
     PythonClassWrapper<decltype(PythonBased::ClassWithEnum::FIRST)>::addConstructor<decltype(PythonBased::ClassWithEnum::FIRST)>(value);
     PythonClassWrapper<PythonBased::ClassWithEnum>::addConstructor<>(empty);
-    PythonClassWrapper<PythonBased::ClassWithEnum>::addEnumClassValue("FIRST", PythonBased::ClassWithEnum::FIRST);
-    PythonClassWrapper<PythonBased::ClassWithEnum>::addEnumClassValue("SECOND", PythonBased::ClassWithEnum::SECOND);
-    PythonClassWrapper<PythonBased::ClassWithEnum>::addEnumClassValue("THIRD", PythonBased::ClassWithEnum::THIRD);
-    ASSERT_EQ(PyType_Ready(PythonClassWrapper<PythonBased::ClassWithEnum>::getPyType()), 0);
+    PythonClassWrapper<PythonBased::ClassWithEnum>::addEnumValue("FIRST", PythonBased::ClassWithEnum::FIRST);
+    PythonClassWrapper<PythonBased::ClassWithEnum>::addEnumValue("SECOND", PythonBased::ClassWithEnum::SECOND);
+    PythonClassWrapper<PythonBased::ClassWithEnum>::addEnumValue("THIRD", PythonBased::ClassWithEnum::THIRD);
+    ASSERT_EQ(PythonClassWrapper<PythonBased::ClassWithEnum>::initialize(), 0);
     PyObject* args = PyTuple_New(0);
     PyObject* obj = PyObject_Call((PyObject*) PythonClassWrapper<PythonBased::ClassWithEnum>::getPyType(),
                                   args, nullptr);
     ASSERT_NE(obj, nullptr);
-    auto first = (PythonClassWrapper<decltype(PythonBased::ClassWithEnum::FIRST)>*) PyObject_GetAttrString(obj, "FIRST");
+    auto first = PyObject_GetAttrString(obj, "FIRST");
     ASSERT_NE(first, nullptr);
-    ASSERT_EQ(*first->get_CObject(), PythonBased::ClassWithEnum::FIRST);
-    auto second = (PythonClassWrapper<decltype(PythonBased::ClassWithEnum::FIRST)>*) PyObject_GetAttrString(obj, "SECOND");
+    ASSERT_EQ(PyInt_AsLong(first), PythonBased::ClassWithEnum::FIRST);
+    auto second = PyObject_GetAttrString(obj, "SECOND");
     ASSERT_NE(second, nullptr);
-    ASSERT_EQ(*second->get_CObject(), PythonBased::ClassWithEnum::SECOND);
+    ASSERT_EQ(PyInt_AsLong(second), PythonBased::ClassWithEnum::SECOND);
 }
 
 TEST_F(PythonBased, TestBitFields){
@@ -372,11 +372,11 @@ TEST_F(PythonBased, TestEnums){
     typedef PythonClassWrapper<PythonBased::Enum> Class;
     Class::addConstructor<>(empty);
     Class::addConstructor<Enum>(kwlist);
+    Class::addEnumValue("ZERO", ZERO);
     Class::initialize();
-    Class::addEnumClassValue("ZERO", ZERO);
     PyObject* ZERO_E = PyObject_GetAttrString((PyObject*)Class::getType(), "ZERO");
     ASSERT_NE(ZERO_E, nullptr);
-    ASSERT_EQ(*((Class*)ZERO_E)->get_CObject(), ZERO);
+    ASSERT_EQ(PyInt_AsLong(ZERO_E), 0);
     PyObject *args = PyTuple_New(1);
     PyTuple_SetItem(args, 0, ZERO_E);
     Class* new_value = (Class*) PyObject_Call((PyObject*) Class::getPyType(), args, nullptr);
@@ -388,11 +388,11 @@ TEST_F(PythonBased, TestClassEnums){
     using namespace __pyllars_internal;
     static const char* const empty[] = {nullptr};
     static const char* const kwlist[] = {"value", nullptr};
-    typedef PythonClassWrapper<PythonBased::EnumClass> Class;
+    typedef PythonClassWrapper< PythonBased::EnumClass> Class;
     Class::addConstructor<>(empty);
-    Class::addConstructor<EnumClass>(kwlist);
-    Class::initialize();
+    Class::addConstructor< PythonBased::EnumClass>(kwlist);
     Class::addEnumClassValue("E_ONE", PythonBased::EnumClass::E_ONE);
+    ASSERT_EQ(Class::initialize(), 0);
     PyObject* ONE_E = PyObject_GetAttrString((PyObject*)Class::getType(), "E_ONE");
     ASSERT_NE(ONE_E, nullptr);
     ASSERT_EQ(*((Class*)ONE_E)->get_CObject(), PythonBased::EnumClass::E_ONE);

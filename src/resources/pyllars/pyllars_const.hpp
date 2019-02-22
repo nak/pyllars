@@ -39,19 +39,11 @@ namespace __pyllars_internal {
         typedef PythonClassWrapper<typename std::remove_const<number_type>::type> NonConstWrapper;
         typedef PythonClassWrapper<typename std::remove_reference<number_type>::type> NoRefWrapper;
 
-        inline static std::string get_name() {
-            return std::string(__pyllars_internal::type_name<ntype>());
-        }
-
         static PyTypeObject *getPyType(){
             if(initialize() != 0){
                 return nullptr;
             }
             return &Type;
-        }
-
-        inline static std::string get_module_entry_name() {
-            return std::string(__pyllars_internal::type_name<ntype>());
         }
 
         static PythonClassWrapper<number_type *> *alloc(PyObject *cls, PyObject *args, PyObject *kwds);
@@ -173,14 +165,6 @@ namespace __pyllars_internal {
                 return nullptr;
             }
             return &Type;
-        }
-
-        inline static std::string get_name() {
-            return std::string(__pyllars_internal::type_name<ntype>());
-        }
-
-        inline static std::string get_module_entry_name() {
-            return std::string(__pyllars_internal::type_name<ntype>());
         }
 
         static PythonClassWrapper<number_type *> *alloc(PyObject *cls, PyObject *args, PyObject *kwds);

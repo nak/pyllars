@@ -180,17 +180,9 @@ namespace __pyllars_internal {
             return 0;
         }
 
-        template<typename EnumType>
-        static int addEnumClassValue( const char* const name, EnumType value){
-            //const bool inited = PythonClassWrapper<EnumType>::_isInitialized;
-            PythonClassWrapper<EnumType>::initialize();
-            PyObject* pyval = toPyObject<EnumType>(value, false, 1);
-            //PythonClassWrapper<EnumType>::_isInitialized = inited; // chicken and egg here, only initialize to create instances that then get added back into class
-            int status = pyval?0:-1;
-            if (pyval){
-                addClassMember(name, pyval);
-            }
-            return status;
+        static int addEnumClassValue( const char* const name, const T& value){
+            _classEnumValues[name] = &value;
+            return 0;
         }
 
         /**
@@ -453,8 +445,6 @@ namespace __pyllars_internal {
             return &_Type;
         }
 
-        static std::string get_name();
-
         static bool isInitialized(){return _isInitialized;}
 
         template<typename C, typename E>
@@ -637,6 +627,7 @@ namespace __pyllars_internal {
         static std::map<std::string, _setattrfunc > _member_setters;
         static std::vector<_setattrfunc > _assigners;
         static std::vector<PyTypeObject *> _baseClasses;
+        static std::map<std::string, const T_NoRef*> _classEnumValues;
 
         void set_contents(typename std::remove_reference<T>::type *ptr, const bool allocated, const bool inPlace);
 
