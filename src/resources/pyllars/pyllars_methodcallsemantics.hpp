@@ -218,8 +218,13 @@ namespace __pyllars_internal {
 
             static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);
 
-            static PyObject *callAsBinaryFunc(PyObject *self, PyObject *args){
-                return call(self, Py_BuildValue("(O)", args), nullptr);
+            static PyObject *callAsBinaryFunc(PyObject *self, PyObject *arg){
+                const bool is_unary = arg && PyTuple_Check(arg) && PyTuple_Size(arg) == 0;
+                auto args = is_unary?PyTuple_New(0):PyTuple_New(1);
+                if(!is_unary){
+                    PyTuple_SetItem(args, 0, arg);
+                }
+                return call(self, /*Py_BuildValue("(O)", */args, nullptr);
             }
         };
     };
@@ -245,8 +250,13 @@ namespace __pyllars_internal {
 
             static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);
 
-            static PyObject *callAsBinaryFunc(PyObject *self, PyObject *args){
-                return call(self, Py_BuildValue("(O)", args), nullptr);
+            static PyObject *callAsBinaryFunc(PyObject *self, PyObject *arg){
+                const bool is_unary = arg && PyTuple_Check(arg) && PyTuple_Size(arg) == 0;
+                auto args = is_unary?PyTuple_New(0):PyTuple_New(1);
+                if(!is_unary){
+                    PyTuple_SetItem(args, 0, arg);
+                }
+                return call(self, /*Py_BuildValue("(O)", args)*/ args, nullptr);
             }
         };
 
@@ -274,8 +284,13 @@ namespace __pyllars_internal {
 
             static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);
 
-            static PyObject *callAsBinaryFunc(PyObject *self, PyObject *args){
-                return call(self, Py_BuildValue("(O)", args), nullptr);
+            static PyObject *callAsBinaryFunc(PyObject *self, PyObject *arg){
+                const bool is_unary = arg && PyTuple_Check(arg) && PyTuple_Size(arg) == 0;
+                auto args = is_unary?PyTuple_New(0):PyTuple_New(1);
+                if(!is_unary){
+                    PyTuple_SetItem(args, 0, arg);
+                }
+                return call(self, /*Py_BuildValue("(O)", */args, nullptr);
             }
         };
     };
@@ -307,8 +322,13 @@ namespace __pyllars_internal {
 
             static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);
 
-            static PyObject *callAsBinaryFunc(PyObject *self, PyObject *args){
-                return call(self, Py_BuildValue("(O)", args), nullptr);
+            static PyObject *callAsBinaryFunc(PyObject *self, PyObject *arg){
+                const bool is_unary = arg && PyTuple_Check(arg) && PyTuple_Size(arg) == 0;
+                auto args = is_unary?PyTuple_New(0):PyTuple_New(1);
+                if(!is_unary){
+                    PyTuple_SetItem(args, 0, arg);
+                }
+                return call(self, /*Py_BuildValue("(O)",*/ args, nullptr);
             }
         };
     };
@@ -335,8 +355,13 @@ namespace __pyllars_internal {
 
             static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);
 
-            static PyObject *callAsBinaryFunc(PyObject *self, PyObject *args){
-                return call(self, Py_BuildValue("(O)", args), nullptr);
+            static PyObject *callAsBinaryFunc(PyObject *self, PyObject *arg){
+                const bool is_unary = arg && PyTuple_Check(arg) && PyTuple_Size(arg) == 0;
+                auto args = is_unary?PyTuple_New(0):PyTuple_New(1);
+                if(!is_unary){
+                    PyTuple_SetItem(args, 0, arg);
+                }
+                return call(self, /*Py_BuildValue("(O)", */args, nullptr);
             }
         };
 
@@ -365,8 +390,13 @@ namespace __pyllars_internal {
 
             static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);
 
-            static PyObject *callAsBinaryFunc(PyObject *self, PyObject *args){
-                return call(self, Py_BuildValue("(O)", args), nullptr);
+            static PyObject *callAsBinaryFunc(PyObject *self, PyObject *arg){
+                const bool is_unary = arg && PyTuple_Check(arg) && PyTuple_Size(arg) == 0;
+                auto args = is_unary?PyTuple_New(0):PyTuple_New(1);
+                if(!is_unary){
+                    PyTuple_SetItem(args, 0, arg);
+                }
+                return call(self, /*Py_BuildValue("(O)",*/ args, nullptr);
             }
         };
     };
