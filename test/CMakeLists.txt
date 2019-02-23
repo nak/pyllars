@@ -11,4 +11,4 @@ add_executable(runPyllarsTest
         /opt/googletest/googletest/src/gtest-all.cc
         cpp/test_classes_and_pointers.cpp)
 
-target_link_libraries(runPyllarsTest PUBLIC -L/usr/local/lib64 -lpython3.7m pthread pyllars ffi)
+target_link_libraries(runPyllarsTest PUBLIC -L/usr/local/lib64 -lpython3.7m pthread pyllars ffi dl util)

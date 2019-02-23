@@ -32,10 +32,12 @@ protected:
 
         int init(PyObject *const global_module) override{
             called = true;
+            return 0;
         }
 
         int init_last(PyObject *const global_module) override{
             init_last_called = true;
+            return 0;
         }
 
     };
@@ -46,19 +48,19 @@ public:
 
     class BasicClass{
     public:
-        BasicClass():double_ptr_member(new double(2.3)){
+        BasicClass(const double val=2.3):double_ptr_member(new double(val)){
             int_array[0] = 1;
             int_array[1] = 2;
             int_array[2] = 3;
         }
 
-        BasicClass(const BasicClass &obj):double_ptr_member(obj.double_ptr_member){
+        BasicClass(const BasicClass &obj):double_ptr_member(new double(*obj.double_ptr_member)){
             int_array[0] = 1;
             int_array[1] = 2;
             int_array[2] = 3;
         }
 
-        BasicClass(const BasicClass &&obj):double_ptr_member(obj.double_ptr_member){
+        BasicClass(const BasicClass &&obj):double_ptr_member(new double(*obj.double_ptr_member)){
             int_array[0] = 1;
             int_array[1] = 2;
             int_array[2] = 3;
@@ -75,6 +77,36 @@ public:
 
         int operator [](const char* const name) const{
             return atoi(name);
+        }
+
+        BasicClass operator +() const{
+            return *this;
+        }
+
+        double operator + (const BasicClass & val) const{
+            return *val.double_ptr_member + *double_ptr_member;
+        }
+
+        BasicClass operator -() const{
+            BasicClass copy = *this;
+            copy.int_array[0] = -int_array[0];
+            copy.int_array[1] = -int_array[1];
+            copy.int_array[2] = -int_array[2];
+            *const_cast<double*>(copy.double_ptr_member) = *double_ptr_member;
+            return copy;
+        }
+
+        BasicClass operator-(const double val){
+            return BasicClass(*double_ptr_member - val);
+        }
+
+        BasicClass operator ~() const{
+            BasicClass copy = *this;
+            copy.int_array[0] = ~int_array[0];
+            copy.int_array[1] = ~int_array[1];
+            copy.int_array[2] = ~int_array[2];
+            *const_cast<double*>(copy.double_ptr_member) = -*double_ptr_member;
+            return copy;
         }
 
         static const char* const static_public_method(){
@@ -583,4 +615,44 @@ TEST_F(PythonBased, TestPrivateCtrDestructor){
     PyObject* instance_const = PyObject_Call(create_const, PyTuple_New(0), nullptr);
     ASSERT_NE(instance_const, nullptr);
     ASSERT_TRUE(PyObject_TypeCheck(instance_const, PythonClassWrapper<const PythonBased::NonDestructible*>::getPyType()));
+}
+
+
+TEST_F(PythonBased, TestBasicClassUnaryOperators){
+    using namespace __pyllars_internal;
+    const char* const kwlist[] = {"value", nullptr};
+    const char* const empty_list[] = {nullptr};
+    const char* const kwlist_copy_constr[] = {"obj", nullptr};
+    typedef PythonClassWrapper<PythonBased::BasicClass> Class;
+    Class::addConstructor<>(empty_list);
+    Class::addConstructor<const PythonBased::BasicClass&>(kwlist_copy_constr);
+    Class::addConstructor<const PythonBased::BasicClass&&>(kwlist_copy_constr);
+    ASSERT_EQ(Class::getPyType()->tp_as_number->nb_positive, nullptr);
+    ASSERT_EQ(Class::getPyType()->tp_as_number->nb_negative, nullptr);
+    ASSERT_EQ(Class::getPyType()->tp_as_number->nb_invert, nullptr);
+    Class::addPosOperator(&PythonBased::BasicClass::operator+);
+    Class::addNegOperator(&PythonBased::BasicClass::operator-);
+    Class::addInvOperator(&PythonBased::BasicClass::operator~);
+    ASSERT_NE(Class::getPyType()->tp_as_number->nb_positive, nullptr);
+    ASSERT_NE(Class::getPyType()->tp_as_number->nb_negative, nullptr);
+    ASSERT_NE(Class::getPyType()->tp_as_number->nb_invert, nullptr);
+}
+
+
+
+TEST_F(PythonBased, TestBasicClassBinaryOperators){
+    using namespace __pyllars_internal;
+    const char* const kwlist[] = {"value", nullptr};
+    const char* const empty_list[] = {nullptr};
+    const char* const kwlist_copy_constr[] = {"obj", nullptr};
+    typedef PythonClassWrapper<PythonBased::BasicClass> Class;
+    Class::addConstructor<>(empty_list);
+    Class::addConstructor<const PythonBased::BasicClass&>(kwlist_copy_constr);
+    Class::addConstructor<const PythonBased::BasicClass&&>(kwlist_copy_constr);
+    ASSERT_EQ(Class::getPyType()->tp_as_number->nb_add, nullptr);
+    ASSERT_EQ(Class::getPyType()->tp_as_number->nb_subtract, nullptr);
+    Class::addAddOperator<double, const BasicClass&>(&PythonBased::BasicClass::operator+, kwlist);
+    Class::addSubOperator<BasicClass, const double, false>(&PythonBased::BasicClass::operator-, kwlist);
+    ASSERT_NE(Class::getPyType()->tp_as_number->nb_add, nullptr);
+    ASSERT_NE(Class::getPyType()->tp_as_number->nb_subtract, nullptr);
 }
