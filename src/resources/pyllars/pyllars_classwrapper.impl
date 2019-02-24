@@ -17,7 +17,7 @@
 
 namespace __pyllars_internal{
 
-    static PyMethodDef emptyMethods[] = {{nullptr, nullptr, 0, nullptr}};
+    //static PyMethodDef emptyMethods[] = {{nullptr, nullptr, 0, nullptr}};
 
         template<typename T, typename E>
     class InitHelper {
@@ -761,6 +761,7 @@ namespace __pyllars_internal{
         _Type.tp_methods[_methodCollection.size()] = {nullptr};
         size_t index = 0;
         for (auto const& [key, methodDef]: Basic::_methodCollection){
+            (void)key;
             _Type.tp_methods[index] = methodDef;
             ++index;
         }

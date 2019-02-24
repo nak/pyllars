@@ -124,7 +124,9 @@ extern "C"{
         moduleDef.m_size = -1;
         PyObject *%(basic_name)s_mod = PyModule_Create(&moduleDef);
         try{
-            if (%(pyllars_scope)s::Initializer::root->init(%(basic_name)s_mod) != 0){
+            if (%(pyllars_scope)s::Initializer::root->set_up%() != 0){
+                return nullptr;
+            } else if (%(pyllars_scope)s::Initializer::root->ready(%(basic_name)s_mod) != 0){
                 return nullptr;
             }
            return %(basic_name)s_mod;
@@ -146,7 +148,9 @@ extern "C"{
         }
         PyModule_AddObject(pyllars_mod, "%(basic_name)s", %(basic_name)s_mod);
         try{
-            return %(pyllars_scope)s::Initializer::root?pyllars::Initializer::root->init(%(basic_name)s_mod):0;
+            status_t status = %(pyllars_scope)s::Initializer::root?pyllars::Initializer::root->set_up():0;
+            status |= %(pyllars_scope)s::Initializer::root?pyllars::Initializer::root->ready(%(basic_name)s_mod):0;
+            return status;
         } catch (const char* msg ){
             PyErr_SetString(PyExc_RuntimeError, msg);
             return -2;

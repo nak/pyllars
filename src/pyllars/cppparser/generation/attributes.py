@@ -121,10 +121,19 @@ class GeneratorBodyFieldDecl(GeneratorBody):
                     'template_decl': template_decl(self),
                     'typename': 'typename' if not self._element.parent.is_union else ""
                 }).encode('utf-8'))
+            stream.write(("""
+            
+                        status_t %(pyllars_scope)s::%(name)s_ready(PyObject* top_level_module){
+                            //nothing to do for an attribute
+                        }
+            """ %{
+                'pyllars_scope': self._element.pyllars_scope,
+                'name': self._element.name,
+            }).encode('utf-8'))
 
 
 class GeneratorBodyVarDecl(GeneratorBody):
-    
+
     def generate(self):
         if not self._element.target_type.name:
             self._stream.write(("""

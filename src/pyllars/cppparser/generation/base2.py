@@ -153,7 +153,7 @@ extern "C"{
 
     def link(self, objects, output_module_path, module_name: str, global_module_name: Optional[str] = None):
         dir = os.path.dirname(__file__)
-        libpyllars = os.path.join(dir, "..", "..", "..", "resources", "pyllars", "cmake-build-debug", "libpyllars.so")
+        libpyllars = os.path.join(dir, "..", "..", "..", "resources", "libs", "libpyllars.so")
         shutil.copy(libpyllars, os.path.join("libs", "libpyllars.so"))
         code = self.CODE % {b'name': (module_name or "pyllars").encode('utf-8')}
 
@@ -187,7 +187,7 @@ extern "C"{
 
     def link_bare(self, objects, output_lib_path):
         dir = os.path.dirname(__file__)
-        libpyllars = os.path.join(dir, "..", "..", "..", "resources", "pyllars", "cmake-build-debug", "libpyllars.so")
+        libpyllars = os.path.join(dir, "..", "..", "..", "resources", "libs", "libpyllars.so")
         shutil.copy(libpyllars, os.path.join("libs", "libpyllars.so"))
         cmd = "%(cxx)s -shared -O -fPIC -std=c++14 %(cxxflags)s -shared -o %(output_lib_path)s -Wl,--no-undefined " \
                   "%(objs)s %(linker_flags)s -Wl,-R,'$ORIGIN' -lpthread -lffi" % {
@@ -324,7 +324,10 @@ class GeneratorBody(BaseGenerator):
                     moduleDef.m_size = -1;
                     PyObject *%(basic_name)s_mod = PyModule_Create(&moduleDef);
                     try{
-                        if (%(pyllars_scope)s::Initializer::root->init(%(basic_name)s_mod) != 0){
+                        if (%(pyllars_scope)s::Initializer::root->set_up() != 0){
+                            return nullptr;
+                        }
+                        if (%(pyllars_scope)s::Initializer::root->ready(%(basic_name)s_mod) != 0){
                             return nullptr;
                         }
                        return %(basic_name)s_mod;
@@ -345,7 +348,8 @@ class GeneratorBody(BaseGenerator):
                     }
                     PyModule_AddObject(pyllars_mod, "%(basic_name)s", %(basic_name)s_mod);
                     try{
-                        return %(pyllars_scope)s::Initializer::root?pyllars::Initializer::root->init(%(basic_name)s_mod):0;
+                        status_t status = %(pyllars_scope)s::Initializer::root?pyllars::Initializer::set_up():0;
+                        status_t status = %(pyllars_scope)s::Initializer::root?pyllars::Initializer::root->ready(%(basic_name)s_mod):0;
                     } catch (const char* msg ){
                         PyErr_SetString(PyExc_RuntimeError, msg);
                         return -2;
@@ -362,9 +366,14 @@ class GeneratorBody(BaseGenerator):
                         %(parent_name)s_register(this);                          
                     }
 
-                    virtual int init(PyObject * const global_mod){
-                       int status = pyllars::Initializer::init(global_mod);
-                       return status == 0?%(name)s_init(global_mod):status;
+                    int set_up() override{
+                       int status = pyllars::Initializer::set_up();
+                       return status == 0?%(name)s_setup():status;
+                    }
+
+                    int ready(PyObject * const top_level_mod) override{
+                       int status = pyllars::Initializer::ready(top_level_mod);
+                       return status == 0?%(name)s_ready(top_level_mod):status;
                     }
                     
                     static Initializer_%(name)s* initializer;
@@ -582,7 +591,11 @@ class GeneratorHeader(BaseGenerator):
                                    spec="status_t %s_register( pyllars::Initializer* const);" % self._element_name,
                                    indent=b"                ")
         self._output_function_spec(comment="called back on initialization to initialize Python wrapper for this C construct "
-                                   "@param global_mod:  mod to which the wrapper Python object should belong",
-                                   spec="status_t %s_init(PyObject * const global_mod);" % self._element_name,
+                                           "@param top_level_mod:  mod to which the wrapper Python object should belong",
+                                   spec="status_t %s_setup();" % self._element_name,
+                                   indent=b"                ")
+        self._output_function_spec(comment="called back on initialization to initialize Python wrapper for this C construct "
+                                           "@param top_level_mod:  mod to which the wrapper Python object should belong",
+                                   spec="status_t %s_ready(PyObject * const top_level_mod);" % self._element_name,
                                    indent=b"                ")
 

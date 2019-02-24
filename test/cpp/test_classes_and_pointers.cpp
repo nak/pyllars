@@ -65,7 +65,7 @@ protected:
 
 
     static void TearDownTestSuite(){
-        ASSERT_FALSE(PyErr_Occurred());
+        PyErr_Clear();
     }
 
 };
@@ -238,10 +238,8 @@ protected:
             ASSERT_EQ(Class::initialize(), 0);
         }
         {
-            static const char *const empty[] = {nullptr};
-            static const char *const kwlist[] = {"value", nullptr};
             typedef PythonClassWrapper<PythonBased::Enum> Class;
-            Class::addConstructor<>(empty);
+            Class::addConstructor<>(empty_list);
             Class::addConstructor<Enum>(kwlist);
             Class::addEnumValue("ZERO", ZERO);
             Class::initialize();
@@ -267,9 +265,8 @@ protected:
             ASSERT_EQ(Class::initialize(), 0);
         }
         {
-            static const char *const empty[] = {nullptr};
             typedef PythonClassWrapper<PythonBased::BitFieldContainer> Class;
-            Class::addConstructor<>(empty);
+            Class::addConstructor<>(empty_list);
             __pyllars_internal::BitFieldContainer<PythonBased::BitFieldContainer>::Container<bit_name, unsigned char, 1>::getter_t getter =
                     [](const PythonBased::BitFieldContainer &c) -> unsigned char { return c.bit; };
             __pyllars_internal::BitFieldContainer<PythonBased::BitFieldContainer>::Container<bit_name, unsigned char, 1>::setter_t setter =
@@ -281,10 +278,8 @@ protected:
             ASSERT_EQ(Class::initialize(), 0);
         }
         {
-            static const char *const empty[] = {nullptr};
-            static const char *const kwlist[] = {"value", nullptr};
             typedef PythonClassWrapper<PythonBased::EnumClass> Class;
-            Class::addConstructor<>(empty);
+            Class::addConstructor<>(empty_list);
             Class::addConstructor<PythonBased::EnumClass>(kwlist);
             Class::addEnumClassValue("E_ONE", PythonBased::EnumClass::E_ONE);
             ASSERT_EQ(Class::initialize(), 0);
@@ -292,8 +287,6 @@ protected:
         }
         {
             typedef PythonClassWrapper<PythonBased::BasicClass2> Class;
-            static const char *const empty_list[] = {nullptr};
-            static const char *const kwlist[] = {"value", nullptr};
             Class::addConstructor<>(empty_list);
             Class::addMethod<false, create_bclass_method_name, BasicClass>(&PythonBased::BasicClass2::createBasicClass,
                                                                            kwlist);
@@ -502,10 +495,6 @@ TEST_F(PythonBased, TestEnums){
     PyObject* ZERO_E = PyObject_GetAttrString((PyObject*)Class::getType(), "ZERO");
     ASSERT_NE(ZERO_E, nullptr);
     ASSERT_EQ(PyInt_AsLong(ZERO_E), 0);
-    PyObject *args = PyTuple_New(1);
-    PyTuple_SetItem(args, 0, ZERO_E);
-    Class* new_value = (Class*) PyObject_Call((PyObject*) Class::getPyType(), args, nullptr);
-    ASSERT_EQ(*(new_value->get_CObject()), ZERO);
 }
 
 

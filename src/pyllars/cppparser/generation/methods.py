@@ -14,9 +14,6 @@ class GeneratorBodyCXXConstructorDecl(GeneratorBody):
         for elem in self._element.params:
             if elem and elem.target_type.namespace_name != self._element.namespace_name and elem.target_type.namespace_name != "::":
                 imports.add(elem.namespace_name)
-        ##if self._element.return_type and \
-        ##        self._element.return_type.namespace_name != self._element.namespace_name and self._element.return_type.namespace_name != "::":
-        ##    imports.add(self._element.return_type.namespace_name)
 
         with self._scoped(self._stream) as stream:
             arguments = (',' if len(self._element.params) > 0 else "") + ', '.join([t.target_type.full_name for
@@ -67,8 +64,6 @@ class GeneratorBodyCXXConstructorDecl(GeneratorBody):
             }""")
 
     def _func_declaration(self):
-        # if self._element.has_varargs:
-        #    method_name += "Varargs"
 
         return """
                             __pyllars_internal::PythonClassWrapper< %(typename)s ::%(scope)s>::template addConstructor<%(args)s>
@@ -173,13 +168,6 @@ class GeneratorBodyCXXMethodDecl(GeneratorBody):
     def generate(self) -> None:
         if "operator delete" in self._element.name:
             return
-        imports = set([])
-        ##for elem in self._element.params:
-        ##    if elem and elem.target_type.namespace_name != self._element.namespace_name and elem.target_type.namespace_name != "::":
-        ##        imports.add(elem.namespace_name)
-        ##if self._element.return_type and \
-        #                self._element.return_type.namespace_name != self._element.namespace_name and self._element.return_type.namespace_name != "::":
-        ##    imports.add(self._element.return_type.namespace_name)
 
         with self._scoped(self._stream) as stream:
             arg_count = len(self._element.params)
@@ -224,17 +212,12 @@ class GeneratorBodyCXXMethodDecl(GeneratorBody):
                 status_t %(sanitized_name)s_init(PyObject * const global_mod){
                    static const char* const argumentNames[] = {%(argument_names)s nullptr};
                    status_t status = 0;
-                   %(imports)s
                    %(func_decl)s
                    return status;
                 }""" % {
                     'argument_names': argument_names,
                     'sanitized_name': self.sanitize(self._element.name, arg_count),
                     'func_decl': self._func_declaration(),
-                    'imports': "\n".join(
-                        ["if(!PyImport_ImportModule(\"pyllars::%s\")){return -1;} " % n.replace("::", ".") for n in
-                         imports]),
-                    'name': self._element.name,
                 }).encode('utf-8'))
             stream.write(("""
                 status_t %(sanitized_name)s_register(pyllars::Initializer* const init){
@@ -251,10 +234,7 @@ class GeneratorBodyCXXMethodDecl(GeneratorBody):
                 'argument_names': argument_names,
                 'sanitized_name': self.sanitize(self._element.name, arg_count),
                 'func_decl': self._func_declaration(),
-                'imports': "\n".join(
-                    ["if(!PyImport_ImportModule(\"pyllars::%s\")){return -1;} " % n.replace("::", ".") for n in
-                     imports]),
-                'name':self._element.name,
+                'name': self._element.name,
 
             }).encode('utf-8'))
 
@@ -311,14 +291,6 @@ class GeneratorBodyFunctionDecl(GeneratorBody):
     def generate(self) -> None:
         if 'operator delete' in self._element.name or 'operator new' in self._element.name:
             return
-        imports = set([])
-        ##for elem in self._element.params:
-        ##    if elem and elem.target_type.scope != self._element.scope and elem.target_type.scope != "::":
-        ##        imports.add(elem.scope)
-        ##if self._element.return_type \
-        ##        and self._element.return_type.scope != self._element.scope \
-        ##        and self._element.return_type.scope != "::":
-        ##    imports.add(self._element.return_type.namespace.name)
         with self._scoped(self._stream) as stream:
             arg_count = len(self._element.params)
             stream.write(self.decorate("""
@@ -359,7 +331,6 @@ class GeneratorBodyFunctionDecl(GeneratorBody):
                 status_t %(name)s_init(PyObject * const global_mod){
                    static const char* const argumentNames[] = {%(argument_names)s nullptr};
                    status_t status = 0;
-                   %(imports)s
                    %(func_decl)s
                    return status;
                 }
@@ -367,9 +338,6 @@ class GeneratorBodyFunctionDecl(GeneratorBody):
                 """ % {
                 'argument_names': argument_names,
                 'func_decl': self._func_declaration(),
-                'imports': "\n".join(
-                    ["if(!PyImport_ImportModule(\"pylllars.%s\")){PyErr_Clear();} " % n.replace("::", ".") for n in
-                     imports if n]),
                 'name': self._element.name,
             }).encode('utf-8'))
             stream.write(self.decorate("""

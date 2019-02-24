@@ -51,10 +51,9 @@ class GeneratorBodyCXXRecordDecl(GeneratorBody):
             }).encode('utf-8'))
 
             stream.write(self.decorate("""
-                status_t %(name)s_init(PyObject * const global_mod){
+                status_t %(name)s_setup(){
                     static status_t _status = -1;
                     using namespace __pyllars_internal;
-                    typedef %(typename)s %(scope)s::%(name)s  main_type;
                     static bool inited = false;
                     if (inited){
                         return _status;
@@ -69,8 +68,8 @@ class GeneratorBodyCXXRecordDecl(GeneratorBody):
 
             for base in self._element.base_classes or []:
                 stream.write(("""
-                    status |= pyllars%(base_class_name)s::%(base_class_bare_name)s_init(PyObject* const global_mod);
-                     __pyllars_internal::PythonClassWrapper< %(typename)s %(scope)s::%(class_name)s >::addBaseClass
+                    status |= pyllars%(base_class_name)s::%(base_class_bare_name)s_setup();
+                    __pyllars_internal::PythonClassWrapper< %(typename)s %(scope)s::%(class_name)s >::addBaseClass
                         (&PythonClassWrapper< %(typename)s %(base_class_name)s >::getPyType()); /*1*/
     """ % {
                     'class_name': self._element.name,
@@ -87,13 +86,24 @@ class GeneratorBodyCXXRecordDecl(GeneratorBody):
                     'scope': '::' + self._element.scope if self._element.scope else "",
                     'name': self._element.name or "_anonymous%s" % self._element.tag
                 }).encode('utf-8'))
+            stream.write(b"""
+                    _status = status;
+                    return status;
+                }
+                
+                status_t %(name)s_ready(PyObject* top_level_module){
+                    static status_t _status = -1;
+                    status_t status = 0;""" % {b'name': self._element.name.encode('utf-8')})
 
             if self._element.name:
                 if self._element.parent and self._element.parent.is_namespace:
                     stream.write(("""
+                    typedef %(typename)s %(scope)s::%(name)s  main_type;
                     status |=  __pyllars_internal::PythonClassWrapper< main_type >::initialize();  //classes
-        """ % {
+                     """ % {
+                        'scope': ("::" + self._element.scope) if self._element.scope else "",
                         'name': self._element.name or "_anonymous%s" % self._element.tag,
+                        'typename': 'typename' if not self._element.is_union else ""
                     }).encode('utf-8'))
                     stream.write(("""
                     status |= PyModule_AddObject(::pyllars%(scope)s::%(parent_name)s_module(), "%(class_name)s", 
@@ -106,23 +116,27 @@ class GeneratorBodyCXXRecordDecl(GeneratorBody):
                     }).encode('utf-8'))
                 elif isinstance(self._element.parent, code_structure.TranslationUnitDecl):
                     stream.write(("""
+                            typedef %(typename)s %(scope)s::%(name)s  main_type;
                             PyObject* pyllars_mod = PyImport_ImportModule("pyllars");
                             status |=  __pyllars_internal::PythonClassWrapper< main_type >::initialize();
-                            PyObject *module = global_mod?global_mod : pyllars_mod;
+                            PyObject *module = top_level_module?top_level_module : pyllars_mod;
                             if(module){
                                 PyModule_AddObject(module, "%(name)s", (PyObject*) __pyllars_internal::PythonClassWrapper< main_type >::getPyType());
                             }
                 """ % {
+                        'scope': self._element.scope,
                         'name': self._element.name or "_anonymous%s" % self._element.tag,
+                        'typename': 'typename' if not self._element.is_union else ""
                     }).encode('utf-8'))
 
                 elif self._element.parent:
                     stream.write(("""
-                    status |=  __pyllars_internal::PythonClassWrapper< main_type >::initialize();
-                                 
-                    __pyllars_internal::PythonClassWrapper< %(typename)s ::%(parent_class_scope)s::%(parent_class_name)s >::addClassMember
-                        ("%(class_name)s",
-                         (PyObject*) __pyllars_internal::PythonClassWrapper< %(typename)s ::%(scope)s::%(class_name)s >::getPyType());
+                            typedef %(typename)s %(scope)s::%(name)s  main_type;
+                            status |=  __pyllars_internal::PythonClassWrapper< main_type >::initialize();
+                                         
+                            __pyllars_internal::PythonClassWrapper< %(typename)s ::%(parent_class_scope)s::%(parent_class_name)s >::addClassMember
+                                ("%(class_name)s",
+                                 (PyObject*) __pyllars_internal::PythonClassWrapper< %(typename)s ::%(scope)s::%(class_name)s >::getPyType());
     """ % {
                         'parent_class_name': self._element.parent.name,
                         'parent_class_scope': self._element.parent.scope,
@@ -194,9 +208,12 @@ class GeneratorBodyEnumConstantDecl(GeneratorBody):
                     'parent_name': self._element.parent.name if self._element.parent.name else 'decltype(%s)' % self._element.full_name,
                 }).encode('utf-8'))
                 stream.write(self.decorate("""
-                    status_t %(name)s_init(PyObject * const global_mod){
+                    status_t %(name)s_setup(){
                         PyObject* pyllars_mod = PyImport_ImportModule("pyllars");
                         return __pyllars_internal::PythonClassWrapper<%(parent_full_name)s>::template addEnum%(suffix)s("%(name)s", %(full_name)s);
+                    }
+                    
+                    status_t %(name)s_ready(PyObject* top_level_module){
                     }
                 """ % {
                     'name': self._element.name or "anonymous_%s" % self._element.tag,
@@ -205,16 +222,7 @@ class GeneratorBodyEnumConstantDecl(GeneratorBody):
                     'parent_name': self._element.parent.name if self._element.parent.name else 'decltype(%s)' % self._element.full_name,
                     'suffix': "Value" if not isinstance(parent, code_structure.CXXRecordDecl) else "ClassValue<type_name, decltype(%s)>" % self._element.full_name,
                 }).encode('utf-8'))
-                stream.write(self.decorate("""
-                    
-                    status_t %(name)s_register( pyllars::Initializer* const){
-                        status_t status = 0;
-                        // do nothing
-                        return status;
-                    }
-                 """ % {
-                    'name': self._element.name or "anonymous_%s" % self._element.tag,
-                }).encode('utf-8'))
+
 
             elif not parent or isinstance(parent, (code_structure.NamespaceDecl, code_structure.TranslationUnitDecl)):
                 # global or namespace var:y
@@ -222,7 +230,16 @@ class GeneratorBodyEnumConstantDecl(GeneratorBody):
                     constexpr cstring name = "%s";
                 """ % self._element.name.encode('utf-8'))
                 stream.write(self.decorate("""
-                    status_t %(name)s_init(PyObject * const global_mod){
+                    status_t %(name)s_setup(){
+                    }
+            
+                    status_t %(name)s_ready(PyObject* top_level_module){
+                        static status_t _status = -1;
+                        static bool inited = false;
+                        if (inited){
+                            return _status;
+                        }
+                        inited = true;
                         status_t status = 0;
                         PyObject* mod = %(module_name)s;
                         PyObject* value = PyInt_FromLong(static_cast<long int>(%(parent_full_name)s::%(name)s));
@@ -231,22 +248,25 @@ class GeneratorBodyEnumConstantDecl(GeneratorBody):
                         } else {
                             status = PyModule_AddObject(mod, "%(name)s", value);
                         }
+                        _status = status;
                         return status;
                     }""" % {
                     'name': self._element.name or "anonymous_%s" % self._element.tag,
                     'parent_full_name': parent_full_name,
-                    'module_name': self._element.parent.python_cpp_module_name if parent else "global_mod?global_mod:PyImport_ImportModule(\"pyllars\")",
+                    'module_name': self._element.parent.python_cpp_module_name if parent else "top_level_module?top_level_module:PyImport_ImportModule(\"pyllars\")",
                 }).encode('utf-8'))
-                stream.write(self.decorate("""
+
+
+            else:
+                log.error("Unknown parent type for enum var")
+            stream.write(self.decorate("""
+                  
                     status_t %(name)s_register( pyllars::Initializer* const){
                         status_t status = 0;
                         // do nothing
                         return status;
                     }
                     """ % {
-                    'name': self._element.name or "anonymous_%s" % self._element.tag,
+                        'name': self._element.name or "anonymous_%s" % self._element.tag,
 
-                }).encode('utf-8'))
-
-            else:
-                log.error("Unknown parent type for enum var")
+                    }).encode('utf-8'))
