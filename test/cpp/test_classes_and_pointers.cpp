@@ -39,24 +39,35 @@ protected:
 
     class SubInitializer: public pyllars::Initializer{
     public:
-        bool called;
-        bool init_last_called;
+        bool setup_called;
+        bool ready_called;
 
-        SubInitializer():called(false), init_last_called(false){
+        SubInitializer():setup_called(false), ready_called(false){
 
         }
 
-        int init(PyObject *const global_module) override{
-            called = true;
+        int set_up() override{
+            setup_called = true;
             return 0;
         }
 
-        int init_last(PyObject *const global_module) override{
-            init_last_called = true;
+        int ready(PyObject *const top_level_module) override{
+            ready_called = true;
             return 0;
         }
 
     };
+
+    static void SetUpTestSuite() {
+        Py_Initialize();
+    }
+
+
+
+    static void TearDownTestSuite(){
+        ASSERT_FALSE(PyErr_Occurred());
+    }
+
 };
 
 class PythonBased: public ::testing::Test{
@@ -201,6 +212,7 @@ protected:
     static void SetUpTestSuite() {
         using namespace __pyllars_internal;
         Py_Initialize();
+        PyErr_Clear();
         const char *const kwlist[] = {"value", nullptr};
         const char *const empty_list[] = {nullptr};
         const char *const kwlist_copy_constr[] = {"obj", nullptr};
@@ -354,22 +366,22 @@ const char* const __pyllars_internal::_Types<PythonBased::NonDestructible>::type
 
 TEST_F(InitailizerTest, TestRegisterInitializer) {
     InitailizerTest::SubInitializer subInitializer;
-    ASSERT_FALSE(subInitializer.called);
-    ASSERT_FALSE(subInitializer.init_last_called);
+    ASSERT_FALSE(subInitializer.setup_called);
+    ASSERT_FALSE(subInitializer.ready_called);
     initializer.register_init(&subInitializer);
-    initializer.init(nullptr);
-    ASSERT_TRUE(subInitializer.called);
-    ASSERT_FALSE(subInitializer.init_last_called);
+    initializer.set_up();
+    ASSERT_TRUE(subInitializer.setup_called);
+    ASSERT_FALSE(subInitializer.ready_called);
 }
 
 TEST_F(InitailizerTest, TestRegisterInitializerLast) {
     InitailizerTest::SubInitializer subInitializer;
-    ASSERT_FALSE(subInitializer.called);
-    ASSERT_FALSE(subInitializer.init_last_called);
-    initializer.register_init_last(&subInitializer);
-    initializer.init_last(nullptr);
-    ASSERT_FALSE(subInitializer.called);
-    ASSERT_TRUE(subInitializer.init_last_called);
+    ASSERT_FALSE(subInitializer.setup_called);
+    ASSERT_FALSE(subInitializer.ready_called);
+    initializer.register_init(&subInitializer);
+    initializer.ready(nullptr);
+    ASSERT_FALSE(subInitializer.setup_called);
+    ASSERT_TRUE(subInitializer.ready_called);
 }
 
 TEST_F(PythonBased, TestPythonClassWrappperChar){

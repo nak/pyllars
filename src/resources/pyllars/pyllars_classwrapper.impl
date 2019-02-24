@@ -825,7 +825,7 @@ namespace __pyllars_internal{
         }
 
         if (PyType_Ready(&_Type) < 0) {
-            PyErr_SetString(PyExc_RuntimeError, "Failed to ready type!");
+            PyErr_SetString(PyExc_RuntimeError, "Failed to set_up type!");
             PyErr_Print();
             status = -1;
             goto onerror;
@@ -835,9 +835,10 @@ namespace __pyllars_internal{
             //can only call this AFTER call to READY:
             PyObject* pyval = toPyObject<T>(*const_cast<T*>(value), false, 1);
             if (pyval){
-                PyDict_SetItemString(_Type.tp_dict, name.c_str(), pyval); // must set this BEFORE call to ready
+                PyDict_SetItemString(_Type.tp_dict, name.c_str(), pyval); // must set this BEFORE call to set_up
             } else {
                 status = -1;
+                goto onerror;
             }
         }
 

@@ -218,7 +218,7 @@ namespace __pyllars_internal {
         initialized = true;
 
 	    if (PyType_Ready(&Type) < 0){
-            PyErr_SetString(PyExc_RuntimeError, "Failed to ready type!");
+            PyErr_SetString(PyExc_RuntimeError, "Failed to set_up type!");
 	        return -1;
 	    }
         _seqmethods.sq_length = _size;

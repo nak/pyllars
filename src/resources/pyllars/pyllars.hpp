@@ -21,55 +21,49 @@ namespace pyllars {
     class Initializer {
     public:
 
-        Initializer() : _initializers(nullptr), _initializers_last(nullptr){
+        Initializer() : _initializers(nullptr){
         }
 
         /**
          * Call all initializers, passing in the global pyllars module
          */
-        virtual status_t init(PyObject *const global_module) {
+        virtual status_t set_up() {
+            static int status = 0;
+            static bool called = false;
+            if (called) return status;
+            called = true;
             if (!_initializers) return 0;
-            int status = 0;
             for (auto &_initializer : *_initializers) {
-                status |= _initializer->init(global_module);
+                status |= _initializer->set_up();
             }
-            _initializers->clear();
             return status;
         }
 
         /**
-         * Call initailizers that are registered to run last, after all others
-         * @return 0 on success, non-zero otherwise
+         * Ready all PyTypeObjects, adding to each types parent,
+         * @param top_level_module: Top level module for holding global type objects
          */
-        virtual status_t init_last(PyObject *const global_module) {
-            int status = 0;
-            if (!_initializers_last) return 0;
-            for (auto &it : *_initializers_last) {
-                status |= it->init_last(global_module);
-            }
-            _initializers_last->clear();
-            return status;
-        }
+         virtual status_t ready(PyObject* top_level_module){
+             static int status = 0;
+             static bool called = false;
+             if (called) return status;
+             called = true;
+             if (!_initializers) return 0;
+             for (auto &_initializer : *_initializers) {
+                 status |= _initializer->ready(top_level_module);
+             }
+             return status;
+         }
 
         int register_init(Initializer *const init) {
             if (!_initializers) {
+                static std::vector<Initializer*> initializers;
                 // allocate here as this may be called before main
                 // and do not want to depend on static initailization order of files which is
                 // unpredictable in C++
-                _initializers = new std::vector<Initializer *>();
+                _initializers = &initializers;
             }
             _initializers->push_back(init);
-            return 0;
-        }
-
-        int register_init_last(Initializer *const init) {
-            if (!_initializers_last) {
-                // allocate here as this may be called before main
-                // and do not want to depend on static initailization order of files which is
-                // unpredictable in C++
-                _initializers_last = new std::vector<Initializer *>();
-            }
-            _initializers_last->push_back(init);
             return 0;
         }
 
@@ -79,7 +73,6 @@ namespace pyllars {
     private:
 
         std::vector<Initializer *> *_initializers;
-        std::vector<Initializer *> *_initializers_last{};
 
     };
 
@@ -170,7 +163,7 @@ namespace __pyllars_internal {
         public:
             Initializer();
 
-            status_t init(PyObject *const global_module) override;
+            status_t set_up() override;
 
             static Initializer *initializer;
         };
@@ -290,7 +283,7 @@ namespace __pyllars_internal {
         public:
             Initializer();
 
-            status_t init(PyObject *const global_module);
+            status_t set_up() override;
 
             static Initializer *initializer;
         };

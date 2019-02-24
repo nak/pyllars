@@ -49,9 +49,9 @@ PyllarsInit(const char* const name){
   if(mod){
     Py_INCREF(mod);
     PyObject_SetAttrString(pyllars_mod, name, mod);
-    int rc = pyllars::Initializer::root?pyllars::Initializer::root->init(mod):0;
+    int rc = pyllars::Initializer::root? pyllars::Initializer::root->set_up():0;
     if (0 == rc) {
-       rc = pyllars::Initializer::root?pyllars::Initializer::root->init_last(mod):0;
+       rc = pyllars::Initializer::root?pyllars::Initializer::root->ready(mod):0;
     } 
     if (rc != 0){
       printf("Failed to initialize some components of %s", name);
@@ -90,16 +90,6 @@ int pyllars::pyllars_register( Initializer* const init){
     return Initializer::root->register_init(init);
 }
 
-int pyllars::pyllars_register_last( Initializer* const init){
-    // ensure root is "clean" and no static initizlied as this function
-    // may be called during static initialization before root has been assigend
-    // a static value
-    static Initializer _root;
-    if(!Initializer::root)
-      Initializer::root = &_root;
-
-    return Initializer::root->register_init_last(init);
-}
 
 namespace __pyllars_internal {
 
@@ -830,7 +820,7 @@ namespace __pyllars_internal {
     }
 
     template<typename number_type>
-    status_t PyNumberCustomObject<number_type>::Initializer::init(PyObject *const global_mod) {
+    status_t PyNumberCustomObject<number_type>::Initializer::set_up() {
         static PyObject *module = PyImport_ImportModule("pyllars");
         PyType_Ready(&PyNumberCustomBase::Type);
         const int rc = PyType_Ready(&PyNumberCustomObject::Type);
@@ -1499,7 +1489,7 @@ namespace __pyllars_internal {
     }
 
     template<typename number_type>
-    status_t PyFloatingPtCustomObject<number_type>::Initializer::init(PyObject *const global_mod) {
+    status_t PyFloatingPtCustomObject<number_type>::Initializer::set_up() {
         static PyObject *module = PyImport_ImportModule("pyllars");
         PyType_Ready(&PyFloatingPtCustomBase::Type);
         const int rc = PyType_Ready(&PyFloatingPtCustomObject::Type);
