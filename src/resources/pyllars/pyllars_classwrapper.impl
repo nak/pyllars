@@ -142,6 +142,22 @@ namespace __pyllars_internal{
             _classEnumValues = std::map<std::string, const T_NoRef *>();
 
     template<typename T>
+    std::map<std::string, unaryfunc> PythonClassWrapper<T,
+            typename std::enable_if<!std::is_arithmetic<T>::value &&
+                                    !std::is_floating_point<T>::value &&
+                                    !std::is_array<T>::value &&
+                                    !std::is_pointer<T>::value>::type>::
+            _unaryOperators = std::map<std::string, unaryfunc>();
+
+    template<typename T>
+    std::map<std::string, binaryfunc> PythonClassWrapper<T,
+            typename std::enable_if<!std::is_arithmetic<T>::value &&
+                                    !std::is_floating_point<T>::value &&
+                                    !std::is_array<T>::value &&
+                                    !std::is_pointer<T>::value>::type>::
+            _binaryOperators = std::map<std::string,binaryfunc>();
+
+    template<typename T>
     std::vector<typename PythonClassWrapper<T, typename std::enable_if<
             !std::is_arithmetic<T>::value &&
             !std::is_floating_point<T>::value &&
@@ -684,8 +700,15 @@ namespace __pyllars_internal{
 
     template<typename T>
     int PythonClassWrapper<T,
-                    typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value  && !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
-                    initialize() {
+    typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value  && !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+    initialize() {
+        typedef typename std::remove_volatile<
+                typename std::remove_const<
+                        typename std::remove_reference<T>::type
+                        >::type
+                        >::type basic_type;
+        typedef PythonClassWrapper<basic_type> Basic;
+
         static bool inited = false;
         if (inited) return 0;
         inited = true;
@@ -704,20 +727,20 @@ namespace __pyllars_internal{
                 METH_KEYWORDS | METH_CLASS | METH_VARARGS,
                 "allocate array of single dynamic instance of this class"
         };
-        _methodCollection[alloc_name_] = pyMethAlloc;
-        if (!_baseClasses.empty()) {
-            _Type.tp_bases = PyTuple_New(_baseClasses.size());
+        Basic::_methodCollection[alloc_name_] = pyMethAlloc;
+        if (!Basic::_baseClasses.empty()) {
+            _Type.tp_bases = PyTuple_New(Basic::_baseClasses.size());
              Py_ssize_t index = 0;
-            for (auto const & baseClass: _baseClasses){
+            for (auto const & baseClass: Basic::_baseClasses){
                 PyTuple_SetItem(_Type.tp_bases, index, (PyObject*) baseClass);
                 // tp_bases not usable for inheritance of methods/membser as it doesn't really do the right thing and
                 // causes problems on lookup of base classes,
                 // so do this manually...
                 {
                     PyMethodDef *def = baseClass->tp_methods;
-                    if (_methodCollection.count(def->ml_name) ==0) {
+                    if (Basic::_methodCollection.count(def->ml_name) ==0) {
                         while (def->ml_name != nullptr) {
-                            _methodCollection[def->ml_name] = *def;
+                            Basic::_methodCollection[def->ml_name] = *def;
                             ++def;
                         }
                     }
@@ -725,9 +748,9 @@ namespace __pyllars_internal{
                 {
                     auto *def = baseClass->tp_getset;
                     while (def->name != nullptr) {
-                        if (_member_getters.count(def->name) == 0) {
-                            _member_setters[def->name] = def->set;
-                            _member_getters[def->name] = def->get;
+                        if (Basic::_member_getters.count(def->name) == 0) {
+                            Basic::_member_setters[def->name] = def->set;
+                            Basic::_member_getters[def->name] = def->get;
                         }
                         ++def;
                     }
@@ -737,17 +760,17 @@ namespace __pyllars_internal{
         _Type.tp_methods =new PyMethodDef[_methodCollection.size()+1];
         _Type.tp_methods[_methodCollection.size()] = {nullptr};
         size_t index = 0;
-        for (auto const& [key, methodDef]: _methodCollection){
+        for (auto const& [key, methodDef]: Basic::_methodCollection){
             _Type.tp_methods[index] = methodDef;
             ++index;
         }
-        _Type.tp_getset = new PyGetSetDef[_member_getters.size()+1];
-        _Type.tp_getset[_member_getters.size()] = {0};
+        _Type.tp_getset = new PyGetSetDef[Basic::_member_getters.size()+1];
+        _Type.tp_getset[Basic::_member_getters.size()] = {0};
         index = 0;
-        for (auto const& [key, getter]: _member_getters){
-            auto it = _member_setters.find(key);
+        for (auto const& [key, getter]: Basic::_member_getters){
+            auto it = Basic::_member_setters.find(key);
             _setattrfunc setter = nullptr;
-            if (it != _member_setters.end()){
+            if (it != Basic::_member_setters.end()){
                 setter = it->second;
             }
             _Type.tp_getset[index].name = key.c_str();
@@ -757,6 +780,50 @@ namespace __pyllars_internal{
             _Type.tp_getset[index].closure = nullptr;
             index ++;
         }
+
+        for(auto const& [name, func]: Basic::_unaryOperators){
+            static std::map<std::string, unaryfunc*> unary_mapping =
+                    {{std::string(OP_UNARY_INV), &_Type.tp_as_number->nb_invert},
+                     {std::string(OP_UNARY_NEG), &_Type.tp_as_number->nb_negative},
+                     {std::string(OP_UNARY_POS), &_Type.tp_as_number->nb_positive}};
+
+            if (unary_mapping.count(name) == 0){
+                status = -1;
+                goto onerror;
+            }
+            *unary_mapping[name] = func;
+        }
+
+        for(auto const& [name, func]: Basic::_binaryOperators){
+            static std::map<std::string, binaryfunc*> binary_mapping =
+                    {{OP_BINARY_ADD, &_Type.tp_as_number->nb_add},
+                     {OP_BINARY_AND, &_Type.tp_as_number->nb_and},
+                     {OP_BINARY_OR, &_Type.tp_as_number->nb_or},
+                     {OP_BINARY_XOR, &_Type.tp_as_number->nb_xor},
+                     {OP_BINARY_DIV, &_Type.tp_as_number->nb_true_divide},
+                     {OP_BINARY_MOD, &_Type.tp_as_number->nb_remainder},
+                     {OP_BINARY_MUL, &_Type.tp_as_number->nb_multiply},
+                     {OP_BINARY_LSHIFT, &_Type.tp_as_number->nb_lshift},
+                     {OP_BINARY_RSHIFT, &_Type.tp_as_number->nb_rshift},
+                     {OP_BINARY_SUB, &_Type.tp_as_number->nb_subtract},
+                     {OP_BINARY_IADD, &_Type.tp_as_number->nb_inplace_add},
+                     {OP_BINARY_IAND, &_Type.tp_as_number->nb_inplace_and},
+                     {OP_BINARY_IOR, &_Type.tp_as_number->nb_inplace_or},
+                     {OP_BINARY_IXOR, &_Type.tp_as_number->nb_inplace_xor},
+                     {OP_BINARY_IDIV, &_Type.tp_as_number->nb_inplace_true_divide},
+                     {OP_BINARY_IMOD, &_Type.tp_as_number->nb_inplace_remainder},
+                     {OP_BINARY_IMUL, &_Type.tp_as_number->nb_inplace_multiply},
+                     {OP_BINARY_ILSHIFT, &_Type.tp_as_number->nb_inplace_lshift},
+                     {OP_BINARY_IRSHIFT, &_Type.tp_as_number->nb_inplace_rshift},
+                     {OP_BINARY_ISUB, &_Type.tp_as_number->nb_inplace_subtract},
+
+                    };
+            if (binary_mapping.count(name) == 0){
+                throw "Undefined operator name (internal error)";
+            }
+            *binary_mapping[name] = func;
+        }
+
         if (PyType_Ready(&_Type) < 0) {
             PyErr_SetString(PyExc_RuntimeError, "Failed to ready type!");
             PyErr_Print();
@@ -764,7 +831,7 @@ namespace __pyllars_internal{
             goto onerror;
         }
 
-        for(auto const& [name, value]: _classEnumValues){
+        for(auto const& [name, value]: Basic::_classEnumValues){
             //can only call this AFTER call to READY:
             PyObject* pyval = toPyObject<T>(*const_cast<T*>(value), false, 1);
             if (pyval){
@@ -773,6 +840,7 @@ namespace __pyllars_internal{
                 status = -1;
             }
         }
+
         {
             PyObject *const type = reinterpret_cast<PyObject *>(&_Type);
             Py_INCREF(type);
@@ -924,21 +992,9 @@ namespace __pyllars_internal{
     void PythonClassWrapper<T,
             typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value &&  !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
     addUnaryOperator( typename MethodContainer<T_NoRef, is_const>::template Container<name, Arg>::method_t method) {
-
-        static std::map<std::string, unaryfunc*> unary_mapping =
-                {{std::string(OP_UNARY_INV), &_Type.tp_as_number->nb_invert},
-                 {std::string(OP_UNARY_NEG), &_Type.tp_as_number->nb_negative},
-                 {std::string(OP_UNARY_POS), &_Type.tp_as_number->nb_positive}};
-        static const char *const doc = "Call method ";
-        static char *doc_string = new char[strlen(name) + strlen(doc) + 1];
-        static auto _ = snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
-
         MethodContainer<T_NoRef, is_const>::template Container<name, Arg>::method = method;
-        if (unary_mapping.count(name) == 0){
-            throw "Undefined operator name (internal error)";
-        }
-        *unary_mapping[name] =
-                (unaryfunc) MethodContainer<T_NoRef, is_const>::template Container<name, Arg>::callAsBinaryFunc;
+        _unaryOperators[name] =
+                (unaryfunc) MethodContainer<T_NoRef, is_const>::template Container<name, Arg>::callAsUnaryFunc;
     }
 
 
@@ -949,40 +1005,11 @@ namespace __pyllars_internal{
     addBinaryOperator( typename MethodContainer<T_NoRef, is_const>::template Container<name, ReturnType, Arg>::method_t method,
                       const char *const kwlist[]) {
 
-        static std::map<std::string, binaryfunc*> binary_mapping =
-                {{OP_BINARY_ADD, &_Type.tp_as_number->nb_add},
-                 {OP_BINARY_AND, &_Type.tp_as_number->nb_and},
-                 {OP_BINARY_OR, &_Type.tp_as_number->nb_or},
-                 {OP_BINARY_XOR, &_Type.tp_as_number->nb_xor},
-                 {OP_BINARY_DIV, &_Type.tp_as_number->nb_true_divide},
-                 {OP_BINARY_MOD, &_Type.tp_as_number->nb_remainder},
-                 {OP_BINARY_MUL, &_Type.tp_as_number->nb_multiply},
-                 {OP_BINARY_LSHIFT, &_Type.tp_as_number->nb_lshift},
-                 {OP_BINARY_RSHIFT, &_Type.tp_as_number->nb_rshift},
-                 {OP_BINARY_SUB, &_Type.tp_as_number->nb_subtract},
-                 {OP_BINARY_IADD, &_Type.tp_as_number->nb_inplace_add},
-                 {OP_BINARY_IAND, &_Type.tp_as_number->nb_inplace_and},
-                 {OP_BINARY_IOR, &_Type.tp_as_number->nb_inplace_or},
-                 {OP_BINARY_IXOR, &_Type.tp_as_number->nb_inplace_xor},
-                 {OP_BINARY_IDIV, &_Type.tp_as_number->nb_inplace_true_divide},
-                 {OP_BINARY_IMOD, &_Type.tp_as_number->nb_inplace_remainder},
-                 {OP_BINARY_IMUL, &_Type.tp_as_number->nb_inplace_multiply},
-                 {OP_BINARY_ILSHIFT, &_Type.tp_as_number->nb_inplace_lshift},
-                 {OP_BINARY_IRSHIFT, &_Type.tp_as_number->nb_inplace_rshift},
-                 {OP_BINARY_ISUB, &_Type.tp_as_number->nb_inplace_subtract},
-
-                };
-        static const char *const doc = "Call method ";
-        static char *doc_string = new char[strlen(name) + strlen(doc) + 1];
-        static auto _ = snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
-
         MethodContainer<T_NoRef, is_const>::template Container<name, ReturnType, Arg>::method = method;
-        if (binary_mapping.count(name) == 0){
-            throw "Undefined operator name (internal error)";
-        }
-        *binary_mapping[name] =
+
+        _binaryOperators[name] =
                 (binaryfunc) MethodContainer<T_NoRef, is_const>::template Container<name, ReturnType, Arg>::callAsBinaryFunc;
-    }
+     }
 
     template<typename T>
     PyObject*

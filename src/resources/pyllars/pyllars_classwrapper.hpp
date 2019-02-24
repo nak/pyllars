@@ -417,6 +417,9 @@ namespace __pyllars_internal {
         template<bool is_base_return_complete, bool with_ellipsis, typename ReturnType, typename ...Args>
         friend struct PythonFunctionWrapper;
 
+        template<typename Y, typename YY>
+        friend class PythonClassWrapper;
+
         template<typename Class, typename Z=void>
         class PyAssign ;
 
@@ -589,6 +592,8 @@ namespace __pyllars_internal {
         static std::vector<_setattrfunc > _assigners;
         static std::vector<PyTypeObject *> _baseClasses;
         static std::map<std::string, const T_NoRef*> _classEnumValues;
+        static std::map<std::string, unaryfunc> _unaryOperators;
+        static std::map<std::string, binaryfunc> _binaryOperators;
 
         void set_contents(typename std::remove_reference<T>::type *ptr, const bool allocated, const bool inPlace);
 
