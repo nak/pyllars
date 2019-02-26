@@ -61,6 +61,9 @@ namespace __pyllars_internal {
             std::is_integral<typename std::remove_reference<T>::type>::value
             || std::is_enum<typename std::remove_reference<T>::type>::value>::type>::
     toCObject(PyObject &pyobj) {
+        static const bool is_reference = std::is_reference<T>::value;
+        static const bool is_const = std::is_const<T>::value;
+
         typedef typename std::remove_reference<typename std::remove_const<T>::type>::type T_bare;
         if (PyInt_Check(&pyobj)) {
             T_bare *value = new T_bare((T_bare) PyInt_AsLong(&pyobj));
@@ -77,15 +80,74 @@ namespace __pyllars_internal {
                     reinterpret_cast<NoRefClassWrapper * >(&pyobj)->get_CObject(),
                     PTR_IS_NOT_ALLOCATED);
         } else if (ConstClassWrapper::checkType(&pyobj)) {
+            if(is_const){
+                return smart_ptr<T, array_allocated>(
+                        (T*)reinterpret_cast<ConstClassWrapper * >(&pyobj)->get_CObject(),
+                        PTR_IS_NOT_ALLOCATED);
+            } else {
+                //Attempting to cast const T to T  which requires a copy
+                ConstClassWrapper *self = reinterpret_cast<ConstClassWrapper *>(&pyobj);
+                T_bare *copy = ObjectLifecycleHelpers::Copy<T_bare>::new_copy((T_bare*)self->get_CObject());
+                return smart_ptr<T, array_allocated>(copy, PTR_IS_ALLOCATED);
+            }
+        } else if (ConstRefClassWrapper::checkType(&pyobj)) {
+            if (is_const){
+                return smart_ptr<T, array_allocated>(
+                        (T*) reinterpret_cast<ConstRefClassWrapper * >(&pyobj)->get_CObject(),
+                        PTR_IS_NOT_ALLOCATED);
+            } else {
+                //Attempting to cast const T to T  which requires a copy
+                ConstRefClassWrapper *self = reinterpret_cast<ConstRefClassWrapper *>(&pyobj);
+                T_bare *copy = ObjectLifecycleHelpers::Copy<T_bare>::new_copy((T_bare*)self->get_CObject());
+                return smart_ptr<T, array_allocated>(copy, PTR_IS_ALLOCATED);
+            }
+        /*}else if (VolatileClassWrapper::checkType(&pyobj)) {
             //Attempting to cast const T to T  which requires a copy
-            ConstClassWrapper *self = reinterpret_cast<ConstClassWrapper *>(&pyobj);
+            VolatileClassWrapper *self = reinterpret_cast<VolatileClassWrapper *>(&pyobj);
             T_bare *copy = (T_bare *) ObjectLifecycleHelpers::Copy<const T>::new_copy(
                     *self->get_CObject());
             return smart_ptr<T, array_allocated>(copy, PTR_IS_ALLOCATED);
+        } else if (VolatileRefClassWrapper::checkType(&pyobj)) {
+            //Attempting to cast const T to T  which requires a copy
+            VolatileRefClassWrapper *self = reinterpret_cast<VolatileRefClassWrapper *>(&pyobj);
+            T_bare *copy = (T_bare *) ObjectLifecycleHelpers::Copy<const T>::new_copy(
+                    *self->get_CObject());
+            return smart_ptr<T, array_allocated>(copy, PTR_IS_ALLOCATED);
+        }else if (ConstVolatileClassWrapper::checkType(&pyobj)) {
+            //Attempting to cast const T to T  which requires a copy
+            ConstVolatileClassWrapper *self = reinterpret_cast<ConstVolatileClassWrapper *>(&pyobj);
+            T_bare *copy = (T_bare *) ObjectLifecycleHelpers::Copy<const T>::new_copy(
+                    *self->get_CObject());
+            return smart_ptr<T, array_allocated>(copy, PTR_IS_ALLOCATED);
+        } else if (ConstVolatileRefClassWrapper::checkType(&pyobj)) {
+            //Attempting to cast const T to T  which requires a copy
+            ConstVolatileRefClassWrapper *self = reinterpret_cast<ConstVolatileRefClassWrapper *>(&pyobj);
+            T_bare *copy = (T_bare *) ObjectLifecycleHelpers::Copy<const T>::new_copy(
+                    *self->get_CObject());
+            return smart_ptr<T, array_allocated>(copy, PTR_IS_ALLOCATED);*/
+        } else if (RefNonConstClassWrapper ::checkType(&pyobj)) {
+            if(is_const || !is_reference) {
+                return smart_ptr<T, array_allocated>(
+                        (T*) reinterpret_cast<RefClassWrapper * >(&pyobj)->get_CObject(),
+                        PTR_IS_NOT_ALLOCATED);
+            } else {
+                NoRefNonConstClassWrapper *self = reinterpret_cast<NoRefNonConstClassWrapper *>(&pyobj);
+                T_bare *copy = ObjectLifecycleHelpers::Copy<T_bare>::new_copy((T_bare*)self->get_CObject());
+                return smart_ptr<T, array_allocated>(copy, PTR_IS_ALLOCATED);
+            }
+        } else if (NoRefClassWrapper ::checkType(&pyobj)) {
+            //Attempting to cast const T to T  which requires a copy
+            NoRefClassWrapper *self = reinterpret_cast<NoRefClassWrapper *>(&pyobj);
+            T_bare *copy = ObjectLifecycleHelpers::Copy<T_bare>::new_copy((T_bare*)self->get_CObject());
+            return smart_ptr<T, array_allocated>(copy, PTR_IS_ALLOCATED);
+        } else if (NoRefNonConstClassWrapper ::checkType(&pyobj)) {
+            //Attempting to cast const T to T  which requires a copy
+            NoRefNonConstClassWrapper *self = reinterpret_cast<NoRefNonConstClassWrapper *>(&pyobj);
+            T_bare *copy =ObjectLifecycleHelpers::Copy<T_bare>::new_copy((T_bare*)self->get_CObject());
+            return smart_ptr<T, array_allocated>(copy, PTR_IS_ALLOCATED);
         } else if (NonConstClassWrapper::checkType(&pyobj)) {
-            //casting T to const T:
             return smart_ptr<T, array_allocated>(
-                    reinterpret_cast<NonConstClassWrapper * >(&pyobj)->get_CObject(),
+                    (T*) reinterpret_cast<NonConstClassWrapper * >(&pyobj)->get_CObject(),
                     PTR_IS_NOT_ALLOCATED);
         }
         throw "Invalid type converting to C object";

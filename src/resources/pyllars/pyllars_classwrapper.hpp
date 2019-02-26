@@ -52,6 +52,8 @@ static constexpr cstring OP_BINARY_IMOD = "__imod__";
 static constexpr cstring OP_BINARY_ILSHIFT = "__ilshift__";
 static constexpr cstring OP_BINARY_IRSHIFT = "__iRshift__";
 
+static const char* const emptylist[] = {nullptr};
+
 namespace __pyllars_internal {
 
     typedef int (*_setattrfunc)(PyObject*, PyObject*, void*);
@@ -84,8 +86,17 @@ namespace __pyllars_internal {
         typedef CommonBaseWrapper::Base Base;
         typedef PythonClassWrapper DereferencedWrapper;
         typedef PythonClassWrapper<T const,   void> ConstWrapper;
+        typedef PythonClassWrapper<T volatile,   void> VolatileWrapper;
+        typedef PythonClassWrapper<T volatile&,   void> VolatileRefWrapper;
+        typedef PythonClassWrapper<T const volatile,   void> ConstVolatileWrapper;
+        typedef PythonClassWrapper<T const volatile&,   void> ConstVolatileRefWrapper;
         typedef PythonClassWrapper<typename std::remove_const<T>::type> NonConstWrapper;
+        typedef PythonClassWrapper<typename std::remove_const<T>::type&> NonConstRefWrapper;
+        typedef PythonClassWrapper<typename std::remove_const<T>::type&> RefNonConstWrapper;
+        typedef PythonClassWrapper<const typename std::remove_const<T>::type&> ConstRefWrapper;
         typedef PythonClassWrapper<typename std::remove_reference<T>::type> NoRefWrapper;
+        typedef PythonClassWrapper<typename std::remove_reference<T>::type&> RefWrapper;
+
         typedef PythonClassWrapper<typename std::remove_const<typename std::remove_reference<T>::type>::type> NoRefNonConstWrapper;
         typedef typename ObjectLifecycleHelpers::BasicAlloc<T>::ConstructorContainer ConstructorContainer;
         typedef typename ConstructorContainer::constructor constructor;
@@ -180,14 +191,14 @@ namespace __pyllars_internal {
          * @param method: the pointer to the metho to be added
          * @param kwlist: list of keyword names of araguments
          **/
-        template<const char *const name, typename ReturnType, typename ...Args>
-        static void addClassMethod(ReturnType(*method)(Args...), const char *const kwlist[]);
+        template<const char *const name, const char *const kwlist[], typename ReturnType, typename ...Args>
+        static void addClassMethod(ReturnType(*method)(Args...));
 
         /**
          * add a method with given compile-time-known name to the contained collection
          **/
-        template<const char *const name, typename ReturnType, typename ...Args>
-        static void addClassMethodVarargs(ReturnType(*method)(Args... ...), const char *const kwlist[]);
+        template<const char *const name, const char *const kwlist[], typename ReturnType, typename ...Args>
+        static void addClassMethodVarargs(ReturnType(*method)(Args... ...));
 
 
         /**
@@ -266,136 +277,123 @@ namespace __pyllars_internal {
         /**
          * add a method with given compile-time-known name to the contained collection
          **/
-        template<typename _Container, const char *const name, typename ReturnType, typename ...Args>
+        template<typename _MContainer,bool is_const, const char* const kwlist[], typename ReturnType, typename ...Args>
         static void addMethodTempl(
-                typename _Container::template Container<name, ReturnType, Args...>::method_t method,
-                const char *const kwlist[]);
+                typename _MContainer::template Container<is_const, kwlist, ReturnType, Args...>::method_t method);
 
         /**
          * add a method with given compile-time-known name to the contained collection
          **/
-        template<bool is_const, const char *const name, typename ReturnType, typename ...Args>
+        template<bool is_const, const char *const name, const char* const kwlist[], typename ReturnType, typename ...Args>
         static void addMethod(
-                typename MethodContainer<T_NoRef, is_const>::template Container<name, ReturnType, Args...>::method_t method,
-                const char *const kwlist[]){
-            addMethodTempl<MethodContainer<T_NoRef, is_const>, name, ReturnType, Args...>(method, kwlist);
+                typename MethodContainer<T_NoRef, name>::template Container<is_const, kwlist, ReturnType, Args...>::method_t method){
+            addMethodTempl<MethodContainer<T_NoRef, name>, is_const, kwlist, ReturnType, Args...>(method);
         }
 
-        template<bool is_const, const char *const name, typename ReturnType, typename ...Args>
+        template<bool is_const, const char *const name, const char* const kwlist[], typename ReturnType, typename ...Args>
         static void addMethodVarargs(
-                typename MethodContainerVarargs<T_NoRef, is_const>::template Container<name, ReturnType, Args...>::method_t method,
-                const char *const kwlist[]){
-            addMethodTempl<MethodContainerVarargs<T_NoRef, is_const>, name, ReturnType, Args...>(method, kwlist);
+                typename MethodContainerVarargs<T_NoRef, name>::template Container<is_const, kwlist, ReturnType, Args...>::method_t method){
+            addMethodTempl<MethodContainerVarargs<T_NoRef, name>, name, kwlist, ReturnType, Args...>(method);
          }
 
 
 
         template<const char *const name, bool is_const, typename Arg=T_NoRef>
         static void addUnaryOperator(
-                typename MethodContainer<T_NoRef, is_const>::template Container<name, Arg>::method_t method);
+                typename MethodContainer<T_NoRef, name>::template Container<is_const, emptylist, Arg>::method_t method);
 
         template<typename Arg = T_NoRef, bool is_const = true>
-        static void addInvOperator(typename MethodContainer<T_NoRef, is_const>::template Container<OP_UNARY_INV, Arg>::method_t method)
+        static void addInvOperator(typename MethodContainer<T_NoRef, OP_UNARY_INV>::template Container<is_const, emptylist, Arg>::method_t method)
         { addUnaryOperator<OP_UNARY_INV, is_const, Arg>(method);}
 
         template<typename Arg = T_NoRef, bool is_const = true>
-        static void addPosOperator(typename MethodContainer<T_NoRef, is_const>::template Container<OP_UNARY_POS, Arg>::method_t method)
+        static void addPosOperator(typename MethodContainer<T_NoRef, OP_UNARY_POS>::template Container<is_const, emptylist, Arg>::method_t method)
         { addUnaryOperator<OP_UNARY_POS, is_const, Arg>(method);}
 
         template<typename Arg = T_NoRef, bool is_const = true>
-        static void addNegOperator(typename MethodContainer<T_NoRef, is_const>::template Container<OP_UNARY_NEG, Arg>::method_t method)
+        static void addNegOperator(typename MethodContainer<T_NoRef, OP_UNARY_NEG>::template Container<is_const, emptylist, Arg>::method_t method)
         { addUnaryOperator<OP_UNARY_NEG, is_const, Arg>(method);}
 
-        template<const char *const name, bool is_const, typename ReturnType=T_NoRef, typename Arg=T_NoRef>
+        template<const char *const name, bool is_const, const char* const kwlist[2], typename ReturnType=T_NoRef, typename Arg=T_NoRef>
         static void addBinaryOperator(
-                typename MethodContainer<T_NoRef, is_const>::template Container<name, ReturnType, Arg>::method_t method,
-                const char *const kwlist[]);
+                typename MethodContainer<T_NoRef, name>::template Container<is_const, kwlist,  ReturnType, Arg>::method_t method);
 
-        template<typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
-        static void addAddOperator(typename MethodContainer<T_NoRef, is_const>::template Container<OP_BINARY_ADD, ReturnType, Arg>::method_t method,
-                                  const char *const kwlist[]){ addBinaryOperator<OP_BINARY_ADD, is_const,  ReturnType, Arg>(method, kwlist);}
+        template<const char* const kwlist[2], typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
+        static void addAddOperator(typename MethodContainer<T_NoRef, OP_BINARY_ADD>::template Container<is_const, kwlist, ReturnType, Arg>::method_t method){
+            addBinaryOperator<OP_BINARY_ADD, is_const,  kwlist, ReturnType, Arg>(method);
+        }
 
-        template<typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
-        static void addSubOperator(typename MethodContainer<T_NoRef, is_const>::template Container<OP_BINARY_SUB, ReturnType, Arg>::method_t method,
-                                   const char *const kwlist[]){ addBinaryOperator<OP_BINARY_SUB, is_const,  ReturnType, Arg>(method, kwlist);}
+        template<const char* const kwlist[2], typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
+        static void addSubOperator(typename MethodContainer<T_NoRef, OP_BINARY_SUB>::template Container<is_const, kwlist, ReturnType, Arg>::method_t method){
+            addBinaryOperator<OP_BINARY_SUB, is_const,  kwlist, ReturnType, Arg>(method);
+        }
 
-        template<typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
-        static void addMulOperator(typename MethodContainer<T_NoRef, is_const>::template Container<OP_BINARY_MUL, ReturnType, Arg>::method_t method,
-                                   const char *const kwlist[]){ addBinaryOperator<OP_BINARY_MUL, is_const,  ReturnType, Arg>(method, kwlist);}
+        template<const char* const kwlist[2], typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
+        static void addMulOperator(typename MethodContainer<T_NoRef, OP_BINARY_MUL>::template Container<is_const, kwlist, ReturnType, Arg>::method_t method){
+            addBinaryOperator<OP_BINARY_MUL, is_const, kwlist, ReturnType, Arg>(method);}
 
-        template<typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
-        static void addDivOperator(typename MethodContainer<T_NoRef, is_const>::template Container<OP_BINARY_DIV, ReturnType, Arg>::method_t method,
-                                   const char *const kwlist[]){ addBinaryOperator<OP_BINARY_DIV, is_const,  ReturnType, Arg>(method, kwlist);}
+        template<const char* const kwlist[2], typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
+        static void addDivOperator(typename MethodContainer<T_NoRef, OP_BINARY_DIV>::template Container<is_const, kwlist, ReturnType, Arg>::method_t method){
+            addBinaryOperator<OP_BINARY_DIV, is_const, kwlist, ReturnType, Arg>(method);}
 
-        template<typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
-        static void addAndOperator(typename MethodContainer<T_NoRef, is_const>::template Container<OP_BINARY_AND, ReturnType, Arg>::method_t method,
-                                  const char *const kwlist[]){ addBinaryOperator<OP_BINARY_AND, is_const,  ReturnType, Arg>(method, kwlist);}
+        template<const char* const kwlist[2], typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
+        static void addAndOperator(typename MethodContainer<T_NoRef, OP_BINARY_AND>::template Container<is_const, kwlist, ReturnType, Arg>::method_t method){
+            addBinaryOperator<OP_BINARY_AND, is_const, kwlist, ReturnType, Arg>(method);}
 
-        template<typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
-        static void addOrOperator(typename MethodContainer<T_NoRef, is_const>::template Container<OP_BINARY_OR, ReturnType, Arg>::method_t method,
-                                  const char *const kwlist[]){ addBinaryOperator<OP_BINARY_OR, is_const,  ReturnType, Arg>(method, kwlist);}
+        template<const char* const kwlist[2], typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
+        static void addOrOperator(typename MethodContainer<T_NoRef, OP_BINARY_OR>::template Container<is_const, kwlist, ReturnType, Arg>::method_t method){
+            addBinaryOperator<OP_BINARY_OR, is_const, kwlist, ReturnType, Arg>(method);}
 
-        template<typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
-        static void addXorOperator(typename MethodContainer<T_NoRef, is_const>::template Container<OP_BINARY_XOR, ReturnType, Arg>::method_t method,
-                                  const char *const kwlist[]){ addBinaryOperator<OP_BINARY_XOR, is_const,  ReturnType, Arg>(method, kwlist);}
+        template<const char* const kwlist[2], typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
+        static void addXorOperator(typename MethodContainer<T_NoRef, OP_BINARY_XOR>::template Container<is_const, kwlist, ReturnType, Arg>::method_t method){
+            addBinaryOperator<OP_BINARY_XOR, is_const,  ReturnType, Arg>(method);}
 
-        template<typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
-        static void addLshiftOperator(typename MethodContainer<T_NoRef, is_const>::template Container<OP_BINARY_LSHIFT, ReturnType, Arg>::method_t method,
-                                   const char *const kwlist[]){ addBinaryOperator<OP_BINARY_LSHIFT, is_const,  ReturnType, Arg>(method, kwlist);}
+        template<const char* const kwlist[2], typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
+        static void addLshiftOperator(typename MethodContainer<T_NoRef, OP_BINARY_LSHIFT>::template Container<is_const, kwlist, ReturnType, Arg>::method_t method){
+            addBinaryOperator<OP_BINARY_LSHIFT, is_const,  kwlist, ReturnType, Arg>(method);}
 
-        template<typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
-        static void addRshiftOperator(typename MethodContainer<T_NoRef, is_const>::template Container<OP_BINARY_RSHIFT, ReturnType, Arg>::method_t method,
-                                      const char *const kwlist[]){ addBinaryOperator<OP_BINARY_RSHIFT, is_const,  ReturnType, Arg>(method, kwlist);}
+        template<const char* const kwlist[2], typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
+        static void addRshiftOperator(typename MethodContainer<T_NoRef, OP_BINARY_RSHIFT>::template Container<is_const, kwlist, ReturnType, Arg>::method_t method){
+            addBinaryOperator<OP_BINARY_RSHIFT, is_const, kwlist, ReturnType, Arg>(method);}
 
-        template<typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
-        static void addModOperator(typename MethodContainer<T_NoRef, is_const>::template Container<OP_BINARY_MOD, ReturnType, Arg>::method_t method,
-                                   const char *const kwlist[]){ addBinaryOperator<OP_BINARY_MOD, is_const,  ReturnType, Arg>(method, kwlist);}
+        template<const char* const kwlist[2], typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
+        static void addModOperator(typename MethodContainer<T_NoRef, OP_BINARY_MOD>::template Container<is_const, kwlist, ReturnType, Arg>::method_t method){ addBinaryOperator<OP_BINARY_MOD, is_const,  ReturnType, Arg>(method, kwlist);}
 
-        template<typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
-        static void addInplaceAddOperator(typename MethodContainer<T_NoRef, is_const>::template Container<OP_BINARY_IADD, ReturnType, Arg>::method_t method,
-                                          const char *const kwlist[]){ addBinaryOperator<OP_BINARY_IADD, is_const,  ReturnType, Arg>(method, kwlist);}
+        template<const char* const kwlist[2], typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
+        static void addInplaceAddOperator(typename MethodContainer<T_NoRef, OP_BINARY_IADD>::template Container<is_const, kwlist, ReturnType, Arg>::method_t method){ addBinaryOperator<OP_BINARY_IADD, is_const,  ReturnType, Arg>(method, kwlist);}
 
-        template<typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
-        static void addInplaceSubOperator(typename MethodContainer<T_NoRef, is_const>::template Container<OP_BINARY_ISUB, ReturnType, Arg>::method_t method,
-                                          const char *const kwlist[]){ addBinaryOperator<OP_BINARY_ISUB, is_const,  ReturnType, Arg>(method, kwlist);}
+        template<const char* const kwlist[2], typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
+        static void addInplaceSubOperator(typename MethodContainer<T_NoRef, OP_BINARY_ISUB>::template Container<is_const, kwlist, ReturnType, Arg>::method_t method){ addBinaryOperator<OP_BINARY_ISUB, is_const,  ReturnType, Arg>(method, kwlist);}
 
-        template<typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
-        static void addInplaceMulOperator(typename MethodContainer<T_NoRef, is_const>::template Container<OP_BINARY_IMUL, ReturnType, Arg>::method_t method,
-                                          const char *const kwlist[]){ addBinaryOperator<OP_BINARY_IMUL, is_const,  ReturnType, Arg>(method, kwlist);}
+        template<const char* const kwlist[2], typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
+        static void addInplaceMulOperator(typename MethodContainer<T_NoRef, OP_BINARY_IMUL>::template Container<is_const, kwlist, ReturnType, Arg>::method_t method){ addBinaryOperator<OP_BINARY_IMUL, is_const,  ReturnType, Arg>(method, kwlist);}
 
-        template<typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
-        static void addInplaceModOperator(typename MethodContainer<T_NoRef, is_const>::template Container<OP_BINARY_IMOD, ReturnType, Arg>::method_t method,
-                                          const char *const kwlist[]){ addBinaryOperator<OP_BINARY_IMOD, is_const,  ReturnType, Arg>(method, kwlist);}
+        template<const char* const kwlist[2], typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
+        static void addInplaceModOperator(typename MethodContainer<T_NoRef, OP_BINARY_IMOD>::template Container<is_const, kwlist, ReturnType, Arg>::method_t method){ addBinaryOperator<OP_BINARY_IMOD, is_const,  ReturnType, Arg>(method, kwlist);}
 
-        template<typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
-        static void addInplaceLshiftOperator(typename MethodContainer<T_NoRef, is_const>::template Container<OP_BINARY_ILSHIFT, ReturnType, Arg>::method_t method,
-                                             const char *const kwlist[]){ addBinaryOperator<OP_BINARY_ILSHIFT, is_const,  ReturnType, Arg>(method, kwlist);}
+        template<const char* const kwlist[2], typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
+        static void addInplaceLshiftOperator(typename MethodContainer<T_NoRef, OP_BINARY_ILSHIFT>::template Container<is_const, kwlist, ReturnType, Arg>::method_t method){ addBinaryOperator<OP_BINARY_ILSHIFT, is_const,  ReturnType, Arg>(method, kwlist);}
 
-        template<typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
-        static void addInplaceRshiftOperator(typename MethodContainer<T_NoRef, is_const>::template Container<OP_BINARY_IRSHIFT, ReturnType, Arg>::method_t method,
-                                             const char *const kwlist[]){ addBinaryOperator<OP_BINARY_IRSHIFT, is_const,  ReturnType, Arg>(method, kwlist);}
+        template<const char* const kwlist[2], typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
+        static void addInplaceRshiftOperator(typename MethodContainer<T_NoRef, OP_BINARY_IRSHIFT>::template Container<is_const, kwlist, ReturnType, Arg>::method_t method){ addBinaryOperator<OP_BINARY_IRSHIFT, is_const,  ReturnType, Arg>(method, kwlist);}
 
-        template<typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
-        static void addInplaceAndOperator(typename MethodContainer<T_NoRef, is_const>::template Container<OP_BINARY_IAND, ReturnType, Arg>::method_t method,
-                                             const char *const kwlist[]){ addBinaryOperator<OP_BINARY_IAND, is_const,  ReturnType, Arg>(method, kwlist);}
+        template<const char* const kwlist[2], typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
+        static void addInplaceAndOperator(typename MethodContainer<T_NoRef, OP_BINARY_IAND>::template Container<is_const, kwlist, ReturnType, Arg>::method_t method){ addBinaryOperator<OP_BINARY_IAND, is_const,  ReturnType, Arg>(method, kwlist);}
 
-        template<typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
-        static void addInplaceOrOperator(typename MethodContainer<T_NoRef, is_const>::template Container<OP_BINARY_IOR, ReturnType, Arg>::method_t method,
-                                         const char *const kwlist[]){ addBinaryOperator<OP_BINARY_IOR, is_const,  ReturnType, Arg>(method, kwlist);}
+        template<const char* const kwlist[2], typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
+        static void addInplaceOrOperator(typename MethodContainer<T_NoRef, OP_BINARY_IOR>::template Container<is_const, kwlist, ReturnType, Arg>::method_t method){ addBinaryOperator<OP_BINARY_IOR, is_const,  ReturnType, Arg>(method, kwlist);}
 
-        template<typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
-        static void addInplaceXorOperator(typename MethodContainer<T_NoRef, is_const>::template Container<OP_BINARY_IXOR, ReturnType, Arg>::method_t method,
-                                         const char *const kwlist[]){ addBinaryOperator<OP_BINARY_IXOR, is_const,  ReturnType, Arg>(method, kwlist);}
+        template<const char* const kwlist[2], typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
+        static void addInplaceXorOperator(typename MethodContainer<T_NoRef, OP_BINARY_IXOR>::template Container<is_const, kwlist, ReturnType, Arg>::method_t method){ addBinaryOperator<OP_BINARY_IXOR, is_const,  ReturnType, Arg>(method, kwlist);}
 
-        template<typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
-        static void addInplaceDicOperator(typename MethodContainer<T_NoRef, is_const>::template Container<OP_BINARY_IDIV, ReturnType, Arg>::method_t method,
-                                         const char *const kwlist[]){ addBinaryOperator<OP_BINARY_IDIV, is_const,  ReturnType, Arg>(method, kwlist);}
+        template<const char* const kwlist[2], typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
+        static void addInplaceDicOperator(typename MethodContainer<T_NoRef, OP_BINARY_IDIV>::template Container<is_const, kwlist, ReturnType, Arg>::method_t method){ addBinaryOperator<OP_BINARY_IDIV, is_const,  ReturnType, Arg>(method, kwlist);}
 
-        template< typename KeyType, typename ValueType>
-        static void addMapOperatorMethod( typename MethodContainer<T_NoRef, false>::template Container<operatormapname, ValueType, KeyType>::method_t method);
+        template< const char* const kwlist[2], typename KeyType, typename ValueType>
+        static void addMapOperatorMethod( typename MethodContainer<T_NoRef, operatormapname>::template Container<false, kwlist, ValueType, KeyType>::method_t method);
 
-        template< typename KeyType, typename ValueType>
-        static void addMapOperatorMethodConst( typename MethodContainer<T_NoRef, true>::template Container<operatormapname, ValueType, KeyType>::method_t method);
+        template<const char* const kwlist[2],  typename KeyType, typename ValueType>
+        static void addMapOperatorMethodConst( typename MethodContainer<T_NoRef, operatormapname>::template Container<true, kwlist, ValueType, KeyType>::method_t method);
 
         static bool checkType(PyObject *const obj);
 

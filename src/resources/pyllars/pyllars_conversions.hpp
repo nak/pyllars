@@ -43,7 +43,14 @@ namespace __pyllars_internal {
         typedef typename ClassWrapper::NoRefWrapper NoRefClassWrapper;
         typedef typename ClassWrapper::NonConstWrapper NonConstClassWrapper;
         typedef typename ClassWrapper::ConstWrapper ConstClassWrapper;
+        typedef typename ClassWrapper::ConstRefWrapper ConstRefClassWrapper;
+        typedef typename ClassWrapper::VolatileWrapper VolatileClassWrapper;
+        typedef typename ClassWrapper::VolatileRefWrapper VolatileRefClassWrapper;
+        typedef typename ClassWrapper::ConstVolatileWrapper ConstVolatileClassWrapper;
+        typedef typename ClassWrapper::ConstVolatileRefWrapper ConstVolatileRefClassWrapper;
         typedef typename ClassWrapper::NoRefNonConstWrapper NoRefNonConstClassWrapper;
+        typedef typename ClassWrapper::NonConstRefWrapper RefNonConstClassWrapper;
+        typedef typename ClassWrapper::RefWrapper RefClassWrapper;
 
         typedef typename std::remove_reference<T>::type T_bare;
         typedef smart_ptr<T_bare, array_allocated> ptr_t;
@@ -60,9 +67,19 @@ namespace __pyllars_internal {
             || std::is_enum<typename std::remove_reference<T>::type>::value>::type> {
     public:
 
+
         typedef typename ClassWrapper::NoRefWrapper NoRefClassWrapper;
         typedef typename ClassWrapper::NonConstWrapper NonConstClassWrapper;
         typedef typename ClassWrapper::ConstWrapper ConstClassWrapper;
+        typedef typename ClassWrapper::ConstRefWrapper ConstRefClassWrapper;
+        typedef typename ClassWrapper::VolatileWrapper VolatileClassWrapper;
+        typedef typename ClassWrapper::VolatileRefWrapper VolatileRefClassWrapper;
+        typedef typename ClassWrapper::ConstVolatileWrapper ConstVolatileClassWrapper;
+        typedef typename ClassWrapper::ConstVolatileRefWrapper ConstVolatileRefClassWrapper;
+        typedef typename ClassWrapper::NoRefNonConstWrapper NoRefNonConstClassWrapper;
+        typedef typename ClassWrapper::RefWrapper RefClassWrapper;
+        typedef typename ClassWrapper::RefNonConstWrapper RefNonConstClassWrapper;
+
         typedef smart_ptr<T, array_allocated> ptr_t;
 
         static smart_ptr<T, array_allocated> toCObject(PyObject &pyobj);
@@ -75,9 +92,19 @@ namespace __pyllars_internal {
     class CObjectConversionHelper<T, array_allocated, ClassWrapper,
             typename std::enable_if<std::is_floating_point<typename std::remove_reference<T>::type>::value>::type> {
     public:
+
         typedef typename ClassWrapper::NoRefWrapper NoRefClassWrapper;
         typedef typename ClassWrapper::NonConstWrapper NonConstClassWrapper;
         typedef typename ClassWrapper::ConstWrapper ConstClassWrapper;
+        typedef typename ClassWrapper::ConstRefWrapper ConstRefClassWrapper;
+        typedef typename ClassWrapper::VolatileWrapper VolatileClassWrapper;
+        typedef typename ClassWrapper::VolatileRefWrapper VolatileRefClassWrapper;
+        typedef typename ClassWrapper::ConstVolatileWrapper ConstVolatileClassWrapper;
+        typedef typename ClassWrapper::ConstVolatileRefWrapper ConstVolatileRefClassWrapper;
+        typedef typename ClassWrapper::NoRefNonConstWrapper NoRefNonConstClassWrapper;
+        typedef typename ClassWrapper::RefNonConstWrapper RefNonConstClassWrapper;
+        typedef typename ClassWrapper::RefWrapper RefClassWrapper;
+
         typedef smart_ptr<T, array_allocated> ptr_t;
         static smart_ptr<T, array_allocated> toCObject(PyObject &pyobj) ;
     };
@@ -195,8 +222,8 @@ namespace __pyllars_internal {
     template<typename T, bool array_allocated, typename ClassWrapper>
     typename CObjectConversionHelper<typename std::remove_reference<T>::type, array_allocated, ClassWrapper>::ptr_t
      toCObject(PyObject &pyobj) {
-        return CObjectConversionHelper<typename std::remove_reference<T>::type, array_allocated, ClassWrapper>::toCObject(
-                pyobj);
+        return CObjectConversionHelper<typename std::remove_reference<T>::type, array_allocated, ClassWrapper>::
+                toCObject(pyobj);
     }
 
     /**

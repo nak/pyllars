@@ -45,7 +45,7 @@ namespace __pyllars_internal {
                                     std::is_assignable<typename std::remove_reference<T>::type&, typename std::remove_reference<T>::type>::value &&
                                     std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type>::
     new_copy(const T &value) {
-        return new ObjContainerProxy<T_NoRef, const T &>(value);
+        return new ObjContainerProxy<T_NoRef, const T &>(*new T_NoRef(value));
     }
 
     template<typename T>
@@ -81,7 +81,7 @@ namespace __pyllars_internal {
              !std::is_destructible<typename std::remove_reference<T>::type>::value) &&
             std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type>::
     new_copy(const T_NoRef &value) {
-        return new ObjContainerProxy<T_NoRef, const T_NoRef &>(value);
+        return new ObjContainerProxy<T_NoRef, const T_NoRef &>(*new T_NoRef(value));
     }
 
     template<typename T>
@@ -91,7 +91,7 @@ namespace __pyllars_internal {
              !std::is_destructible<typename std::remove_reference<T>::type>::value) &&
             std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type>::
     new_copy(T_NoRef *const value) {
-        return new ObjContainerProxy<T_NoRef, T_NoRef &>(*value);
+        return new ObjContainerProxy<T_NoRef, T_NoRef &>(*new T_NoRef(*value));
     }
 
     template<typename T>
@@ -417,9 +417,8 @@ namespace __pyllars_internal {
 
     template<typename T>
     ObjectLifecycleHelpers::BasicAlloc<T>::ConstructorContainer::
-    ConstructorContainer(const char *const kwlist[],
-                         constructor c) : _kwlist(kwlist),
-                                          _constructor(c) {
+    ConstructorContainer(const char *const kwlist[], constructor c) : _kwlist(kwlist),
+    _constructor(c) {
     }
 
     template<typename T>

@@ -11,8 +11,9 @@
 
 namespace __pyllars_internal {
 
-    template< bool is_const, typename CClass, typename T, typename ...Args>
-    typename MethodCallSemantics<is_const, true, CClass, T, Args...>::ReturnType MethodCallSemantics<is_const, true, CClass, T, Args...>::
+    template< bool is_const, const char* const kwlist[], typename CClass, typename T, typename ...Args>
+    typename MethodCallSemantics<is_const, true, kwlist, CClass, T, Args...>::ReturnType
+    MethodCallSemantics<is_const, true, kwlist, CClass, T, Args...>::
     call( method_t method, typename std::remove_reference<CClass>::type &self, Args... args, PyObject *extra_args) {
         typedef typename std::remove_reference<ReturnType>::type ReturnType_NoRef;
         /*if (!extra_args || PyTuple_Size(extra_args) == 0) {
@@ -105,8 +106,8 @@ namespace __pyllars_internal {
         }
     }
 
-    template<bool is_const, typename CClass, typename ...Args>
-    void MethodCallSemantics<is_const, true, CClass, void, Args...>::
+    template<bool is_const, const char* const kwlist[], typename CClass, typename ...Args>
+    void MethodCallSemantics<is_const, true, kwlist, CClass, void, Args...>::
     call(method_t method, typename std::remove_reference<CClass>::type &self, Args... args, PyObject *extra_args) {
         if (!extra_args || PyTuple_Size(extra_args) == 0) {
             self.*method(args...);
@@ -195,9 +196,8 @@ namespace __pyllars_internal {
         }
     }
 
-
-    template<bool is_const, typename CClass, typename T, typename ... Args>
-    PyObject *MethodCallSemantics<is_const, false, CClass, T, Args...>::
+    template<bool is_const, const char* const kwlist[], typename CClass, typename T, typename ... Args>
+    PyObject *MethodCallSemantics<is_const, false, kwlist, CClass, T, Args...>::
     call(method_t method, typename std::remove_reference<CClass>::type &self, PyObject *args, PyObject *kwds) {
         try {
             T result = call_methodBase(method, self, args, kwds, typename argGenerator<sizeof...(Args)>::type());
@@ -210,8 +210,8 @@ namespace __pyllars_internal {
         }
     }
 
-    template<bool is_const,typename CClass, typename T, typename ... Args>
-    PyObject *MethodCallSemantics<is_const, true, CClass, T, Args...>::
+    template<bool is_const, const char* const kwlist[], typename CClass, typename T, typename ... Args>
+    PyObject *MethodCallSemantics<is_const, true, kwlist, CClass, T, Args...>::
     call(method_t method, typename std::remove_reference<CClass>::type &self, PyObject *args, PyObject *kwds) {
         try {
             T result = call_methodBase(method, self, args, kwds, typename argGenerator<sizeof...(Args)>::type());
@@ -224,8 +224,8 @@ namespace __pyllars_internal {
         }
     }
 
-    template<bool is_const,typename CClass,  typename ... Args>
-    PyObject *MethodCallSemantics<is_const, false, CClass, void, Args...>::
+    template<bool is_const,const char* const kwlist[], typename CClass,  typename ... Args>
+    PyObject *MethodCallSemantics<is_const, false, kwlist, CClass, void, Args...>::
     call(method_t method, typename std::remove_reference<CClass>::type &self, PyObject *args, PyObject *kwds) {
         try {
             call_methodBase(method, self, args, kwds, typename argGenerator<sizeof...(Args)>::type());
@@ -237,12 +237,10 @@ namespace __pyllars_internal {
         return Py_None;
     }
 
-
-
-    template<bool is_const, typename CClass, typename T, typename ... Args>
+    template<bool is_const, const char* const kwlist[], typename CClass, typename T, typename ... Args>
     template<typename ...PyO>
     typename extent_as_pointer<T>::type
-    MethodCallSemantics<is_const, false, CClass, T, Args...>::
+    MethodCallSemantics<is_const, false, kwlist, CClass, T, Args...>::
     call_methodC(
             method_t method,
             typename std::remove_reference<CClass>::type &self,
@@ -267,10 +265,10 @@ namespace __pyllars_internal {
 
 
 
-    template<bool is_const, typename CClass, typename T, typename ... Args>
+    template<bool is_const, const char* const kwlist[], typename CClass, typename T, typename ... Args>
     template<typename ...PyO>
     typename extent_as_pointer<T>::type
-    MethodCallSemantics<is_const, true, CClass, T, Args...>::
+    MethodCallSemantics<is_const, true, kwlist, CClass, T, Args...>::
     call_methodC(
             method_t method,
             typename std::remove_reference<CClass>::type &self,
@@ -302,10 +300,10 @@ namespace __pyllars_internal {
     /**
      * call that converts python given arguments to make C call:
      **/
-    template<bool is_const,typename CClass, typename T, typename ... Args>
+    template<bool is_const, const char* const kwlist[], typename CClass, typename T, typename ... Args>
     template<int ...S>
     typename extent_as_pointer<T>::type
-    MethodCallSemantics<is_const, false, CClass, T, Args...>::
+    MethodCallSemantics<is_const, false, kwlist, CClass, T, Args...>::
     call_methodBase(
             method_t method,
             typename std::remove_reference<CClass>::type &self,
@@ -320,13 +318,9 @@ namespace __pyllars_internal {
 
     }
 
-    template<bool is_const, class CClass, typename ReturnType, typename ...Args>
-    const char *const *
-            MethodCallSemantics<is_const, false, CClass, ReturnType, Args...>::kwlist;
 
-
-    template<bool is_const, typename CClass, typename ...Args>
-    PyObject *MethodCallSemantics<is_const, false, CClass, void, Args...>::
+    template<bool is_const, const char* const kwlist[], typename CClass, typename ...Args>
+    PyObject *MethodCallSemantics<is_const, false, kwlist, CClass, void, Args...>::
     toPyObj(CClass &self) {
         (void) self;
         return Py_None;
@@ -335,10 +329,10 @@ namespace __pyllars_internal {
      /**
      * call that converts python given arguments to make C call:
      **/
-    template<bool is_const, typename CClass, typename T, typename ... Args>
+    template<bool is_const, const char* const kwlist[], typename CClass, typename T, typename ... Args>
     template<int ...S>
     typename extent_as_pointer<T>::type
-    MethodCallSemantics<is_const, true, CClass, T, Args...>::
+    MethodCallSemantics<is_const, true, kwlist, CClass, T, Args...>::
     call_methodBase(
             method_t method,
             typename std::remove_reference<CClass>::type &self,
@@ -353,21 +347,16 @@ namespace __pyllars_internal {
 
     }
 
-    template<bool is_const, class CClass, typename ReturnType, typename ...Args>
-    const char *const *
-            MethodCallSemantics<is_const, true, CClass, ReturnType, Args...>::kwlist;
-
-
-    template<bool is_const, typename CClass, typename ...Args>
-    PyObject *MethodCallSemantics<is_const, true, CClass, void, Args...>::
+    template<bool is_const, const char* const kwlist[], typename CClass, typename ...Args>
+    PyObject *MethodCallSemantics<is_const, true, kwlist, CClass, void, Args...>::
     toPyObj(CClass &self) {
         (void) self;
         return Py_None;
     }
 
-    template<bool is_const, typename CClass, typename ...Args>
+    template<bool is_const, const char* const kwlist[], typename CClass, typename ...Args>
     template<typename ...PyO>
-    void MethodCallSemantics<is_const, false, CClass, void, Args...>::
+    void MethodCallSemantics<is_const, false, kwlist, CClass, void, Args...>::
     call_methodC(method_t method,
                  typename std::remove_reference<CClass>::type &self,
                  PyObject *args, PyObject *kwds,
@@ -383,9 +372,9 @@ namespace __pyllars_internal {
         }
     }
 
-    template<bool is_const, typename CClass, typename ...Args>
+    template<bool is_const, const char* const kwlist[], typename CClass, typename ...Args>
     template<int ...S>
-    void MethodCallSemantics<is_const, false, CClass, void, Args...>::
+    void MethodCallSemantics<is_const, false, kwlist, CClass, void, Args...>::
     call_methodBase(method_t method,
                     typename std::remove_reference<CClass>::type &self,
                     PyObject *args, PyObject *kwds,
@@ -397,9 +386,9 @@ namespace __pyllars_internal {
     }
 
 
-   template<bool is_const, typename CClass, typename ...Args>
+   template<bool is_const, const char* const kwlist[], typename CClass, typename ...Args>
     template<typename ...PyO>
-    void MethodCallSemantics<is_const, true, CClass, void, Args...>::
+    void MethodCallSemantics<is_const, true, kwlist, CClass, void, Args...>::
     call_methodC(method_t method,
                  typename std::remove_reference<CClass>::type &self,
                  PyObject *args, PyObject *kwds,
@@ -415,9 +404,9 @@ namespace __pyllars_internal {
         }
     }
 
-    template<bool is_const, typename CClass, typename ...Args>
+    template<bool is_const, const char* const kwlist[], typename CClass, typename ...Args>
     template<int ...S>
-    void MethodCallSemantics<is_const, true, CClass, void, Args...>::
+    void MethodCallSemantics<is_const, true, kwlist, CClass, void, Args...>::
     call_methodBase(method_t method,
                     typename std::remove_reference<CClass>::type &self,
                     PyObject *args, PyObject *kwds,
@@ -429,54 +418,71 @@ namespace __pyllars_internal {
     }
 
 
-    template<bool is_const, class CClass, typename ...Args>
-    const char *const *MethodCallSemantics<is_const, false, CClass, void, Args...>::kwlist;
-
-   template<bool is_const, class CClass, typename ...Args>
-    const char *const *MethodCallSemantics<is_const, true, CClass, void, Args...>::kwlist;
-
-
-    template<class CClass, bool is_const>
-    template<const char *const name, typename ReturnType, typename ...Args>
-    PyObject *MethodContainer<CClass, is_const, typename std::enable_if<
-            std::is_class<CClass>::value &&
-            !std::is_const<CClass>::value>::type>::Container<name, ReturnType, Args...>::
+    template<class CClass, const char* const name>
+    PyObject *MethodContainer<CClass, name, typename std::enable_if<
+            !std::is_const<CClass>::value>::type>::
     call(PyObject *self, PyObject *args, PyObject *kwds) {
         if (!self) return nullptr;
         typedef PythonClassWrapper<CClass> Wrapper;
         Wrapper *_this = (Wrapper *) self;
         if (_this->get_CObject()) {
-            try {
-                return MethodCallSemantics<is_const, false, CClass, ReturnType, Args...>::call(method,
-                                                                              *_this->get_CObject(),
-                                                                              args, kwds);
-            } catch (...) {
-                return nullptr;
+            for (const auto&[method, kwlist]: _methods){
+                try {
+                    return method->_call(self, args, kwds);
+                } catch (...) {
+                    PyErr_Clear();
+                }
+                PyErr_SetString(PyExc_TypeError, "No matching method signature for provided argu,emts");
             }
+
         }
         return nullptr;
     }
 
-    template<typename CClass, bool is_const>
-    template<const char *const name, typename ReturnType, typename ...Args>
-    typename MethodContainer<CClass, is_const, typename std::enable_if<std::is_class<CClass>::value &&
-                                                             !std::is_const<CClass>::value>::type>::template Container<name, ReturnType, Args...>::method_t
-            MethodContainer<CClass, is_const, typename std::enable_if<std::is_class<CClass>::value &&
-                                                            !std::is_const<CClass>::value>::type>::Container<name, ReturnType, Args...>::method;
+    template<typename CClass, const char* const name>
+    std::vector< std::pair<
+        typename MethodContainer<CClass, name, typename std::enable_if<!std::is_const<CClass>::value>::type>::BaseContainer*,
+                                                                               const char* const*> >
+            MethodContainer<CClass, name, typename std::enable_if<!std::is_const<CClass>::value>::type>::_methods;
 
 
-    template<class CClass, bool is_const>
-    template<const char *const name, typename ReturnType, typename ...Args>
-    PyObject *MethodContainer<CClass, is_const, typename std::enable_if<
-            std::is_class<CClass>::value && std::is_const<CClass>::value>::type>::Container<name, ReturnType, Args...>::
+    template<class CClass, const char* const name>
+    PyObject *MethodContainer<CClass, name, typename std::enable_if<
+           std::is_const<CClass>::value>::type>::
     call(PyObject *self, PyObject *args, PyObject *kwds) {
         if (!self) return nullptr;
         PythonClassWrapper<CClass> *_this = (PythonClassWrapper<CClass> *) self;
         if (_this->get_CObject()) {
+            for (const auto &[method, kwlist]: _methods) {
+                try {
+                    return method->_call(self, args, kwds);
+                } catch (...) {
+                    PyErr_Clear();
+                }
+            }
+            PyErr_SetString(PyExc_TypeError, "No matching method signature for provided argu,emts");
+        }
+        return nullptr;
+    }
+
+    template<class CClass, const char* const name>
+    typename MethodContainer<CClass, name, typename std::enable_if<std::is_const<CClass>::value>::type>::method_collection_t
+            MethodContainer<CClass, name, typename std::enable_if<std::is_const<CClass>::value>::type>::_methods;
+
+
+
+    template<class CClass, const char* const name>
+    template<bool is_const, const char* const kwlist[], typename ReturnType, typename ...Args>
+    PyObject *MethodContainer<CClass, name, typename std::enable_if<
+            !std::is_const<CClass>::value>::type>::template Container<is_const, kwlist, ReturnType, Args...>::
+    _call(PyObject *self, PyObject *args, PyObject *kwds) {
+        typedef PythonClassWrapper<CClass> Wrapper;
+        if (!self || !PyObject_TypeCheck(self, Wrapper::getPyType())) return nullptr;
+        Wrapper *_this = (Wrapper *) self;
+        if (_this->get_CObject()) {
             try {
-                return MethodCallSemantics<is_const, false, CClass, ReturnType, Args...>::call(method,
-                                                                              *_this->get_CObject(),
-                                                                              args, kwds);
+                return MethodCallSemantics<is_const, false, kwlist, CClass, ReturnType, Args...>::
+                        call(_method, *_this->get_CObject(),  args, kwds);
             } catch (...) {
                 return nullptr;
             }
@@ -484,58 +490,103 @@ namespace __pyllars_internal {
         return nullptr;
     }
 
-    template<class CClass, bool is_const>
-    template<const char *const name, typename ReturnType, typename ...Args>
-    typename MethodContainer<CClass, is_const, typename std::enable_if<std::is_class<CClass>::value &&
-                                                             std::is_const<CClass>::value>::type>::template Container<name, ReturnType, Args...>::method_t
-            MethodContainer<CClass, is_const, typename std::enable_if<std::is_class<CClass>::value &&
-                                                            std::is_const<CClass>::value>::type>::Container<name, ReturnType, Args...>::method;
+    template<class CClass, const char* const name>
+    template<bool is_const, const char* const kwlist[], typename ReturnType, typename ...Args>
+    typename MethodContainer<CClass, name, typename std::enable_if<
+            !std::is_const<CClass>::value>::type>::template Container<is_const, kwlist, ReturnType, Args...>::method_t
+    MethodContainer<CClass, name, typename std::enable_if<
+            !std::is_const<CClass>::value>::type>::template Container<is_const, kwlist, ReturnType, Args...>::_method;
 
+    template<class CClass, const char* const name>
+    template<bool is_const, const char* const kwlist[], typename ReturnType, typename ...Args>
+    PyObject *MethodContainer<CClass, name, typename std::enable_if<
+            std::is_const<CClass>::value>::type>::template Container<is_const, kwlist, ReturnType, Args...>::
+    _call(PyObject *self, PyObject *args, PyObject *kwds) {
+        typedef PythonClassWrapper<CClass> Wrapper;
+        if (!self || !PyObject_TypeCheck(self, Wrapper::getPyType())) return nullptr;
+        Wrapper *_this = (Wrapper *) self;
+        if (_this->get_CObject()) {
+            try {
+                return MethodCallSemantics<true, false, kwlist, CClass, ReturnType, Args...>::
+                call(_method, *_this->get_CObject(),  args, kwds);
+            } catch (...) {
+                return nullptr;
+            }
+        }
+        return nullptr;
+    }
+
+    template<class CClass, const char* const name>
+    template<bool is_const, const char* const kwlist[], typename ReturnType, typename ...Args>
+    typename MethodContainer<CClass, name, typename std::enable_if<
+            std::is_const<CClass>::value>::type>::template Container<is_const, kwlist, ReturnType, Args...>::method_t
+    MethodContainer<CClass, name, typename std::enable_if<
+            std::is_const<CClass>::value>::type>::template Container<is_const, kwlist, ReturnType, Args...>::_method;
 
 //////////////////////////////////////////////
 
 
-    template<class CClass, bool is_const>
-    template<const char *const name, typename ReturnType, typename ...Args>
-    PyObject *MethodContainerVarargs<CClass, is_const, typename std::enable_if<
-            std::is_class<CClass>::value &&
-            !std::is_const<CClass>::value>::type>::Container<name, ReturnType, Args...>::
+    template<class CClass, const char* const name>
+    PyObject *MethodContainerVarargs<CClass, name, typename std::enable_if<!std::is_const<CClass>::value>::type>::
     call(PyObject *self, PyObject *args, PyObject *kwds) {
         if (!self) return nullptr;
         typedef PythonClassWrapper<CClass> Wrapper;
         Wrapper *_this = (Wrapper *) self;
         if (_this->get_CObject()) {
-            try {
-                return MethodCallSemantics<is_const, true, CClass, ReturnType, Args...>::call(method,
-                                                                              *_this->get_CObject(),
-                                                                              args, kwds);
-            } catch (...) {
-                return nullptr;
+            for (const auto &[method, kwlist]: _methods) {
+                try {
+                    return method->_call(self, args, kwds);
+                } catch (...) {
+                    PyErr_Clear();
+                }
             }
+            PyErr_SetString(PyExc_TypeError, "No matching method signature for provided argu,emts");
         }
         return nullptr;
     }
 
-    template<typename CClass, bool is_const>
-    template<const char *const name, typename ReturnType, typename ...Args>
-    typename MethodContainerVarargs<CClass, is_const, typename std::enable_if<std::is_class<CClass>::value &&
-                                                             !std::is_const<CClass>::value>::type>::template Container<name, ReturnType, Args...>::method_t
-            MethodContainerVarargs<CClass, is_const, typename std::enable_if<std::is_class<CClass>::value &&
-                                                            !std::is_const<CClass>::value>::type>::Container<name, ReturnType, Args...>::method;
+    template<typename CClass, const char* const name>
+    typename MethodContainerVarargs<CClass, name, typename std::enable_if<!std::is_const<CClass>::value>::type>::method_collection_t
+            MethodContainerVarargs<CClass, name, typename std::enable_if<!std::is_const<CClass>::value>::type>::_methods;
 
 
-    template<class CClass, bool is_const>
-    template<const char *const name, typename ReturnType, typename ...Args>
-    PyObject *MethodContainerVarargs<CClass, is_const, typename std::enable_if<
-            std::is_class<CClass>::value && std::is_const<CClass>::value>::type>::Container<name, ReturnType, Args...>::
+    template<class CClass, const char* const name>
+    PyObject *MethodContainerVarargs<CClass, name, typename std::enable_if<std::is_const<CClass>::value>::type>::
     call(PyObject *self, PyObject *args, PyObject *kwds) {
         if (!self) return nullptr;
         PythonClassWrapper<CClass> *_this = (PythonClassWrapper<CClass> *) self;
         if (_this->get_CObject()) {
+            for (const auto &[method, kwlist]: _methods) {
+                try {
+                    return method->_call(self, args, kwds);
+                } catch (...) {
+                    PyErr_Clear();
+                }
+                PyErr_SetString(PyExc_TypeError, "No matching method signature for provided argu,emts");
+            }
+        }
+        return nullptr;
+    }
+
+    template<class CClass, const char* const name>
+    std::vector<std::pair<
+        typename MethodContainerVarargs<CClass, name, typename std::enable_if<std::is_const<CClass>::value>::type>::BaseContainer*,
+                                                                     const char* const*> >
+            MethodContainerVarargs<CClass, name, typename std::enable_if<std::is_const<CClass>::value>::type>::_methods;
+
+
+    template<class CClass, const char* const name>
+    template<bool is_const, const char* const kwlist[], typename ReturnType, typename ...Args>
+    PyObject *MethodContainerVarargs<CClass, name, typename std::enable_if<!std::is_const<CClass>::value>::type>::
+            template Container<is_const, kwlist, ReturnType, Args...>::
+    _call(PyObject *self, PyObject *args, PyObject *kwds) {
+        typedef PythonClassWrapper<CClass> Wrapper;
+        if (!self || !PyObject_TypeCheck(self, Wrapper::getPyType())) return nullptr;
+        Wrapper *_this = (Wrapper *) self;
+        if (_this->get_CObject()) {
             try {
-                return MethodCallSemantics<is_const, true, CClass, ReturnType, Args...>::call(method,
-                                                                              *_this->get_CObject(),
-                                                                              args, kwds);
+                return MethodCallSemantics<is_const, true, kwlist, CClass, ReturnType, Args...>::
+                call(_method, *_this->get_CObject(),  args, kwds);
             } catch (...) {
                 return nullptr;
             }
@@ -543,13 +594,38 @@ namespace __pyllars_internal {
         return nullptr;
     }
 
-    template<class CClass, bool is_const>
-    template<const char *const name, typename ReturnType, typename ...Args>
-    typename MethodContainerVarargs<CClass, is_const, typename std::enable_if<std::is_class<CClass>::value &&
-                                                             std::is_const<CClass>::value>::type>::template Container<name, ReturnType, Args...>::method_t
-            MethodContainerVarargs<CClass, is_const, typename std::enable_if<std::is_class<CClass>::value &&
-                                                            std::is_const<CClass>::value>::type>::Container<name, ReturnType, Args...>::method;
+    template<class CClass, const char* const name>
+    template<bool is_const, const char* const kwlist[], typename ReturnType, typename ...Args>
+    typename MethodContainerVarargs<CClass, name, typename std::enable_if<!std::is_const<CClass>::value>::type>::
+            template Container<is_const, kwlist, ReturnType, Args...>::method_t
+                    MethodContainerVarargs<CClass, name, typename std::enable_if<!std::is_const<CClass>::value>::type>::
+                            template Container<is_const, kwlist, ReturnType, Args...>::_method;
 
+    template<class CClass, const char* const name>
+    template<bool is_const, const char* const kwlist[], typename ReturnType, typename ...Args>
+    PyObject *MethodContainerVarargs<CClass, name, typename std::enable_if<
+            std::is_const<CClass>::value>::type>::template Container<is_const, kwlist, ReturnType, Args...>::
+    _call(PyObject *self, PyObject *args, PyObject *kwds) {
+        typedef PythonClassWrapper<CClass> Wrapper;
+        if (!self || !PyObject_TypeCheck(self, Wrapper::getPyType())) return nullptr;
+        Wrapper *_this = (Wrapper *) self;
+        if (_this->get_CObject()) {
+            try {
+                return MethodCallSemantics<true, true, kwlist, CClass, ReturnType, Args...>::
+                call(_method, *_this->get_CObject(),  args, kwds);
+            } catch (...) {
+                return nullptr;
+            }
+        }
+        return nullptr;
+    }
+
+    template<class CClass, const char* const name>
+    template<bool is_const, const char* const kwlist[], typename ReturnType, typename ...Args>
+    typename MethodContainerVarargs<CClass, name, typename std::enable_if<
+            std::is_const<CClass>::value>::type>::template Container<is_const, kwlist, ReturnType, Args...>::method_t
+                    MethodContainerVarargs<CClass, name, typename std::enable_if<
+                    std::is_const<CClass>::value>::type>::template Container<is_const, kwlist, ReturnType, Args...>::_method;
 }
 
 #endif

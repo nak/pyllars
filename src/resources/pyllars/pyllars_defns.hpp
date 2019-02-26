@@ -474,21 +474,32 @@ namespace __pyllars_internal {
         template<int unused, typename ...Throws>
         struct Type {
         public:
-            ReturnType (*_cfunc)(Args...) throw(Throws...);
-
+            ReturnType (*_cfunc)(Args...)
+#if __cplusplus < 201703L
+    throw(Throws...)
+#endif
+;
             typedef decltype(_cfunc) func_type;
         };
 
         template<int unused>
         struct Type<unused, void> {
-            ReturnType (*_cfunc)(Args...) throw();
+            ReturnType (*_cfunc)(Args...)
+#if __cplusplus < 201703L
+    throw()
+#endif
+;
 
             typedef decltype(_cfunc) func_type;
         };
 
         template<int unused>
         struct Type<unused> {
-            ReturnType (*_cfunc)(Args...) throw();
+            ReturnType (*_cfunc)(Args...)
+#if __cplusplus < 201703L
+    throw()
+#endif
+;
 
             typedef decltype(_cfunc) func_type;
         };
@@ -499,14 +510,22 @@ namespace __pyllars_internal {
 
         template<int unused, typename ...Throws>
         struct Type {
-            ReturnType (*_cfunc)(Args... ...) throw(Throws...);
+            ReturnType (*_cfunc)(Args... ...)
+#if __cplusplus < 201703L
+    throw(Throws...)
+#endif
+;
 
             typedef decltype(_cfunc) func_type;
         };
 
         template<int unused>
         struct Type<unused, void> {
-            ReturnType (*_cfunc)(Args... ...) throw();
+            ReturnType (*_cfunc)(Args... ...)
+#if __cplusplus < 201703L
+    throw()
+#endif
+;
 
             typedef decltype(_cfunc) func_type;
         };

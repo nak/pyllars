@@ -48,7 +48,7 @@ namespace __pyllars_internal {
      * class to hold referecne to a class method and define
      * method call semantics
      **/
-    template< bool is_const, bool with_ellipsis, typename CClass, typename T, typename ... Args>
+    template< bool is_const, bool with_ellipsis, const char* const kwlist[], typename CClass, typename T, typename ... Args>
     class MethodCallSemantics ;
 
 
@@ -56,13 +56,11 @@ namespace __pyllars_internal {
      * class to hold referecne to a class method and define
      * method call semantics
      **/
-    template<bool is_const, typename CClass, typename T, typename ... Args>
-    class MethodCallSemantics<is_const, false, CClass, T, Args...> {
+    template<bool is_const, const char* const kwlist[], typename CClass, typename T, typename ... Args>
+    class MethodCallSemantics<is_const, false, kwlist, CClass, T, Args...> {
     public:
         typedef typename MethodTypeDef<is_const, false, CClass, T, Args...>::ReturnType ReturnType;
         typedef typename MethodTypeDef<is_const, false, CClass, T, Args...>::method_t method_t;
-
-        static const char *const *kwlist;
 
         /**
          * Used for regular methods:
@@ -101,13 +99,11 @@ namespace __pyllars_internal {
      * class to hold referecne to a class method and define
      * method call semantics
      **/
-    template<bool is_const, typename CClass, typename T, typename ... Args>
-    class MethodCallSemantics<is_const, true, CClass, T, Args...> {
+    template<bool is_const, const char* const kwlist[], typename CClass, typename T, typename ... Args>
+    class MethodCallSemantics<is_const, true, kwlist, CClass, T, Args...> {
     public:
         typedef typename MethodTypeDef<is_const, true, CClass, T, Args...>::ReturnType ReturnType;
         typedef typename MethodTypeDef<is_const, true, CClass, T, Args...>::method_t method_t;
-
-        static const char *const *kwlist;
 
         /**
          * Used for regular methods:
@@ -140,12 +136,10 @@ namespace __pyllars_internal {
     /**
      * specialize for void returns:
      **/
-    template<bool is_const, typename CClass, typename ...Args>
-    class MethodCallSemantics<is_const, false, CClass, void, Args...> {
+    template<bool is_const, const char* const kwlist[], typename CClass, typename ...Args>
+    class MethodCallSemantics<is_const, false, kwlist, CClass, void, Args...> {
     public:
         typedef typename MethodTypeDef<is_const, false, CClass, void, Args...>::method_t method_t;
-
-        static const char *const *kwlist;
 
         static PyObject *toPyObj(CClass &self) ;
 
@@ -168,12 +162,10 @@ namespace __pyllars_internal {
     };
 
 
-    template<bool is_const, typename CClass, typename ...Args>
-    class MethodCallSemantics<is_const, true, CClass, void, Args...> {
+    template<bool is_const, const char* const kwlist[], typename CClass, typename ...Args>
+    class MethodCallSemantics<is_const, true, kwlist,  CClass, void, Args...> {
     public:
         typedef typename MethodTypeDef<is_const, true, CClass, void, Args...>::method_t method_t;
-
-        static const char *const *kwlist;
 
         static PyObject *toPyObj(CClass &self) ;
 
@@ -203,64 +195,63 @@ namespace __pyllars_internal {
      * It holds the method call and allows specialization based on
      * underlying CClass type
      **/
-    template<class CClass, bool is_const = false, typename E = void>
-    class MethodContainer {
-    public:
-        typedef void (*setter_t)(typename std::remove_reference<CClass>::type *, PyObject *);
-
-        template<const char *const name, typename ReturnType, typename ...Args>
-        class Container{
-        public:
-            typedef typename MethodCallSemantics<is_const, false, CClass, ReturnType, Args...>::ReturnType TrueReturnType;
-            typedef typename MethodCallSemantics<is_const, false, CClass, ReturnType, Args...>::method_t method_t;
-            typedef const char *const *kwlist_t;
-            static constexpr kwlist_t &kwlist = MethodCallSemantics<is_const, false, CClass, ReturnType, Args...>::kwlist;
-
-            static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);
-
-            static PyObject *callAsUnaryFunc(PyObject *self, PyObject *arg){
-                return call(self, arg, nullptr);
-            }
-
-            static PyObject *callAsBinaryFunc(PyObject *self, PyObject *arg){
-                auto args = PyTuple_New(1);
-                PyTuple_SetItem(args, 0, arg);
-                return call(self, args, nullptr);
-            }
-        };
-    };
-
+    template<class CClass, const char* const, typename E = void>
+    class MethodContainer ;
 
     /**
      * Specialization for non-const class types
      **/
-    template<class CClass, bool is_const>
-    class MethodContainer<CClass, is_const, typename std::enable_if<
-            std::is_class<CClass>::value && !std::is_const<CClass>::value>::type> {
+    template<class CClass, const char *const name>
+    class MethodContainer<CClass, name, typename std::enable_if<
+            !std::is_const<CClass>::value>::type> {
     public:
-        typedef void (*setter_t)(typename std::remove_reference<CClass>::type *, PyObject *);
+        static constexpr cstring name_ = name;
 
-        template<const char *const name, typename ReturnType, typename ...Args>
-        class Container{
+        static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);
+
+        static PyObject *callAsUnaryFunc(PyObject *self, PyObject *arg){
+            return call(self, arg, nullptr);
+        }
+
+        static PyObject *callAsBinaryFunc(PyObject *self, PyObject *arg){
+            auto args = PyTuple_New(1);
+            PyTuple_SetItem(args, 0, arg);
+            return call(self, /*Py_BuildValue("(O)",*/ args, nullptr);
+        }
+
+        class BaseContainer{
         public:
-            typedef typename MethodCallSemantics<is_const, false, CClass, ReturnType, Args...>::method_t method_t;
-
-            typedef const char *const *kwlist_t;
-            static constexpr kwlist_t &kwlist = MethodCallSemantics<is_const, false, CClass, ReturnType, Args...>::kwlist;
-            static method_t method;
-
-            static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);
-
-            static PyObject *callAsUnaryFunc(PyObject *self, PyObject *arg){
-                return call(self, arg, nullptr);
-            }
-
-            static PyObject *callAsBinaryFunc(PyObject *self, PyObject *arg){
-                auto args = PyTuple_New(1);
-                PyTuple_SetItem(args, 0, arg);
-                return call(self, args, nullptr);
-            }
+            virtual PyObject* _call(PyObject* self, PyObject* args, PyObject* kwds) = 0;
         };
+
+        template<bool is_const, const char* const kwlist[], typename ReturnType, typename ...Args>
+        class Container: public BaseContainer{
+        public:
+            typedef typename MethodCallSemantics<is_const, false, kwlist, CClass, ReturnType, Args...>::method_t method_t;
+
+            static void setMethod(method_t method){
+                if (_method){
+                    // we only use virtual call method to handle different signature in
+                    //static manner, but should only ever have one method of a given signature
+                    throw "Duplicate method specification";
+                }
+                _method = method;
+                std::pair<BaseContainer*, const char* const*> pair(new Container(), kwlist);
+                MethodContainer::_methods.push_back(pair);
+            }
+
+            PyObject* _call(PyObject* self, PyObject* args, PyObject* kwds) override;
+
+        private:
+            static method_t _method;
+        };
+
+        template <bool is_const, const char* const kwlist[], typename ReturnType, typename ...Args>
+        friend class Container;
+
+    protected:
+        typedef std::vector<std::pair<BaseContainer*, const char* const*>> method_collection_t;
+        static method_collection_t _methods;
 
     };
 
@@ -268,34 +259,57 @@ namespace __pyllars_internal {
     /**
      * Specialization for const class types
      **/
-    template<class CClass, bool is_const>
-    class MethodContainer<CClass, is_const, typename std::enable_if<
-            std::is_class<CClass>::value && std::is_const<CClass>::value>::type> {
+    template<class CClass,const char* const name>
+    class MethodContainer<CClass, name, typename std::enable_if<
+            std::is_const<CClass>::value>::type> {
     public:
-        typedef void (*setter_t)(typename std::remove_reference<CClass>::type *, PyObject *);
+        static constexpr cstring name_ = name;
 
-        template<const char *const name, typename ReturnType, typename ...Args>
+        static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);
+
+        static PyObject *callAsUnaryFunc(PyObject *self, PyObject *arg){
+            return call(self, arg, nullptr);
+        }
+
+        static PyObject *callAsBinaryFunc(PyObject *self, PyObject *arg){
+            auto args = PyTuple_New(1);
+            PyTuple_SetItem(args, 0, arg);
+            return call(self, /*Py_BuildValue("(O)",*/ args, nullptr);
+        }
+
+        class BaseContainer{
+        public:
+            virtual PyObject* _call(PyObject* self, PyObject* args, PyObject* kwds) = 0;
+        };
+
+        template<bool is_const, const char* const kwlist[], typename ReturnType, typename ...Args>
         class Container{
         public:
-            typedef typename MethodCallSemantics<is_const, false, CClass, ReturnType, Args...>::ReturnType TrueReturnType;
-            typedef typename MethodCallSemantics<is_const, false, CClass, ReturnType, Args...>::method_t method_t;
+            typedef typename MethodCallSemantics<true, false, kwlist, CClass, ReturnType, Args...>::method_t method_t;
 
-            typedef const char *const *kwlist_t;
-            static constexpr kwlist_t &kwlist = MethodCallSemantics<is_const, false, CClass, ReturnType, Args...>::kwlist;
-            static method_t method;
-
-            static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);
-
-            static PyObject *callAsUnaryFunc(PyObject *self, PyObject *arg){
-                return call(self, arg, nullptr);
+            static void setMethod(method_t method){
+                if (_method){
+                    // we only use virtual call method to handle different signature in
+                    //static manner, but should only ever have one method of a given signature
+                    throw "Duplicate method specification";
+                }
+                _method = method;
+                std::pair<BaseContainer*, const char* const*> pair(new Container(), kwlist);
+                MethodContainer::_methods.push_back(pair);
             }
 
-            static PyObject *callAsBinaryFunc(PyObject *self, PyObject *arg){
-                auto args = PyTuple_New(1);
-                PyTuple_SetItem(args, 0, arg);
-                return call(self, args, nullptr);
-            }
+            PyObject* _call(PyObject* self, PyObject* args, PyObject* kwds) override;
+
+        private:
+            static method_t _method;
         };
+        template <bool is_const, const char* const kwlist[], typename ReturnType, typename ...Args>
+        friend class Container;
+
+    protected:
+        typedef std::vector<std::pair<BaseContainer*, const char* const*>> method_collection_t;
+        static method_collection_t _methods;
+
     };
 
 
@@ -309,102 +323,118 @@ namespace __pyllars_internal {
      * It holds the method call and allows specialization based on
      * underlying CClass type
      **/
-    template<class CClass, bool is_const=false, typename E = void>
-    class MethodContainerVarargs {
+    template<class CClass,const char *const name, typename E = void>
+    class MethodContainerVarargs;
+
+    template<class CClass,const char *const name>
+    class MethodContainerVarargs<CClass, name,
+            typename std::enable_if< !std::is_const<CClass>::value>::type
+            >{
     public:
-        typedef void (*setter_t)(typename std::remove_reference<CClass>::type *, PyObject *);
+        static constexpr cstring name_ = name;
+        static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);
 
-        template<const char *const name, typename ReturnType, typename ...Args>
-        class Container{
+        static PyObject *callAsUnaryFunc(PyObject *self, PyObject *arg){
+            return call(self, arg, nullptr);
+        }
+
+        static PyObject *callAsBinaryFunc(PyObject *self, PyObject *arg){
+            auto args = PyTuple_New(1);
+            PyTuple_SetItem(args, 0, arg);
+            return call(self, /*Py_BuildValue("(O)",*/ args, nullptr);
+        }
+
+        class BaseContainer{
         public:
-            typedef typename MethodCallSemantics<is_const, true, CClass, ReturnType, Args...>::ReturnType TrueReturnType;
-            typedef typename MethodCallSemantics<is_const, true, CClass, ReturnType, Args...>::method_t method_t;
 
-            typedef const char *const *kwlist_t;
-            static constexpr kwlist_t &kwlist = MethodCallSemantics<is_const, true, CClass, ReturnType, Args...>::kwlist;
+            virtual PyObject* _call(PyObject* self, PyObject* args, PyObject* kwds) = 0;
 
-            static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);
-
-            static PyObject *callAsUnaryFunc(PyObject *self, PyObject *arg){
-                return call(self, arg, nullptr);
-            }
-
-            static PyObject *callAsBinaryFunc(PyObject *self, PyObject *arg){
-                auto args = PyTuple_New(1);
-                PyTuple_SetItem(args, 0, arg);
-                return call(self, /*Py_BuildValue("(O)",*/ args, nullptr);
-            }
         };
-    };
 
-
-    /**
-     * Specialization for non-const class types
-     **/
-    template<class CClass, bool is_const>
-    class MethodContainerVarargs<CClass, is_const, typename std::enable_if<
-            std::is_class<CClass>::value && !std::is_const<CClass>::value>::type> {
-    public:
-        typedef void (*setter_t)(typename std::remove_reference<CClass>::type *, PyObject *);
-
-        template<const char *const name, typename ReturnType, typename ...Args>
-        class Container{
+        template<bool is_const, const char* const kwlist[], typename ReturnType, typename ...Args>
+        class Container: public BaseContainer{
         public:
-            typedef typename MethodCallSemantics<is_const, true, CClass, ReturnType, Args...>::ReturnType TrueReturnType;
-            typedef typename MethodCallSemantics<is_const, true, CClass, ReturnType, Args...>::method_t method_t;
+            typedef typename MethodCallSemantics<is_const, true, kwlist, CClass, ReturnType, Args...>::method_t method_t;
 
-            typedef const char *const *kwlist_t;
-            static constexpr kwlist_t &kwlist = MethodCallSemantics<is_const, true, CClass, ReturnType, Args...>::kwlist;
-            static method_t method;
-
-            static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);
-
-            static PyObject *callAsUnaryFunc(PyObject *self, PyObject *arg){
-                return call(self, arg, nullptr);
+            static void setMethod(method_t method){
+                if (_method){
+                    // we only use virtual call method to handle different signature in
+                    //static manner, but should only ever have one method of a given signature
+                    throw "Duplicate method specification";
+                }
+                _method = method;
+                std::pair<BaseContainer*, const char* const*> pair(new Container(), kwlist);
+                MethodContainerVarargs::_methods.push_back(pair);
             }
 
-            static PyObject *callAsBinaryFunc(PyObject *self, PyObject *arg){
-                auto args = PyTuple_New(1);
-                PyTuple_SetItem(args, 0, arg);
-                return call(self, args, nullptr);
-            }
+            PyObject* _call(PyObject* self, PyObject* args, PyObject* kwds) override;
+
+        private:
+            static method_t _method;
         };
+
+        template<bool is_const, typename ReturnType, typename ...Args>
+        friend class Container;
+
+    protected:
+        typedef std::vector<std::pair<BaseContainer*, const char* const*>> method_collection_t;
+        static method_collection_t _methods;
 
     };
 
 
-    /**
-     * Specialization for const class types
-     **/
-    template<class CClass, bool is_const>
-    class MethodContainerVarargs<CClass, is_const, typename std::enable_if<
-            std::is_class<CClass>::value && std::is_const<CClass>::value>::type> {
+    template<class CClass,const char *const name >
+    class MethodContainerVarargs<CClass, name,
+        typename std::enable_if< std::is_const<CClass>::value>::type>{
     public:
-        typedef void (*setter_t)(typename std::remove_reference<CClass>::type *, PyObject *);
+        static constexpr cstring name_ = name;
+        static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);
 
-        template<const char *const name, typename ReturnType, typename ...Args>
-        class Container{
+        static PyObject *callAsUnaryFunc(PyObject *self, PyObject *arg){
+            return call(self, arg, nullptr);
+        }
+
+        static PyObject *callAsBinaryFunc(PyObject *self, PyObject *arg){
+            auto args = PyTuple_New(1);
+            PyTuple_SetItem(args, 0, arg);
+            return call(self, /*Py_BuildValue("(O)",*/ args, nullptr);
+        }
+
+        class BaseContainer{
         public:
-            typedef typename MethodCallSemantics<is_const, true, CClass, ReturnType, Args...>::ReturnType TrueReturnType;
-            typedef typename MethodCallSemantics<is_const, true, CClass, ReturnType, Args...>::method_t method_t;
-
-
-            typedef const char *const *kwlist_t;
-            static constexpr kwlist_t &kwlist = MethodCallSemantics<is_const, true, CClass, ReturnType, Args...>::kwlist;
-            static method_t method;
-
-            static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);
-
-            static PyObject *callAsUnaryFunc(PyObject *self, PyObject *arg){
-                return call(self, arg, nullptr);
-            }
-
-            static PyObject *callAsBinaryFunc(PyObject *self, PyObject *arg){
-                auto args = PyTuple_New(1);
-                PyTuple_SetItem(args, 0, arg);
-                return call(self, /*Py_BuildValue("(O)",*/ args, nullptr);
-            }
+            virtual PyObject* _call(PyObject* self, PyObject* args, PyObject* kwds) = 0;
         };
+
+        template<bool is_const, const char* const kwlist[], typename ReturnType, typename ...Args> //is_const to keep same sig, but unused as const CClass means only const methods allowed
+        class Container: public BaseContainer{
+        public:
+            typedef typename MethodCallSemantics<true, true, kwlist, CClass, ReturnType, Args...>::method_t method_t;
+
+
+            static void setMethod(method_t method){
+                if (_method){
+                    // we only use virtual call method to handle different signature in
+                    //static manner, but should only ever have one method of a given signature
+                    throw "Duplicate method specification";
+                }
+                _method = method;
+                std::pair<BaseContainer*, const char* const*> pair(new Container(), kwlist);
+                MethodContainerVarargs::_methods.push_back(pair);
+            }
+
+            PyObject* _call(PyObject* self, PyObject* args, PyObject* kwds) override;
+
+        private:
+            static method_t _method;
+        };
+
+        template<bool is_const, typename ReturnType, typename ...Args>
+        friend class Container;
+
+    protected:
+        typedef std::vector<std::pair<BaseContainer*, const char* const*>> method_collection_t;
+        static method_collection_t _methods;
+
     };
 
 

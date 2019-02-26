@@ -23,6 +23,7 @@ constexpr c_string class_member_name = "class_member";
 constexpr c_string int_array_member_name = "int_array";
 constexpr c_string bit_name = "bit";
 constexpr c_string dbl_ptr_member_name = "double_ptr_member";
+constexpr c_string enum_convert_name = "to_int";
 
 
 class InitailizerTest: public ::testing::Test{
@@ -213,9 +214,9 @@ protected:
         using namespace __pyllars_internal;
         Py_Initialize();
         PyErr_Clear();
-        const char *const kwlist[] = {"value", nullptr};
-        const char *const empty_list[] = {nullptr};
-        const char *const kwlist_copy_constr[] = {"obj", nullptr};
+        static const char *const kwlist[] = {"value", nullptr};
+        static const char *const empty_list[] = {nullptr};
+        static const char *const kwlist_copy_constr[] = {"obj", nullptr};
         {
             typedef PythonClassWrapper<PythonBased::BasicClass> Class;
             Class::addConstructor<>(empty_list);
@@ -224,13 +225,12 @@ protected:
             Class::addPosOperator(&PythonBased::BasicClass::operator+);
             Class::addNegOperator(&PythonBased::BasicClass::operator-);
             Class::addInvOperator(&PythonBased::BasicClass::operator~);
-            Class::addAddOperator<double, const BasicClass &>(&PythonBased::BasicClass::operator+, kwlist);
-            Class::addSubOperator<BasicClass, const double, false>(&PythonBased::BasicClass::operator-, kwlist);
-            Class::addMethod<false, method_name, int, const double>(&PythonBased::BasicClass::public_method, kwlist);
-            Class::addClassMethod<static_method_name, const char *const>(&PythonBased::BasicClass::static_public_method,
-                                                                         kwlist);
-            Class::addMapOperatorMethod<const char *const, int>(&PythonBased::BasicClass::operator[]);
-            Class::addMapOperatorMethodConst<const char *const, int>(&PythonBased::BasicClass::operator[]);
+            Class::addAddOperator<kwlist, double, const BasicClass &>(&PythonBased::BasicClass::operator+);
+            Class::addSubOperator<kwlist, BasicClass, const double, false>(&PythonBased::BasicClass::operator-);
+            Class::addMethod<false, method_name, kwlist, int, const double>(&PythonBased::BasicClass::public_method);
+            Class::addClassMethod<static_method_name, kwlist, const char *const>(&PythonBased::BasicClass::static_public_method);
+            Class::addMapOperatorMethod<kwlist, const char *const, int>(&PythonBased::BasicClass::operator[]);
+            Class::addMapOperatorMethodConst<kwlist, const char *const, int>(&PythonBased::BasicClass::operator[]);
             Class::addClassAttributeConst<class_const_member_name, int>(&PythonBased::BasicClass::class_const_member);
             Class::addClassAttribute<class_member_name, int>(&PythonBased::BasicClass::class_member);
             Class::addAttribute<int_array_member_name, int[3]>(&PythonBased::BasicClass::int_array);
@@ -256,11 +256,11 @@ protected:
 
         }
         {
-            const char *const kwlist2[] = {"data", nullptr};
+            static const char *const kwlist2[] = {"data", nullptr};
             typedef  PythonClassWrapper<PythonBased::InheritanceClass> Class;
             Class::addConstructor<>(empty_list);
-            Class::addMethod<true, new_method_name, int, const char *const>(
-                    &PythonBased::InheritanceClass::new_method, kwlist2);
+            Class::addMethod<true, new_method_name, kwlist2, int, const char *const>(
+                    &PythonBased::InheritanceClass::new_method);
            Class::addBaseClass( PythonClassWrapper<PythonBased::BasicClass>::getPyType());
             ASSERT_EQ(Class::initialize(), 0);
         }
@@ -281,6 +281,9 @@ protected:
             typedef PythonClassWrapper<PythonBased::EnumClass> Class;
             Class::addConstructor<>(empty_list);
             Class::addConstructor<PythonBased::EnumClass>(kwlist);
+            typedef long long (*convert)(const PythonBased::EnumClass &);
+            convert func = [](const PythonBased::EnumClass& val)->long long{return (long long)val;};
+            Class::addClassMethod<enum_convert_name, kwlist, long long, const PythonBased::EnumClass&>(func);
             Class::addEnumClassValue("E_ONE", PythonBased::EnumClass::E_ONE);
             ASSERT_EQ(Class::initialize(), 0);
 
@@ -288,26 +291,25 @@ protected:
         {
             typedef PythonClassWrapper<PythonBased::BasicClass2> Class;
             Class::addConstructor<>(empty_list);
-            Class::addMethod<false, create_bclass_method_name, BasicClass>(&PythonBased::BasicClass2::createBasicClass,
-                                                                           kwlist);
+            Class::addMethod<false, create_bclass_method_name, kwlist, BasicClass>(&PythonBased::BasicClass2::createBasicClass);
             ASSERT_EQ(Class::initialize(), 0);
         }
         {
             typedef PythonClassWrapper<PythonBased::MultiInheritanceClass> Class;
             Class::addConstructor<>(empty_list);
-            const char *const kwlist2[] = {"data", nullptr};
-            Class::addMethod<false, create_bclass2_method_name, PythonBased::BasicClass2>(
-                    &PythonBased::MultiInheritanceClass::createBasicClass2, kwlist2);
+            static const char *const kwlist2[] = {"data", nullptr};
+            Class::addMethod<false, create_bclass2_method_name, kwlist2, PythonBased::BasicClass2>(
+                    &PythonBased::MultiInheritanceClass::createBasicClass2);
             Class::addBaseClass(PythonClassWrapper<PythonBased::BasicClass>::getPyType());
             ASSERT_EQ(Class::initialize(), 0);
         }
         {
             typedef PythonClassWrapper<PythonBased::NonDestructible> Class;
 
-            Class::addClassMethod<create_method_name, PythonBased::NonDestructible *>(
-                    PythonBased::NonDestructible::create, empty_list);
-            Class::addClassMethod<create_const_method_name, const PythonBased::NonDestructible *>(
-                    PythonBased::NonDestructible::create_const, empty_list);
+            Class::addClassMethod<create_method_name, empty_list, PythonBased::NonDestructible *>(
+                    PythonBased::NonDestructible::create);
+            Class::addClassMethod<create_const_method_name, empty_list, const PythonBased::NonDestructible *>(
+                    PythonBased::NonDestructible::create_const);
             Class::initialize();
         }
         ASSERT_FALSE(PyErr_Occurred());
@@ -403,9 +405,9 @@ TEST(TypesName, TestTypeNameVariants){
 
 TEST_F(PythonBased, TestBasicClass){
     using namespace __pyllars_internal;
-    const char* const kwlist[] = {"value", nullptr};
-    const char* const empty_list[] = {nullptr};
-    const char* const kwlist_copy_constr[] = {"obj", nullptr};
+    static const char* const kwlist[] = {"value", nullptr};
+    static const char* const empty_list[] = {nullptr};
+    static const char* const kwlist_copy_constr[] = {"obj", nullptr};
     PyObject* args = PyTuple_New(0);
     PyObject* obj = PyObject_Call((PyObject*) PythonClassWrapper<PythonBased::BasicClass>::getPyType(),
             args, nullptr);
@@ -504,11 +506,19 @@ TEST_F(PythonBased, TestClassEnums){
 
     PyObject* ONE_E = PyObject_GetAttrString((PyObject*)Class::getType(), "E_ONE");
     ASSERT_NE(ONE_E, nullptr);
-    ASSERT_EQ(*((Class*)ONE_E)->get_CObject(), PythonBased::EnumClass::E_ONE);
+    ASSERT_EQ(*(((Class*)ONE_E)->get_CObject()), PythonBased::EnumClass::E_ONE);
     PyObject *args = PyTuple_New(1);
     PyTuple_SetItem(args, 0, ONE_E);
     Class* new_value = (Class*) PyObject_Call((PyObject*) Class::getPyType(), args, nullptr);
     ASSERT_EQ(*(new_value->get_CObject()), PythonBased::EnumClass::E_ONE);
+
+    PyObject* convert = PyObject_GetAttrString((PyObject*)Class::getPyType(), enum_convert_name);
+    ASSERT_NE(convert, nullptr);
+    PyObject * args2 = PyTuple_New(1);
+    PyTuple_SetItem(args2, 0, ONE_E);
+    PyObject* intVal = PyObject_Call(convert, args2, nullptr);
+    ASSERT_NE(intVal, nullptr);
+    ASSERT_EQ(PyInt_AsLong(intVal), 1);
 }
 
 TEST_F(PythonBased, TestPointers){
@@ -609,7 +619,7 @@ TEST_F(PythonBased, TestMultipleInheritance){
 
 TEST_F(PythonBased, TestPrivateCtrDestructor){
     using namespace __pyllars_internal;
-    const char* const empty_list[] = {nullptr};
+    static const char* const empty_list[] = {nullptr};
     typedef PythonClassWrapper<PythonBased::NonDestructible> Class;
 
 
