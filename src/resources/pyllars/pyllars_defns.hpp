@@ -419,7 +419,8 @@ namespace __pyllars_internal {
 
         } baseClass;
 
-        constexpr CommonBaseWrapper() : baseClass(), _referenced(nullptr) {
+        constexpr CommonBaseWrapper() : baseClass(), _is_const(false), _is_reference(false), _is_volatile(false),
+        _is_pointer(false), _referenced(nullptr) {
         }
 
         typedef const char *const cstring;
@@ -450,8 +451,34 @@ namespace __pyllars_internal {
         }
 
     protected:
-        PyObject *_referenced;
+        static PyTypeObject _BaseType;
 
+        static int
+        __init(PyObject *self, PyObject *args, PyObject *kwds){
+            return 0;
+        }
+
+        static PyObject *_new(PyTypeObject *type, PyObject *args, PyObject *kwds){
+            (void) args;
+            (void) kwds;
+            CommonBaseWrapper *self;
+            self = (CommonBaseWrapper *) type->tp_alloc(type, 0);
+            return (PyObject *) self;
+        }
+
+        template<typename T>
+        void populate_type_info(){
+            _is_const = std::is_const<T>::value;
+            _is_volatile = std::is_volatile<T>::value;
+            _is_reference = std::is_reference<T>::value;
+            _is_pointer = std::is_pointer<T>::value;
+        }
+
+        bool _is_const;
+        bool _is_reference;
+        bool _is_volatile;
+        bool _is_pointer;
+        PyObject *_referenced;
     };
 
 

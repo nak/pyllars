@@ -24,14 +24,16 @@ namespace __pyllars_internal {
     template<typename number_type>
     struct ConstFloatingPointType;
 
-    struct PyConstNumberCustomBase {
+    struct PyConstNumberCustomBase: public CommonBaseWrapper {
         static PyTypeObject Type;
-
-        std::function<long long()> asLongLong;
     };
 
+    ///////////////////
+    // CAUTION: Layout of Const and non-const classes in pyllars.hpp must match!!!
+    ///////////////////
+
     template<typename number_type>
-    struct PyConstNumberCustomObject {
+    struct PyConstNumberCustomObject: public PyConstNumberCustomBase {
     public:
         PyObject_HEAD
         typedef number_type ntype;
@@ -152,14 +154,14 @@ namespace __pyllars_internal {
     };
 
 
-    struct PyConstFloatingPtCustomBase {
+    struct PyConstFloatingPtCustomBase: public CommonBaseWrapper {
         static PyTypeObject Type;
 
         std::function<double()> asDouble;
     };
 
     template<typename number_type>
-    struct PyConstFloatingPtCustomObject {
+    struct PyConstFloatingPtCustomObject: PyConstFloatingPtCustomBase{
     public:
         PyObject_HEAD
         typedef number_type ntype;

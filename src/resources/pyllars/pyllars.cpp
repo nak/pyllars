@@ -131,7 +131,7 @@ namespace __pyllars_internal {
             nullptr,             /* tp_methods */
             nullptr,             /* tp_members */
             nullptr,                         /* tp_getset */
-            nullptr,                         /* tp_base */
+            &CommonBaseWrapper::_BaseType,                         /* tp_base */
             nullptr,                         /* tp_dict */
             nullptr,                         /* tp_descr_get */
             nullptr,                         /* tp_descr_set */
@@ -702,8 +702,9 @@ namespace __pyllars_internal {
         static int rc = -1;
         if(inited) return rc;
         inited = true;
-        rc = PyType_Ready(&PyNumberCustomBase::Type);
-        rc = rc | PyType_Ready(&PyNumberCustomObject::Type);
+        rc = PyType_Ready(&CommonBaseWrapper::_BaseType);
+        rc |= PyType_Ready(&PyNumberCustomBase::Type);
+        rc |= PyType_Ready(&PyNumberCustomObject::Type);
         return rc;
     }
 
@@ -786,6 +787,7 @@ namespace __pyllars_internal {
     int PyNumberCustomObject<number_type>::create(PyObject *self_, PyObject *args, PyObject *kwds) {
         PyNumberCustomObject *self = (PyNumberCustomObject *) self_;
         if (self) {
+            self->template populate_type_info< number_type>();
             if (PyTuple_Size(args) == 0) {
                 memset(const_cast<typename std::remove_const<number_type>::type *>(&self->value), 0,
                        sizeof(self->value));
@@ -822,8 +824,9 @@ namespace __pyllars_internal {
     template<typename number_type>
     status_t PyNumberCustomObject<number_type>::Initializer::set_up() {
         static PyObject *module = PyImport_ImportModule("pyllars");
-        PyType_Ready(&PyNumberCustomBase::Type);
-        const int rc = PyType_Ready(&PyNumberCustomObject::Type);
+        int rc = PyType_Ready(&CommonBaseWrapper::_BaseType);
+        rc |= PyType_Ready(&PyNumberCustomBase::Type);
+        rc |= PyType_Ready(&PyNumberCustomObject::Type);
         Py_INCREF(&PyNumberCustomBase::Type);
         Py_INCREF(&PyNumberCustomObject::Type);
         if (module && rc == 0) {
@@ -1207,7 +1210,7 @@ namespace __pyllars_internal {
             nullptr,             /* tp_methods */
             nullptr,             /* tp_members */
             nullptr,                         /* tp_getset */
-            nullptr,                         /* tp_base */
+            &CommonBaseWrapper::_BaseType,                         /* tp_base */
             nullptr,                         /* tp_dict */
             nullptr,                         /* tp_descr_get */
             nullptr,                         /* tp_descr_set */
@@ -1367,8 +1370,9 @@ namespace __pyllars_internal {
 
     template<typename number_type>
     int PyFloatingPtCustomObject<number_type>::initialize() {
-        PyType_Ready(&PyFloatingPtCustomBase::Type);
-        const int rc = PyType_Ready(&PyFloatingPtCustomObject::Type);
+        int rc = PyType_Ready(&CommonBaseWrapper::_BaseType);
+        rc |= PyType_Ready(&PyFloatingPtCustomBase::Type);
+        rc |= PyType_Ready(&PyFloatingPtCustomObject::Type);
         return rc;
     }
 
@@ -1451,6 +1455,7 @@ namespace __pyllars_internal {
     template<typename number_type>
     int PyFloatingPtCustomObject<number_type>::create(PyObject *self_, PyObject *args, PyObject *kwds) {
         PyFloatingPtCustomObject *self = (PyFloatingPtCustomObject *) self_;
+        self->template populate_type_info< number_type>();
         if (self) {
             if (PyTuple_Size(args) == 0) {
                 memset(const_cast<typename std::remove_const<number_type>::type *>(&self->value), 0,
@@ -1549,5 +1554,59 @@ namespace __pyllars_internal {
         return subtype;
     }
 
+    PyTypeObject CommonBaseWrapper::_BaseType ={
+#if PY_MAJOR_VERSION == 3
+            PyVarObject_HEAD_INIT(NULL, 0)
+#else
+    PyObject_HEAD_INIT(nullptr)
+            0,                         /*ob_size*/
+#endif
+            "BasePythonFromCWrapper",             /*tp_name*/ /*filled on init*/
+            sizeof(CommonBaseWrapper),             /*tp_basicsize*/
+            0,                         /*tp_itemsize*/
+            nullptr, //(destructor) CommonBaseWrapper::_dealloc, /*tp_dealloc*/
+            nullptr,                         /*tp_print*/
+            nullptr,                         /*tp_getattr*/
+            nullptr,                         /*tp_setattr*/
+            nullptr,                         /*tp_compare*/
+            nullptr,                         /*tp_repr*/
+            nullptr,          /*tp_as_number*/
+            nullptr,                         /*tp_as_sequence*/
+            nullptr,                         /*tp_as_mapping*/
+            nullptr,                         /*tp_hash */
+            nullptr,                         /*tp_call*/
+            nullptr,                         /*tp_str*/
+            nullptr,                         /*tp_getattro*/
+            nullptr,                         /*tp_setattro*/
+            nullptr,                         /*tp_as_buffer*/
+            Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_CHECKTYPES, /*tp_flags*/
+            "BasePythonFromCWrapper object",           /* tp_doc */
+            nullptr,                       /* tp_traverse */
+            nullptr,                       /* tp_clear */
+            nullptr,                       /* tp_richcompare */
+            0,                               /* tp_weaklistoffset */
+            nullptr,                       /* tp_iter */
+            nullptr,                       /* tp_iternext */
+            nullptr,             /* tp_methods */
+            nullptr,             /* tp_members */
+            nullptr,                         /* tp_getset */
+            nullptr,                         /* tp_base */
+            nullptr,                         /* tp_dict */
+            nullptr,                         /* tp_descr_get */
+            nullptr,                         /* tp_descr_set */
+            0,                         /* tp_dictoffset */
+            CommonBaseWrapper::__init,  /* tp_init */
+            nullptr,                         /* tp_alloc */
+            CommonBaseWrapper::_new,             /* tp_new */
+            nullptr,                         /*tp_free*/
+            nullptr,                         /*tp_is_gc*/
+            nullptr,                         /*tp_bases*/
+            nullptr,                         /*tp_mro*/
+            nullptr,                         /*tp_cache*/
+            nullptr,                         /*tp_subclasses*/
+            nullptr,                          /*tp_weaklist*/
+            nullptr,                          /*tp_del*/
+            0,                          /*tp_version_tag*/
+    };
 }
 #include "pyllars_const.cpp"

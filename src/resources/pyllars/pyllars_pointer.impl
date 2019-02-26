@@ -182,15 +182,17 @@ namespace __pyllars_internal {
             PyObject * set_value = nullptr;
             if (kwds && PyDict_Size(kwds) == 1){
                 set_value = PyDict_GetItemString(kwds, "set_value");
-                if(!set_value || !PyObject_TypeCheck(set_value, PythonClassWrapper<T_base >::getPyType())){
+                if(!set_value){
                     PyErr_BadArgument();
                     return nullptr;
                 }
+                Py_INCREF(set_value);
                 PyDict_DelItemString(kwds, "set_value");
             }
             if ((kwds && PyDict_Size(kwds) != 0) || !args || PyTuple_Size(args) != 1 ||
                 !(PyLong_Check(PyTuple_GetItem(args, 0)) || PyInt_Check(PyTuple_GetItem(args, 0)))) {
                 PyErr_BadArgument();
+                if(set_value){Py_DECREF(set_value);}
                 return nullptr;
             }
             PyObject *pyindex = PyTuple_GetItem(args, 0);
@@ -202,6 +204,7 @@ namespace __pyllars_internal {
             }
             if (set_value) {
                 _set_item(self, index, set_value);
+                Py_DECREF(set_value);
             }
             return _get_item2(self, index, false);
         } catch (const char *const msg) {
@@ -216,6 +219,11 @@ namespace __pyllars_internal {
         static bool initialized = false;
         if (initialized) return 0;
         initialized = true;
+        if(PyType_Ready(&CommonBaseWrapper::_BaseType)< 0){
+            PyErr_SetString(PyExc_RuntimeError, "Failed to set_up type!");
+            return -1;
+        }
+        Type.tp_base = &CommonBaseWrapper::_BaseType;
 
 	    if (PyType_Ready(&Type) < 0){
             PyErr_SetString(PyExc_RuntimeError, "Failed to set_up type!");
@@ -474,7 +482,7 @@ namespace __pyllars_internal {
         self->_arraySize = UNKNOWN_SIZE;
         self->_referenced_elements = nullptr;
         self->_referenced = nullptr;
-
+        self->template populate_type_info<T>();
         int result = Base::_initbase(self, args, kwds, &Type);
 
         if (result == ERROR_TYPE_MISMATCH && (ptr_depth<T>::value == 1) &&
@@ -677,6 +685,7 @@ PyObject_HEAD_INIT(nullptr)
         self->_arraySize = UNKNOWN_SIZE;
         self->_referenced_elements = nullptr;
         self->_referenced = nullptr;
+        self->template populate_type_info<T>();
 
         int result = Base::_initbase(self, args, kwds, &Type);
 

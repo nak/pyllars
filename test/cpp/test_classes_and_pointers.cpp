@@ -439,10 +439,10 @@ TEST_F(PythonBased, TestBasicClass){
 
     PyTuple_SetItem(at_args, 0, PyLong_FromLong(25));
     PyObject* kwds = PyDict_New();
-    PyObject* new_value = PyObject_Call((PyObject*)PythonClassWrapper<int>::getPyType(), at_args, nullptr);
+    PythonClassWrapper<int>* new_value = (PythonClassWrapper<int>*) PyObject_Call((PyObject*)PythonClassWrapper<int>::getPyType(), at_args, nullptr);
     ASSERT_NE(new_value, nullptr);
     PyTuple_SetItem(at_args, 0, PyLong_FromLong(1));
-    PyDict_SetItemString(kwds, "set_value", new_value);
+    PyDict_SetItemString(kwds, "set_value", (PyObject*) new_value);
     int_value = PyObject_Call(at, at_args, kwds);
     ASSERT_NE(int_value, nullptr);
     ASSERT_EQ(PyLong_AsLong(int_value), 25);

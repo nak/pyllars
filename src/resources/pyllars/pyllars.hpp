@@ -91,7 +91,7 @@ namespace __pyllars_internal {
      Struct (non-template) to hold a common number (integer) base Type that is not instantiable,
      but provide for common reference base type
     */
-    struct PyNumberCustomBase {
+    struct PyNumberCustomBase: public CommonBaseWrapper {
         static PyTypeObject Type;
     };
 
@@ -100,7 +100,7 @@ namespace __pyllars_internal {
      Python's number methods
     */
     template<typename number_type>
-    struct PyNumberCustomObject {
+    struct PyNumberCustomObject : public PyNumberCustomBase{
     public:
         PyObject_HEAD
         typedef number_type ntype;
@@ -219,17 +219,15 @@ namespace __pyllars_internal {
     };
 
 
-    struct PyFloatingPtCustomBase {
+    struct PyFloatingPtCustomBase: public CommonBaseWrapper {
 
         std::function<double()> asDouble;
-
-    private:
 
         static PyTypeObject Type;
     };
 
     template<typename number_type>
-    struct PyFloatingPtCustomObject {
+    struct PyFloatingPtCustomObject: public PyFloatingPtCustomBase{
     public:
         PyObject_HEAD
         typedef number_type ntype;

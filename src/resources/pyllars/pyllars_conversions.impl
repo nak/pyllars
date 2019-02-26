@@ -21,9 +21,10 @@ namespace __pyllars_internal {
                                     !std::is_integral<typename std::remove_reference<T>::type>::value &&
                                     !std::is_floating_point<typename std::remove_reference<T>::type>::value>::type>::
     toCObject(PyObject &pyobj) {
-        //if (&pyobj == nullptr) {
-        //    throw "Invalid argument for conversion";
-        //}
+        auto self = (CommonBaseWrapper*) &pyobj;
+        if (!PyObject_TypeCheck(&pyobj, &CommonBaseWrapper::_BaseType)){
+            goto onerror;
+        }
         // Check different pointer type matches
         if (ClassWrapper::checkType(&pyobj)) {
             return smart_ptr<T_bare, array_allocated>((T_bare * )
@@ -45,7 +46,9 @@ namespace __pyllars_internal {
         } else if (NoRefNonConstClassWrapper::checkType(&pyobj)) {
             return smart_ptr<T_bare, array_allocated>(reinterpret_cast<NoRefNonConstClassWrapper *>(&pyobj)->
                     get_CObject(), PTR_IS_NOT_ALLOCATED);
-        } else {
+        }
+        onerror:
+        {
             fprintf(stderr, "\n");
             PyObject_Print(&pyobj, stderr, 0);
             fprintf(stderr, "\n");
@@ -61,6 +64,7 @@ namespace __pyllars_internal {
             std::is_integral<typename std::remove_reference<T>::type>::value
             || std::is_enum<typename std::remove_reference<T>::type>::value>::type>::
     toCObject(PyObject &pyobj) {
+        auto self = (CommonBaseWrapper*) &pyobj;
         static const bool is_reference = std::is_reference<T>::value;
         static const bool is_const = std::is_const<T>::value;
 
@@ -71,6 +75,8 @@ namespace __pyllars_internal {
         } else if (PyLong_Check(&pyobj)) {
             T_bare *value = new T_bare((T_bare) PyLong_AsLongLong(&pyobj));
             return smart_ptr<T, array_allocated>(value, PTR_IS_ALLOCATED);
+        } else if (!PyObject_TypeCheck(&pyobj, &CommonBaseWrapper::_BaseType)){
+            goto onerror;
         } else if (ClassWrapper::checkType(&pyobj)) {
             return smart_ptr<T, array_allocated>(
                     reinterpret_cast<ClassWrapper * >(&pyobj)->get_CObject(),
@@ -150,6 +156,7 @@ namespace __pyllars_internal {
                     (T*) reinterpret_cast<NonConstClassWrapper * >(&pyobj)->get_CObject(),
                     PTR_IS_NOT_ALLOCATED);
         }
+        onerror:
         throw "Invalid type converting to C object";
     }
 
@@ -159,8 +166,12 @@ namespace __pyllars_internal {
     toCObject(PyObject &pyobj) {
         typedef typename std::remove_reference<T>::type T_bare;
 
+        auto self = (CommonBaseWrapper*) &pyobj;
+
         if (PyFloat_Check(&pyobj)) {
             return smart_ptr<T, array_allocated>(new T_bare(PyFloat_AsDouble(&pyobj)), PTR_IS_ALLOCATED);
+        } else if (!PyObject_TypeCheck(&pyobj, &CommonBaseWrapper::_BaseType)){
+            goto onerror;
         } else if (ClassWrapper::checkType(&pyobj)) {
             T_bare *retval = (reinterpret_cast<ClassWrapper * >(&pyobj)->get_CObject());
             return smart_ptr<T, array_allocated>(retval, PTR_IS_NOT_ALLOCATED);
@@ -177,6 +188,7 @@ namespace __pyllars_internal {
                     *self->get_CObject());
             return smart_ptr<T, array_allocated>(copy, PTR_IS_ALLOCATED);
         }
+        onerror:
         PyObject_Print(&pyobj, stderr, 0);
         throw "Invalid type converting to C object";
     }
@@ -210,7 +222,13 @@ namespace __pyllars_internal {
     CObjectConversionHelper<const char *, array_allocated, ClassWrapper>::
     toCObject(PyObject &pyobj) {
         const char *name = nullptr;
-        if (ConstClassWrapper::checkType(&pyobj)) {
+        auto self = (CommonBaseWrapper*) &pyobj;
+
+        if (PyString_Check(&pyobj)) {
+            name = (const char *) PyString_AsString(&pyobj);
+        } else if (!PyObject_TypeCheck(&pyobj, &CommonBaseWrapper::_BaseType)){
+            throw "Conversion to C string from non-string or incompatible Python object!";
+        } else if (ConstClassWrapper::checkType(&pyobj)) {
             ConstClassWrapper *
             const self_ = (ConstClassWrapper *const) &pyobj;
             name = (const char *) self_->get_CObject();
@@ -221,9 +239,7 @@ namespace __pyllars_internal {
             NonConstClassWrapper *
             const self_ = (NonConstClassWrapper *const) &pyobj;
             name = (const char *) self_->get_CObject();
-        } else if (PyString_Check(&pyobj)) {
-            name = (const char *) PyString_AsString(&pyobj);
-        } else {
+        }  else {
             PyObject_Print(&pyobj, stderr, 0);
             throw "Conversion to C string from non-string or incompatible Python object!";
         }
@@ -237,7 +253,13 @@ namespace __pyllars_internal {
     CObjectConversionHelper<const char *const, array_allocated, ClassWrapper>::
     toCObject(PyObject &pyobj) {
         const char *name = nullptr;
-        if (NonConstClassWrapper::checkType(&pyobj)) {
+        auto self = (CommonBaseWrapper*) &pyobj;
+
+        if (PyString_Check(&pyobj)) {
+            name = (const char *) PyString_AsString(&pyobj);
+        } else if (!PyObject_TypeCheck(&pyobj, &CommonBaseWrapper::_BaseType)){
+            throw "Conversion to C-string from non-string Python object!";
+        } else if (NonConstClassWrapper::checkType(&pyobj)) {
             NonConstClassWrapper *
             const self_ = ((NonConstClassWrapper *const) &pyobj);
             name = (const char *) self_->get_CObject();
@@ -246,8 +268,6 @@ namespace __pyllars_internal {
             name = (const char *) self_->get_CObject();
         } else if (ConstClassWrapper::checkType(&pyobj)) {
             throw "Attempt to cast away const-ness (c-string)";
-        } else if (PyString_Check(&pyobj)) {
-            name = (const char *) PyString_AsString(&pyobj);
         } else {
             PyObject_Print(&pyobj, stderr, 0);
             throw "Conversion to C-string from non-string Python object!";
@@ -262,10 +282,11 @@ namespace __pyllars_internal {
     CObjectConversionHelper<char *const, array_allocated, ClassWrapper>::
     toCObject(PyObject &pyobj) {
         const char *name = nullptr;
+        auto self = (CommonBaseWrapper*) &pyobj;
         if (PyString_Check(&pyobj)) {
             name = (const char *) PyString_AsString(&pyobj);
         } else {
-            throw "Conversiont o C stgring from non-string Python object!";
+            throw "Conversion of C string from non-string Python object!";
         }
         if (!name) { throw "Error converting string: null pointer encountered"; }
         //since char * contents are mutable, must make copy
@@ -298,7 +319,27 @@ namespace __pyllars_internal {
     CObjectConversionHelper<T[size], array_allocated, ClassWrapper>::
     toCObject(PyObject &pyobj) {
 
-        if (PtrWrapper::checkType(&pyobj)) {
+        auto self = (CommonBaseWrapper*) &pyobj;
+
+        if (PyList_Check(&pyobj)) {
+            if (PyList_Size(&pyobj) != size) {
+                throw "Inconsistent sizes in array assignment";
+            }
+            NonConst_T_array *val = new NonConst_T_array[1];
+            for (size_t i = 0; i < size; ++i) {
+                PyObject *listitem = PyList_GetItem(&pyobj, i);
+                if (ClassWrapper::checkTypeDereferenced(listitem)) {
+                    (*val)[i] = *(reinterpret_cast< ClassWrapper * >(listitem)->get_CObject());
+                } else {
+                    delete[] val;
+                    throw "Invalid type in array element assignment";
+                }
+            }
+
+            return smart_ptr<T_array, array_allocated>(val, PTR_IS_ALLOCATED);
+        } else if (!PyObject_TypeCheck(&pyobj, &CommonBaseWrapper::_BaseType)){
+            "Invalid conversion of types";
+        } else if (PtrWrapper::checkType(&pyobj)) {
             PtrWrapper *self = reinterpret_cast<PtrWrapper * >(&pyobj);
             if (self->_arraySize != size) {
                 throw "Attempt to convert between arrays of differing sizes";
@@ -322,22 +363,6 @@ namespace __pyllars_internal {
             for (size_t i = 0; i < size; ++i) {
                 (*val)[i] = (*self_value)[i];
             }
-            return smart_ptr<T_array, array_allocated>(val, PTR_IS_ALLOCATED);
-        } else if (PyList_Check(&pyobj)) {
-            if (PyList_Size(&pyobj) != size) {
-                throw "Inconsistent sizes in array assignment";
-            }
-            NonConst_T_array *val = new NonConst_T_array[1];
-            for (size_t i = 0; i < size; ++i) {
-                PyObject *listitem = PyList_GetItem(&pyobj, i);
-                if (ClassWrapper::checkTypeDereferenced(listitem)) {
-                    (*val)[i] = *(reinterpret_cast< ClassWrapper * >(listitem)->get_CObject());
-                } else {
-                    delete[] val;
-                    throw "Invalid type in array element assignment";
-                }
-            }
-
             return smart_ptr<T_array, array_allocated>(val, PTR_IS_ALLOCATED);
         }
         throw "Conversion to C-string from non-string Python object!";

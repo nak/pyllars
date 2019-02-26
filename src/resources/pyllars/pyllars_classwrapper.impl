@@ -825,6 +825,15 @@ namespace __pyllars_internal{
         }
 
 
+        if(!_Type.tp_base && _baseClasses.size() == 0){
+            if (PyType_Ready(&CommonBaseWrapper::_BaseType) < 0){
+                PyErr_SetString(PyExc_RuntimeError, "Failed to set_up type!");
+                PyErr_Print();
+                status = -1;
+                goto onerror;
+            }
+            _Type.tp_base = &CommonBaseWrapper::_BaseType;
+        }
         if (PyType_Ready(&_Type) < 0) {
             PyErr_SetString(PyExc_RuntimeError, "Failed to set_up type!");
             PyErr_Print();
@@ -1197,6 +1206,7 @@ namespace __pyllars_internal{
         self->_inPlace = false;
         self->_arraySize = 0;
         self->_referenced = nullptr;
+        self->populate_type_info<T>();
         if (!_member_getters.count("this")){
             _member_getters["this"] = getThis;
         }

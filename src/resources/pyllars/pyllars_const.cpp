@@ -524,8 +524,9 @@ namespace __pyllars_internal {
 
     template<typename number_type>
     int PyConstNumberCustomObject<number_type>::initialize() {
-        PyType_Ready(&PyConstNumberCustomBase::Type);
-        const int rc = PyType_Ready(&PyConstNumberCustomObject::Type);
+        int rc = PyType_Ready(&CommonBaseWrapper::_BaseType);
+        rc |= PyType_Ready(&PyConstNumberCustomBase::Type);
+        rc |= PyType_Ready(&PyConstNumberCustomObject::Type);
         return rc;
     }
 
@@ -608,6 +609,7 @@ namespace __pyllars_internal {
     int PyConstNumberCustomObject<number_type>::create(PyObject *self_, PyObject *args, PyObject *kwds) {
         PyConstNumberCustomObject *self = (PyConstNumberCustomObject *) self_;
         if (self) {
+            self->populate_type_info< number_type>();
             if (PyTuple_Size(args) == 0) {
                 memset(const_cast<typename std::remove_const<number_type>::type *>(&self->value), 0,
                        sizeof(self->value));
@@ -644,8 +646,9 @@ namespace __pyllars_internal {
     template<typename number_type>
     status_t PyConstNumberCustomObject<number_type>::Initializer::init(PyObject *const global_mod) {
         static PyObject *module = PyImport_ImportModule("pyllars");
-        PyType_Ready(&PyConstNumberCustomBase::Type);
-        const int rc = PyType_Ready(&PyConstNumberCustomObject::Type);
+        int rc = PyType_Ready(&CommonBaseWrapper::_BaseType);
+        rc |= PyType_Ready(&PyConstNumberCustomBase::Type);
+        rc |= PyType_Ready(&PyConstNumberCustomObject::Type);
         Py_INCREF(&PyConstNumberCustomBase::Type);
         Py_INCREF(&PyConstNumberCustomObject::Type);
         if (module && rc == 0) {
@@ -982,7 +985,7 @@ namespace __pyllars_internal {
             nullptr,             /* tp_methods */
             nullptr,             /* tp_members */
             nullptr,                         /* tp_getset */
-            nullptr,                         /* tp_base */
+            &CommonBaseWrapper::_BaseType,                         /* tp_base */
             nullptr,                         /* tp_dict */
             nullptr,                         /* tp_descr_get */
             nullptr,                         /* tp_descr_set */
@@ -1142,8 +1145,9 @@ namespace __pyllars_internal {
 
     template<typename number_type>
     int PyConstFloatingPtCustomObject<number_type>::initialize() {
-        PyType_Ready(&PyConstFloatingPtCustomBase::Type);
-        const int rc = PyType_Ready(&PyConstFloatingPtCustomObject::Type);
+        int rc = PyType_Ready(&CommonBaseWrapper::_BaseType);
+        rc |= PyType_Ready(&PyConstFloatingPtCustomBase::Type);
+        rc |= PyType_Ready(&PyConstFloatingPtCustomObject::Type);
         return rc;
         //return PyConstFloatingPtCustomObject<number_type>::Initializer::initializer->set_up();
     }
@@ -1228,6 +1232,7 @@ namespace __pyllars_internal {
     int PyConstFloatingPtCustomObject<number_type>::create(PyObject *self_, PyObject *args, PyObject *kwds) {
         PyConstFloatingPtCustomObject *self = (PyConstFloatingPtCustomObject *) self_;
         if (self) {
+            self->populate_type_info<number_type>();
             if (PyTuple_Size(args) == 0) {
                 memset(const_cast<typename std::remove_const<number_type>::type *>(&self->value), 0,
                        sizeof(self->value));
@@ -1270,8 +1275,9 @@ namespace __pyllars_internal {
         static bool inited = false;
         if (inited) return 0;
         inited = true;
-        PyType_Ready(&PyConstFloatingPtCustomBase::Type);
-        const int rc = PyType_Ready(&PyConstFloatingPtCustomObject::Type);
+        int rc = PyType_Ready(&CommonBaseWrapper::_BaseType);
+        rc |= PyType_Ready(&PyConstFloatingPtCustomBase::Type);
+        rc |= PyType_Ready(&PyConstFloatingPtCustomObject::Type);
         Py_INCREF(&PyConstFloatingPtCustomBase::Type);
         Py_INCREF(&PyConstFloatingPtCustomObject::Type);
         if (module && rc == 0) {
