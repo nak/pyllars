@@ -13,14 +13,12 @@
 #include <Python.h>
 #include <tupleobject.h>
 
-
-//#include "pyllars_utils.hpp"
+#include "pyllars_type_traits.hpp"
 #include "pyllars.hpp"
 #include "pyllars_defns.hpp"
 #include "pyllars_classmethodsemantics.hpp"
 #include "pyllars_classmembersemantics.hpp"
 #include "pyllars_membersemantics.hpp"
-//#include "pyllars_constmethodcallsemantics.hpp"
 #include "pyllars_methodcallsemantics.hpp"
 #include "pyllars_object_lifecycle.hpp"
 typedef const char cstring[];
@@ -79,9 +77,7 @@ namespace __pyllars_internal {
      * Class to define Python wrapper to C class/type
      **/
     template<typename T>
-    struct PythonClassWrapper<T,
-			      typename std::enable_if<!std::is_arithmetic<T>::value && !std::is_floating_point<T>::value && !std::is_array<T>::value && !std::is_pointer<T>::value>::type>
-            : public CommonBaseWrapper {
+    struct PythonClassWrapper<T, typename std::enable_if< is_rich_class<T>::value>::type>: public CommonBaseWrapper {
         // Convenience typedefs
         typedef CommonBaseWrapper::Base Base;
         typedef PythonClassWrapper DereferencedWrapper;

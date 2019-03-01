@@ -1,6 +1,7 @@
 #ifndef __PYLLARS_INTERNAL_DEFNS
 #define __PYLLARS_INTERNAL_DEFNS
 
+#include "pyllars_type_traits.hpp"
 #include <type_traits>
 #include <sys/types.h>
 #include <Python.h>
@@ -408,6 +409,8 @@ namespace __pyllars_internal {
      * Class common to all C++ wrapper classes
      **/
     struct CommonBaseWrapper {
+        template<typename T, bool array_allocated, typename ClassWrapper, typename E>
+        friend class CObjectConversionHelper;
 
         struct Base {
             PyObject_HEAD
@@ -420,7 +423,7 @@ namespace __pyllars_internal {
         } baseClass;
 
         constexpr CommonBaseWrapper() : baseClass(), _is_const(false), _is_reference(false), _is_volatile(false),
-        _is_pointer(false), _referenced(nullptr) {
+        _is_pointer(false), _referenced(nullptr) , __checkType(nullptr), _coreTypePtr(nullptr){
         }
 
         typedef const char *const cstring;
@@ -466,12 +469,33 @@ namespace __pyllars_internal {
             return (PyObject *) self;
         }
 
+        /**
+         * Check for valid conversion to type T from given Python object in use as passing as argument to C function
+         * (after conversino)
+         * @tparam T type to convert to
+         * @param obj Python with underlying C object to convert from
+         * @return true if such a conversion allowed, false otherwise
+         */
         template<typename T>
-        void populate_type_info(){
+        static bool checkImplicitArgumentConversion(PyObject *obj){
+            static constexpr bool to_is_const = std::is_const<T>::value;
+            static constexpr bool to_is_reference = std::is_reference<T>::value;
+
+            auto const self = reinterpret_cast<CommonBaseWrapper*>(obj);
+            return (bool) PyObject_TypeCheck(obj, &CommonBaseWrapper::_BaseType) && // is truly wrapping a C object
+                    (self->_coreTypePtr == PythonClassWrapper<typename core_type<T>::type>::getPyType()) && //core type match
+                    (to_is_const || !to_is_reference || !self->_is_const); // logic for conversion-is-allowed
+        }
+
+        template<typename T>
+        void populate_type_info(bool(*checkType)(PyObject* const),
+                PyTypeObject* const coreTypePtr){
             _is_const = std::is_const<T>::value;
             _is_volatile = std::is_volatile<T>::value;
             _is_reference = std::is_reference<T>::value;
             _is_pointer = std::is_pointer<T>::value;
+            __checkType = checkType;
+            _coreTypePtr = coreTypePtr;
         }
 
         bool _is_const;
@@ -479,6 +503,8 @@ namespace __pyllars_internal {
         bool _is_volatile;
         bool _is_pointer;
         PyObject *_referenced;
+        bool (*__checkType)(PyObject * typ);
+        PyTypeObject* _coreTypePtr;
     };
 
 

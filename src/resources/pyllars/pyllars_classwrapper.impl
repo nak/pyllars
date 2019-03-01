@@ -119,82 +119,55 @@ namespace __pyllars_internal{
 
     template<typename T>
     std::map<std::string, PyMethodDef> PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&
-                                    !std::is_floating_point<T>::value &&
-                                    !std::is_array<T>::value &&
-                                    !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
             _methodCollection = std::map<std::string, PyMethodDef>();
 
     template<typename T>
     std::vector<PyTypeObject *> PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&
-                                    !std::is_floating_point<T>::value &&
-                                    !std::is_array<T>::value &&
-                                    !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
             _baseClasses = std::vector<PyTypeObject *>();
 
     template<typename T>
     std::map<std::string, const typename std::remove_reference<T>::type*> PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&
-                                    !std::is_floating_point<T>::value &&
-                                    !std::is_array<T>::value &&
-                                    !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
             _classEnumValues = std::map<std::string, const T_NoRef *>();
 
     template<typename T>
     std::map<std::string, unaryfunc> PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&
-                                    !std::is_floating_point<T>::value &&
-                                    !std::is_array<T>::value &&
-                                    !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
             _unaryOperators = std::map<std::string, unaryfunc>();
 
     template<typename T>
     std::map<std::string, binaryfunc> PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&
-                                    !std::is_floating_point<T>::value &&
-                                    !std::is_array<T>::value &&
-                                    !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
             _binaryOperators = std::map<std::string,binaryfunc>();
 
     template<typename T>
-    std::vector<typename PythonClassWrapper<T, typename std::enable_if<
-            !std::is_arithmetic<T>::value &&
-            !std::is_floating_point<T>::value &&
-            !std::is_array<T>::value &&
-            !std::is_pointer<T>::value>::type>::
+    std::vector<typename PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::
     ConstructorContainer>
             PythonClassWrapper<T,
-                    typename std::enable_if<
-                            !std::is_arithmetic<T>::value &&
-                            !std::is_floating_point<T>::value &&
-                            !std::is_array<T>::value &&
-                            !std::is_pointer<T>::value>::type>::
+                    typename std::enable_if<is_rich_class<T>::value>::type>::
             _constructors;
 
     template<typename T>
     std::map<std::string, _getattrfunc >
             PythonClassWrapper<T,
-                    typename std::enable_if<
-                            !std::is_arithmetic<T>::value &&
-                            !std::is_floating_point<T>::value &&
-                            !std::is_array<T>::value &&
-                            !std::is_pointer<T>::value>::type>::
+                    typename std::enable_if<is_rich_class<T>::value>::type>::
             _member_getters;
     template<typename T>
     std::map<std::string, _setattrfunc >
             PythonClassWrapper<T,
-                    typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value &&  !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+                    typename std::enable_if<is_rich_class<T>::value>::type>::
             _member_setters;
     template<typename T>
     std::vector<_setattrfunc >
             PythonClassWrapper<T,
-                    typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value &&  !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+                    typename std::enable_if<is_rich_class<T>::value>::type>::
             _assigners;
 
     template<typename T>
     bool PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value &&  !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::_isInitialized = false;
+            typename std::enable_if<is_rich_class<T>::value>::type>::_isInitialized = false;
 
     template<typename T>
     std::map<std::string, std::pair<std::function<PyObject*(PyObject*, PyObject*)>,
@@ -202,11 +175,11 @@ namespace __pyllars_internal{
                                      >
                           >
     PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value &&  !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::_mapMethodCollection;
+            typename std::enable_if<is_rich_class<T>::value>::type>::_mapMethodCollection;
 
     template<typename T>
     PyTypeObject PythonClassWrapper<T,
-    typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value &&  !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+    typename std::enable_if<is_rich_class<T>::value>::type>::
     _Type = {
 #if PY_MAJOR_VERSION == 3
             PyVarObject_HEAD_INIT(NULL, 0)
@@ -692,14 +665,13 @@ namespace __pyllars_internal{
     */
     template<typename T>
     typename std::remove_reference<T>::type *PythonClassWrapper<T,
-                typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value &&  !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::get_CObject() {
+                typename std::enable_if<is_rich_class<T>::value>::type>::get_CObject() {
         return _CObject ? _CObject->ptr() : nullptr;
     }
 
 
     template<typename T>
-    int PythonClassWrapper<T,
-    typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value  && !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+    int PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::
     initialize() {
         typedef typename std::remove_volatile<
                 typename std::remove_const<
@@ -864,9 +836,9 @@ namespace __pyllars_internal{
 
     template<typename T>
     PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value &&  !std::is_array<T>::value && !std::is_pointer<T>::value>::type>
+            typename std::enable_if<is_rich_class<T>::value>::type>
                      *PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value &&  !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
     createPy
             (const ssize_t arraySize, ObjContainer<T_NoRef> *const cobj, const bool isAllocated,
              const bool inPlace, PyObject *referencing) {
@@ -890,7 +862,7 @@ namespace __pyllars_internal{
 
     template<typename T>
     void PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value &&  !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
     addConstructorBase(const char *const kwlist[], constructor c) {
         _constructors.push_back(ConstructorContainer(kwlist, c));
     }
@@ -901,7 +873,7 @@ namespace __pyllars_internal{
     template<typename T>
     template<typename ...Args>
     bool PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value &&  !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
     create(const char *const kwlist[], PyObject *args, PyObject *kwds, ObjContainer<T_NoRef> *&cobj,
            const bool inPlace) {
         try {
@@ -917,7 +889,7 @@ namespace __pyllars_internal{
 
     template<typename T>
     PyObject *PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value &&  !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
     addr(PyObject *self, PyObject *args) {
         if ((args && PyTuple_Size(args) > 0)) {
             PyErr_BadArgument();
@@ -934,7 +906,7 @@ namespace __pyllars_internal{
     template<typename T>
     template<const char *const name, const char* const kwlist[], typename ReturnType, typename ...Args>
     void PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value &&  !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
     addClassMethod(ReturnType(*method)(Args...)) {
         static const char *const doc = "Call class method ";
         char *doc_string = new char[strlen(name) + strlen(doc) + 1];
@@ -954,7 +926,7 @@ namespace __pyllars_internal{
             template<typename T>
     template<const char *const name, const char* const kwlist[], typename ReturnType, typename ...Args>
     void PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value &&  !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
     addClassMethodVarargs(ReturnType(*method)(Args... ...)) {
         static const char *const doc = "Call class method ";
         char *doc_string = new char[strlen(name) + strlen(doc) + 1];
@@ -975,7 +947,7 @@ namespace __pyllars_internal{
     template<typename T>
     template<typename _Container, bool is_const, const char* const kwlist[], typename ReturnType, typename ...Args>
     void PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value &&  !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
     addMethodTempl(typename _Container::template Container<is_const, kwlist, ReturnType, Args...>::method_t method) {
         static const char *const doc = "Call method ";
         char *doc_string = new char[strlen(_Container::name_) + strlen(doc) + 1];
@@ -996,7 +968,7 @@ namespace __pyllars_internal{
     template<typename T>
     template<const char *const name, bool is_const, typename Arg>
     void PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value &&  !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
     addUnaryOperator( typename MethodContainer<T_NoRef, name>::template Container<is_const, emptylist, Arg>::method_t method) {
         MethodContainer<T_NoRef, name>::template Container<is_const, emptylist, Arg>::setMethod(method);
         _unaryOperators[name] = (unaryfunc) MethodContainer<T_NoRef, name>::callAsUnaryFunc;
@@ -1006,7 +978,7 @@ namespace __pyllars_internal{
     template<typename T>
     template<const char *const name, bool is_const, const char* const kwlist[2], typename ReturnType, typename Arg>
     void PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value &&  !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
     addBinaryOperator( typename MethodContainer<T_NoRef, name>::template Container<is_const, kwlist, ReturnType, Arg>::method_t method) {
         MethodContainer<T_NoRef, name>::template Container<is_const, kwlist, ReturnType, Arg>::setMethod(method);
         _binaryOperators[name] = (binaryfunc) MethodContainer<T_NoRef, name>::callAsBinaryFunc;
@@ -1015,7 +987,7 @@ namespace __pyllars_internal{
     template<typename T>
     PyObject*
     PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value &&  !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
     _mapGet(PyObject* self, PyObject* key){
         PyObject* value = nullptr;
         for( auto const & [_, method]: _mapMethodCollection){
@@ -1030,7 +1002,7 @@ namespace __pyllars_internal{
 
     template<typename T>
     int PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value &&  !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
     _mapSet(PyObject* self, PyObject* key, PyObject* value){
         int status = -1;
         for( auto const & [_, method]: _mapMethodCollection){
@@ -1061,7 +1033,7 @@ namespace __pyllars_internal{
     template<typename T>
     template<const char* const kwlist[], typename KeyType, typename ValueType>
     void PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value &&  !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
     addMapOperatorMethod( typename MethodContainer<T_NoRef, operatormapname>::template Container<false, kwlist, ValueType, KeyType>::method_t method){
         std::function<PyObject*(PyObject*, PyObject*)> getter =  [method](PyObject* self, PyObject* item)->PyObject*{
              PythonClassWrapper*  self_ = (PythonClassWrapper*) self;
@@ -1098,7 +1070,7 @@ namespace __pyllars_internal{
     template<typename T>
     template<const char* const kwlist[], typename KeyType, typename ValueType>
     void PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value &&  !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
     addMapOperatorMethodConst( typename MethodContainer<T_NoRef, operatormapname>::template Container<true, kwlist, ValueType, KeyType>::method_t method){
         std::function<PyObject*(PyObject*, PyObject*)> getter =  [method](PyObject* self, PyObject* item)->PyObject*{
             PythonClassWrapper*  self_ = (PythonClassWrapper*) self;
@@ -1130,7 +1102,7 @@ namespace __pyllars_internal{
 
     template<typename T>
     void PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value &&  !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
     addClassMember(const char *const name, PyObject *pyobj) {
         if (!_Type.tp_dict) {
             _Type.tp_dict = PyDict_New();
@@ -1140,7 +1112,7 @@ namespace __pyllars_internal{
 
     template<typename T>
     void PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&!std::is_floating_point<T>::value &&  !std::is_array<T>::value && !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
     addBaseClass(PyTypeObject *base) {
         if (!base) return;
         if (!_Type.tp_base && _baseClasses.empty()) {
@@ -1157,10 +1129,7 @@ namespace __pyllars_internal{
 
     template<typename T>
     void PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&
-                                    !std::is_floating_point<T>::value &&
-                                    !std::is_array<T>::value &&
-                                    !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
     set_contents(typename std::remove_reference<T>::type *ptr, const bool allocated, const bool inPlace) {
         _allocated = allocated;
         _inPlace = inPlace;
@@ -1170,20 +1139,14 @@ namespace __pyllars_internal{
 
     template<typename T>
     bool PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&
-                                    !std::is_floating_point<T>::value &&
-                                    !std::is_array<T>::value &&
-                                    !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
     checkType(PyObject *const obj) {
         return PyObject_TypeCheck(obj, &_Type);
     }
 
     template<typename T>
     PyObject *PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&
-                                    !std::is_floating_point<T>::value &&
-                                    !std::is_array<T>::value &&
-                                    !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
     alloc(PyObject *cls, PyObject *args, PyObject *kwds) {
         return ObjectLifecycleHelpers::Alloc<T, PythonClassWrapper<T_NoRef *>, PythonClassWrapper>::allocbase
                 (cls, args, kwds, _constructors);
@@ -1191,10 +1154,7 @@ namespace __pyllars_internal{
 
     template<typename T>
     int PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&
-                                    !std::is_floating_point<T>::value &&
-                                    !std::is_array<T>::value &&
-                                    !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
     _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds) {
         if (_Type.tp_base && Base::TypePtr->tp_init) {
             PyObject *empty = PyTuple_New(0);
@@ -1206,7 +1166,8 @@ namespace __pyllars_internal{
         self->_inPlace = false;
         self->_arraySize = 0;
         self->_referenced = nullptr;
-        self->populate_type_info<T>();
+        PyTypeObject* const coreTypePtr = PythonClassWrapper<typename core_type<T>::type>::getPyType();
+        self->populate_type_info<T>(&checkType, coreTypePtr);
         if (!_member_getters.count("this")){
             _member_getters["this"] = getThis;
         }
@@ -1215,10 +1176,7 @@ namespace __pyllars_internal{
 
     template<typename T>
     PyObject *PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&
-                                    !std::is_floating_point<T>::value &&
-                                    !std::is_array<T>::value &&
-                                    !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
     _new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
         (void) args;
         (void) kwds;
@@ -1232,10 +1190,7 @@ namespace __pyllars_internal{
 
     template<typename T>
     void PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&
-                                    !std::is_floating_point<T>::value &&
-                                    !std::is_array<T>::value &&
-                                    !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
     _free(void *self_) {
         PythonClassWrapper *self = (PythonClassWrapper *) self_;
         if (!self->_CObject) return;
@@ -1250,10 +1205,7 @@ namespace __pyllars_internal{
 
     template<typename T>
     void PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&
-                                    !std::is_floating_point<T>::value &&
-                                    !std::is_array<T>::value &&
-                                    !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
     _dealloc(PythonClassWrapper *self) {
         if (!self) return;
         if (self->_referenced) {
@@ -1267,10 +1219,7 @@ namespace __pyllars_internal{
     template<typename T>
     template<typename ...PyO>
     bool PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&
-                                    !std::is_floating_point<T>::value &&
-                                    !std::is_array<T>::value &&
-                                    !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
     _parsePyArgs(const char *const kwlist[], PyObject *args, PyObject *kwds, PyO *&...pyargs) {
         char format[sizeof...(PyO) + 1] = {0};
         if (sizeof...(PyO) > 0)
@@ -1281,10 +1230,7 @@ namespace __pyllars_internal{
     template<typename T>
     template<typename ...Args>
     bool PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&
-                                    !std::is_floating_point<T>::value &&
-                                    !std::is_array<T>::value &&
-                                    !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
     _createBaseBase(ObjContainer<T_NoRef> *&cobj,  Args ... args) {
         if (!cobj) {
             cobj = new ObjContainerProxy<T_NoRef, Args ...>(std::forward<Args>(args)...);
@@ -1299,10 +1245,7 @@ namespace __pyllars_internal{
 
     template<typename T>
     template<typename ...Args, int ...S >
-    bool PythonClassWrapper<T,  typename std::enable_if<!std::is_arithmetic<T>::value &&
-                                                                            !std::is_floating_point<T>::value &&
-                                                                            !std::is_array<T>::value &&
-                                                                            !std::is_pointer<T>::value>::type>::
+    bool PythonClassWrapper<T,  typename std::enable_if<is_rich_class<T>::value>::type>::
     _createBase( ObjContainer<T_NoRef> *&cobj, PyObject *args, PyObject *kwds,
                  const char *const kwlist[],  container<S...> , _____fake<Args> *... ) {
         if (args && PyTuple_Size(args) != sizeof...(Args)) {
@@ -1324,10 +1267,7 @@ namespace __pyllars_internal{
 
     template<typename T>
     void PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&
-                                    !std::is_floating_point<T>::value &&
-                                    !std::is_array<T>::value &&
-                                    !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
     _addMethod(PyMethodDef method) {
         //insert at beginning to keep null sentinel at end of list:
         _methodCollection[method.ml_name] = method;
@@ -1336,10 +1276,7 @@ namespace __pyllars_internal{
     template<typename T>
     template<const char* const name, typename FieldType, const size_t bits>
     void PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&
-                                    !std::is_floating_point<T>::value &&
-                                    !std::is_array<T>::value &&
-                                    !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
     addBitField(
                 typename BitFieldContainer<typename std::remove_reference<T>::type>::template Container<name, FieldType, bits>::getter_t &getter,
                 typename BitFieldContainer<typename std::remove_reference<T>::type>::template Container<name, FieldType,  bits>::setter_t &setter){
@@ -1356,10 +1293,7 @@ namespace __pyllars_internal{
     template<typename T>
     template<const char* const name, typename FieldType, const size_t bits>
     void PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&
-                                    !std::is_floating_point<T>::value &&
-                                    !std::is_array<T>::value &&
-                                    !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
     addBitFieldConst(
                 typename BitFieldContainer<T_NoRef>::template Container<name, FieldType, bits>::getter_t &getter){
             static const char *const doc = "Get bit-field attribute ";
@@ -1373,10 +1307,7 @@ namespace __pyllars_internal{
     template<typename T>
     template<const char *const name, typename FieldType>
     void PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&
-                                    !std::is_floating_point<T>::value &&
-                                    !std::is_array<T>::value &&
-                                    !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
     addAttribute(typename MemberContainer<T_NoRef>::template Container<name, FieldType>::member_t member){
 
             static const char *const doc = "Get attribute ";
@@ -1392,10 +1323,7 @@ namespace __pyllars_internal{
     template<typename T>
     template<const char *const name, ssize_t size, typename FieldType>
     void PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&
-                                    !std::is_floating_point<T>::value &&
-                                    !std::is_array<T>::value &&
-                                    !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
     addConstAttribute(
                 typename MemberContainer<T_NoRef>::template Container<name, FieldType[size]>::member_t member,
                 const ssize_t array_size){
@@ -1410,10 +1338,7 @@ namespace __pyllars_internal{
     template<typename T>
     template<const char *const name, typename FieldType>
     void PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&
-                                    !std::is_floating_point<T>::value &&
-                                    !std::is_array<T>::value &&
-                                    !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
     addAttributeConst(
                 typename ConstMemberContainer<T_NoRef>::template Container<name, FieldType>::member_t member){
 
@@ -1427,10 +1352,7 @@ namespace __pyllars_internal{
     template<typename T>
     template<const char *const name, ssize_t size, typename FieldType>
     void PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&
-                                    !std::is_floating_point<T>::value &&
-                                    !std::is_array<T>::value &&
-                                    !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
     addArrayAttribute(
                 typename MemberContainer<T_NoRef>::template Container<name, FieldType[size]>::member_t member,
                 const ssize_t array_size){
@@ -1446,10 +1368,7 @@ namespace __pyllars_internal{
     template<typename T>
     template<const char *const name, typename FieldType>
     void PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&
-                                    !std::is_floating_point<T>::value &&
-                                    !std::is_array<T>::value &&
-                                    !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
     addClassAttribute(FieldType *member){
 
         static const char *const doc = "Get attribute ";
@@ -1468,10 +1387,7 @@ namespace __pyllars_internal{
     template<typename T>
     template<const char *const name, typename FieldType>
     void PythonClassWrapper<T,
-            typename std::enable_if<!std::is_arithmetic<T>::value &&
-                                    !std::is_floating_point<T>::value &&
-                                    !std::is_array<T>::value &&
-                                    !std::is_pointer<T>::value>::type>::
+            typename std::enable_if<is_rich_class<T>::value>::type>::
     addClassAttributeConst(FieldType const *member){
 
             static const char *const doc = "Get attribute ";

@@ -4,7 +4,6 @@
 #if PY_MAJOR_VERSION == 3
 #define PyString_Check PyUnicode_Check
 #define PyString_AsString(X) PyUnicode_AsUTF8AndSize(X, NULL)
-
 #define PyInt_Check PyLong_Check
 #define PyInt_FromLong PyLong_FromLong
 #define PyInt_AsLong PyLong_AsLong
@@ -189,22 +188,51 @@ namespace __pyllars_internal {
 
         typedef typename std::remove_reference<T>::type T_base;
 
-        smart_delete(const bool deleteable) : _deleteable(deleteable) {
+        smart_delete(const bool deleteable) : _deleteable(deleteable){
         }
 
         void operator()(T_base *ptr) const {
              if(_deleteable){
                 delete[] ptr;
-            }
+             }
         }
 
         const bool _deleteable;
     };
 
+    template <typename T, bool array_allocated>
+    struct smart_delete_with_reverse_capture: smart_delete<std::pair<T*, std::function<void()> >, array_allocated >{
+
+        smart_delete_with_reverse_capture(const bool deletable): smart_delete<std::pair<T*, std::function<void()> >, array_allocated >(true),
+                __deletable(deletable){
+        }
+
+        void operator()(std::pair<T*, std::function<void()> > *ptr) const {
+            if(!ptr) return;
+            ptr->second();
+            if(__deletable) delete ptr->first;
+            smart_delete<std::pair<T*, std::function<void()> >, array_allocated >::operator()(ptr);
+        }
+        const bool __deletable;
+    };
 
     template<typename T, bool array_allocated>
     using smart_ptr = std::unique_ptr<typename std::remove_reference<T>::type, smart_delete<T, array_allocated> >;
 
+    typedef std::function<void()> capture_t;
+
+    template<typename T, bool array_allocated>
+    struct smart_ptr_with_reverse_capture: public  std::unique_ptr<
+            std::pair<T, capture_t>,
+            smart_delete_with_reverse_capture< std::pair<T*, capture_t >, array_allocated>
+                    >{
+        smart_ptr_with_reverse_capture(T* const obj, std::function<void()> func):
+                smart_ptr<std::pair<T*, std::function<void()> >, array_allocated>
+                        (new std::pair<T*, std::function<void()> >(obj, func)) {
+        }
+    private:
+        std::function<void()> _reverse_capture;
+    };
 
     /**
      *  HACK(?) to determine if type is complete or not

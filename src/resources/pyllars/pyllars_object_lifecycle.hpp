@@ -103,7 +103,7 @@ namespace __pyllars_internal {
                                                std::is_assignable<typename std::remove_reference<T>::type&, typename std::remove_reference<T>::type>::value &&
                                                std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type> {
             typedef typename std::remove_reference<T>::type T_NoRef;
-            static ObjContainer <T_NoRef> *new_copy(const T &value) ;
+            static ObjContainer <T_NoRef> *new_copy2(const T &value) ;
 
             static T_NoRef *new_copy(T_NoRef *const value);
 
@@ -118,9 +118,9 @@ namespace __pyllars_internal {
                 std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type> {
             typedef typename std::remove_reference<T>::type T_NoRef;
 
-            static ObjContainer <T_NoRef> *new_copy(const T_NoRef &value) ;
+            static ObjContainer <T_NoRef> *new_copy2(const T_NoRef &value) ;
 
-            static ObjContainer <T_NoRef> *new_copy(T_NoRef *const value) ;
+            static T_NoRef *new_copy(T_NoRef *const value) ;
 
             static void inplace_copy(T_NoRef *const to, const Py_ssize_t index, const T_NoRef *const from,
                                      const bool in_place);
@@ -128,11 +128,15 @@ namespace __pyllars_internal {
 
         template<typename T>
         struct Copy<T, typename std::enable_if<std::is_void<T>::value >::type> {
-             static ObjContainer<T> *new_copy(T *const value) {
+             static ObjContainer<T> *new_copy2(T *const value) {
                 throw "Attempt to copy void object";
             }
 
-            static ObjContainer<T> *new_copy(const unsigned char& value) {
+            static ObjContainer<T> *new_copy2(const unsigned char& value) {
+                throw "Attempt to copy void object";
+            }
+
+            static T*new_copy(T * const value) {
                 throw "Attempt to copy void object";
             }
 
@@ -148,9 +152,9 @@ namespace __pyllars_internal {
             typedef T T_array[size];
             typedef typename std::remove_reference<T>::type T_NoRef;
 
-            static ObjContainer <T_array> *new_copy(const T_array &value) ;
+            static ObjContainer <T_array> *new_copy2(const T_array &value) ;
 
-            static ObjContainer <T_array> *new_copy(T_array *const value);
+            static T_array *new_copy(T_array *const value);
 
             static void inplace_copy(T_array *const to, const Py_ssize_t index, const T_array *const from,
                                      const bool in_place);
@@ -163,9 +167,9 @@ namespace __pyllars_internal {
             typedef T T_array[size];
             typedef typename std::remove_reference<T>::type T_NoRef;
 
-            static ObjContainer <T_array> *new_copy(const T_array &value) ;
+            static ObjContainer <T_array> *new_copy2(const T_array &value) ;
 
-            static ObjContainer <T_array> *new_copy(T_array *const value);
+            static T_array *new_copy(T_array *const value);
 
             static void inplace_copy(T_array *const to, const Py_ssize_t index, const T_array *const from,
                                      const bool in_place);
@@ -178,9 +182,9 @@ namespace __pyllars_internal {
             typedef typename std::remove_reference<T>::type T_NoRef;
             typedef typename std::remove_pointer<T_NoRef>::type& T_baseref;
 
-            static ObjContainer <T_NoRef> *new_copy(const T_NoRef &value);
+            static ObjContainer <T_NoRef> *new_copy2(const T_NoRef &value);
 
-            static ObjContainer <T_NoRef> *new_copy(T_NoRef *const value);
+            static T_NoRef *new_copy(T_NoRef *const value);
 
             static void inplace_copy(T_NoRef *const to, const Py_ssize_t index, const T_NoRef *const from,
                                      const bool in_place);
@@ -194,9 +198,9 @@ namespace __pyllars_internal {
             typedef typename std::remove_reference<T>::type T_NoRef;
             typedef typename std::remove_pointer<T_NoRef>::type& T_baseref;
 
-            static ObjContainer <T_array> *new_copy(const T_array &value) { throw "cannot copy oobject : is not copy construcftible";}
+            static ObjContainer <T_array> *new_copy2(const T_array &value) { throw "cannot copy oobject : is not copy construcftible";}
 
-            static ObjContainer <T_array> *new_copy(T_array *const value){ throw "cannot copy oobject : is not copy construcftible";}
+            static T_array* new_copy(T_array *const value){ throw "cannot copy oobject : is not copy construcftible";}
 
             static void inplace_copy(T_array *const to, const Py_ssize_t index, const T_array *const from,
                                      const bool in_place){ throw "cannot copy oobject : is not copy construcftible";}

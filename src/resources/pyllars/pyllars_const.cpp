@@ -609,7 +609,8 @@ namespace __pyllars_internal {
     int PyConstNumberCustomObject<number_type>::create(PyObject *self_, PyObject *args, PyObject *kwds) {
         PyConstNumberCustomObject *self = (PyConstNumberCustomObject *) self_;
         if (self) {
-            self->populate_type_info< number_type>();
+            PyTypeObject* const coreTypePtr = PythonClassWrapper<typename core_type<number_type>::type>::getPyType();
+            self->populate_type_info< number_type>(&checkType, coreTypePtr);
             if (PyTuple_Size(args) == 0) {
                 memset(const_cast<typename std::remove_const<number_type>::type *>(&self->value), 0,
                        sizeof(self->value));
@@ -1232,7 +1233,8 @@ namespace __pyllars_internal {
     int PyConstFloatingPtCustomObject<number_type>::create(PyObject *self_, PyObject *args, PyObject *kwds) {
         PyConstFloatingPtCustomObject *self = (PyConstFloatingPtCustomObject *) self_;
         if (self) {
-            self->populate_type_info<number_type>();
+            PyTypeObject* const coreTypePtr = PythonClassWrapper<typename core_type<number_type>::type>::getPyType();
+            self->populate_type_info<number_type>(&checkType, coreTypePtr);
             if (PyTuple_Size(args) == 0) {
                 memset(const_cast<typename std::remove_const<number_type>::type *>(&self->value), 0,
                        sizeof(self->value));

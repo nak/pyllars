@@ -38,7 +38,7 @@ namespace __pyllars_internal {
             for (size_t i = 0; i < (size_t) self_->_arraySize; ++i) {
                 T &cobj = *self__->get_CObject();
                 ObjectLifecycleHelpers::Copy<T_base>::inplace_copy(
-                        values, i, ObjectLifecycleHelpers::Copy<T_base>::new_copy(
+                        values, i, ObjectLifecycleHelpers::Copy<T_base>::new_copy2(
                                 ObjectLifecycleHelpers::Array<T_base *>::at(cobj, i))->ptr(), true);
             }
         }
@@ -114,7 +114,7 @@ namespace __pyllars_internal {
             if (make_copy) {
                 if (self_->_depth > 2) {
                      T_bare** &var = ObjectLifecycleHelpers::Array<T_bare***>::at((T_bare***)*self_->_CObject->ptr(), index);
-                    ObjContainer<T_bare**> *new_copy = ObjectLifecycleHelpers::Copy<T_bare**>::new_copy(var);
+                    ObjContainer<T_bare**> *new_copy = ObjectLifecycleHelpers::Copy<T_bare**>::new_copy2(var);
                     PythonClassWrapper<T_bare**> *res = PythonClassWrapper<T_bare**>::createPy(element_array_size, new_copy,
                                                                                            true, false, nullptr);
 
@@ -124,7 +124,7 @@ namespace __pyllars_internal {
                     result = reinterpret_cast<PyObject *>(res);
                 } else if (self_->_depth == 2){
                     T_bare* &var = ObjectLifecycleHelpers::Array<T_bare**>::at( (T_bare**)*self_->_CObject->ptr(), index);
-                    ObjContainer<T_bare*> *new_copy = ObjectLifecycleHelpers::Copy<T_bare*>::new_copy(var);
+                    ObjContainer<T_bare*> *new_copy = ObjectLifecycleHelpers::Copy<T_bare*>::new_copy2(var);
                     PythonClassWrapper<T_bare*> *res = PythonClassWrapper<T_bare*>::createPy(element_array_size, new_copy,
                                                                                            true, false, nullptr);
 
@@ -134,7 +134,7 @@ namespace __pyllars_internal {
                     result = reinterpret_cast<PyObject *>(res);
                 } else {
                     T_bare & var = ObjectLifecycleHelpers::Array<T_bare*>::at( (T_bare*)*self_->_CObject->ptr(), index);
-                    ObjContainer<T_bare> *new_copy = ObjectLifecycleHelpers::Copy<T_bare>::new_copy(var);
+                    ObjContainer<T_bare> *new_copy = ObjectLifecycleHelpers::Copy<T_bare>::new_copy2(var);
                     PythonClassWrapper<T_bare> *res = (PythonClassWrapper<T_bare> *) PythonClassWrapper<T_bare>::createPy(element_array_size, new_copy,
                                                                                            true, false, nullptr);
 
@@ -482,7 +482,8 @@ namespace __pyllars_internal {
         self->_arraySize = UNKNOWN_SIZE;
         self->_referenced_elements = nullptr;
         self->_referenced = nullptr;
-        self->template populate_type_info<T>();
+        PyTypeObject* const coreTypePtr = PythonClassWrapper<typename core_type<T>::type>::getPyType();
+        self->template populate_type_info<T>(&checkType, coreTypePtr);
         int result = Base::_initbase(self, args, kwds, &Type);
 
         if (result == ERROR_TYPE_MISMATCH && (ptr_depth<T>::value == 1) &&
@@ -685,7 +686,8 @@ PyObject_HEAD_INIT(nullptr)
         self->_arraySize = UNKNOWN_SIZE;
         self->_referenced_elements = nullptr;
         self->_referenced = nullptr;
-        self->template populate_type_info<T>();
+        PyTypeObject* const coreTypePtr = PythonClassWrapper<typename core_type<T>::type>::getPyType();
+        self->template populate_type_info<T>(&checkType, coreTypePtr);
 
         int result = Base::_initbase(self, args, kwds, &Type);
 
