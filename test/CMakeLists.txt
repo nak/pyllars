@@ -12,3 +12,9 @@ add_executable(runPyllarsTest
         cpp/test_classes_and_pointers.cpp cpp/test_conversions.cpp)
 
 target_link_libraries(runPyllarsTest PUBLIC -L/usr/local/lib64 -lpython3.7m pthread pyllars ffi dl util)
+
+add_custom_target(NAME ALL
+        DEPENDS runPyllarsTest
+        COMMAND ./runPyllarsTest && gcovr -r ../src/resources --html --html-details -o index.html
+        WORKING_DIRECTORY .
+        COMMENT Generated test coverage)
