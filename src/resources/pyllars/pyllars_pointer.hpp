@@ -67,7 +67,7 @@ namespace __pyllars_internal {
         friend
         struct ObjectLifecycleHelpers::BasicDeallocation;
 
-        template<typename T2, bool is_array, typename ClassWrapper, typename E>
+        template<typename T2, bool is_array, typename E>
         friend
         class CObjectConversionHelper;
 
@@ -181,21 +181,20 @@ namespace __pyllars_internal {
 
     template<typename T>
     struct base_type<T, typename std::enable_if<ptr_depth<T>::value == 1>::type>{
-        typedef typename std::remove_pointer<T>::type type;
+        typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type type;
     };
 
     template<typename T>
     struct base_type<T, typename std::enable_if<(ptr_depth<T>::value > 1)>::type>{
-        typedef typename base_type<typename std::remove_pointer<T>::type>::type type;
+        typedef typename base_type<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::type type;
     };
-
 
     template<typename T>
     struct PythonClassWrapper<T, typename std::enable_if<
             !std::is_function<typename std::remove_pointer<T>::type>::value &&
             (std::is_pointer<T>::value || std::is_array<T>::value) &&
             (ptr_depth<T>::value > 1) &&
-            sizeof(T) == sizeof(typename base_type<T>::type*) >::type> :
+            sizeof(typename extent_as_pointer<T>::type) == sizeof(typename base_type<T>::type*) >::type> :
         public PythonPointerWrapperBase<T> {
         typedef PythonPointerWrapperBase<T> Base;
         typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;

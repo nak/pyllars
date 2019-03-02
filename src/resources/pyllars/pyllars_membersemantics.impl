@@ -43,7 +43,7 @@ namespace __pyllars_internal {
         }
         try {
             Assign<T>::assign((_this->get_CObject()->*member),
-                              *toCObject<T, false, PythonClassWrapper<T> >(*pyVal));
+                              *toCArgument<T, false, PythonClassWrapper<T> >(*pyVal));
         }catch(const char* const msg){
             PyErr_SetString(PyExc_RuntimeError, msg);
             return -1;
@@ -56,7 +56,7 @@ namespace __pyllars_internal {
     void MemberContainer<CClass>::Container<name, T, typename std::enable_if<
             !std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value != 0>::type>::
     setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj) {
-        Assign<T>::assign(self->*member , *toCObject<T, false, PythonClassWrapper<T> >(*pyobj));
+        Assign<T>::assign(self->*member , *toCArgument<T, false, PythonClassWrapper<T> >(*pyobj));
     }
 
     template<class CClass>
@@ -181,7 +181,7 @@ namespace __pyllars_internal {
                 if (PyTuple_Size(pyVal) == size) {
                     for (size_t i = 0; i < size; ++i)
                         Assign<T>::assign((_this->get_CObject()->*
-                         member)[i],  *toCObject<T, true, PythonClassWrapper<T> >(
+                         member)[i],  *toCArgument<T, true>(
                                 *PyTuple_GetItem(pyVal, i)));
                 } else {
                     static char msg[250];
@@ -208,7 +208,7 @@ namespace __pyllars_internal {
     template<const char *const name, ssize_t size, typename T>
     void MemberContainer<CClass>::Container<name, T[size], void>::
     setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj) {
-        smart_ptr<T[size], false> val = toCObject<T[size], false, PythonClassWrapper<T[size]> >(
+        smart_ptr<T[size], false> val = toCArgument<T[size], false, PythonClassWrapper<T[size]> >(
                 *pyobj);
         for (size_t i = 0; i < size; ++i) {
             (self->*member)[i] = (*val)[i];
@@ -245,7 +245,7 @@ namespace __pyllars_internal {
     template<const char *const name, ssize_t size, typename T>
     void MemberContainer<CClass>::Container<name, const T[size], void>::
     setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj) {
-        smart_ptr<T[size], false> val = toCObject<T[size], false, PythonClassWrapper<T[size]> >(
+        smart_ptr<T[size], false> val = toCArgument<T[size], false, PythonClassWrapper<T[size]> >(
                 *pyobj);
         for (size_t i = 0; i < size; ++i) {
             (self->*member)[i] = (*val)[i];
@@ -289,7 +289,7 @@ namespace __pyllars_internal {
                 if (PyTuple_Size(pyVal) == array_size) {
                     for (size_t i = 0; i < array_size; ++i)
                         Assign<T>::assign((_this->get_CObject()->*
-                                           member)[i], *toCObject<T, false, PythonClassWrapper<T> >(
+                                           member)[i], *toCArgument<T, false, PythonClassWrapper<T> >(
                                 *PyTuple_GetItem(pyVal, i)));
                 } else {
                     static char msg[250];
@@ -320,7 +320,7 @@ namespace __pyllars_internal {
     template<const char *const name, typename T>
     void MemberContainer<CClass>::Container<name, T[], typename std::enable_if<!std::is_const<T>::value>::type>::
     setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj) {
-        smart_ptr<T[], false> val = toCObject<T[], false, PythonClassWrapper<T[]> >(*pyobj);
+        smart_ptr<T[], false> val = toCArgument<T[], false, PythonClassWrapper<T[]> >(*pyobj);
         for (size_t i = 0; i < array_size; ++i) {
             (self->*member)[i] = (*val)[i];
         }
@@ -443,7 +443,7 @@ namespace __pyllars_internal {
             PyErr_SetString(PyExc_ValueError, "Unexpected None value in member setter");
             return -1;
         }
-        smart_ptr<T, false> value = toCObject<T, false, PythonClassWrapper<T> >(*pyVal);
+        smart_ptr<T, false> value = toCArgument<T, false>(*pyVal);
         if (!BitFieldLimits<T, bits>::is_in_bounds(*value)) {
             PyErr_SetString(PyExc_ValueError, "Value out of bounds");
             return -1;
@@ -456,7 +456,7 @@ namespace __pyllars_internal {
     template<const char *const name, typename T, const size_t bits>
     void BitFieldContainer<CClass>::Container<name, T, bits>::
     setFromPyObject(CClass_NoRef *self, PyObject *pyobj) {
-        smart_ptr<T, false> value = toCObject<T, false, PythonClassWrapper<T> >(*pyobj);
+        smart_ptr<T, false> value = toCArgument<T, false, PythonClassWrapper<T> >(*pyobj);
         if (!BitFieldLimits<T, bits>::is_in_bounds(*value)) {
             throw "Value out of bounds";
         }

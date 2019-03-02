@@ -225,10 +225,10 @@ namespace __pyllars_internal {
                     }
                 }
                 if (sizeof...(Args) - kwd_count - arg_count) {
-                    return FunctType::call(_cfunc, *toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)...,
+                    return FunctType::call(_cfunc, *toCArgument<Args, false, PythonClassWrapper<Args> >(*pyargs)...,
                                            extra_args);
                 } else {
-                    return _cfunc._cfunc(*toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)...);
+                    return _cfunc._cfunc(*toCArgument<Args, false, PythonClassWrapper<Args> >(*pyargs)...);
                 }
             }
 
@@ -531,10 +531,10 @@ namespace __pyllars_internal {
                     throw "Illegal arumgnet(s)";
                 }
                 if (sizeof...(Args) - kwd_count - arg_count) {
-                    FunctType::call(_cfunc, *toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)...,
+                    FunctType::call(_cfunc, *toCArgument<Args, false, PythonClassWrapper<Args> >(*pyargs)...,
                                     extra_args);
                 } else {
-                    _cfunc._cfunc(*toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)...);
+                    _cfunc._cfunc(*toCArgument<Args, false, PythonClassWrapper<Args> >(*pyargs)...);
                 }
             }
 

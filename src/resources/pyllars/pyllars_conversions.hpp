@@ -24,15 +24,15 @@ namespace __pyllars_internal {
     /**
      * template function to convert python to C object
      **/
-    template<typename T, bool array_allocated, typename ClassWrapper, typename E = void>
+    template<typename T, bool array_allocated, typename E = void>
     class CObjectConversionHelper;
 
 
     /**
      * Specialization for non-fundamental, non-array, non-function types
      **/
-    template<typename T, bool array_allocated, typename ClassWrapper>
-    class CObjectConversionHelper<T, array_allocated, ClassWrapper,
+    template<typename T, bool array_allocated >
+    class CObjectConversionHelper<T, array_allocated,
             typename std::enable_if<!std::is_array<T>::value &&
                                     !std::is_function<typename std::remove_pointer<T>::type>::value &&
                                     !std::is_enum<typename std::remove_reference<T>::type>::value &&
@@ -40,198 +40,136 @@ namespace __pyllars_internal {
                                     !std::is_floating_point<typename std::remove_reference<T>::type>::value>::type> {
     public:
 
-        typedef typename ClassWrapper::NoRefWrapper NoRefClassWrapper;
-        typedef typename ClassWrapper::NonConstWrapper NonConstClassWrapper;
-        typedef typename ClassWrapper::ConstWrapper ConstClassWrapper;
-        typedef typename ClassWrapper::ConstRefWrapper ConstRefClassWrapper;
-        typedef typename ClassWrapper::VolatileWrapper VolatileClassWrapper;
-        typedef typename ClassWrapper::VolatileRefWrapper VolatileRefClassWrapper;
-        typedef typename ClassWrapper::ConstVolatileWrapper ConstVolatileClassWrapper;
-        typedef typename ClassWrapper::ConstVolatileRefWrapper ConstVolatileRefClassWrapper;
-        typedef typename ClassWrapper::NoRefNonConstWrapper NoRefNonConstClassWrapper;
-        typedef typename ClassWrapper::NonConstRefWrapper RefNonConstClassWrapper;
-        typedef typename ClassWrapper::RefWrapper RefClassWrapper;
-
         typedef typename std::remove_reference<T>::type T_bare;
         typedef smart_ptr<T_bare, array_allocated> ptr_t;
 
-        static smart_ptr<T_bare, array_allocated> toCObject(PyObject &pyobj) ;
+        static smart_ptr<T_bare, array_allocated> toCArgument(PyObject &pyobj) ;
     };
 
     /**
      * Specialization for integer types
      **/
-    template<typename T, bool array_allocated, typename ClassWrapper>
-    class CObjectConversionHelper<T, array_allocated, ClassWrapper, typename std::enable_if<
+    template<typename T, bool array_allocated >
+    class CObjectConversionHelper<T, array_allocated, typename std::enable_if<
             std::is_integral<typename std::remove_reference<T>::type>::value
             || std::is_enum<typename std::remove_reference<T>::type>::value>::type> {
     public:
 
-
-        typedef typename ClassWrapper::NoRefWrapper NoRefClassWrapper;
-        typedef typename ClassWrapper::NonConstWrapper NonConstClassWrapper;
-        typedef typename ClassWrapper::ConstWrapper ConstClassWrapper;
-        typedef typename ClassWrapper::ConstRefWrapper ConstRefClassWrapper;
-        typedef typename ClassWrapper::VolatileWrapper VolatileClassWrapper;
-        typedef typename ClassWrapper::VolatileRefWrapper VolatileRefClassWrapper;
-        typedef typename ClassWrapper::ConstVolatileWrapper ConstVolatileClassWrapper;
-        typedef typename ClassWrapper::ConstVolatileRefWrapper ConstVolatileRefClassWrapper;
-        typedef typename ClassWrapper::NoRefNonConstWrapper NoRefNonConstClassWrapper;
-        typedef typename ClassWrapper::RefWrapper RefClassWrapper;
-        typedef typename ClassWrapper::RefNonConstWrapper RefNonConstClassWrapper;
-
         typedef smart_ptr<T, array_allocated> ptr_t;
 
-        static smart_ptr<T, array_allocated> toCObject(PyObject &pyobj);
+        static smart_ptr<T, array_allocated> toCArgument(PyObject &pyobj);
     };
 
     /**
      * Specialization for floating point types
      **/
-    template<typename T, bool array_allocated, typename ClassWrapper>
-    class CObjectConversionHelper<T, array_allocated, ClassWrapper,
+    template<typename T, bool array_allocated>
+    class CObjectConversionHelper<T, array_allocated,
             typename std::enable_if<std::is_floating_point<typename std::remove_reference<T>::type>::value>::type> {
     public:
 
-        typedef typename ClassWrapper::NoRefWrapper NoRefClassWrapper;
-        typedef typename ClassWrapper::NonConstWrapper NonConstClassWrapper;
-        typedef typename ClassWrapper::ConstWrapper ConstClassWrapper;
-        typedef typename ClassWrapper::ConstRefWrapper ConstRefClassWrapper;
-        typedef typename ClassWrapper::VolatileWrapper VolatileClassWrapper;
-        typedef typename ClassWrapper::VolatileRefWrapper VolatileRefClassWrapper;
-        typedef typename ClassWrapper::ConstVolatileWrapper ConstVolatileClassWrapper;
-        typedef typename ClassWrapper::ConstVolatileRefWrapper ConstVolatileRefClassWrapper;
-        typedef typename ClassWrapper::NoRefNonConstWrapper NoRefNonConstClassWrapper;
-        typedef typename ClassWrapper::RefNonConstWrapper RefNonConstClassWrapper;
-        typedef typename ClassWrapper::RefWrapper RefClassWrapper;
-
         typedef smart_ptr<T, array_allocated> ptr_t;
-        static smart_ptr<T, array_allocated> toCObject(PyObject &pyobj) ;
+        static smart_ptr<T, array_allocated> toCArgument(PyObject &pyobj) ;
     };
 
 
     /**
      * Specialization for callbacks
      **/
-    template<typename ClassWrapper, typename ReturnType,
-            typename ...Args>
-    class CObjectConversionHelper<ReturnType(*)(Args...), false, ClassWrapper, void> {
+    template<typename ReturnType, typename ...Args>
+    class CObjectConversionHelper<ReturnType(*)(Args...), false, void> {
     public:
         typedef ReturnType(*callback_t)(Args...);
         typedef smart_ptr<callback_t, false> ptr_t;
 
-        static ptr_t toCObject(PyObject &pyobj) ;
+        static ptr_t toCArgument(PyObject &pyobj) ;
     };
 
     /**
      * Specialization for callbacks
      **/
-    template<typename ClassWrapper, typename ReturnType,
-            typename ...Args>
-    class CObjectConversionHelper<ReturnType(*)(Args..., ...), false, ClassWrapper, void> {
+    template<typename ReturnType, typename ...Args>
+    class CObjectConversionHelper<ReturnType(*)(Args..., ...), false, void> {
     public:
         typedef ReturnType(*callback_t)(Args..., ...);
         typedef smart_ptr<callback_t, false> ptr_t;
-        static ptr_t toCObject(PyObject &pyobj);
+        static ptr_t toCArgument(PyObject &pyobj);
     };
 
     /**
     * Specialization for const char*
     **/
-    template<typename ClassWrapper, bool array_allocated>
-    class CObjectConversionHelper<const char *, array_allocated, ClassWrapper> {
+    template<bool array_allocated>
+    class CObjectConversionHelper<const char *, array_allocated> {
     public:
-
-        typedef typename ClassWrapper::NonConstWrapper NonConstClassWrapper;
-        typedef typename ClassWrapper::ConstWrapper ConstClassWrapper;
         typedef  smart_ptr<const char *, array_allocated> ptr_t;
-        static ptr_t toCObject(PyObject &pyobj);
-    };
-
-    /**
-     * Specialization for char* &
-     **/
-    template<typename ClassWrapper, bool array_allocated>
-    class CObjectConversionHelper<const char *&, array_allocated, ClassWrapper> {
-    public:
-
-        typedef typename ClassWrapper::NonConstWrapper NonConstClassWrapper;
-        typedef typename ClassWrapper::ConstWrapper ConstClassWrapper;
-        typedef smart_ptr<const char *, array_allocated> ptr_t;
-        static ptr_t toCObject(PyObject &pyobj);
+        static ptr_t toCArgument(PyObject &pyobj);
     };
 
     /**
      * Specialization for char*
      **/
-    template<typename ClassWrapper, bool array_allocated>
-    class CObjectConversionHelper<const char *const, array_allocated, ClassWrapper> {
+    template<bool array_allocated>
+    class CObjectConversionHelper<const char *const, array_allocated> {
     public:
-
-        typedef typename ClassWrapper::NonConstWrapper NonConstClassWrapper;
-        typedef typename ClassWrapper::ConstWrapper ConstClassWrapper;
         typedef smart_ptr<const char *const, array_allocated> ptr_t;
-        static ptr_t toCObject(PyObject &pyobj);
+        static ptr_t toCArgument(PyObject &pyobj);
     };
 
 
     /**
      * Specialization for char*
      **/
-    template<typename ClassWrapper, bool array_allocated>
-    class CObjectConversionHelper<char *const, array_allocated, ClassWrapper> {
+    template<bool array_allocated>
+    class CObjectConversionHelper<char *const, array_allocated > {
     public:
         typedef smart_ptr<char *const, array_allocated> ptr_t;
-        static ptr_t toCObject(PyObject &pyobj);
+        static ptr_t toCArgument(PyObject &pyobj);
     };
 
     /**
      * Specialization for char*
      **/
-    template<typename ClassWrapper, bool array_allocated>
-    class CObjectConversionHelper<char *, array_allocated, ClassWrapper> {
+    template<bool array_allocated>
+    class CObjectConversionHelper<char *, array_allocated> {
     public:
-        typedef smart_ptr<char *, array_allocated> ptr_t;
-        static ptr_t toCObject(PyObject &pyobj) ;
+        typedef smart_ptr<char *, array_allocated > ptr_t;
+        static ptr_t toCArgument(PyObject &pyobj) ;
     };
 
 
     /**
      * Specialization for fixed-size array
      **/
-    template<typename T, const size_t size, const bool array_allocated, typename ClassWrapper>
-    class CObjectConversionHelper<T[size], array_allocated, ClassWrapper> {
+    template<typename T, const size_t size, const bool array_allocated>
+    class CObjectConversionHelper<T[size], array_allocated, void> {
     public:
 
         typedef T T_array[size];
         typedef const T Const_T_array[size];
         typedef typename std::remove_const<T>::type NonConst_T_array[size];
 
-        typedef typename ClassWrapper::AsPtrWrapper PtrWrapper;
-        // typedef typename ClassWrapper::DereferencedWrapper NonPtrWrapper;
-        typedef typename ClassWrapper::NonConstWrapper NonConstArrayWrapper;
-        typedef typename ClassWrapper::ConstWrapper ConstArrayWrapper;
-
-        typedef smart_ptr<T[size], array_allocated> ptr_t;
-        static ptr_t toCObject(PyObject &pyobj);
+        typedef smart_ptr_with_reverse_capture<T[size], array_allocated> ptr_t;
+        static ptr_t toCArgument(PyObject &pyobj);
     };
 
     /**
      * function to convert python object to underlying C type using a class helper
      **/
-    template<typename T, bool array_allocated, typename ClassWrapper>
-    typename CObjectConversionHelper<typename std::remove_reference<T>::type, array_allocated, ClassWrapper>::ptr_t
-     toCObject(PyObject &pyobj) {
-        return CObjectConversionHelper<typename std::remove_reference<T>::type, array_allocated, ClassWrapper>::
-                toCObject(pyobj);
+    template<typename T, bool array_allocated >
+    typename CObjectConversionHelper<typename std::remove_reference<T>::type, array_allocated>::ptr_t
+    toCArgument(PyObject &pyobj) {
+        return CObjectConversionHelper<typename std::remove_reference<T>::type, array_allocated>::
+                toCArgument(pyobj);
     }
 
     /**
      * function to convert python object to underlying C type using a class helper
      **/
-    template<typename T, const size_t size, bool array_allocated, typename ClassWrapper>
-    smart_ptr<T[size], array_allocated> toCObject(PyObject &pyobj) {
-        return CObjectConversionHelper<T[size], array_allocated, ClassWrapper>::toCObject(pyobj);
+    template<typename T, const size_t size, bool array_allocated >
+    smart_ptr<T[size], array_allocated>
+    toCArgument(PyObject &pyobj) {
+        return CObjectConversionHelper<T[size], array_allocated >::toCArgument(pyobj);
     }
 
     class ConversionHelpers {

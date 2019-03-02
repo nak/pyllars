@@ -11,12 +11,48 @@ namespace __pyllars_internal {
     };
 
     template<typename T>
+    struct is_unbounded_array{
+        static constexpr bool value = false;
+    };
+
+    template<typename T, size_t size>
+    struct is_unbounded_array<T[size]>{
+        static constexpr bool value = false;
+    };
+
+    template<typename T>
+    struct is_unbounded_array<T*>{
+        static constexpr bool value = true;
+    };
+
+    template<typename T>
+    struct is_unbounded_array<T* const>{
+        static constexpr bool value = true;
+    };
+
+
+    template<typename T>
     struct is_rich_class {
         static constexpr bool value =
                 !std::is_arithmetic<T>::value &&
                 !std::is_floating_point<T>::value &&
                 !std::is_array<T>::value &&
                 !std::is_pointer<T>::value;
+    };
+
+    template<typename T>
+    struct is_c_string_like{
+        static constexpr bool value = false;
+    };
+
+    template<>
+    struct is_c_string_like<const char*>{
+        static constexpr bool value = true;
+    };
+
+    template<>
+    struct is_c_string_like<const char* const>{
+        static constexpr bool value = true;
     };
 }
 

@@ -26,7 +26,7 @@ namespace __pyllars_internal{
             PyErr_SetString(PyExc_ValueError, "Invalid argument keyword name or type to method call");
             return nullptr;
         } else if (kwds) {
-            Assign<AttrType>::assign(*member,*toCObject<AttrType, std::is_array<AttrType>::value, PythonClassWrapper<AttrType> >(*pyarg));
+            Assign<AttrType>::assign(*member,*toCArgument<AttrType, std::is_array<AttrType>::value>(*pyarg));
             return Py_None;
         }
         return toPyObject<AttrType>(*member, false, ArraySize<AttrType>::size);
@@ -36,7 +36,7 @@ namespace __pyllars_internal{
     template<const char *const name, typename AttrType>
     void ClassMember<CClass>::Container<name, AttrType>::
     setFromPyObject(PyObject *pyobj) {
-        Assign<AttrType>::assign(*member ,*toCObject<AttrType, false, PythonClassWrapper<AttrType>>(*pyobj));
+        Assign<AttrType>::assign(*member ,*toCArgument<AttrType, false>(*pyobj));
     }
 
     template<class CClass>
@@ -66,7 +66,7 @@ namespace __pyllars_internal{
     template<class CClass>
     template<const char *const name, size_t size, typename AttrType>
     void ClassMember<CClass>::Container<name, AttrType[size]>::setFromPyObject(PyObject* pyobj){
-        AttrType val[] = *toCObject<AttrType[size], false, PythonClassWrapper<AttrType[size]>>(*pyobj);
+        AttrType val[] = *toCArgument<AttrType[size], false, PythonClassWrapper<AttrType[size]>>(*pyobj);
         for (size_t i = 0; i < size; ++i)member[i] = val[i];
     }
 

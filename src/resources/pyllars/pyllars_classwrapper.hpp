@@ -80,20 +80,7 @@ namespace __pyllars_internal {
     struct PythonClassWrapper<T, typename std::enable_if< is_rich_class<T>::value>::type>: public CommonBaseWrapper {
         // Convenience typedefs
         typedef CommonBaseWrapper::Base Base;
-        typedef PythonClassWrapper DereferencedWrapper;
-        typedef PythonClassWrapper<T const,   void> ConstWrapper;
-        typedef PythonClassWrapper<T volatile,   void> VolatileWrapper;
-        typedef PythonClassWrapper<T volatile&,   void> VolatileRefWrapper;
-        typedef PythonClassWrapper<T const volatile,   void> ConstVolatileWrapper;
-        typedef PythonClassWrapper<T const volatile&,   void> ConstVolatileRefWrapper;
-        typedef PythonClassWrapper<typename std::remove_const<T>::type> NonConstWrapper;
-        typedef PythonClassWrapper<typename std::remove_const<T>::type&> NonConstRefWrapper;
-        typedef PythonClassWrapper<typename std::remove_const<T>::type&> RefNonConstWrapper;
-        typedef PythonClassWrapper<const typename std::remove_const<T>::type&> ConstRefWrapper;
-        typedef PythonClassWrapper<typename std::remove_reference<T>::type> NoRefWrapper;
-        typedef PythonClassWrapper<typename std::remove_reference<T>::type&> RefWrapper;
 
-        typedef PythonClassWrapper<typename std::remove_const<typename std::remove_reference<T>::type>::type> NoRefNonConstWrapper;
         typedef typename ObjectLifecycleHelpers::BasicAlloc<T>::ConstructorContainer ConstructorContainer;
         typedef typename ConstructorContainer::constructor constructor;
         typedef typename std::remove_reference<T>::type T_NoRef;

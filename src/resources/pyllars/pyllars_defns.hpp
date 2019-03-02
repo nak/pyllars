@@ -409,7 +409,7 @@ namespace __pyllars_internal {
      * Class common to all C++ wrapper classes
      **/
     struct CommonBaseWrapper {
-        template<typename T, bool array_allocated, typename ClassWrapper, typename E>
+        template<typename T, bool array_allocated, typename E>
         friend class CObjectConversionHelper;
 
         struct Base {

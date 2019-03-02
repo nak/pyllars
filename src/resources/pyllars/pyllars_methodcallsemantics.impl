@@ -259,7 +259,7 @@ namespace __pyllars_internal {
 	        throw "Invalid arguments to method call";
 	    }
 
-        T retval = make_call( self, method, *toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)...);
+        T retval = make_call( self, method, *toCArgument<Args, false>(*pyargs)...);
         return retval;
     }
 
@@ -291,7 +291,7 @@ namespace __pyllars_internal {
 	        PyErr_Print();
 	        throw "Invalid arguments to method call";
 	    }
-        T retval = call( method, self,  *toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)..., extra_args);
+        T retval = call( method, self,  *toCArgument<Args, false >(*pyargs)..., extra_args);
         return retval;
 
     }
@@ -368,7 +368,7 @@ namespace __pyllars_internal {
         if (!PyArg_ParseTupleAndKeywords(args, kwds, format, (char **) kwlist, &pyargs...)) {
             PyErr_SetString(PyExc_RuntimeError, "Failed to parse argument on method call");
         } else {
-            (self.*method)(*toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)...);
+            (self.*method)(*toCArgument<Args, false>(*pyargs)...);
         }
     }
 
@@ -400,7 +400,7 @@ namespace __pyllars_internal {
         if (!PyArg_ParseTupleAndKeywords(args, kwds, format, (char **) kwlist, &pyargs...)) {
             PyErr_SetString(PyExc_RuntimeError, "Failed to parse argument on method call");
         } else {
-            (self.*method)(*toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)...);
+            (self.*method)(*toCArgument<Args, false>(*pyargs)...);
         }
     }
 

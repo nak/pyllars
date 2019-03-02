@@ -54,9 +54,9 @@ namespace __pyllars_internal{
         }
 
         if( with_ellipsis){
-            return FunctType::call(method, *toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)..., extra_args);
+            return FunctType::call(method, *toCArgument<Args, false>(*pyargs)..., extra_args);
         }
-        return method(*toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)...);
+        return method(*toCArgument<Args, false>(*pyargs)...);
     }
 
     /**
@@ -108,9 +108,9 @@ namespace __pyllars_internal{
             throw "Invalid arguments to method call";
         }
         if(with_ellipsis) {
-            FunctType::call(method, *toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)..., extra_args);
+            FunctType::call(method, *toCArgument<Args, false>(*pyargs)..., extra_args);
         } else {
-            method(*toCObject<Args, false, PythonClassWrapper<Args> >(*pyargs)...);
+            method(*toCArgument<Args, false>(*pyargs)...);
         }
     }
 

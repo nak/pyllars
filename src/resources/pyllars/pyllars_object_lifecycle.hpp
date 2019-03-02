@@ -38,7 +38,7 @@ namespace __pyllars_internal {
         friend
         struct PythonClassWrapper;
 
-        template<typename T, bool is_array, typename ClassWrapper, typename E>
+        template<typename T, bool is_array, typename E>
         friend
         class CObjectConversionHelper;
 

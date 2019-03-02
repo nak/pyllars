@@ -200,35 +200,17 @@ namespace __pyllars_internal {
         const bool _deleteable;
     };
 
-    template <typename T, bool array_allocated>
-    struct smart_delete_with_reverse_capture: smart_delete<std::pair<T*, std::function<void()> >, array_allocated >{
-
-        smart_delete_with_reverse_capture(const bool deletable): smart_delete<std::pair<T*, std::function<void()> >, array_allocated >(true),
-                __deletable(deletable){
-        }
-
-        void operator()(std::pair<T*, std::function<void()> > *ptr) const {
-            if(!ptr) return;
-            ptr->second();
-            if(__deletable) delete ptr->first;
-            smart_delete<std::pair<T*, std::function<void()> >, array_allocated >::operator()(ptr);
-        }
-        const bool __deletable;
-    };
+    template<typename T, bool array_allocated, typename default_delete = smart_delete<T, array_allocated> >
+    using smart_ptr = std::unique_ptr<typename std::remove_reference<T>::type, default_delete >;
 
     template<typename T, bool array_allocated>
-    using smart_ptr = std::unique_ptr<typename std::remove_reference<T>::type, smart_delete<T, array_allocated> >;
+    struct smart_ptr_with_reverse_capture: public  smart_ptr<T, array_allocated>{
+        smart_ptr_with_reverse_capture(T* obj, std::function<void()> func, const bool is_allocated):
+                smart_ptr<T, array_allocated>(obj, is_allocated), _reverse_capture(func) {
+        }
 
-    typedef std::function<void()> capture_t;
-
-    template<typename T, bool array_allocated>
-    struct smart_ptr_with_reverse_capture: public  std::unique_ptr<
-            std::pair<T, capture_t>,
-            smart_delete_with_reverse_capture< std::pair<T*, capture_t >, array_allocated>
-                    >{
-        smart_ptr_with_reverse_capture(T* const obj, std::function<void()> func):
-                smart_ptr<std::pair<T*, std::function<void()> >, array_allocated>
-                        (new std::pair<T*, std::function<void()> >(obj, func)) {
+        ~smart_ptr_with_reverse_capture(){
+            if(_reverse_capture) _reverse_capture();
         }
     private:
         std::function<void()> _reverse_capture;

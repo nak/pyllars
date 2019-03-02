@@ -1038,7 +1038,7 @@ namespace __pyllars_internal{
         std::function<PyObject*(PyObject*, PyObject*)> getter =  [method](PyObject* self, PyObject* item)->PyObject*{
              PythonClassWrapper*  self_ = (PythonClassWrapper*) self;
              try{
-                  auto c_key = toCObject<KeyType, defaults_to_string<KeyType>::value, PythonClassWrapper<KeyType> >(*item);
+                  auto c_key = toCArgument<KeyType, defaults_to_string<KeyType>::value >(*item);
                   return toPyObject((self_->get_CObject()->*method)(*c_key), false, 1);
              } catch(const char* const msg){
                 PyErr_SetString(PyExc_TypeError, msg);
@@ -1048,8 +1048,8 @@ namespace __pyllars_internal{
         std::function<int(PyObject*, PyObject*, PyObject*)> setter = [method](PyObject* self, PyObject* item, PyObject* value)->int {
             PythonClassWrapper*  self_ = (PythonClassWrapper*) self;
              try{
-                auto c_value = toCObject<ValueType, defaults_to_string<ValueType>::value, PythonClassWrapper<ValueType>>(*value);
-                auto c_key = toCObject<KeyType,  defaults_to_string<KeyType>::value, PythonClassWrapper<KeyType> >(*item);
+                auto c_value = toCArgument<ValueType, defaults_to_string<ValueType>::value>(*value);
+                auto c_key = toCArgument<KeyType,  defaults_to_string<KeyType>::value >(*item);
                  AssignValue<ValueType>::assign((self_->get_CObject()->*method)(*c_key),*c_value);
              } catch (const char* const msg){
                 PyErr_SetString(PyExc_TypeError, "Cannot assign to value of unrelated type.");
@@ -1075,7 +1075,7 @@ namespace __pyllars_internal{
         std::function<PyObject*(PyObject*, PyObject*)> getter =  [method](PyObject* self, PyObject* item)->PyObject*{
             PythonClassWrapper*  self_ = (PythonClassWrapper*) self;
             try{
-                auto c_key = toCObject<KeyType, defaults_to_string<KeyType>::value, PythonClassWrapper<KeyType> >(*item);
+                auto c_key = toCArgument<KeyType, defaults_to_string<KeyType>::value >(*item);
                 return toPyObject((self_->get_CObject()->*method)(*c_key), false, 1);
             } catch(const char* const msg){
                 PyErr_SetString(PyExc_TypeError, msg);
@@ -1260,7 +1260,7 @@ namespace __pyllars_internal{
 
         return _createBaseBase<Args...>
                 (cobj,
-                std::forward<Args>(*toCObject<Args,  defaults_to_string<Args>::value, PythonClassWrapper<Args> >(*pyobjs[S]))...);
+                std::forward<Args>(*toCArgument<Args,  defaults_to_string<Args>::value>(*pyobjs[S]))...);
     }
 
 
