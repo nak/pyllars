@@ -8,11 +8,11 @@
 #include "pyllars_classwrapper.hpp"
 #include "pyllars_utils.hpp"
 
-#include "pyllars_classmethodsemantics.impl"
-#include "pyllars_classmembersemantics.impl"
-#include "pyllars_methodcallsemantics.impl"
-#include "pyllars_object_lifecycle.impl"
-#include "pyllars_conversions.impl"
+#include "pyllars_classmethodsemantics.impl.hpp"
+#include "pyllars_classmembersemantics.impl.hpp"
+#include "pyllars_methodcallsemantics.impl.hpp"
+#include "pyllars_object_lifecycle.impl.hpp"
+#include "pyllars_conversions.impl.hpp"
 
 
 namespace __pyllars_internal{
@@ -845,14 +845,14 @@ namespace __pyllars_internal{
         static PyObject *kwds = PyDict_New();
         static PyObject *emptyargs = PyTuple_New(0);
         PyDict_SetItemString(kwds, "__internal_allow_null", Py_True);
-        PyTypeObject* type_ = &_Type;
+        PyTypeObject* type_ = getPyType();
 
         if (!type_->tp_name){
           PyErr_SetString(PyExc_RuntimeError, "Uninitialized type when creating object");
           return nullptr;
         }
-        PythonClassWrapper *pyobj = (PythonClassWrapper *) PyObject_Call((PyObject *) &_Type, emptyargs, kwds);
-        pyobj->_CObject = cobj;//new ObjContainerPtrProxy<T_NoRef>(cobj, isAllocated);
+        PythonClassWrapper *pyobj = (PythonClassWrapper *) PyObject_Call((PyObject *) type_, emptyargs, kwds);
+        pyobj->_CObject = cobj;
         pyobj->_allocated = isAllocated;
         pyobj->_inPlace = inPlace;
         pyobj->_arraySize = 0;
@@ -1012,7 +1012,7 @@ namespace __pyllars_internal{
             }
         }
         return status;
-    };
+    }
 
     namespace {
 

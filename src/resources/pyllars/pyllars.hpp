@@ -325,7 +325,6 @@ namespace __pyllars_internal {
 PyObject*
 #else
 PyMODINIT_FUNC
-int
 #endif
 PyllarsInit(const char *const name);
 

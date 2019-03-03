@@ -3,7 +3,7 @@
 
 #if PY_MAJOR_VERSION == 3
 #define PyString_Check PyUnicode_Check
-#define PyString_AsString(X) PyUnicode_AsUTF8AndSize(X, NULL)
+#define PyString_AsString(X) PyUnicode_AsUTF8((X))
 #define PyInt_Check PyLong_Check
 #define PyInt_FromLong PyLong_FromLong
 #define PyInt_AsLong PyLong_AsLong
@@ -14,6 +14,7 @@
 #endif
 
 #include <structmember.h>
+#include <functional>
 #include <memory>
 #include <limits>
 

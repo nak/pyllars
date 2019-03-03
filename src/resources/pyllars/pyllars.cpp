@@ -4,9 +4,8 @@
 #include <math.h>
 
 #include "pyllars.hpp"
-#include "pyllars_varargs.impl"
-#include "pyllars_pointer.impl"
-#include "pyllars_classwrapper.impl"
+#include "pyllars_pointer.impl.hpp"
+#include "pyllars_classwrapper.impl.hpp"
 
 pyllars::Initializer *pyllars::Initializer::root = nullptr;
 

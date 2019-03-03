@@ -7,7 +7,7 @@
 
 #include "pyllars_pointer.hpp"
 
-#include "pyllars_classwrapper.impl"
+#include "pyllars_classwrapper.impl.hpp"
 
 namespace __pyllars_internal {
 

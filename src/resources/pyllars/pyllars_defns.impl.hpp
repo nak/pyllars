@@ -1,4 +1,5 @@
-#include "pyllars_pointer.impl"
+#include "pyllars_pointer.impl.hpp"
+#include "pyllars_conversions.impl.hpp"
 
 namespace __pyllars_internal{
     template<typename T,  bool is_array, const ssize_t array_size, typename std::enable_if<std::is_assignable<T, T>::value>::type>
@@ -14,7 +15,7 @@ namespace __pyllars_internal{
                 return nullptr;
             }
             for (int i = 0; i < size; ++i) {
-                values[i] = *toCObject<T, is_array, true>(PyList_GetItem(from, i));
+                values[i] = *toCArgument<T, is_array, true>(PyList_GetItem(from, i));
             }
         } else if (PythonClassWrapper<T *>::checkType(from)) {
             //TODO: check array size on from????
@@ -63,7 +64,7 @@ namespace __pyllars_internal{
                 if (!PyString_Check(item)) {
                     return nullptr;
                 }
-                char *asstr = PyString_AsString(item);
+                const char *asstr = PyString_AsString(item);
 
                 if (!asstr) {
                     PyErr_SetString(PyExc_TypeError, "Not a string on array elements assignment");

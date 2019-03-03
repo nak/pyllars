@@ -7,7 +7,7 @@
 
 #include "pyllars_methodcallsemantics.hpp"
 
-#include "pyllars_classwrapper.impl"
+#include "pyllars_classwrapper.impl.hpp"
 
 namespace __pyllars_internal {
 
@@ -341,7 +341,7 @@ namespace __pyllars_internal {
         PyObject pyobjs[sizeof...(Args) + 1];
         (void) pyobjs;
 	if(!method){
-	  throw "Null method pointer encountered";
+	    throw "Null method pointer encountered";
 	}
         return call_methodC(method, self, args, kwds, &pyobjs[S]...);
 
@@ -474,7 +474,7 @@ namespace __pyllars_internal {
     template<class CClass, const char* const name>
     template<bool is_const, const char* const kwlist[], typename ReturnType, typename ...Args>
     PyObject *MethodContainer<CClass, name, typename std::enable_if<
-            !std::is_const<CClass>::value>::type>::template Container<is_const, kwlist, ReturnType, Args...>::
+            !std::is_const<CClass>::value>::type>::Container<is_const, kwlist, ReturnType, Args...>::
     _call(PyObject *self, PyObject *args, PyObject *kwds) {
         typedef PythonClassWrapper<CClass> Wrapper;
         if (!self || !PyObject_TypeCheck(self, Wrapper::getPyType())) return nullptr;
@@ -495,12 +495,12 @@ namespace __pyllars_internal {
     typename MethodContainer<CClass, name, typename std::enable_if<
             !std::is_const<CClass>::value>::type>::template Container<is_const, kwlist, ReturnType, Args...>::method_t
     MethodContainer<CClass, name, typename std::enable_if<
-            !std::is_const<CClass>::value>::type>::template Container<is_const, kwlist, ReturnType, Args...>::_method;
+            !std::is_const<CClass>::value>::type>::Container<is_const, kwlist, ReturnType, Args...>::_method;
 
     template<class CClass, const char* const name>
     template<bool is_const, const char* const kwlist[], typename ReturnType, typename ...Args>
     PyObject *MethodContainer<CClass, name, typename std::enable_if<
-            std::is_const<CClass>::value>::type>::template Container<is_const, kwlist, ReturnType, Args...>::
+            std::is_const<CClass>::value>::type>::Container<is_const, kwlist, ReturnType, Args...>::
     _call(PyObject *self, PyObject *args, PyObject *kwds) {
         typedef PythonClassWrapper<CClass> Wrapper;
         if (!self || !PyObject_TypeCheck(self, Wrapper::getPyType())) return nullptr;
@@ -521,7 +521,7 @@ namespace __pyllars_internal {
     typename MethodContainer<CClass, name, typename std::enable_if<
             std::is_const<CClass>::value>::type>::template Container<is_const, kwlist, ReturnType, Args...>::method_t
     MethodContainer<CClass, name, typename std::enable_if<
-            std::is_const<CClass>::value>::type>::template Container<is_const, kwlist, ReturnType, Args...>::_method;
+            std::is_const<CClass>::value>::type>::Container<is_const, kwlist, ReturnType, Args...>::_method;
 
 //////////////////////////////////////////////
 
@@ -578,7 +578,7 @@ namespace __pyllars_internal {
     template<class CClass, const char* const name>
     template<bool is_const, const char* const kwlist[], typename ReturnType, typename ...Args>
     PyObject *MethodContainerVarargs<CClass, name, typename std::enable_if<!std::is_const<CClass>::value>::type>::
-            template Container<is_const, kwlist, ReturnType, Args...>::
+        Container<is_const, kwlist, ReturnType, Args...>::
     _call(PyObject *self, PyObject *args, PyObject *kwds) {
         typedef PythonClassWrapper<CClass> Wrapper;
         if (!self || !PyObject_TypeCheck(self, Wrapper::getPyType())) return nullptr;
@@ -599,12 +599,12 @@ namespace __pyllars_internal {
     typename MethodContainerVarargs<CClass, name, typename std::enable_if<!std::is_const<CClass>::value>::type>::
             template Container<is_const, kwlist, ReturnType, Args...>::method_t
                     MethodContainerVarargs<CClass, name, typename std::enable_if<!std::is_const<CClass>::value>::type>::
-                            template Container<is_const, kwlist, ReturnType, Args...>::_method;
+                    Container<is_const, kwlist, ReturnType, Args...>::_method;
 
     template<class CClass, const char* const name>
     template<bool is_const, const char* const kwlist[], typename ReturnType, typename ...Args>
     PyObject *MethodContainerVarargs<CClass, name, typename std::enable_if<
-            std::is_const<CClass>::value>::type>::template Container<is_const, kwlist, ReturnType, Args...>::
+            std::is_const<CClass>::value>::type>::Container<is_const, kwlist, ReturnType, Args...>::
     _call(PyObject *self, PyObject *args, PyObject *kwds) {
         typedef PythonClassWrapper<CClass> Wrapper;
         if (!self || !PyObject_TypeCheck(self, Wrapper::getPyType())) return nullptr;
@@ -625,7 +625,7 @@ namespace __pyllars_internal {
     typename MethodContainerVarargs<CClass, name, typename std::enable_if<
             std::is_const<CClass>::value>::type>::template Container<is_const, kwlist, ReturnType, Args...>::method_t
                     MethodContainerVarargs<CClass, name, typename std::enable_if<
-                    std::is_const<CClass>::value>::type>::template Container<is_const, kwlist, ReturnType, Args...>::_method;
+                    std::is_const<CClass>::value>::type>::Container<is_const, kwlist, ReturnType, Args...>::_method;
 }
 
 #endif

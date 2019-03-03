@@ -6,7 +6,7 @@
 #define __PYLLARS_INTERNAL__GLOBALMEMBERSEMANTICS_CPP__
 
 #include "pyllars_globalmembersemantics.hpp"
-#include "pyllars_pointer.impl"
+#include "pyllars_pointer.impl.hpp"
 
 
 namespace __pyllars_internal{
@@ -79,14 +79,14 @@ namespace __pyllars_internal{
 	  } else if (kwds && PyDict_Size(kwds) == 1) {
 	    PyObject* const v = PyDict_GetItemString(kwds, "value");
 	    if(v){
-	      *(callable->member) = *toCObject<T, false, PythonClassWrapper<T> >(*v);
+	      *(callable->member) = *toCArgument<T, false, PythonClassWrapper<T> >(*v);
 	    } else {
               PyErr_SetString(PyExc_TypeError, "Invalid parameters when getting/setting global variable");
               return nullptr;       
 	    }
 	    
 	  } else if (PyTuple_Size(args) ==  1) {
-	    *(callable->member) = *toCObject<T, false, PythonClassWrapper<T> >(*PyTuple_GetItem(args, 0));
+	    *(callable->member) = *toCArgument<T, false, PythonClassWrapper<T> >(*PyTuple_GetItem(args, 0));
 	  }
 	  return toPyObject<T>(*callable->member,	 false, array_size);
 	} catch (const char* msg){
@@ -123,7 +123,7 @@ namespace __pyllars_internal{
         (void) callable;
         if (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "value")) {
             T val[size];
-            auto cval = *toCObject<T[size], true, PythonClassWrapper<T[size]> >(*PyDict_GetItemString(kwds, "value"));
+            auto cval = *toCArgument<T[size], true, PythonClassWrapper<T[size]> >(*PyDict_GetItemString(kwds, "value"));
             for(unsigned int i = 0; i < size; ++i)
                val[i] = cval[i];
             for (size_t i = 0; i < size; ++i) (*callable->member)[i] = val[i];
@@ -171,14 +171,14 @@ namespace __pyllars_internal{
                 PyErr_SetString(PyExc_RuntimeError, "Attempt to set whole array of unknown size");
                 return nullptr;
             }
-            T *val = *toCObject<T *, true, PythonClassWrapper<T *> >(
+            T *val = *toCArgument<T *, true, PythonClassWrapper<T *> >(
                     *PyDict_GetItemString(kwds, "value"));
             for (size_t i = 0; i < callable->array_size; ++i) (*callable->member)[i] = val[i];
         } else if (kwds && PyDict_Size(kwds) == 2 && PyDict_GetItemString(kwds, "value") &&
                    PyDict_GetItemString(kwds, "index") &&
                    PyLong_Check(PyDict_GetItemString(kwds, "index"))) {
             long i = PyLong_AsLong(PyDict_GetItemString(kwds, "index"));
-            T *val = *toCObject<T *, false, PythonClassWrapper<T *> >(
+            T *val = *toCArgument<T *, false, PythonClassWrapper<T *> >(
                     *PyDict_GetItemString(kwds, "value"));
             (*callable->member)[i] = val[i];
         } else if (kwds && PyDict_Size(kwds) != 0) {

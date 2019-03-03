@@ -4,11 +4,12 @@
 #ifndef __PYLLARS__INTERNAL__CONVERSIONS_CPP__
 #define __PYLLARS__INTERNAL__CONVERSIONS_CPP__
 
+#include <Python.h>
 #include "pyllars_utils.hpp"
 #include "pyllars_conversions.hpp"
 
-#include "pyllars_callbacks.impl"
-#include "pyllars_pointer.impl"
+#include "pyllars_callbacks.hpp"
+#include "pyllars_pointer.hpp"
 
 namespace __pyllars_internal {
 
@@ -340,7 +341,7 @@ namespace __pyllars_internal {
             throw "NULL CHAR* encountered";
         }
         return PyString_FromString(var);
-    };
+    }
 
 
     template<typename T, typename E>

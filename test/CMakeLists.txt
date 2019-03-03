@@ -9,12 +9,13 @@ include_directories(/opt/googletest/googletest/include /opt/googletest/googletes
 add_executable(runPyllarsTest
         /opt/googletest/googletest/src/gtest_main.cc
         /opt/googletest/googletest/src/gtest-all.cc
-        cpp/test_classes_and_pointers.cpp cpp/test_conversions.cpp)
+        cpp/test_classes_and_pointers.cpp
+        cpp/test_conversions.cpp)
 
 target_link_libraries(runPyllarsTest PUBLIC -L/usr/local/lib64 -lpython3.7m pthread pyllars ffi dl util)
 
-add_custom_target(NAME ALL
+add_custom_target(testCoverage ALL
         DEPENDS runPyllarsTest
-        COMMAND ./runPyllarsTest && gcovr -r ../src/resources --html --html-details -o index.html
+        COMMAND ./runPyllarsTest && mkdir -p res && lcov -o res/testcov.out -c -d . && genhtml -o res res/testcov.out && google-chrome ./res/pyllars/index.html
         WORKING_DIRECTORY .
         COMMENT Generated test coverage)

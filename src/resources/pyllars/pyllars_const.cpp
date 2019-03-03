@@ -4,9 +4,8 @@
 #include <math.h>
 
 #include "pyllars_const.hpp"
-#include "pyllars_varargs.impl"
-#include "pyllars_pointer.impl"
-#include "pyllars_classwrapper.impl"
+#include "pyllars_pointer.impl.hpp"
+#include "pyllars_classwrapper.impl.hpp"
 
 namespace __pyllars_internal {
 

@@ -2,6 +2,7 @@
 #define __PYLLARS__VARARGS__
 
 #include <ffi.h>
+#include <Python.h>
 
 namespace __pyllars_internal {
 

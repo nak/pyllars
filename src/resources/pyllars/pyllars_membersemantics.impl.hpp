@@ -3,7 +3,7 @@
 #define __PYLLARS_INTERNAL__MEMBERSEMANTICS_IMPL_
 
 #include "pyllars_membersemantics.hpp"
-#include "pyllars_classwrapper.impl"
+#include "pyllars_classwrapper.impl.hpp"
 
 namespace __pyllars_internal {
 

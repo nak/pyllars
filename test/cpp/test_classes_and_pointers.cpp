@@ -3,11 +3,11 @@
 #include <src/resources/pyllars/pyllars.hpp>
 #include "gtest/gtest.h"
 #include "pyllars/pyllars.hpp"
-#include "pyllars/pyllars_classwrapper.impl"
-#include "pyllars/pyllars_pointer.impl"
-#include "pyllars/pyllars_membersemantics.impl"
-#include "pyllars/pyllars_classmembersemantics.impl"
-#include "pyllars/pyllars_classmethodsemantics.impl"
+#include "pyllars/pyllars_classwrapper.impl.hpp"
+#include "pyllars/pyllars_pointer.impl.hpp"
+#include "pyllars/pyllars_membersemantics.impl.hpp"
+#include "pyllars/pyllars_classmembersemantics.impl.hpp"
+#include "pyllars/pyllars_classmethodsemantics.impl.hpp"
 
 typedef const char c_string[];
 
