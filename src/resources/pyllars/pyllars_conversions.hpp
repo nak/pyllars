@@ -243,13 +243,13 @@ namespace __pyllars_internal {
         template<typename ClassWrapper>
         class PyObjectConversionHelper<const char *, ClassWrapper, void> {
         public:
-            static PyObject *toPyObject(const char *const &var, const bool asReference, const ssize_t array_size = -1);
+            static PyObject *toPyObject(const char * &var, const bool asReference, const ssize_t array_size = -1);
         };
 
         template<typename ClassWrapper>
         class PyObjectConversionHelper<char *, ClassWrapper, void> {
         public:
-            static PyObject *toPyObject(char *const &var, const bool asReference, const ssize_t array_size = -1);
+            static PyObject *toPyObject(char * &var, const bool asReference, const ssize_t array_size = -1);
         };
 
         template<typename ClassWrapper>
@@ -259,6 +259,11 @@ namespace __pyllars_internal {
 
         };
 
+        template<typename ClassWrapper>
+        class PyObjectConversionHelper<char * const, ClassWrapper, void> {
+        public:
+            static PyObject *toPyObject(char *const &var, const bool asReference, const ssize_t array_size = -1);
+        };
 
     };
 

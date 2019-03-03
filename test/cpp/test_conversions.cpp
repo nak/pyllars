@@ -25,17 +25,15 @@ struct A{
     }
 };
 
-template __pyllars_internal::smart_ptr<double, false>
-                __pyllars_internal::toCArgument<double, false>(PyObject&);
 
 class PythonSetup: public ::testing::Test{
 protected:
     void SetUp() override{
-
+        PyErr_Clear();
     }
 
     void TearDown() override{
-
+        ASSERT_FALSE(PyErr_Occurred());
     }
 
     static void SetUpTestSuite() {
@@ -50,18 +48,90 @@ protected:
 
 };
 
-TEST_F(PythonSetup, convert_basic){
+enum {ONE, TWO, THREE};
+
+
+template<>
+const char* const __pyllars_internal::_Types<A>::type_name = "A";
+
+template<>
+const char* const __pyllars_internal::_Types<decltype(ONE)>::type_name = "anon_enum";
+
+template<typename T>
+void test_basic(T val, PyObject* (*PyFrom)(T)){
     using namespace __pyllars_internal;
     PyObject* obj;
-    obj = PyLong_FromLong(123987);
-    smart_ptr<long, false> value = toCArgument<long, false>(*obj);
-    ASSERT_EQ(*value, 123987);
-
-    obj = PyFloat_FromDouble(1.2345);
-    smart_ptr<double, false> dvalue = toCArgument<double, false>(*obj);
-    ASSERT_DOUBLE_EQ(1.2345, *dvalue);
-
+    obj = PyFrom(val);
+    smart_ptr<T, false> value = toCArgument<T, false>(*obj);
+    if (std::is_floating_point<T>::value){
+        if(sizeof(T) == 4) {
+            ASSERT_FLOAT_EQ(*value, val);
+        } else {
+            ASSERT_DOUBLE_EQ(*value, val);
+        }
+    } else {
+        ASSERT_EQ(*value, val);
+    }
 }
+
+template<typename T>
+PyObject* PyLong_FromInt(T v){
+    return PyLong_FromLong(v);
+}
+
+PyObject* PyFloat_FromFloat(float v){
+    return PyFloat_FromDouble(v);
+}
+
+TEST_F(PythonSetup, convert_basic_char){
+    test_basic((char)123, PyLong_FromInt);
+}
+
+TEST_F(PythonSetup, convert_basic_short){
+    test_basic((short)123, PyLong_FromInt);
+}
+
+TEST_F(PythonSetup, convert_basic_int){
+    test_basic((int)123, PyLong_FromInt);
+}
+
+TEST_F(PythonSetup, convert_basic_long){
+    test_basic((long)123,  PyLong_FromLong);
+}
+
+TEST_F(PythonSetup, convert_basic_long_long){
+    test_basic((long long)123,  PyLong_FromInt);
+}
+
+TEST_F(PythonSetup, convert_basic_uchar){
+    test_basic((unsigned char)123, PyLong_FromInt);
+}
+
+TEST_F(PythonSetup, convert_basic_ushort){
+    test_basic((unsigned short)123, PyLong_FromInt);
+}
+
+TEST_F(PythonSetup, convert_basic_uint){
+    test_basic((unsigned int)123, PyLong_FromInt);
+}
+
+TEST_F(PythonSetup, convert_basic_ulong){
+    test_basic((unsigned long)123,  PyLong_FromInt);
+}
+
+TEST_F(PythonSetup, convert_basic_ulong_long){
+    test_basic((unsigned long long)123,  PyLong_FromInt);
+}
+
+
+TEST_F(PythonSetup, convert_basic_double){
+    test_basic(1.2349, PyFloat_FromDouble);
+}
+
+TEST_F(PythonSetup, convert_basic_float){
+    test_basic(1.2349f, PyFloat_FromFloat);
+}
+
 
 template<typename T>
 void array_call(T v[3], T to[3]){
@@ -92,6 +162,16 @@ TEST_F(PythonSetup, convert_array_float) {
     test_conversion(vals);
 }
 
+
+TEST_F(PythonSetup, convert_array_double) {
+    double vals[3] = {1,2,3};
+    test_conversion(vals);
+}
+
+TEST_F(PythonSetup, convert_array_enum) {
+    decltype(ONE) vals[3] = {ONE, TWO, THREE};
+    test_conversion(vals);
+}
 
 TEST_F(PythonSetup, convert_array_class) {
     A vals[3] = {A(1),A(12),A(-234)};
@@ -138,9 +218,10 @@ PyObject* __PyLong_FromInt(int v){
     return PyLong_FromLong(v);
 }
 
-int __PyLong_AsInt(PyObject* obj){
+template<typename T>
+T __PyLong_AsInt(PyObject* obj){
     long v = PyLong_AsLong(obj);
-    return (int)v;
+    return (T)v;
 }
 
 
@@ -157,8 +238,11 @@ TEST_F(PythonSetup, convert_from_native_py_long) {
     test_conversion_from_native_py<long, array_call<long>, PyLong_FromLong, PyLong_AsLong>(vals, toVals);
 }
 
-const char* __PyUnicode_AsString(PyObject* obj){
-   return PyUnicode_AsUTF8(obj);
+
+TEST_F(PythonSetup, convert_from_native_py_ulong) {
+    unsigned long vals[3] = {1,2,3};
+    unsigned long toVals[3] = {999, 341, 783};
+    test_conversion_from_native_py<unsigned long, array_call<unsigned long>, PyLong_FromInt, __PyLong_AsInt>(vals, toVals);
 }
 
 PyObject* _PyUnicode_FromString(const char* data){
@@ -169,11 +253,18 @@ TEST_F(PythonSetup, convert_from_native_py_cstring) {
     const char*  vals[3] = {"abc", "def", "ghi"};
     const char*  toVals[3] = {"rst", "uvw", "xyz"};
     test_conversion_from_native_py_strcmp<const char* , array_call<const char* >,
-            _PyUnicode_FromString, __PyUnicode_AsString>(vals, toVals);
+            _PyUnicode_FromString, PyUnicode_AsUTF8>(vals, toVals);
+}
+const char* __PyBytes_ToString(PyObject* obj) {
+    return (const char *) PyBytes_AsString(obj);
 }
 
-template<>
-const char* const __pyllars_internal::_Types<A>::type_name = "A";
+TEST_F(PythonSetup, convert_from_native_pybytes_cstring) {
+    const char*  vals[3] = {"abc", "def", "ghi"};
+    const char*  toVals[3] = {"rst", "uvw", "xyz"};
+    test_conversion_from_native_py_strcmp<const char* , array_call<const char* >,
+            PyBytes_FromString, __PyBytes_ToString>(vals, toVals);
+}
 
 
 TEST_F(PythonSetup, convert_to_py) {
@@ -181,6 +272,7 @@ TEST_F(PythonSetup, convert_to_py) {
     PythonClassWrapper<A>::initialize();
     A a;
     auto obj = toPyObject<A>(a, true, 1);
+    ASSERT_NE(obj, nullptr);
     ASSERT_FALSE(PyErr_Occurred());
     ASSERT_EQ(&a, reinterpret_cast<PythonClassWrapper<A>*>(obj)->get_CObject());
 }

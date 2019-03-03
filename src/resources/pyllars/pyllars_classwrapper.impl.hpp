@@ -852,11 +852,13 @@ namespace __pyllars_internal{
           return nullptr;
         }
         PythonClassWrapper *pyobj = (PythonClassWrapper *) PyObject_Call((PyObject *) type_, emptyargs, kwds);
-        pyobj->_CObject = cobj;
-        pyobj->_allocated = isAllocated;
-        pyobj->_inPlace = inPlace;
-        pyobj->_arraySize = 0;
-        if (referencing) pyobj->_referenced = referencing;
+        if(pyobj) {
+            pyobj->_CObject = cobj;
+            pyobj->_allocated = isAllocated;
+            pyobj->_inPlace = inPlace;
+            pyobj->_arraySize = 0;
+            if (referencing) pyobj->_referenced = referencing;
+        }
         return pyobj;
     }
 

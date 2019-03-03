@@ -11,6 +11,17 @@ namespace __pyllars_internal {
     };
 
     template<typename T>
+    struct non_const_pointer{
+        typedef T type;
+    };
+
+    template<typename T>
+    struct non_const_pointer<const T*>{
+        typedef T* type;
+    };
+
+
+    template<typename T>
     struct is_unbounded_array{
         static constexpr bool value = false;
     };

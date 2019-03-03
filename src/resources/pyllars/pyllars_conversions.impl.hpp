@@ -211,7 +211,7 @@ namespace __pyllars_internal {
     typename CObjectConversionHelper<T[size], array_allocated >::ptr_t
     CObjectConversionHelper<T[size], array_allocated>::
     toCArgument(PyObject &pyobj) {
-
+        bool is_bytes = false;
         auto self = (CommonBaseWrapper*) &pyobj;
         if (PyList_Check(&pyobj)) {
             if (PyList_Size(&pyobj) != size) {
@@ -246,6 +246,7 @@ namespace __pyllars_internal {
                     const char* v =  PyString_AsString(listitem);
                     (*val)[i] = *((T*) &v);
                 } else if (is_c_string_like<T>::value && PyBytes_Check(listitem)){
+                    is_bytes = true;
                     char* v =  PyBytes_AsString(listitem);
                     (*val)[i] = *((T*) &v);
                 } else if(CommonBaseWrapper::checkImplicitArgumentConversion<T>(listitem)) {
@@ -255,13 +256,23 @@ namespace __pyllars_internal {
                     throw "Invalid type in array element assignment";
                 }
             }
-            auto reverse_capture = [&pyobj, val](){
-                for (size_t i = 0; i < size; ++i) {
-                    PyList_SetItem(&pyobj, i, toPyObject<T>((*val)[i], true, 1));
-                }
-            };
+            if(is_bytes) {
+                auto reverse_capture = [&pyobj, val]() {
+                    for (size_t i = 0; i < size; ++i) {
+                        typedef typename non_const_pointer<T>::type T_nonconst;
+                        PyList_SetItem(&pyobj, i, toPyObject<T_nonconst>((T_nonconst)(*val)[i], true, 1));
+                    }
+                };
+                return smart_ptr_with_reverse_capture<T[size], array_allocated>(val, reverse_capture, PTR_IS_ALLOCATED);
+            } else {
+                auto reverse_capture = [&pyobj, val]() {
+                    for (size_t i = 0; i < size; ++i) {
+                        PyList_SetItem(&pyobj, i, toPyObject<T>((*val)[i], true, 1));
+                    }
+                };
 
-            return smart_ptr_with_reverse_capture<T[size], array_allocated>(val, reverse_capture, PTR_IS_ALLOCATED);
+                return smart_ptr_with_reverse_capture<T[size], array_allocated>(val, reverse_capture, PTR_IS_ALLOCATED);
+            }
         }
         if (CommonBaseWrapper::template checkImplicitArgumentConversion<T[size]>(&pyobj)) {
             return smart_ptr_with_reverse_capture<T[size], array_allocated>(
@@ -312,7 +323,7 @@ namespace __pyllars_internal {
 
     template<typename ClassWrapper>
     PyObject *ConversionHelpers::PyObjectConversionHelper<const char *, ClassWrapper, void>::
-    toPyObject(const char *const &var, const bool asReference, const ssize_t array_size) {
+    toPyObject(const char * &var, const bool asReference, const ssize_t array_size) {
         (void) asReference;
         if (!var) {
             throw "NULL CHAR* encountered";
@@ -322,25 +333,36 @@ namespace __pyllars_internal {
     }
 
     template<typename ClassWrapper>
-    PyObject *ConversionHelpers::PyObjectConversionHelper<char *, ClassWrapper, void>::
+    PyObject *ConversionHelpers::PyObjectConversionHelper<const char * const, ClassWrapper, void>::
+    toPyObject(const char * const &var, const bool asReference, const ssize_t array_size) {
+        (void) asReference;
+        if (!var) {
+            throw "NULL CHAR* encountered";
+        }
+        return PyString_FromString(var);
+
+    }
+
+    template<typename ClassWrapper>
+    PyObject *ConversionHelpers::PyObjectConversionHelper<char * const, ClassWrapper, void>::
     toPyObject(char *const &var, const bool asReference, const ssize_t array_size) {
         (void) asReference;
         if (!var) {
             throw "NULL CHAR* encountered";
         }
-        return PyString_FromString(var);
+        return PyBytes_FromString((const char*)var);
 
     }
 
     template<typename ClassWrapper>
-    PyObject *ConversionHelpers::PyObjectConversionHelper<const char *const, ClassWrapper, void>::
-    toPyObject(const char *const &var, const bool asReference, const ssize_t array_size) {
-
+    PyObject *ConversionHelpers::PyObjectConversionHelper<char *, ClassWrapper, void>::
+    toPyObject(char * &var, const bool asReference, const ssize_t array_size) {
         (void) asReference;
         if (!var) {
             throw "NULL CHAR* encountered";
         }
-        return PyString_FromString(var);
+        return PyBytes_FromString((const char*)var);
+
     }
 
 
