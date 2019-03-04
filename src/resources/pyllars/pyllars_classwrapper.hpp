@@ -92,6 +92,8 @@ namespace __pyllars_internal {
          */
         typename PythonClassWrapper::T_NoRef *get_CObject() ;
 
+        //void reset_CObject(T_NoRef* val, const bool allocated);
+
         /**
          * Initialize python type if needed
          * @return Python-based PyTypeObject associated with T

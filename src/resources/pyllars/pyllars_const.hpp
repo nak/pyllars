@@ -90,7 +90,6 @@ namespace __pyllars_internal {
             return &value;
         }
 
-
         static PyMethodDef _methods[];
 
         std::function<__int128_t()> asLongLong;
@@ -217,7 +216,6 @@ namespace __pyllars_internal {
         inline const t *get_CObject() {
             return &value;
         }
-
 
         static PyMethodDef _methods[];
 

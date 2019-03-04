@@ -287,7 +287,6 @@ namespace __pyllars_internal {
             return &value;
         }
 
-
         static PyMethodDef _methods[];
 
         std::function<double()> asDouble;

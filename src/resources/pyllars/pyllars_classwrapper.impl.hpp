@@ -668,7 +668,17 @@ namespace __pyllars_internal{
                 typename std::enable_if<is_rich_class<T>::value>::type>::get_CObject() {
         return _CObject ? _CObject->ptr() : nullptr;
     }
-
+/*
+    template<typename T>
+    void
+    PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::reset_CObject(T_NoRef* newval,
+            const bool allocated) {
+        if (_allocated){
+            ObjectLifecycleHelpers::Deallocation<T*, PythonClassWrapper<T*> >::_free(this);
+        }
+        _CObject = new ObjContainerProxy<T, T>(newval);
+        _allocated = allocated;
+    }*/
 
     template<typename T>
     int PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::

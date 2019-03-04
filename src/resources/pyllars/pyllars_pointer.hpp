@@ -212,10 +212,9 @@ namespace __pyllars_internal {
         }
 
         T* get_CObject(){
-            static T* value = Base::_get_CObject();
+            T* value = Base::_get_CObject();
             return value;
         }
-
 
         static PyTypeObject *getPyType(){
             if(initialize() != 0){
@@ -263,6 +262,15 @@ namespace __pyllars_internal {
         typedef PythonPointerWrapperBase<T>  Base;
         T* get_CObject(){
             return PythonPointerWrapperBase<T>::_get_CObject();
+        }
+
+        void reset_CObject(T* val, const bool allocated){
+            if(Base::_allocated) {
+                T _v = *Base::_CObject->ptr();
+                delete _v;
+            }
+            Base::_CObject = new ObjContainerProxy<T, T>(*val);
+            Base::_allocated = allocated;
         }
 
         static PyTypeObject *getPyType(){

@@ -270,7 +270,9 @@ namespace __pyllars_internal {
                     }
                     auto self = (PythonClassWrapper<char*>*) obj;
                     if(!self->get_CObject()){return nullptr;}
-                    *self->get_CObject() = val;
+                    char* newval = new char[strlen(val)+1];
+                    strcpy(newval, val);
+                    self->reset_CObject(&newval);
                     return obj;
                 }
             }
@@ -289,7 +291,9 @@ namespace __pyllars_internal {
                     }
                     auto self = (PythonClassWrapper<const char*>*) obj;
                     if(!self->get_CObject()){return nullptr;}
-                    *self->get_CObject() = val;
+                    char* newval = new char[strlen(val)+1];
+                    strcpy(newval, val);
+                    self->reset_CObject((const char**)&newval);
                     return obj;
                 }
             }
