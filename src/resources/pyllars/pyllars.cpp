@@ -564,6 +564,12 @@ namespace __pyllars_internal {
                     "allocate array of numbers"
             },
             {
+                    "to_int",
+                    (PyCFunction) to_int,
+                    METH_KEYWORDS  | METH_VARARGS,
+                    "convert to Python int type"
+            },
+            {
                     nullptr, nullptr, 0, nullptr /**sentinel **/
             }
     };
@@ -707,6 +713,21 @@ namespace __pyllars_internal {
         return rc;
     }
 
+
+    template<typename number_type>
+    PyObject *
+    PyNumberCustomObject<number_type>::to_int(PyObject *self, PyObject *args, PyObject *kwds) {
+        if (!PyTuple_Check(args) || PyTuple_Size(args) + kwds?PyDict_Size(kwds):0 > 0){
+            PyErr_SetString(PyExc_TypeError, "to_float takes no arguments");
+            return nullptr;
+        }
+        if (!PyObject_TypeCheck(self, getPyType())){
+            PyErr_SetString(PyExc_TypeError, "invalid type for self");
+            return nullptr;
+        }
+        auto self_ = reinterpret_cast<PyNumberCustomObject*>(self);
+        return PyLong_FromLongLong(*self_->get_CObject());
+    }
 
     template<typename number_type>
     PyObject *PyNumberCustomObject<number_type>::richcompare(PyObject *a, PyObject *b, int op) {
@@ -1233,9 +1254,15 @@ namespace __pyllars_internal {
     PyMethodDef PyFloatingPtCustomObject<number_type>::_methods[] = {
             {
                     alloc_name_,
-                             (PyCFunction) alloc,
+                    (PyCFunction) alloc,
                     METH_KEYWORDS | METH_CLASS | METH_VARARGS,
                     "allocate array of numbers"
+            },
+            {
+                "to_float",
+                (PyCFunction) to_float,
+                METH_KEYWORDS | METH_VARARGS,
+                "convert to Python float type"
             },
             {
                     nullptr, nullptr, 0, nullptr /**sentinel **/
@@ -1365,6 +1392,22 @@ namespace __pyllars_internal {
         number_type *alloced = new number_type(value);
         return (PythonClassWrapper<number_type *> *) PythonClassWrapper<number_type *>::createPy2(count, &alloced, true,
                                                                                                   false, nullptr);
+    }
+
+
+    template<typename number_type>
+    PyObject *
+    PyFloatingPtCustomObject<number_type>::to_float(PyObject *self, PyObject *args, PyObject *kwds) {
+        if (!PyTuple_Check(args) || PyTuple_Size(args) + kwds?PyDict_Size(kwds):0 > 0){
+            PyErr_SetString(PyExc_TypeError, "to_float takes no arguments");
+            return nullptr;
+        }
+        if (!PyObject_TypeCheck(self, getPyType())){
+            PyErr_SetString(PyExc_TypeError, "invalid type for self");
+            return nullptr;
+        }
+        auto self_ = reinterpret_cast<PyFloatingPtCustomObject*>(self);
+        return PyFloat_FromDouble(*self_->get_CObject());
     }
 
 

@@ -209,7 +209,9 @@ namespace __pyllars_internal {
         class PyObjectConversionHelper<T, ClassWrapper,
                 typename std::enable_if<!std::is_integral<T>::value &&
                                         !std::is_enum<T>::value &&
-                                        !std::is_floating_point<T>::value>::type> {
+                                        !std::is_floating_point<T>::value &&
+                                        !is_c_string_like<T>::value &&
+                                        !is_bytes_like<T>::value>::type> {
         public:
             typedef typename std::remove_reference<T>::type T_NoRef;
 
@@ -240,29 +242,11 @@ namespace __pyllars_internal {
         /**
          * Specialized for char*:
          **/
-        template<typename ClassWrapper>
-        class PyObjectConversionHelper<const char *, ClassWrapper, void> {
+        template<typename T, typename ClassWrapper>
+        class PyObjectConversionHelper<T, ClassWrapper, typename std::enable_if<is_c_string_like<T>::value ||
+                is_bytes_like<T>::value>::type > {
         public:
-            static PyObject *toPyObject(const char * &var, const bool asReference, const ssize_t array_size = -1);
-        };
-
-        template<typename ClassWrapper>
-        class PyObjectConversionHelper<char *, ClassWrapper, void> {
-        public:
-            static PyObject *toPyObject(char * &var, const bool asReference, const ssize_t array_size = -1);
-        };
-
-        template<typename ClassWrapper>
-        class PyObjectConversionHelper<const char *const, ClassWrapper, void> {
-        public:
-            static PyObject *toPyObject(const char *const &var, const bool asReference, const ssize_t array_size = -1);
-
-        };
-
-        template<typename ClassWrapper>
-        class PyObjectConversionHelper<char * const, ClassWrapper, void> {
-        public:
-            static PyObject *toPyObject(char *const &var, const bool asReference, const ssize_t array_size = -1);
+            static PyObject *toPyObject(T &var, const bool asReference, const ssize_t array_size = -1);
         };
 
     };

@@ -65,6 +65,21 @@ namespace __pyllars_internal {
     struct is_c_string_like<const char* const>{
         static constexpr bool value = true;
     };
+
+    template<typename T>
+    struct is_bytes_like{
+        static constexpr bool value = false;
+    };
+
+    template<>
+    struct is_bytes_like<char*>{
+        static constexpr bool value = true;
+    };
+
+    template<>
+    struct is_bytes_like<char* const>{
+        static constexpr bool value = true;
+    };
 }
 
 #endif

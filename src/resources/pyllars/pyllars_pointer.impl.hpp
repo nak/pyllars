@@ -351,6 +351,23 @@ namespace __pyllars_internal {
                 self->make_reference(pyobj);
                 self->_CObject = reinterpret_cast<PythonPointerWrapperBase *>(pyobj)->_CObject;
                 status = self->_CObject ? 0 : -1;
+            } else if (PyString_Check(pyobj) && (is_bytes_like<T>::value || is_c_string_like<T>::value)){
+                typedef typename std::remove_const<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::type T_base;
+                auto inval =  PyUnicode_AsUTF8(pyobj);
+                const size_t size = strlen((const char*) inval);
+                self->_allocated = true;
+                T_base* val = ObjectLifecycleHelpers::Alloc<T_base>
+                        new T_base[size+1];
+                strcpy((char*)val, (const char*)inval);
+                self->_CObject = new ObjContainerProxy<T, T>(val);
+            } else if (PyBytes_Check(pyobj) && (is_bytes_like<T>::value || is_c_string_like<T>::value)){
+                typedef typename std::remove_const<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::type T_base;
+                auto inval = PyBytes_AsString(pyobj);
+                const size_t size = strlen((const char*) inval);
+                self->_allocated = true;
+                auto val = new T_base[size+1];
+                strcpy((char*)val, (const char*)inval);
+                self->_CObject = new ObjContainerProxy<T, T>(val);
             } else {
                 PyErr_SetString(PyExc_TypeError, "Mismatched types when assigning pointer");
                 status = ERROR_TYPE_MISMATCH;

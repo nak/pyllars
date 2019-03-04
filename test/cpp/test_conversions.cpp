@@ -283,6 +283,9 @@ void test_conversion_from_native_py(T vals[3], T toVals[3]) {
     PyList_SetItem(obj, 2, PyFrom(vals[2]));
     {
         call(*toCArgument<T[3], false>(*obj), toVals);
+        ASSERT_NE(PyList_GetItem(obj, 0), nullptr);
+        ASSERT_NE(PyList_GetItem(obj, 1), nullptr);
+        ASSERT_NE(PyList_GetItem(obj, 2), nullptr);
         Assertion<T>::assert_equal(PyTo(PyList_GetItem(obj, 0)), toVals[0]);
         Assertion<T>::assert_equal(PyTo(PyList_GetItem(obj, 1)), vals[1]);
         Assertion<T>::assert_equal(PyTo(PyList_GetItem(obj, 2)), toVals[2]);
@@ -302,11 +305,24 @@ T __PyLong_AsInt(PyObject* obj){
     return (T)v;
 }
 
+template<typename T>
+PyObject* PyWrapper_FromValue(T v){
+    using namespace __pyllars_internal;
+    return toPyObject<T>(v, true, 1);
+}
+
+template<typename T>
+T PyWrapper_AsValue(PyObject* obj){
+    using namespace __pyllars_internal;
+    assert(PyObject_TypeCheck(obj, PythonClassWrapper<T>::getPyType()));
+    return *((PythonClassWrapper<T>*)obj)->get_CObject();
+}
 
 TEST_F(PythonSetup, convert_from_native_py_int) {
     int vals[3] = {1,2,3};
     int toVals[3] = {999, 341, -783};
     test_conversion_from_native_py<int, array_call<int>, __PyLong_FromInt, __PyLong_AsInt>(vals, toVals);
+    test_conversion_from_native_py<int, array_call<int>, PyWrapper_FromValue<int>, PyWrapper_AsValue<int> >(vals, toVals);
 }
 
 
@@ -314,6 +330,7 @@ TEST_F(PythonSetup, convert_from_native_py_long) {
     long vals[3] = {1,2,3};
     long toVals[3] = {999, 341, -783};
     test_conversion_from_native_py<long, array_call<long>, PyLong_FromLong, PyLong_AsLong>(vals, toVals);
+    test_conversion_from_native_py<long, array_call<long>, PyWrapper_FromValue<long>, PyWrapper_AsValue<long> >(vals, toVals);
 }
 
 
@@ -321,6 +338,8 @@ TEST_F(PythonSetup, convert_from_native_py_ulong) {
     unsigned long vals[3] = {1,2,3};
     unsigned long toVals[3] = {999, 341, 783};
     test_conversion_from_native_py<unsigned long, array_call<unsigned long>, PyLong_FromInt, __PyLong_AsInt>(vals, toVals);
+    test_conversion_from_native_py<unsigned long, array_call<unsigned long>, PyWrapper_FromValue<unsigned long>,
+            PyWrapper_AsValue<unsigned long> >(vals, toVals);
 }
 
 PyObject* _PyUnicode_FromString(const char* data){
@@ -332,6 +351,9 @@ TEST_F(PythonSetup, convert_from_native_py_cstring) {
     const char*  toVals[3] = {"rst", "uvw", "xyz"};
     test_conversion_from_native_py<const char* , array_call<const char* >,
             _PyUnicode_FromString, PyUnicode_AsUTF8>(vals, toVals);
+    test_conversion_from_native_py<const char*, array_call<const char*>,
+            PyWrapper_FromValue<const char*>, PyWrapper_AsValue<const char*> >(vals, toVals);
+
 }
 const char* __PyBytes_ToString(PyObject* obj) {
     return (const char *) PyBytes_AsString(obj);

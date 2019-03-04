@@ -120,6 +120,7 @@ namespace __pyllars_internal {
         static PyTypeObject Type;
 
         static PythonClassWrapper<number_type *> *alloc(PyObject *cls, PyObject *args, PyObject *kwds);
+        static PyObject *to_int(PyObject *self, PyObject *args, PyObject *kwds);
 
         static int initialize();
 
@@ -246,6 +247,7 @@ namespace __pyllars_internal {
 
 
         static PythonClassWrapper<number_type *> *alloc(PyObject *cls, PyObject *args, PyObject *kwds);
+        static PyObject* to_float(PyObject *cls, PyObject *args, PyObject *kwds);
 
         static PyTypeObject *getPyType(){
             if(initialize() != 0){
