@@ -7,7 +7,6 @@ include_directories(.
 add_library(pyllars SHARED
         pyllars/pyllars.cpp
         pyllars/pyllars_templates.cpp
-        pyllars/pyllars_templates.cpp
-        pyllars/pyllars_conversions.impl.hpp)
+        pyllars/pyllars_templates.cpp)
 
 target_link_libraries(pyllars PUBLIC -Wl,-rpath '$ORIGIN')

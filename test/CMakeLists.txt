@@ -16,6 +16,6 @@ target_link_libraries(runPyllarsTest PUBLIC -L/usr/local/lib64 -lpython3.7m pthr
 
 add_custom_target(testCoverage ALL
         DEPENDS runPyllarsTest
-        COMMAND ./runPyllarsTest && mkdir -p res && lcov -o res/testcov.out -c -d . && genhtml -o res res/testcov.out && google-chrome ./res/pyllars/index.html
+        COMMAND ./runPyllarsTest && mkdir -p res && lcov -o res/testcov.out -c -d . && genhtml -o res res/testcov.out && google-chrome --new-window ./res/pyllars/index.html
         WORKING_DIRECTORY .
         COMMENT Generated test coverage)

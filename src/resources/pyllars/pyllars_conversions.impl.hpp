@@ -108,7 +108,11 @@ namespace __pyllars_internal {
         if (PyString_Check(&pyobj)) {
             auto name = (const char *) PyString_AsString(&pyobj);
             if (!name) { throw "Error converting string: null pointer encountered"; }
-            return smart_ptr<const char * const, false>(new (const char*)(name), PTR_IS_ALLOCATED);
+            return smart_ptr<const char *, false>(new (const char*)(name), PTR_IS_ALLOCATED);
+        } else if (PyBytes_Check(&pyobj)){
+            auto name = (char *) PyBytes_AsString(&pyobj);
+            if (!name) { throw "Error converting string: null pointer encountered"; }
+            return smart_ptr<const char *, false>(new (const char*)(name), PTR_IS_ALLOCATED);
         }
         if (CommonBaseWrapper::template checkImplicitArgumentConversion<const char*>(&pyobj)) {
             return smart_ptr<const char*, array_allocated>(
@@ -220,41 +224,8 @@ namespace __pyllars_internal {
             NonConst_T_array *val = new NonConst_T_array[1];
             for (size_t i = 0; i < size; ++i) {
                 PyObject *listitem = PyList_GetItem(&pyobj, i);
-                if (std::is_integral<T>::value && PyLong_Check(listitem)){
-                    if (std::is_signed<T>::value) {
-                        long v = PyLong_AsLong(listitem);
-                        if (!limits<T>::is_in_bounds(v)){
-                            throw "Value out of range of C type";
-                        }
-                        (*val)[i] = *((T *) &v);
-                    } else {
-                        unsigned long v = PyLong_AsLong(listitem);
-                        if (!limits<T>::is_in_bounds(v)){
-                            throw "Value out of range of C type";
-                        }
-                        (*val)[i] = *((T *) &v);
-                    }
-                } else if (std::is_floating_point<T>::value && PyFloat_Check(listitem)){
-                    if (sizeof(T) == sizeof(double)) {
-                        double v = PyFloat_AsDouble(listitem);
-                        (*val)[i] = *((T *) &v);
-                    } else {
-                         float   v = PyFloat_AsDouble(listitem);
-                         (*val)[i] = *((T *) &v);
-                    };
-                } else if (is_c_string_like<T>::value && PyString_Check(listitem)){
-                    const char* v =  PyString_AsString(listitem);
-                    (*val)[i] = *((T*) &v);
-                } else if (is_c_string_like<T>::value && PyBytes_Check(listitem)){
-                    is_bytes = true;
-                    char* v =  PyBytes_AsString(listitem);
-                    (*val)[i] = *((T*) &v);
-                } else if(CommonBaseWrapper::checkImplicitArgumentConversion<T>(listitem)) {
-                    (*val)[i] = *(reinterpret_cast< PythonClassWrapper<T> * >(listitem)->get_CObject());
-                } else {
-                    delete[] val;
-                    throw "Invalid type in array element assignment";
-                }
+                is_bytes = PyBytes_Check(listitem);
+                (*val)[i] = *CObjectConversionHelper<T, array_allocated>::toCArgument(*listitem);
             }
             if(is_bytes) {
                 auto reverse_capture = [&pyobj, val]() {

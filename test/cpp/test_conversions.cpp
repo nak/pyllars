@@ -26,6 +26,11 @@ struct A{
 };
 
 
+
+class DisparateType{
+};
+
+
 class PythonSetup: public ::testing::Test{
 protected:
     void SetUp() override{
@@ -54,8 +59,88 @@ enum {ONE, TWO, THREE};
 template<>
 const char* const __pyllars_internal::_Types<A>::type_name = "A";
 
+
+template<>
+const char* const __pyllars_internal::_Types<DisparateType>::type_name = "DisparateType";
+
 template<>
 const char* const __pyllars_internal::_Types<decltype(ONE)>::type_name = "anon_enum";
+
+template<typename T>
+struct Assertion {
+    static void assert_equal(const T &v1, const T &v2) {
+        ASSERT_EQ(v1, v2);
+    }
+};
+
+template<>
+struct Assertion<float>{
+    static void assert_equal(const float &v1, const float &v2) {
+        ASSERT_FLOAT_EQ(v1, v2);
+    }
+};
+
+
+template<>
+struct Assertion<double>{
+    static void assert_equal(const double &v1, const double &v2) {
+        ASSERT_DOUBLE_EQ(v1, v2);
+    }
+};
+
+template<>
+struct Assertion<const char*>{
+    static void assert_equal(const char* const &v1, const char* const &v2) {
+        ASSERT_STREQ(v1, v2);
+    }
+};
+
+
+template<>
+struct Assertion<char*>{
+    static void assert_equal( char* const &v1,  char* const &v2) {
+        ASSERT_STREQ(v1, v2);
+    }
+};
+
+TEST_F(PythonSetup, test_basic_convert_pybasic){
+    using namespace __pyllars_internal;
+    static constexpr long const_long = 123445567678l;
+    static constexpr unsigned int const_uint = 212;
+
+    auto long_obj = PyLong_FromLong(const_long);
+    auto uint_obj = PyLong_FromLong(const_uint);
+
+    smart_ptr<long, false> long_value = toCArgument<long, false>(*long_obj);
+    smart_ptr<unsigned int, false> uint_value = toCArgument<unsigned int, false>(*uint_obj);
+
+    ASSERT_EQ(*long_value, const_long);
+    ASSERT_EQ(*uint_value, const_uint);
+    auto float_obj = PyFloat_FromDouble(1.234);
+    typedef const char* cstring;
+    ASSERT_THROW((toCArgument<long, false>(*float_obj)), cstring);
+}
+
+TEST_F(PythonSetup, test_pyfloat_to_cfloat){
+    using namespace __pyllars_internal;
+    static constexpr double const_double = 19823.34432;
+
+    auto double_obj = PyFloat_FromDouble(const_double);
+
+    ASSERT_DOUBLE_EQ((*toCArgument<double, false>(*double_obj)), const_double);
+    ASSERT_FLOAT_EQ((*toCArgument<float, false>(*double_obj)), (float)const_double);
+}
+
+
+TEST_F(PythonSetup, test_pylong_to_c){
+    using namespace __pyllars_internal;
+    static constexpr long const_long = 19823;
+
+    auto long_obj = PyLong_FromLong(const_long);
+
+    ASSERT_EQ((*toCArgument<long, false>(*long_obj)), const_long);
+    ASSERT_EQ((*toCArgument<unsigned long long, false>(*long_obj)), (unsigned long long)const_long);
+}
 
 template<typename T>
 void test_basic(T val, PyObject* (*PyFrom)(T)){
@@ -63,15 +148,10 @@ void test_basic(T val, PyObject* (*PyFrom)(T)){
     PyObject* obj;
     obj = PyFrom(val);
     smart_ptr<T, false> value = toCArgument<T, false>(*obj);
-    if (std::is_floating_point<T>::value){
-        if(sizeof(T) == 4) {
-            ASSERT_FLOAT_EQ(*value, val);
-        } else {
-            ASSERT_DOUBLE_EQ(*value, val);
-        }
-    } else {
-        ASSERT_EQ(*value, val);
-    }
+    Assertion<T>::assert_equal(*value, val);
+    typedef const char* cstring;
+    ASSERT_THROW( (toCArgument<DisparateType, false>(*obj)), cstring);
+
 }
 
 template<typename T>
@@ -81,6 +161,15 @@ PyObject* PyLong_FromInt(T v){
 
 PyObject* PyFloat_FromFloat(float v){
     return PyFloat_FromDouble(v);
+}
+
+PyObject* PyClass_FromClass(A v){
+    using namespace __pyllars_internal;
+    static const char* const kwlist[]= {"obj", nullptr};
+    PythonClassWrapper<A>::addConstructor<const A&>(kwlist);
+    auto args = PyTuple_New(1);
+    PyTuple_SetItem(args, 0, toPyObject(v, true, 1));
+    return PyObject_Call((PyObject*)PythonClassWrapper<A>::getPyType(), args, nullptr);
 }
 
 TEST_F(PythonSetup, convert_basic_char){
@@ -133,6 +222,11 @@ TEST_F(PythonSetup, convert_basic_float){
 }
 
 
+TEST_F(PythonSetup, convert_basic_class){
+    test_basic(A(99), PyClass_FromClass);
+}
+
+
 template<typename T>
 void array_call(T v[3], T to[3]){
     v[0] = to[0];
@@ -147,9 +241,9 @@ void test_conversion(T vals[3]){
     PythonClassWrapper<T[3]>::initialize();
     auto obj = toPyObject<T[3]>(array, true, 3);
     smart_ptr<T[3], false> avalue = toCArgument<T[3], false >(*obj);
-    ASSERT_EQ((*avalue)[0], array[0]);
-    ASSERT_EQ((*avalue)[1], array[1]);
-    ASSERT_EQ((*avalue)[2], array[2]);
+    Assertion<T>::assert_equal((*avalue)[0], array[0]);
+    Assertion<T>::assert_equal((*avalue)[1], array[1]);
+    Assertion<T>::assert_equal((*avalue)[2], array[2]);
 }
 
 TEST_F(PythonSetup, convert_array_int) {
@@ -189,29 +283,13 @@ void test_conversion_from_native_py(T vals[3], T toVals[3]) {
     PyList_SetItem(obj, 2, PyFrom(vals[2]));
     {
         call(*toCArgument<T[3], false>(*obj), toVals);
-        ASSERT_EQ(PyTo(PyList_GetItem(obj, 0)), toVals[0]);
-        ASSERT_EQ(PyTo(PyList_GetItem(obj, 1)), vals[1]);
-        ASSERT_EQ(PyTo(PyList_GetItem(obj, 2)), toVals[2]);
+        Assertion<T>::assert_equal(PyTo(PyList_GetItem(obj, 0)), toVals[0]);
+        Assertion<T>::assert_equal(PyTo(PyList_GetItem(obj, 1)), vals[1]);
+        Assertion<T>::assert_equal(PyTo(PyList_GetItem(obj, 2)), toVals[2]);
     }
 
-}
-
-
-template<typename T, void(*call)(T v[3], T y[3]), PyObject* (*PyFrom)(T), T (*PyTo)(PyObject*)>
-void test_conversion_from_native_py_strcmp(T vals[3], T toVals[3]) {
-    using namespace __pyllars_internal;
-
-    auto obj = PyList_New(3);
-    PyList_SetItem(obj, 0, PyFrom(vals[0]));
-    PyList_SetItem(obj, 1, PyFrom(vals[1]));
-    PyList_SetItem(obj, 2, PyFrom(vals[2]));
-    {
-        call(*toCArgument<T[3], false>(*obj), toVals);
-        ASSERT_STREQ(PyTo(PyList_GetItem(obj, 0)), toVals[0]);
-        ASSERT_STREQ(PyTo(PyList_GetItem(obj, 1)), vals[1]);
-        ASSERT_STREQ(PyTo(PyList_GetItem(obj, 2)), toVals[2]);
-    }
-
+    typedef const char* cstring;
+    ASSERT_THROW((toCArgument<DisparateType, false>(*obj)), cstring);
 }
 
 PyObject* __PyLong_FromInt(int v){
@@ -252,7 +330,7 @@ PyObject* _PyUnicode_FromString(const char* data){
 TEST_F(PythonSetup, convert_from_native_py_cstring) {
     const char*  vals[3] = {"abc", "def", "ghi"};
     const char*  toVals[3] = {"rst", "uvw", "xyz"};
-    test_conversion_from_native_py_strcmp<const char* , array_call<const char* >,
+    test_conversion_from_native_py<const char* , array_call<const char* >,
             _PyUnicode_FromString, PyUnicode_AsUTF8>(vals, toVals);
 }
 const char* __PyBytes_ToString(PyObject* obj) {
@@ -262,7 +340,7 @@ const char* __PyBytes_ToString(PyObject* obj) {
 TEST_F(PythonSetup, convert_from_native_pybytes_cstring) {
     const char*  vals[3] = {"abc", "def", "ghi"};
     const char*  toVals[3] = {"rst", "uvw", "xyz"};
-    test_conversion_from_native_py_strcmp<const char* , array_call<const char* >,
+    test_conversion_from_native_py<const char* , array_call<const char* >,
             PyBytes_FromString, __PyBytes_ToString>(vals, toVals);
 }
 
