@@ -315,6 +315,7 @@ template<typename T>
 T PyWrapper_AsValue(PyObject* obj){
     using namespace __pyllars_internal;
     assert(PyObject_TypeCheck(obj, PythonClassWrapper<T>::getPyType()));
+    assert(((PythonClassWrapper<T>*)obj)->get_CObject());
     return *((PythonClassWrapper<T>*)obj)->get_CObject();
 }
 

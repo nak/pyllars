@@ -39,8 +39,9 @@ namespace __pyllars_internal {
                 T &cobj = *self__->get_CObject();
                 ObjectLifecycleHelpers::Copy<T_base>::inplace_copy(
                         values, i, ObjectLifecycleHelpers::Copy<T_base>::new_copy2(
-                                ObjectLifecycleHelpers::Array<T_base *>::at(cobj, i))->ptr(), true);
+                                ObjectLifecycleHelpers::Array<T_base *>::at(cobj, i))->ptr());
             }
+            self_->_arraySize = new_size;
         }
         return nullptr;
     }
@@ -61,8 +62,9 @@ namespace __pyllars_internal {
             }
             PythonClassWrapper<const T_base> *obj_ = (PythonClassWrapper<const T_base> *) obj;
             ObjectLifecycleHelpers::Copy<T_base>::inplace_copy(*(self__->get_CObject()), index,
-                                                               obj_->get_CObject(),
-                                                               self_->_raw_storage != nullptr);
+                                                               obj_->get_CObject()//,
+                                                               //self_->_raw_storage != nullptr
+                                                               );
             return 0;
         } catch (const char* const msg) {
             PyErr_SetString(PyExc_RuntimeError, msg);
@@ -282,8 +284,6 @@ namespace __pyllars_internal {
             return nullptr;
         }
         pyobj->_CObject = cobj;
-        pyobj->_allocated = isAllocated;
-        pyobj->_inPlace = inPlace;
         pyobj->_arraySize = arraySize;
         if (arraySize > 0) { pyobj->_max = arraySize - 1; }
         if (referencing) pyobj->make_reference(referencing);
@@ -298,13 +298,9 @@ namespace __pyllars_internal {
         if (!self) return status;
         self->_referenced = nullptr;
         self->_max = last;
-        self->_allocated = false;
-        self->_inPlace = false;
-        self->_raw_storage = nullptr;
         if (((PyObject *) self)->ob_type->tp_base && Base::TypePtr->tp_init) {
-            PyObject *empty = PyTuple_New(0);
+            static PyObject *empty = PyTuple_New(0);
             Base::TypePtr->tp_init((PyObject *) &self->baseClass, empty, nullptr);
-            Py_DECREF(empty);
         }
         if (kwds && PyDict_Size(kwds) > 1) {
             PyErr_SetString(PyExc_TypeError, "Unexpected keyword argument(s) in Pointer cosntructor");
@@ -345,7 +341,12 @@ namespace __pyllars_internal {
         } else if (args && PyTuple_Size(args) == 1) {
             // we are asked to make a new pointer from an existing object:
             PyObject *pyobj = PyTuple_GetItem(args, 0);
-
+            if(!pyobj){
+                self->_CObject = nullptr;
+                return 0;
+            }
+            self->_referenced = pyobj;
+            Py_INCREF(pyobj);
             if (PyObject_TypeCheck(pyobj, pytypeobj)) {
                 // if this is an instance of a basic class:
                 self->make_reference(pyobj);
@@ -353,21 +354,11 @@ namespace __pyllars_internal {
             } else if (PyString_Check(pyobj) && (is_bytes_like<T>::value || is_c_string_like<T>::value)){
                 typedef typename std::remove_const<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::type T_base;
                 auto inval =  PyUnicode_AsUTF8(pyobj);
-                const size_t size = strlen((const char*) inval);
-                self->_allocated = true;
-                char* val = new char[size+1];
-                strcpy((char*)val, (const char*)inval);
-                self->_CObject = new ObjContainerProxy<T, T>((T_base*)val);
-                self->_raw_storage = (T_base*)val;
+                self->_CObject = new ObjContainerProxy<T, T>((T_base*)inval);
             } else if (PyBytes_Check(pyobj) && (is_bytes_like<T>::value || is_c_string_like<T>::value)){
                 typedef typename std::remove_const<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::type T_base;
                 auto inval = PyBytes_AsString(pyobj);
-                const size_t size = strlen((const char*) inval);
-                self->_allocated = true;
-                char* val = new char[size+1];
-                strcpy((char*)val, (const char*)inval);
-                self->_CObject = new ObjContainerProxy<T, T>((T_base*)val);
-                self->_raw_storage = (T_base*)val;
+                self->_CObject = new ObjContainerProxy<T, T>((T_base*)inval);
             } else {
                 PyErr_SetString(PyExc_TypeError, "Mismatched types when assigning pointer");
                 status = ERROR_TYPE_MISMATCH;
@@ -375,8 +366,6 @@ namespace __pyllars_internal {
             }
             status = self->_CObject ? 0 : -1;
         } else {
-            self->_allocated = true;
-            self->_inPlace = false;
             self->_CObject = nullptr;
             status = 0;
         }
@@ -391,25 +380,33 @@ namespace __pyllars_internal {
         return _CObject->ptr();
     }
 
+    template<typename T>
+    void
+    PythonPointerWrapperBase<T>::
+    _free(PythonPointerWrapperBase *self) {
+        if(self->_allocated)
+            ObjectLifecycleHelpers::Deallocation<T>::_free(*self->get_CObject(), self->_arraySize > 0);
+        if (self->_referenced) {
+            Py_XDECREF(self->_referenced);
+            self->_referenced = nullptr;
+        }
+        self->_CObject = nullptr;
+    }
 
     template<typename T>
     void
     PythonPointerWrapperBase<T>::
     _dealloc(PyObject *self_) {
+
         PythonPointerWrapperBase *self = (PythonPointerWrapperBase *) self_;
         //TODO: track dynamically allocated content and free if so
         if (self != nullptr) {
-            ObjectLifecycleHelpers::Deallocation<T, PythonPointerWrapperBase>::_free(self);
-            if (self->_allocated) self->_CObject = nullptr;
+            _free(self);
 #if PY_MAJOR_VERSION == 3
             self->baseClass.ob_base.ob_type->tp_free((PyObject *) self);
 #else
             self->baseClass.ob_type->tp_free((PyObject *) self);
 #endif
-            if (self->_referenced) {
-                Py_XDECREF(self->_referenced);
-                self->_referenced = nullptr;
-            }
 
         }
     }
@@ -427,35 +424,6 @@ namespace __pyllars_internal {
         }
         return (PyObject *) self;
 
-    }
-
-
-    template<typename T>
-    void
-    PythonPointerWrapperBase<T>::
-    set_raw_storage(T_base *const storage, const size_t size) {
-        _raw_storage = storage;
-        _raw_size = size;
-        if (storage) {
-            _CObject = new ObjContainerProxy<T, T>(_raw_storage);
-            _allocated = false;
-        }
-    }
-
-    template<typename T>
-    void
-    PythonPointerWrapperBase<T>::
-    delete_raw_storage() {
-        if (_raw_storage) {
-            for (size_t i = 0; i < _raw_size; ++i) {
-                _raw_storage[i].~T_base();
-            }
-            char *storage = (char *) _raw_storage;
-            delete[] storage;
-            _raw_storage = nullptr;
-            _allocated = false;
-            _arraySize = UNKNOWN_SIZE;
-        }
     }
 
     template<typename T>
@@ -506,24 +474,20 @@ namespace __pyllars_internal {
 
         if (result == ERROR_TYPE_MISMATCH && (ptr_depth<T>::value == 1) &&
             (PythonClassWrapper<const char *>::checkType((PyObject *) self) ||
-             PythonClassWrapper<const char *const>::checkType((PyObject *) self) ||
-             PythonClassWrapper<char *const>::checkType((PyObject *) self) ||
-             PythonClassWrapper<char *>::checkType((PyObject *) self))
-                ) {
+             PythonClassWrapper<const char *const>::checkType((PyObject *) self)
+                ) ){
             PyObject *arg = PyTuple_GetItem(args, 0);
             const char *const s = PyString_AsString(arg);
+
             if (s) {
-                char *new_s = new char[strlen(s) + 1];
-                strcpy(new_s, s);
-                T *val = const_cast<T *>(reinterpret_cast<const T *>(&new_s));
-                self->_CObject = new ObjContainerProxy<T, T>(*val);
-                self->_arraySize = UNKNOWN_SIZE;
-                self->_referenced = nullptr;
-                self->_allocated = true;
-                self->_inPlace = false;
-                PyErr_Clear();
-                return 0;
+                Py_INCREF(arg);
+                self->_referenced = arg;
+                self->_arraySize = 0;
+                self->_allocated = false;
+                self->_CObject = new ObjContainerProxy<T, T>((T)s);
             }
+            PyErr_Clear();
+            return 0;
         }
         return result;
     }
@@ -718,14 +682,10 @@ PyObject_HEAD_INIT(nullptr)
             PyObject *arg = PyTuple_GetItem(args, 0);
             const char *const s = PyString_AsString(arg);
             if (s) {
-                char *new_s = new char[strlen(s) + 1];
-                strcpy(new_s, s);
-                T *val = const_cast<T *>(reinterpret_cast<const T *>(&new_s));
-                self->_CObject = new ObjContainerProxy<T, T>(*val);
+                Py_INCREF(arg);
+                self->_CObject = new ObjContainerProxy<T, T>((typename extent_as_pointer<T>::type)s);
                 self->_arraySize = UNKNOWN_SIZE;
-                self->_referenced = nullptr;
-                self->_allocated = true;
-                self->_inPlace = false;
+                self->_referenced = arg;
                 PyErr_Clear();
                 return 0;
             }

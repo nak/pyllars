@@ -92,8 +92,7 @@ namespace __pyllars_internal {
         typedef PythonClassWrapper<typename std::remove_const<typename std::remove_reference<T>::type>::type> NoRefNonConstWrapper;
         typedef PythonClassWrapper<typename extent_as_pointer<T>::type> AsPtrWrapper;
 
-
-        PythonPointerWrapperBase():_arraySize(UNKNOWN_SIZE), _max(0), _raw_storage(nullptr){
+        PythonPointerWrapperBase():_arraySize(UNKNOWN_SIZE){
         }
 
 
@@ -121,6 +120,8 @@ namespace __pyllars_internal {
 
         static void _dealloc(PyObject *self_);
 
+        static void _free(PythonPointerWrapperBase *self);
+
         static Py_ssize_t _size(PyObject *self);
 
         static PyObject *_inplace_concat(PyObject *self, PyObject *other) {
@@ -147,10 +148,6 @@ namespace __pyllars_internal {
 
         static int _contains(PyObject *self, PyObject *obj);
 
-        void set_raw_storage(T_base *const storage, const size_t size);
-
-        void delete_raw_storage();
-
         static int _initbase(PythonPointerWrapperBase *self, PyObject *args, PyObject *kwds, PyTypeObject *pytypeobj);
 
         static Py_ssize_t get_array_index(PythonPointerWrapperBase *const self, PyObject *args, PyObject *kwargs);
@@ -159,18 +156,12 @@ namespace __pyllars_internal {
 
         T *_get_CObject();
 
-        T_base *_raw_storage;
         ObjContainer<T> *_CObject;
         PyObject *_referenced_elements;
         ssize_t _arraySize;
-        ssize_t _max;
-
-        size_t _raw_size;
-
-        bool _allocated;
-        bool _inPlace;
+        size_t _max;
         size_t _depth; //only used for classes with pointer depth > 1, kept here for consistent PyType layout
-
+        bool _allocated;
     private:
         T* get_CObject();
     };
@@ -214,6 +205,13 @@ namespace __pyllars_internal {
         T* get_CObject(){
             T* value = Base::_get_CObject();
             return value;
+        }
+
+        void setFrom(PythonClassWrapper *obj){
+            if(!obj){
+               obj->_free();
+            }
+            Py_INCREF(obj);
         }
 
         static PyTypeObject *getPyType(){
@@ -264,13 +262,10 @@ namespace __pyllars_internal {
             return PythonPointerWrapperBase<T>::_get_CObject();
         }
 
-        void reset_CObject(T* val, const bool allocated){
-            if(Base::_allocated) {
-                T _v = *Base::_CObject->ptr();
-                delete _v;
-            }
-            Base::_CObject = new ObjContainerProxy<T, T>(*val);
-            Base::_allocated = allocated;
+        void setFrom(T & value){
+            if (Base::_referenced) Py_XDECREF(Base::_referenced);
+            Base::_referenced = nullptr;
+            Base::_CObject = new ObjContainerProxy<T, T>(value);
         }
 
         static PyTypeObject *getPyType(){

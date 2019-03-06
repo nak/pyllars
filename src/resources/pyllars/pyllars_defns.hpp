@@ -384,10 +384,10 @@ namespace __pyllars_internal {
     ///////////
     // Helper conversion functions
     //////////
-    template<typename T, typename E = void>
+    template<typename T>
     PyObject *toPyObject(T &var, const bool asArgument, const ssize_t array_size);
 
-    template<typename T, typename E = void>
+    template<typename T>
     PyObject *toPyObject(const T &var, const bool asArgument, const ssize_t array_size);
 
     //  template<typename T, bool array_allocated, typename ClassWrapper>

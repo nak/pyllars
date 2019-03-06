@@ -31,10 +31,10 @@ namespace __pyllars_internal {
         if (!array) {
             throw "Cannot dereference null object!";
         }
-        if (index > 0){
+        if (index > 0) {
             throw "Cannot index into pointer to incomplete type";
         }
-        typename std::remove_pointer<typename extent_as_pointer<T>::type>::type & value = *array;
+        typename std::remove_pointer<typename extent_as_pointer<T>::type>::type &value = *array;
         return value;
     }
 
@@ -42,7 +42,7 @@ namespace __pyllars_internal {
     template<typename T>
     ObjContainer<typename std::remove_reference<T>::type> *ObjectLifecycleHelpers::
     Copy<T, typename std::enable_if<std::is_destructible<typename std::remove_reference<T>::type>::value &&
-                                    std::is_assignable<typename std::remove_reference<T>::type&, typename std::remove_reference<T>::type>::value &&
+                                    std::is_assignable<typename std::remove_reference<T>::type &, typename std::remove_reference<T>::type>::value &&
                                     std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type>::
     new_copy2(const T &value) {
         return new ObjContainerProxy<T_NoRef, const T &>(*new T_NoRef(value));
@@ -51,7 +51,7 @@ namespace __pyllars_internal {
     template<typename T>
     typename std::remove_reference<T>::type *ObjectLifecycleHelpers::
     Copy<T, typename std::enable_if<std::is_destructible<typename std::remove_reference<T>::type>::value &&
-                                    std::is_assignable<typename std::remove_reference<T>::type&, typename std::remove_reference<T>::type>::value &&
+                                    std::is_assignable<typename std::remove_reference<T>::type &, typename std::remove_reference<T>::type>::value &&
                                     std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type>::
     new_copy(T_NoRef *const value) {
         return new T_NoRef(*value);
@@ -60,24 +60,17 @@ namespace __pyllars_internal {
     template<typename T>
     void ObjectLifecycleHelpers::
     Copy<T, typename std::enable_if<std::is_destructible<typename std::remove_reference<T>::type>::value &&
-                                    std::is_assignable<typename std::remove_reference<T>::type&, typename std::remove_reference<T>::type>::value &&
+                                    std::is_assignable<typename std::remove_reference<T>::type &, typename std::remove_reference<T>::type>::value &&
                                     std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type>::
-    inplace_copy(T_NoRef *const to, const Py_ssize_t index, const T_NoRef *const from,
-                 const bool in_place) {
-        if (in_place) {
-            to[index].~T();
-            new(&to[index]) T_NoRef(*from);
-        } else {
-            to[index] = *from;
-        }
-
+    inplace_copy(T_NoRef *const to, const Py_ssize_t index, const T_NoRef *const from) {
+        to[index] = *from;
     }
 
 
     template<typename T>
     ObjContainer<typename std::remove_reference<T>::type> *ObjectLifecycleHelpers::
     Copy<T, typename std::enable_if<
-            (!std::is_assignable<typename std::remove_reference<T>::type&, typename std::remove_reference<T>::type>::value ||
+            (!std::is_assignable<typename std::remove_reference<T>::type &, typename std::remove_reference<T>::type>::value ||
              !std::is_destructible<typename std::remove_reference<T>::type>::value) &&
             std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type>::
     new_copy2(const T_NoRef &value) {
@@ -87,7 +80,7 @@ namespace __pyllars_internal {
     template<typename T>
     typename std::remove_reference<T>::type *ObjectLifecycleHelpers::
     Copy<T, typename std::enable_if<
-            (!std::is_assignable<typename std::remove_reference<T>::type&, typename std::remove_reference<T>::type>::value ||
+            (!std::is_assignable<typename std::remove_reference<T>::type &, typename std::remove_reference<T>::type>::value ||
              !std::is_destructible<typename std::remove_reference<T>::type>::value) &&
             std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type>::
     new_copy(T_NoRef *const value) {
@@ -97,11 +90,10 @@ namespace __pyllars_internal {
     template<typename T>
     void ObjectLifecycleHelpers::
     Copy<T, typename std::enable_if<
-            (!std::is_assignable<typename std::remove_reference<T>::type&, typename std::remove_reference<T>::type>::value ||
+            (!std::is_assignable<typename std::remove_reference<T>::type &, typename std::remove_reference<T>::type>::value ||
              !std::is_destructible<typename std::remove_reference<T>::type>::value) &&
             std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type>::
-    inplace_copy(T_NoRef *const to, const Py_ssize_t index, const T_NoRef *const from,
-                 const bool in_place) {
+    inplace_copy(T_NoRef *const to, const Py_ssize_t index, const T_NoRef *const from) {
         throw "Cannot copy over item of non-destructible type";
     }
 
@@ -119,10 +111,11 @@ namespace __pyllars_internal {
 
     template<typename T, size_t size>
     typename ObjectLifecycleHelpers::Copy<T[size], typename std::enable_if<(size > 0) &&
+                                                                           !std::is_const<T>::value &&
+                                                                           std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type>::T_array *
+    ObjectLifecycleHelpers::Copy<T[size], typename std::enable_if<(size > 0) &&
                                                                   !std::is_const<T>::value &&
-                                                                  std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type>::T_array    *ObjectLifecycleHelpers::Copy<T[size], typename std::enable_if<(size > 0) &&
-                                                                                         !std::is_const<T>::value &&
-                                                                                         std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type>::
+                                                                  std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type>::
     new_copy(T_array *const value) {
         typedef typename std::remove_const<T>::type T_nonconst_array[size];
         T_nonconst_array *new_value = new T_nonconst_array[1];
@@ -134,8 +127,7 @@ namespace __pyllars_internal {
     void ObjectLifecycleHelpers::Copy<T[size], typename std::enable_if<(size > 0) &&
                                                                        !std::is_const<T>::value &&
                                                                        std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type>::
-    inplace_copy(T_array *const to, const Py_ssize_t index, const T_array *const from,
-                 const bool in_place) {
+    inplace_copy(T_array *const to, const Py_ssize_t index, const T_array *const from) {
         for (size_t i = 0; i < size; ++i) {
             (*to)[i] = (*from)[i];
         }
@@ -151,11 +143,11 @@ namespace __pyllars_internal {
 
     template<typename T, size_t size>
     typename ObjectLifecycleHelpers::Copy<T[size], typename std::enable_if<(size > 0) &&
-                                                                  std::is_const<T>::value &&
-                                                                  std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type>::T_array
+                                                                           std::is_const<T>::value &&
+                                                                           std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type>::T_array
     *ObjectLifecycleHelpers::Copy<T[size], typename std::enable_if<(size > 0) &&
-                                                                                         std::is_const<T>::value &&
-                                                                                         std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type>::
+                                                                   std::is_const<T>::value &&
+                                                                   std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type>::
     new_copy(T_array *const value) {
         throw "Attempt to copy const object";
     }
@@ -164,8 +156,7 @@ namespace __pyllars_internal {
     void ObjectLifecycleHelpers::Copy<T[size], typename std::enable_if<(size > 0) &&
                                                                        std::is_const<T>::value &&
                                                                        std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type>::
-    inplace_copy(T_array *const to, const Py_ssize_t index, const T_array *const from,
-                 const bool in_place) {
+    inplace_copy(T_array *const to, const Py_ssize_t index, const T_array *const from) {
         throw "Attempt to copy const object";
     }
 
@@ -196,15 +187,14 @@ namespace __pyllars_internal {
     Copy<T, typename std::enable_if<!std::is_void<T>::value &&
                                     (!std::is_array<T>::value || ArraySize<T>::size <= 0) &&
                                     !std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type>::
-    inplace_copy(T_NoRef *const to, const Py_ssize_t index, const T_NoRef *const from,
-                 const bool in_place) {
+    inplace_copy(T_NoRef *const to, const Py_ssize_t index, const T_NoRef *const from) {
         throw "Attempt to copy non-copy-constructible object";
     }
 
 
-    template<typename T, typename ClassWrapper>
+    template<typename T>
     PyObject *ObjectLifecycleHelpers::
-    ObjectContent<T, ClassWrapper,
+    ObjectContent<T,
             typename std::enable_if<
                     !std::is_void<T>::value && !std::is_pointer<T>::value && !std::is_array<T>::value>::type>::
     getObjectAt(T const from, const size_t index, const ssize_t elements_array_size,
@@ -213,9 +203,9 @@ namespace __pyllars_internal {
         return nullptr;
     }
 
-    template<typename T, typename ClassWrapper>
+    template<typename T>
     void ObjectLifecycleHelpers::
-    ObjectContent<T, ClassWrapper,
+    ObjectContent<T,
             typename std::enable_if<
                     !std::is_void<T>::value && !std::is_pointer<T>::value && !std::is_array<T>::value>::type>::
     set(const size_t index, T *const to, const T *const from) {
@@ -226,9 +216,9 @@ namespace __pyllars_internal {
         }
     }
 
-    template<typename T, typename ClassWrapper>
+    template<typename T>
     T *ObjectLifecycleHelpers::
-    ObjectContent<T, ClassWrapper,
+    ObjectContent<T,
             typename std::enable_if<
                     !std::is_void<T>::value && !std::is_pointer<T>::value && !std::is_array<T>::value>::type>::
     getObjectPtr(ClassWrapper *const self) {
@@ -236,9 +226,9 @@ namespace __pyllars_internal {
     }
 
 
-    template<typename T, typename PtrWrapper>
+    template<typename T>
     PyObject *ObjectLifecycleHelpers::
-    ObjectContent<T, PtrWrapper,
+    ObjectContent<T,
             typename std::enable_if<!std::is_function<typename std::remove_pointer<T>::type>::value &&
                                     !std::is_void<typename std::remove_pointer<T>::type>::value &&
                                     is_complete<typename std::remove_pointer<T>::type>::value &&
@@ -250,9 +240,9 @@ namespace __pyllars_internal {
         return toPyObject<T_base>(Array<T>::at(from, index), true, elements_array_size);
     }
 
-    template<typename T, typename PtrWrapper>
+    template<typename T>
     void ObjectLifecycleHelpers::
-    ObjectContent<T, PtrWrapper,
+    ObjectContent<T,
             typename std::enable_if<!std::is_function<typename std::remove_pointer<T>::type>::value &&
                                     !std::is_void<typename std::remove_pointer<T>::type>::value &&
                                     is_complete<typename std::remove_pointer<T>::type>::value &&
@@ -266,9 +256,9 @@ namespace __pyllars_internal {
         }
     }
 
-    template<typename T, typename PtrWrapper>
+    template<typename T>
     T *ObjectLifecycleHelpers::
-    ObjectContent<T, PtrWrapper,
+    ObjectContent<T,
             typename std::enable_if<!std::is_function<typename std::remove_pointer<T>::type>::value &&
                                     !std::is_void<typename std::remove_pointer<T>::type>::value &&
                                     is_complete<typename std::remove_pointer<T>::type>::value &&
@@ -278,9 +268,9 @@ namespace __pyllars_internal {
     }
 
 
-    template<typename T, typename PtrWrapper>
+    template<typename T>
     PyObject *ObjectLifecycleHelpers::
-    ObjectContent<T, PtrWrapper,
+    ObjectContent<T,
             typename std::enable_if<std::is_function<typename std::remove_pointer<T>::type>::value>::type>::
     getObjectAt(T const from, const size_t index, const ssize_t elements_array_size,
                 const bool asArgument) {
@@ -288,26 +278,26 @@ namespace __pyllars_internal {
         return nullptr;
     }
 
-    template<typename T, typename PtrWrapper>
+    template<typename T>
     void ObjectLifecycleHelpers::
-    ObjectContent<T, PtrWrapper,
+    ObjectContent<T,
             typename std::enable_if<std::is_function<typename std::remove_pointer<T>::type>::value>::type>::
     set(const size_t index, T const to, T const from) {
         throw "Attempt to index function pointer";
     }
 
-    template<typename T, typename PtrWrapper>
+    template<typename T>
     T *ObjectLifecycleHelpers::
-    ObjectContent<T, PtrWrapper,
+    ObjectContent<T,
             typename std::enable_if<std::is_function<typename std::remove_pointer<T>::type>::value>::type>::
     getObjectPtr(PtrWrapper *const self) {
         return (T *) &self->_CObject;
     }
 
 
-    template<typename T, typename PtrWrapper>
+    template<typename T>
     PyObject *ObjectLifecycleHelpers::
-    ObjectContent<T, PtrWrapper,
+    ObjectContent<T,
             typename std::enable_if<!is_complete<typename std::remove_pointer<T>::type>::value &&
                                     !std::is_function<typename std::remove_pointer<T>::type>::value &&
                                     !std::is_void<typename std::remove_pointer<T>::type>::value>::type>::
@@ -318,9 +308,9 @@ namespace __pyllars_internal {
         return toPyObject<T_base>(Array<T>::at(from, index), asArgument, elements_array_size);
     }
 
-    template<typename T, typename PtrWrapper>
+    template<typename T>
     void ObjectLifecycleHelpers::
-    ObjectContent<T, PtrWrapper,
+    ObjectContent<T,
             typename std::enable_if<!is_complete<typename std::remove_pointer<T>::type>::value &&
                                     !std::is_function<typename std::remove_pointer<T>::type>::value &&
                                     !std::is_void<typename std::remove_pointer<T>::type>::value>::type>::
@@ -328,9 +318,9 @@ namespace __pyllars_internal {
         throw "Attempt to index function pointer";
     }
 
-    template<typename T, typename PtrWrapper>
+    template<typename T>
     T *ObjectLifecycleHelpers::
-    ObjectContent<T, PtrWrapper,
+    ObjectContent<T,
             typename std::enable_if<!is_complete<typename std::remove_pointer<T>::type>::value &&
                                     !std::is_function<typename std::remove_pointer<T>::type>::value &&
                                     !std::is_void<typename std::remove_pointer<T>::type>::value>::type>::
@@ -339,11 +329,13 @@ namespace __pyllars_internal {
     }
 
 
-    template<typename PtrWrapper>
-    void ObjectLifecycleHelpers::BasicDeallocation<PtrWrapper>::_free(PtrWrapper *self) {
-        self->delete_raw_storage();
-        if (self->_allocated) self->_CObject = nullptr;
-        self->_allocated = false;
+    template<typename T>
+    void ObjectLifecycleHelpers::BasicDeallocation<T>::_free(T obj, const bool as_array) {
+        if (as_array) {
+            delete[] obj;
+        } else {
+            delete obj;
+        }
     }
 
 
@@ -351,53 +343,17 @@ namespace __pyllars_internal {
      * If core type is not and array and is destructible, call in-place destructor
      * if needed in addition to basic clean-up
      **/
-    template<typename T, typename PtrWrapper>
-    void ObjectLifecycleHelpers::Deallocation<T, PtrWrapper, typename std::enable_if<
+    template<typename T>
+    void ObjectLifecycleHelpers::Deallocation<T, typename std::enable_if<
             (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            std::is_class<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value &&
             std::is_destructible<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value
     >::type>::
-    _free(PtrWrapper *self) {
-        if (self->_raw_storage) {
-            if (ptr_depth<T>::value == 1 && self->_max >= 0) {
-                for (Py_ssize_t j = 0; j <= self->_max; ++j) {
-                    ((*self->_CObject)[j]).~T_base();
-                }
-            }
-            char *raw_storage = (char *) self->_raw_storage;
-            delete[] raw_storage;
-        } else if (self->_allocated) {
-            delete self->_CObject;
+    _free(T obj, const bool as_array) {
+        if (as_array) {
+            delete[] obj;
+        } else {
+            delete obj;
         }
-        self->_raw_storage = nullptr;
-        if (self->_allocated) self->_CObject = nullptr;
-        self->_allocated = false;
-    }
-
-    /**
-     * If core type is not and array and is destructible, call in-place destructor
-     * if needed in addition to basic clean-up
-     **/
-    template<typename T, typename PtrWrapper>
-    void ObjectLifecycleHelpers::Deallocation<T, PtrWrapper, typename std::enable_if<
-            (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            !std::is_class<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value &&
-            std::is_destructible<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value
-    >::type>::
-    _free(PtrWrapper *self) {
-        if (self->_raw_storage) {
-            // No class type here, so no need to call inline destructor
-            delete[] self->_raw_storage;
-        } else if (self->_allocated) {
-            if (std::is_array<T>::value) {
-                delete[] self->_CObject;
-            } else {
-                delete self->_CObject;
-            }
-        }
-        self->_raw_storage = nullptr;
-        if (self->_allocated) self->_CObject = nullptr;
-        self->_allocated = false;
     }
 
 
@@ -405,32 +361,25 @@ namespace __pyllars_internal {
      * If core type is not and array and is destructible, call in-place destructor
      * if needed in addition to basic clean-up
      **/
-    template<typename T, typename PtrWrapper>
-    void ObjectLifecycleHelpers::Deallocation<T, PtrWrapper, typename std::enable_if<
+    template<typename T>
+    void ObjectLifecycleHelpers::Deallocation<T, typename std::enable_if<
             !std::is_destructible<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value>::type>::
-    _free(PtrWrapper *self) {
-        if (self->_raw_storage) {
-            // //Not destructible, so no delete call
-        } else if (self->_allocated) {
-            //Not destructible, so no delete call
-        }
-        self->_raw_storage = nullptr;
-        if (self->_allocated) self->_CObject = nullptr;
-        self->_allocated = false;
+    _free(T obj, const bool as_array) {
+        //Not destructible, so no delete call
     }
 
 
     template<typename T>
     ObjectLifecycleHelpers::BasicAlloc<T>::ConstructorContainer::
     ConstructorContainer(const char *const kwlist[], constructor c) : _kwlist(kwlist),
-    _constructor(c) {
+                                                                      _constructor(c) {
     }
 
     template<typename T>
-    bool ObjectLifecycleHelpers::BasicAlloc<T>::ConstructorContainer::
-    operator()(PyObject *args, PyObject *kwds, ObjContainer <T_NoRef> *&cobj,
-               const bool in_place) const {
-        return _constructor(_kwlist, args, kwds, cobj, in_place);
+    typename std::remove_reference<T>::type*
+    ObjectLifecycleHelpers::BasicAlloc<T>::ConstructorContainer::
+    operator()(PyObject *args, PyObject *kwds, const bool in_place) const {
+        return _constructor(_kwlist, args, kwds, in_place);
     }
 
 
@@ -546,31 +495,40 @@ namespace __pyllars_internal {
     }
 
 
-    template<typename T,
-            typename PtrWrapper,
-            typename ClassWrapper>
-    void ObjectLifecycleHelpers::Alloc<T, PtrWrapper, ClassWrapper,
-            typename std::enable_if<!is_function_ptr<T>::value && !std::is_reference<T>::value &&
+    template<typename T>
+    PyObject *ObjectLifecycleHelpers::Alloc<T,
+            typename std::enable_if<!is_function_ptr<T>::value &&!std::is_reference<T>::value &&
                                     std::is_constructible<T>::value &&
-                                    std::is_destructible<T>::value>::type>::
-    deallocREMOVE(ObjContainer <T_NoRef> *ptr, const bool inPlace, const size_t size) {
-        if (inPlace && ptr) {
-            for (size_t i = 0; i < size; ++i) {
-                ptr->ptr()[i].~T();
+                                    !std::is_pointer<T>::value>::type>::
+    allocbase(PyObject *cls, PyObject *args, PyObject *kwds,
+              typename BasicAlloc<T>::constructor_list const &constructors) {
+        (void) cls;
+
+        PyObject *alloc_kwds = PyDict_New();
+        PyDict_SetItemString(alloc_kwds, "__internal_allow_null", Py_True);
+        ObjContainer<T_NoRef> *cobj = nullptr;
+        for (auto it = constructors.begin(); it != constructors.end(); ++it) {
+            try {
+                if ((*it)(args, kwds, cobj, false)) { break; }
+            } catch (...) {
             }
-        } else {
-            delete ptr;
+            PyErr_Clear();
         }
+        if (!cobj) {
+            Py_DECREF(alloc_kwds);
+            PyErr_SetString(PyExc_RuntimeError,
+                            "Invalid constructor arguments on allocation or no public constructor for class");
+            return nullptr;
+        }
+        return (PyObject *) PtrWrapper::createPy(1, cobj ? cobj->ptrptr() : nullptr, true, false);
     }
 
 
-    template<typename T,
-            typename PtrWrapper,
-            typename ClassWrapper>
-    PyObject *ObjectLifecycleHelpers::Alloc<T, PtrWrapper, ClassWrapper,
-            typename std::enable_if<!is_function_ptr<T>::value && !std::is_reference<T>::value &&
+    template<typename T>
+    PyObject *ObjectLifecycleHelpers::Alloc<T,
+            typename std::enable_if<!is_function_ptr<T>::value &&!std::is_reference<T>::value &&
                                     std::is_constructible<T>::value &&
-                                    std::is_destructible<T>::value>::type>::
+                                    std::is_pointer<T>::value>::type>::
     allocbase(PyObject *cls, PyObject *args, PyObject *kwds,
               typename BasicAlloc<T>::constructor_list const &constructors) {
         (void) cls;
@@ -685,461 +643,270 @@ namespace __pyllars_internal {
     }
 
 
-    template<typename T, typename PtrWrapper, typename ClassWrapper>
-    void ObjectLifecycleHelpers::Alloc<T, PtrWrapper,
-            ClassWrapper,
-            typename std::enable_if<!is_function_ptr<T>::value && !std::is_reference<T>::value &&
-                                    std::is_constructible<T>::value &&
-                                    !std::is_destructible<T>::value>::type>::
-    deallocREMOVE(ObjContainer <T_NoRef> *ptr, const bool inPlace, const size_t size) {
-        if (inPlace && ptr) {
-            for (size_t i = 0; i < size; ++i) {
-                ptr->ptr()[i].~T();
-            }
-        } else {
-            delete ptr;
-        }
-    }
 
-    template<typename T, typename PtrWrapper, typename ClassWrapper>
-    PyObject *ObjectLifecycleHelpers::Alloc<T, PtrWrapper,
-            ClassWrapper,
-            typename std::enable_if<!is_function_ptr<T>::value && !std::is_reference<T>::value &&
-                                    std::is_constructible<T>::value &&
-                                    !std::is_destructible<T>::value>::type>::
+    template<typename ReturnType, typename ...Args>
+    PyObject *ObjectLifecycleHelpers::Alloc<ReturnType(*)(Args...), void>::
     allocbase(PyObject *cls, PyObject *args, PyObject *kwds,
-              typename BasicAlloc<T>::constructor_list const &constructors) {
+              typename BasicAlloc<T>::constructor_list const &constructors
+    ) {
         (void) cls;
         //Check if argument is list of tuples, and if so construct
         //an array of objects to store "behind the pointer"
-        if ((!kwds || PyDict_Size(kwds) == 0) && args && PyTuple_Size(args) == 1 && PyList_Check(args)) {
+        if ((!kwds || PyDict_Size(kwds) == 0) &&
+            args && PyTuple_Size(args)
+                    == 1 && PyList_Check(args)) {
             PyObject *list = PyTuple_GetItem(args, 0);
             const Py_ssize_t size = PyList_Size(list);
             char *raw_storage;
             T_NoRef *values;
-            //if (size > 1) {
-            raw_storage = (char *) operator new[](size * sizeof(ObjContainer<T_NoRef>));
-            memset(raw_storage, 0, size * sizeof(T));
-            values = reinterpret_cast<T_NoRef *>(raw_storage);
-            //} else {
-            //    raw_storage = nullptr;
-            //    values = nullptr;
-            //}
-            for (Py_ssize_t i = 0; i < PyTuple_Size(args); ++i) {
-                bool found = false;
+            if (size > 1) {
+                raw_storage = (char *) operator new[](size * sizeof(T));
+                memset(raw_storage,
+                       0, size * sizeof(T));
+                values = reinterpret_cast<T_NoRef *>(raw_storage);
+            } else {
+                raw_storage = nullptr;
+                values = nullptr;
+            }
+            for (
+                    Py_ssize_t i = 0;
+                    i < PyTuple_Size(args);
+                    ++i) {
                 PyObject *constructor_pyargs = PyList_GetItem(list, i);
                 if (!PyTuple_Check(constructor_pyargs) && !PyDict_Check(constructor_pyargs)) {
-                    PyErr_SetString(PyExc_TypeError, "Invalid element in list argument, expected tuple");
+                    PyErr_SetString(PyExc_TypeError,
+                                    "Invalid element in list argument, expected tuple");
                     if (raw_storage) {
-                        if (raw_storage) {
-                            for (Py_ssize_t j = 0; j < i; ++j) {
-                                values[j].~T();
-                            }
+                        for (
+                                Py_ssize_t j = 0;
+                                j < i;
+                                ++j) {
+                            values[j].~
+
+                                    T();
                         }
-                        delete[] raw_storage;
+                        delete[]
+                                raw_storage;
                     }
-                    PyErr_SetString(PyExc_RuntimeError,
-                                    "NOTE: Freed memory, but no visible destructor available to call.");
                     return nullptr;
                 } else if (PyTuple_Check(constructor_pyargs)) {
-                    for (auto it = constructors.begin(); it != constructors.end(); ++it) {
+                    for (
+                            auto it = constructors.begin();
+                            it != constructors.
+
+                                    end();
+
+                            ++it) {
                         try {
-                            static PyObject *emptylist = PyDict_New();
-                            ObjContainer<T_NoRef> cobj = ObjContainerPtrProxy<T_NoRef, false, false>(
-                                    &values[i]);
-                            if ((*it)(args, emptylist, cobj)) {
-                                found = true;
+                            T_NoRef *cobj = &(*values)[i];
+                            if ((*it)(constructor_pyargs, nullptr, cobj)) {
                                 break;
                             }
                         } catch (...) {
                         }
+
                         PyErr_Clear();
                     }
                 } else if (PyDict_Check(constructor_pyargs)) {
+                    for (
+                            auto it = constructors.begin();
+                            it != constructors.
 
-                    for (auto it = constructors.begin(); it != constructors.end(); ++it) {
+                                    end();
+
+                            ++it) {
                         try {
                             static PyObject *emptyargs = PyTuple_New(0);
-                            ObjContainer<T_NoRef> cobj = ObjContainerPtrProxy<T_NoRef, false, false>(
-                                    &values[i]);
-                            if ((*it)(emptyargs, constructor_pyargs, cobj)) {
-                                found = true;
+                            T_NoRef *cobj = &(*values)[i];
+                            if ((*it)(emptyargs, constructor_pyargs, cobj, false)) {
                                 break;
                             }
                         } catch (...) {
                         }
+
                         PyErr_Clear();
                     }
-                }
-                if (!found || !values) {
-                    PyErr_SetString(PyExc_RuntimeError,
-                                    "Invalid constructor arguments on allocation.  Objects not destructible by design! ");
-                    if (raw_storage) {
-                        for (Py_ssize_t j = 0; j < i; ++j) {
-                            values[j].~T();
-                        }
-                        delete[] raw_storage;
-                    }
-                    return nullptr;
 
+                    if (!values || !values[i]) {
+                        PyErr_SetString(PyExc_RuntimeError,
+                                        "Invalid constructor arguments on allocation");
+                        if (raw_storage) {
+                            for (
+                                    Py_ssize_t j = 0;
+                                    j < i;
+                                    ++j) {
+                                values[j].~
+
+                                        T();
+                            }
+                            delete[]
+                                    raw_storage;
+                        }
+                        return nullptr;
+                    }
                 }
             }
-            PtrWrapper *obj = PtrWrapper::template createPy(size, values, !raw_storage);
-            obj->set_raw_storage(raw_storage);
-            return (PyObject *) obj;
+            if (!raw_storage) {
+                PyErr_SetString(PyExc_RuntimeError,
+                                "Invalid object creation");
+                return nullptr;
+            }
+            PtrWrapper *obj = PtrWrapper::createPy(size, values, !raw_storage);
+            obj->
+                    set_raw_storage(raw_storage);
+            return (PyObject *)
+                    obj;
         }
+
         //otherwise, just have regular list of constructor arguments
         //for single object allocation
         T *cobj = nullptr;
-        for (auto it = constructors.begin(); it != constructors.end(); ++it) {
+        for (
+                auto it = constructors.begin();
+                it != constructors.
+
+                        end();
+
+                ++it) {
             try {
-                if ((*it)(args, kwds, cobj)) { break; }
+                if ((
+                        cobj = (*it)(args, kwds)
+                )) {
+                    break;
+                }
             } catch (...) {
             }
+
             PyErr_Clear();
         }
         if (!cobj) {
-            PyErr_SetString(PyExc_RuntimeError, "Invalid constructor arguments on allocation");
+            PyErr_SetString(PyExc_RuntimeError,
+                            "Invalid constructor arguments on allocation");
             return nullptr;
         }
-        PythonClassWrapper<T_NoRef *, void> *obj =
-                PythonClassWrapper<T_NoRef *, void>::template createPy(1, cobj, true);
-
-        return (PyObject *) obj;
+        PtrWrapper *obj = PythonClassWrapper<T_NoRef *, void>::template createPy<T_NoRef *>(1, cobj, true);
+        obj->set_raw_storage(nullptr);
+        return (PyObject *)
+                obj;
     }
 
 
-    template<typename ReturnType, typename ...Args>
-    void ObjectLifecycleHelpers::Alloc<ReturnType(*)(Args...), PythonClassWrapper < ReturnType(**)(Args...)>,
-            PythonClassWrapper<ReturnType(*)(Args...)>,
-    void>
-    ::
-    deallocREMOVE(ObjContainer<T_NoRef>
-    *ptr,
-    const bool inPlace,
-    const size_t size,
-    const bool nonononon
+    template<typename T>
+    PyObject *ObjectLifecycleHelpers::Alloc<T,
+            typename std::enable_if<std::is_void<typename std::remove_volatile<T>::type>::value>::type>::
+    allocbase(PyObject *cls, PyObject *args, PyObject *kwds,
+              typename BasicAlloc<T>::constructor_list const &constructors
     ) {
-    if (inPlace) {
-    for (
-    size_t i = 0;
-    i<size;
-    ++i) {
-    ptr->
+        (void) args;
+        (void) kwds;
+        (void) cls;
+        PyErr_SetString(PyExc_RuntimeError,
+                        "Type is not directly constructible");
+        return nullptr;
+    }
 
-    ptr()[i]
+    template<typename T>
+    PyObject *ObjectLifecycleHelpers::Alloc<T,
+            typename std::enable_if<!std::is_void<T>::value && !std::is_function<T>::value &&
+                                    (std::is_reference<T>::value || !std::is_constructible<T>::value)>::type>::
+    allocbase(PyObject *cls, PyObject *args, PyObject *kwds,
+              typename BasicAlloc<T>::constructor_list const &constructors) {
+        (void) args;
+        (void) kwds;
+        (void) cls;
+        (void) constructors;
+        PyErr_SetString(PyExc_RuntimeError, "Type is not directly constructible");
+        return nullptr;
+    }
 
-    .~
-
-    T();
-}
-}
-delete
-ptr;
-}
-
-template<typename ReturnType, typename ...Args>
-PyObject *ObjectLifecycleHelpers::Alloc<ReturnType(*)(Args...), PythonClassWrapper < ReturnType(**)(Args...)>,
-        PythonClassWrapper<ReturnType(*)(Args...)>,
-void>
-::
-allocbase(PyObject
-*cls,
-PyObject *args, PyObject
-*kwds,
-typename BasicAlloc<T>::constructor_list const &constructors
-) {
-(void)
-cls;
-//Check if argument is list of tuples, and if so construct
-//an array of objects to store "behind the pointer"
-if ((!kwds ||
-PyDict_Size(kwds)
-== 0) &&
-args &&PyTuple_Size(args)
-== 1 && PyList_Check(args)) {
-PyObject *list = PyTuple_GetItem(args, 0);
-const Py_ssize_t size = PyList_Size(list);
-char *raw_storage;
-T_NoRef *values;
-if (size > 1) {
-raw_storage = (char *) operator new[](size * sizeof(T));
-memset(raw_storage,
-0, size * sizeof(T));
-values = reinterpret_cast<T_NoRef *>(raw_storage);
-} else {
-raw_storage = nullptr;
-values = nullptr;
-}
-for (
-Py_ssize_t i = 0;
-i< PyTuple_Size(args);
-++i) {
-PyObject *constructor_pyargs = PyList_GetItem(list, i);
-if (!PyTuple_Check(constructor_pyargs) && !PyDict_Check(constructor_pyargs)) {
-PyErr_SetString(PyExc_TypeError,
-"Invalid element in list argument, expected tuple");
-if (raw_storage) {
-for (
-Py_ssize_t j = 0;
-j<i;
-++j) {
-values[j].~
-
-T();
-}
-delete[]
-raw_storage;
-}
-return nullptr;
-} else if (PyTuple_Check(constructor_pyargs)) {
-for (
-auto it = constructors.begin();
-it != constructors.
-
-end();
-
-++it) {
-try {
-T_NoRef *cobj = &(*values)[i];
-if ((*it)(constructor_pyargs, nullptr, cobj)) {
-break;
-}
-} catch (...) {
-}
-
-PyErr_Clear();
-}
-} else if (PyDict_Check(constructor_pyargs)) {
-for (
-auto it = constructors.begin();
-it != constructors.
-
-end();
-
-++it) {
-try {
-static PyObject *emptyargs = PyTuple_New(0);
-T_NoRef *cobj = &(*values)[i];
-if ((*it)(emptyargs, constructor_pyargs, cobj, false)) {
-break;
-}
-} catch (...) {
-}
-
-PyErr_Clear();
-}
-
-if (!values || !values[i]) {
-PyErr_SetString(PyExc_RuntimeError,
-"Invalid constructor arguments on allocation");
-if (raw_storage) {
-for (
-Py_ssize_t j = 0;
-j<i;
-++j) {
-values[j].~
-
-T();
-}
-delete[]
-raw_storage;
-}
-return nullptr;
-}
-}
-}
-if (!raw_storage) {
-PyErr_SetString(PyExc_RuntimeError,
-"Invalid object creation");
-return nullptr;
-}
-PtrWrapper *obj = PtrWrapper::createPy(size, values, !raw_storage);
-obj->
-set_raw_storage(raw_storage);
-return (PyObject *)
-obj;
-}
-
-//otherwise, just have regular list of constructor arguments
-//for single object allocation
-T *cobj = nullptr;
-for (
-auto it = constructors.begin();
-it != constructors.
-
-end();
-
-++it) {
-try {
-if ((
-cobj = (*it)(args, kwds)
-)) {
-break;
-}
-} catch (...) {
-}
-
-PyErr_Clear();
-}
-if (!cobj) {
-PyErr_SetString(PyExc_RuntimeError,
-"Invalid constructor arguments on allocation");
-return nullptr;
-}
-PtrWrapper *obj = PythonClassWrapper<T_NoRef *, void>::template createPy<T_NoRef *>(1, cobj, true);
-obj->set_raw_storage(nullptr);
-return (PyObject *)
-obj;
-}
+    template<typename T>
+    PyObject *ObjectLifecycleHelpers::Alloc<T,
+            typename std::enable_if<std::is_function<T>::value>::type>::
+    allocbase(PyObject *cls, PyObject *args, PyObject *kwds,
+              typename BasicAlloc<T>::constructor_list const &constructors) {
+        (void) args;
+        (void) kwds;
+        (void) cls;
+        (void) constructors;
+        PyErr_SetString(PyExc_RuntimeError, "Type is not directly constructible");
+        return nullptr;
+    }
 
 
-template<typename T>
-void ObjectLifecycleHelpers::Alloc<T,
-        PythonClassWrapper<T *, void>,
-        PythonClassWrapper<T, void>,
-        typename std::enable_if<std::is_void<typename std::remove_volatile<T>::type>::value>::type>::
-deallocREMOVE(ObjContainer <C_NoRef> *ptr) {
-    (void) ptr;
-}
+    template<typename T>
+    void ObjectLifecycleHelpers::ObjectContent<T *, typename std::enable_if<std::is_void<T>::value>::type>::
+    set(const size_t index, T **const to, T **const from) {
+        to[index] = *from;
+    }
 
-template<typename T>
-PyObject *ObjectLifecycleHelpers::Alloc<T,
-        PythonClassWrapper<T *, void>,
-        PythonClassWrapper<T, void>,
-        typename std::enable_if<std::is_void<typename std::remove_volatile<T>::type>::value>::type>::
-allocbase(PyObject *cls, PyObject *args, PyObject *kwds,
-          typename BasicAlloc<T>::constructor_list const &constructors) {
-    (void) args;
-    (void) kwds;
-    (void) cls;
-    PyErr_SetString(PyExc_RuntimeError, "Type is not directly constructible");
-    return nullptr;
-}
+    template<typename T>
+    PyObject *
+    ObjectLifecycleHelpers::ObjectContent<T *, typename std::enable_if<std::is_void<T>::value>::type>::
+    getObjectAt(T *const from, const size_t index, const ssize_t elements_array_size,
+                const bool asArgument) {
+        (void) from;
+        (void) index;
+        (void) elements_array_size;
+        PyErr_SetString(PyExc_TypeError, "Attempt to get element from non-array object");
+        return nullptr;
+    }
 
-
-template<typename T, typename PtrWrapper, typename ClassWrapper>
-void ObjectLifecycleHelpers::Alloc<T, PtrWrapper,
-        ClassWrapper,
-        typename std::enable_if<!std::is_void<T>::value && !std::is_function<T>::value &&
-                                (std::is_reference<T>::value || !std::is_constructible<T>::value)>::type>::
-deallocREMOVE(ObjContainer <C_NoRef> *ptr) {
-    (void) ptr;
-}
-
-template<typename T, typename PtrWrapper, typename ClassWrapper>
-PyObject *ObjectLifecycleHelpers::Alloc<T, PtrWrapper,
-        ClassWrapper,
-        typename std::enable_if<!std::is_void<T>::value && !std::is_function<T>::value &&
-                                (std::is_reference<T>::value || !std::is_constructible<T>::value)>::type>::
-allocbase(PyObject *cls, PyObject *args, PyObject *kwds,
-          typename BasicAlloc<T>::constructor_list const &constructors) {
-    (void) args;
-    (void) kwds;
-    (void) cls;
-    (void) constructors;
-    PyErr_SetString(PyExc_RuntimeError, "Type is not directly constructible");
-    return nullptr;
-}
+    template<typename T>
+    T **ObjectLifecycleHelpers::ObjectContent<T *, typename std::enable_if<std::is_void<T>::value>::type>::
+    getObjectPtr(PtrWrapper *const self) {
+        return (T **) &self->_CObject;
+    }
 
 
-template<typename T, typename PtrWrapper, typename ClassWrapper>
-void ObjectLifecycleHelpers::Alloc<T, PtrWrapper,
-        ClassWrapper,
-        typename std::enable_if<std::is_function<T>::value>::type>::
-deallocREMOVE(ObjContainer <C_NoRef> *ptr) {
-    (void) ptr;
-}
+    template<typename T>
+    void ObjectLifecycleHelpers::ObjectContent<T, typename std::enable_if<std::is_void<T>::value> >::
+    set(const size_t index, void *const to, void *const from) {
+        throw "Attempt to access element from object  of type void";
+    }
 
-template<typename T, typename PtrWrapper, typename ClassWrapper>
-PyObject *ObjectLifecycleHelpers::Alloc<T, PtrWrapper,
-        ClassWrapper,
-        typename std::enable_if<std::is_function<T>::value>::type>::
-allocbase(PyObject *cls, PyObject *args, PyObject *kwds,
-          typename BasicAlloc<T>::constructor_list const &constructors) {
-    (void) args;
-    (void) kwds;
-    (void) cls;
-    (void) constructors;
-    PyErr_SetString(PyExc_RuntimeError, "Type is not directly constructible");
-    return nullptr;
-}
+    template<typename T>
+    PyObject *ObjectLifecycleHelpers::ObjectContent<T, typename std::enable_if<std::is_void<T>::value> >::
+    getObjectAt(void *const from, const size_t index, const ssize_t elements_array_size,
+                const bool asArgument) {
+        (void) from;
+        (void) index;
+        (void) elements_array_size;
+        PyErr_SetString(PyExc_TypeError, "Attempt to get element from non-array object");
+        return nullptr;
+    }
 
-
-template<typename T, typename PtrWrapper>
-void ObjectLifecycleHelpers::ObjectContent<T *, PtrWrapper, typename std::enable_if<std::is_void<T>::value>::type>::
-set(const size_t index, T **const to, T **const from) {
-    to[index] = *from;
-}
-
-template<typename T, typename PtrWrapper>
-PyObject *
-ObjectLifecycleHelpers::ObjectContent<T *, PtrWrapper, typename std::enable_if<std::is_void<T>::value>::type>::
-getObjectAt(T *const from, const size_t index, const ssize_t elements_array_size,
-            const bool asArgument) {
-    (void) from;
-    (void) index;
-    (void) elements_array_size;
-    PyErr_SetString(PyExc_TypeError, "Attempt to get element from non-array object");
-    return nullptr;
-}
-
-template<typename T, typename PtrWrapper>
-T **ObjectLifecycleHelpers::ObjectContent<T *, PtrWrapper, typename std::enable_if<std::is_void<T>::value>::type>::
-getObjectPtr(PtrWrapper *const self) {
-    return (T **) &self->_CObject;
-}
+    template<typename T>
+    void *ObjectLifecycleHelpers::ObjectContent<T, typename std::enable_if<std::is_void<T>::value> >::
+    getObjectPtr(PtrWrapper *const self) {
+        return (void *) &self->_CObject;
+    }
 
 
-template<typename T, typename PtrWrapper>
-void ObjectLifecycleHelpers::ObjectContent<T, PtrWrapper, typename std::enable_if<std::is_void<T>::value> >::
-set(const size_t index, void *const to, void *const from) {
-    throw "Attempt to access element from object  of type void";
-}
+    template<typename T>
+    void
+    ObjectLifecycleHelpers::ObjectContent<T *const, typename std::enable_if<std::is_void<T>::value>::type>::
+    set(const size_t index, T *const *const to, T *const *const from) {
+        throw "Attempt to assign to const value";
+    }
 
-template<typename T, typename PtrWrapper>
-PyObject *ObjectLifecycleHelpers::ObjectContent<T, PtrWrapper, typename std::enable_if<std::is_void<T>::value> >::
-getObjectAt(void *const from, const size_t index, const ssize_t elements_array_size,
-            const bool asArgument) {
-    (void) from;
-    (void) index;
-    (void) elements_array_size;
-    PyErr_SetString(PyExc_TypeError, "Attempt to get element from non-array object");
-    return nullptr;
-}
+    template<typename T>
+    PyObject *
+    ObjectLifecycleHelpers::ObjectContent<T *const, typename std::enable_if<std::is_void<T>::value>::type>::
+    getObjectAt(T *const from, const size_t index, const ssize_t elements_array_size,
+                const bool asArgument) {
+        (void) from;
+        (void) index;
+        (void) elements_array_size;
+        PyErr_SetString(PyExc_TypeError, "Attempt to get element from non-array object");
+        return nullptr;
+    }
 
-template<typename T, typename PtrWrapper>
-void *ObjectLifecycleHelpers::ObjectContent<T, PtrWrapper, typename std::enable_if<std::is_void<T>::value> >::
-getObjectPtr(PtrWrapper *const self) {
-    return (void *) &self->_CObject;
-}
-
-
-template<typename T, typename PtrWrapper>
-void
-ObjectLifecycleHelpers::ObjectContent<T *const, PtrWrapper, typename std::enable_if<std::is_void<T>::value>::type>::
-set(const size_t index, T *const *const to, T *const *const from) {
-    throw "Attempt to assign to const value";
-}
-
-template<typename T, typename PtrWrapper>
-PyObject *
-ObjectLifecycleHelpers::ObjectContent<T *const, PtrWrapper, typename std::enable_if<std::is_void<T>::value>::type>::
-getObjectAt(T *const from, const size_t index, const ssize_t elements_array_size,
-            const bool asArgument) {
-    (void) from;
-    (void) index;
-    (void) elements_array_size;
-    PyErr_SetString(PyExc_TypeError, "Attempt to get element from non-array object");
-    return nullptr;
-}
-
-template<typename T, typename PtrWrapper>
-T *const *
-ObjectLifecycleHelpers::ObjectContent<T *const, PtrWrapper, typename std::enable_if<std::is_void<T>::value>::type>::
-getObjectPtr(PtrWrapper *const self) {
-    return (T *const *) &self->_CObject;
-}
+    template<typename T>
+    T *const *
+    ObjectLifecycleHelpers::ObjectContent<T *const, typename std::enable_if<std::is_void<T>::value>::type>::
+    getObjectPtr(PtrWrapper *const self) {
+        return (T *const *) &self->_CObject;
+    }
 }
 
 

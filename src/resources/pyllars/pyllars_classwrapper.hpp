@@ -20,6 +20,7 @@
 #include "pyllars_classmembersemantics.hpp"
 #include "pyllars_membersemantics.hpp"
 #include "pyllars_methodcallsemantics.hpp"
+#include "pyllars_containment.hpp"
 #include "pyllars_object_lifecycle.hpp"
 typedef const char cstring[];
 static constexpr cstring operatormapname = "operator[]";
@@ -57,6 +58,9 @@ namespace __pyllars_internal {
     typedef int (*_setattrfunc)(PyObject*, PyObject*, void*);
     typedef PyObject* (*_getattrfunc)(PyObject*, void*);
 
+    template<typename T>
+    ObjectContainer;
+
     template<typename T, typename E=void>
     class InitHelper;
 
@@ -81,10 +85,10 @@ namespace __pyllars_internal {
         // Convenience typedefs
         typedef CommonBaseWrapper::Base Base;
 
-        typedef typename ObjectLifecycleHelpers::BasicAlloc<T>::ConstructorContainer ConstructorContainer;
-        typedef typename ConstructorContainer::constructor constructor;
+        //typedef typename ObjectLifecycleHelpers::BasicAlloc<T>::ConstructorContainer ConstructorContainer;
+        //typedef typename ConstructorContainer::constructor constructor;
         typedef typename std::remove_reference<T>::type T_NoRef;
-        typedef PyTypeObject *TypePtr_t;
+        typedef PyTypeObject *TypePtr;
 
 
         /**
@@ -117,42 +121,27 @@ namespace __pyllars_internal {
          * create a Python object of this class type
          **/
         static PythonClassWrapper *createPy(const ssize_t arraySize, 
-					                        ObjContainer<T_NoRef> *const cobj,
+					                        T_NoRef & cobj,
                                             const bool isAllocated,
                                             const bool inPlace,
                                             PyObject *referencing = nullptr) ;
 
-        /**
-         * Create an instance of underlying class based on python arguments converting them to C to call
-         * the constructor
-         *
-         * @param kwlist: list of keyword names of the Python parameters
-         * @param args: list of Python args from the Python call into the C constructor
-         * @params kwds: keywoards bassed into the copnstructor
-         * @param cobj: container to hold the C-like object created
-         * @param inPlace: whether to create in-memory (existing allocation)
-         **/
-        template<typename ...Args>
-        static bool create(const char *const kwlist[], PyObject *args, PyObject *kwds, ObjContainer<T_NoRef> *&cobj,
-                           const bool inPlace) ;
+        tempalte<typename ...Args>
+        static PythonClassWrapper *constructPy(const ssize_t arraySize,
+                                            Args ...args,
+                                            const bool isAllocated,
+                                            const bool inPlace,
+                                            PyObject *referencing = nullptr) ;
 
-        /**
-         * return Python object representing the address of the contained object
-         **/
+         /**
+          * return Python object representing the address of the contained object
+          **/
         static PyObject *addr(PyObject *self, PyObject *args) ;
 
         /**
-        * Add a base class to this Python definition (called before initialize)
-        **/
-        static void addBaseClass(PyTypeObject *base) ;
-
-        /**
-         * Add a constructor for this type
-         *
-         * @param kwlist: keyword list of items that can be used in call parameters
-         * @param c: the constructor method to be added
+         * Add a base class to this Python definition (called before initialize)
          **/
-        static void addConstructorBase(const char *const kwlist[], constructor c) ;
+        static void addBaseClass(PyTypeObject *base) ;
 
         /**
          * add a constructor method with given compile-time-known name to the contained collection
@@ -480,6 +469,7 @@ namespace __pyllars_internal {
                 _member_setters["this"] = _pyAssign;
             _assigners.push_back(func);
         }
+
         static bool _isInitialized;
 
     protected:
@@ -488,9 +478,32 @@ namespace __pyllars_internal {
 
         // must use object container, since code may have new and delete private and container
         // will shield us from that
-        ObjContainer<T_NoRef> *_CObject;
+        ObjectContainer<T> *_CObject;
 
     private:
+
+        typedef ObjectContainer<T>* (*constructor_t)(const char *const kwlist[], PyObject *args, PyObject *kwds, const bool in_place);
+
+        /**
+         * Add a constructor for this type
+         *
+         * @param kwlist: keyword list of items that can be used in call parameters
+         * @param c: the constructor method to be added
+         **/
+        static void addConstructorBase(const char *const kwlist[], constructor_t c) ;
+
+        /**
+          * Create an instance of underlying class based on python arguments converting them to C to call
+          * the constructor
+          *
+          * @param kwlist: list of keyword names of the Python parameters
+          * @param args: list of Python args from the Python call into the C constructor
+          * @params kwds: keywoards bassed into the copnstructor
+          * @param cobj: container to hold the C-like object created
+          * @param inPlace: whether to create in-memory (existing allocation)
+          **/
+        template<typename ...Args>
+        static ObjectContainer<T>* create(const char *const kwlist[], PyObject *args, PyObject *kwds) ;
 
         static PyObject* getThis(PyObject* self, void*){
             return addr(self, nullptr);
@@ -547,11 +560,11 @@ namespace __pyllars_internal {
          * two lower level create functions
          **/
         template<typename ...Args>
-        static bool _createBaseBase(ObjContainer<T_NoRef> *&cobj, Args ... args);
+        static bool _createBaseBase(ObjectContainer<T_NoRef> *&cobj, Args ... args);
 
         template<typename ...Args, int ...S >
         static bool _createBase
-                (ObjContainer<T_NoRef> *&cobj, PyObject *args, PyObject *kwds,
+                (ObjectContainer<T_NoRef> *&cobj, PyObject *args, PyObject *kwds,
                  const char *const kwlist[], container<S...> unused1, _____fake<Args> *... unused2);
 
         /**
@@ -564,7 +577,7 @@ namespace __pyllars_internal {
         static PyObject* _mapGet(PyObject* self, PyObject* key);
         static int _mapSet(PyObject* self, PyObject* key, PyObject* value);
 
-        static std::vector<ConstructorContainer> _constructors;
+        static std::vector<constructor_t> _constructors;
         static std::map<std::string, PyMethodDef> _methodCollection;
         static std::map<std::string, std::pair<std::function<PyObject*(PyObject*, PyObject*)>,
                                      std::function<int(PyObject*, PyObject*, PyObject*)>

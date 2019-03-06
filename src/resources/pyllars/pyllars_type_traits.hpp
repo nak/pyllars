@@ -5,6 +5,17 @@
 
 namespace __pyllars_internal {
     template<typename T>
+    struct is_bool{
+        static constexpr bool value = false;
+    };
+
+    template<>
+    struct is_bool<bool>{
+        static constexpr bool value = true;
+    };
+
+
+    template<typename T>
     struct core_type{
         typedef typename std::remove_const<typename std::remove_volatile
                 <typename std::remove_reference<T>::type>::type>::type type;

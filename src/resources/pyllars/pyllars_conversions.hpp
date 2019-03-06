@@ -192,11 +192,11 @@ namespace __pyllars_internal {
          * Define conversion helper class, which allows easier mechanism
          * for necessary specializations
          **/
-        template<typename T, typename PtrWrapper, typename E = void>
+        template<typename T, typename E = void>
         class PyObjectConversionHelper;
 
-        template<typename PtrWrapper>
-        class PyObjectConversionHelper<bool, PtrWrapper, void>{
+        template<typename T>
+        class PyObjectConversionHelper<T, typename is_bool<T>::value>{
            static PyObject *toPyObject(const bool &var, const bool asReference, const ssize_t array_size = -1){
                                        return var?Py_True:Py_False;
            }
@@ -205,14 +205,15 @@ namespace __pyllars_internal {
         /**
          * specialize for non-copiable types
          **/
-        template<typename T, typename ClassWrapper>
-        class PyObjectConversionHelper<T, ClassWrapper,
+        template<typename T>
+        class PyObjectConversionHelper<T,
                 typename std::enable_if<!std::is_integral<T>::value &&
                                         !std::is_enum<T>::value &&
                                         !std::is_floating_point<T>::value &&
                                         !is_c_string_like<T>::value &&
                                         !is_bytes_like<T>::value>::type> {
         public:
+            typedef PythonClassWrapper<T> ClassWrapper;
             typedef typename std::remove_reference<T>::type T_NoRef;
 
             static PyObject *toPyObject(T_NoRef &var, const bool asReference, const ssize_t array_size = -1);
@@ -223,29 +224,32 @@ namespace __pyllars_internal {
         /**
          * specialize for integer types
          **/
-        template<typename T, typename ClassWrapper>
-        class PyObjectConversionHelper<T, ClassWrapper, typename std::enable_if<
+        template<typename T>
+        class PyObjectConversionHelper<T, typename std::enable_if<
                 std::is_integral<T>::value || std::is_enum<T>::value>::type> {
         public:
+            typedef PythonClassWrapper<T> ClassWrapper;
             static PyObject *toPyObject(const T &var, const bool asReference, const ssize_t array_size = -1);
         };
 
         /**
          * specialize for floating point types
          **/
-        template<typename T, typename ClassWrapper>
-        class PyObjectConversionHelper<T, ClassWrapper, typename std::enable_if<std::is_floating_point<T>::value>::type> {
+        template<typename T>
+        class PyObjectConversionHelper<T, typename std::enable_if<std::is_floating_point<T>::value>::type> {
         public:
+            typedef PythonClassWrapper<T> ClassWrapper;
             static PyObject *toPyObject(const T &var, const bool asReference, const ssize_t array_size = -1);
         };
 
         /**
          * Specialized for char*:
          **/
-        template<typename T, typename ClassWrapper>
-        class PyObjectConversionHelper<T, ClassWrapper, typename std::enable_if<is_c_string_like<T>::value ||
+        template<typename T>
+        class PyObjectConversionHelper<T, typename std::enable_if<is_c_string_like<T>::value ||
                 is_bytes_like<T>::value>::type > {
         public:
+            typedef PythonClassWrapper<T> ClassWrapper;
             static PyObject *toPyObject(T &var, const bool asReference, const ssize_t array_size = -1);
         };
 

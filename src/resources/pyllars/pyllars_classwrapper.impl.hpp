@@ -144,7 +144,7 @@ namespace __pyllars_internal{
 
     template<typename T>
     std::vector<typename PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::
-    ConstructorContainer>
+    constructor_t>
             PythonClassWrapper<T,
                     typename std::enable_if<is_rich_class<T>::value>::type>::
             _constructors;
@@ -847,10 +847,10 @@ namespace __pyllars_internal{
     template<typename T>
     PythonClassWrapper<T,
             typename std::enable_if<is_rich_class<T>::value>::type>
-                     *PythonClassWrapper<T,
+                     *PythonClassWrapper<TP,
             typename std::enable_if<is_rich_class<T>::value>::type>::
     createPy
-            (const ssize_t arraySize, ObjContainer<T_NoRef> *const cobj, const bool isAllocated,
+            (const ssize_t arraySize, T_NoRef &cobj, const bool isAllocated,
              const bool inPlace, PyObject *referencing) {
         static PyObject *kwds = PyDict_New();
         static PyObject *emptyargs = PyTuple_New(0);
@@ -863,7 +863,7 @@ namespace __pyllars_internal{
         }
         PythonClassWrapper *pyobj = (PythonClassWrapper *) PyObject_Call((PyObject *) type_, emptyargs, kwds);
         if(pyobj) {
-            pyobj->_CObject = cobj;
+            pyobj->_CObject = new ObjectContainer<T>(cobj);
             pyobj->_allocated = isAllocated;
             pyobj->_inPlace = inPlace;
             pyobj->_arraySize = 0;
@@ -875,27 +875,23 @@ namespace __pyllars_internal{
     template<typename T>
     void PythonClassWrapper<T,
             typename std::enable_if<is_rich_class<T>::value>::type>::
-    addConstructorBase(const char *const kwlist[], constructor c) {
+    addConstructorBase(const char *const kwlist[], constructor_t c) {
         _constructors.push_back(ConstructorContainer(kwlist, c));
     }
 
 
-
-
     template<typename T>
     template<typename ...Args>
-    bool PythonClassWrapper<T,
-            typename std::enable_if<is_rich_class<T>::value>::type>::
-    create(const char *const kwlist[], PyObject *args, PyObject *kwds, ObjContainer<T_NoRef> *&cobj,
-           const bool inPlace) {
+    ObjectContainer<T>*
+    PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::
+    ObjectContainer<T> *create(const char *const kwlist[], PyObject *args, PyObject *kwds) {
         try {
-            return _createBase<Args...>(cobj, args, kwds, kwlist, typename argGenerator<sizeof...(Args)>::type(),
+            return _createBase<Args...>(args, kwds, kwlist, typename argGenerator<sizeof...(Args)>::type(),
                                (_____fake<Args>*) nullptr...);
 
         } catch (const char *const msg) {
             PyErr_SetString(PyExc_RuntimeError, msg);
-            PyErr_Print();
-            return false;
+            return nullptr;
         }
     }
 
@@ -1160,7 +1156,56 @@ namespace __pyllars_internal{
     PyObject *PythonClassWrapper<T,
             typename std::enable_if<is_rich_class<T>::value>::type>::
     alloc(PyObject *cls, PyObject *args, PyObject *kwds) {
-        return ObjectLifecycleHelpers::Alloc<T, PythonClassWrapper<T_NoRef *>, PythonClassWrapper>::allocbase
+        /**
+         * Takes no kwds
+         * args is of length 1
+         * if arg is int value, allocate array of that size based on default constructor (or raise exc if no such constructor)
+         * If arg is a tuple, use that as the arguments to a constructor for allocation of single item
+         * If arg is a list of tuples, cosntrcut an array of that size of objects using each tuple as cosntructor args
+         *  (allocation will be through generic byte buffer and then in-place-memory allocation)
+         */
+         if(kwds && PyDict_Size(kwds)!= 0){
+             PyErr_SetString(PyExc_TypeError, "new takes not key words");
+         }
+         if(PyTuple_Size(args) != 1){
+             PyErr_SetString(PyExc_TypeError, "new takes only one arg (and int, a tuple, or list of tuples)")
+         }
+         auto arg = PyList_GetItem(args, 0);
+         if (PyLong_Check(arg)){
+             const size_t size = PyLong_FromLong(arg);
+             T* values = new T[size];
+             return PythonClassWrapper<T*>::createPy2(size, &values, true, false);
+         } else if (PyTuple_Check(arg)){
+             auto list = PyList_New(1);
+             PyList_SetItem(list, 0, arg);
+             alloc(cls, list, kwds);
+         }  else if (PyList_Check(arg)) {
+             const size_t size = PyList_Size(arg);
+             unsigned char* bytes = new unsigned char[sizeof(T)*size];
+             T_NoRef* objs = (T_NoRef*) bytes;
+             for (size_t i = 0; i < size; ++i) {
+                 ObjContainerProxy<T, T> cobj(objs[i]);
+                 bool successful = false;
+                 for (auto const &constructor : PythonClassWrapper<T>::_constructors) {
+                     try {
+                         if (successful = constructor(args, kwds, cobj, true)) {
+                             self->_allocated = (self->_CObject != nullptr);
+                             self->_inPlace = false;
+                             self->_isInitialized = false;
+                             self->_arraySize = 0;
+                             return 0;
+                         }
+                     } catch (...) {
+                     }
+                     PyErr_Clear();
+                 }
+                 if (!successful){
+                     PyErr_SetString(PyExc_TypeError, "No matching constructor");
+                     return nullptr;
+                 }
+             }
+         }
+        return ObjectLifecycleHelpers::Alloc<T>::allocbase
                 (cls, args, kwds, _constructors);
     }
 
@@ -1241,24 +1286,19 @@ namespace __pyllars_internal{
 
     template<typename T>
     template<typename ...Args>
-    bool PythonClassWrapper<T,
+    ObjContainer<T>*
+    PythonClassWrapper<T,
             typename std::enable_if<is_rich_class<T>::value>::type>::
-    _createBaseBase(ObjContainer<T_NoRef> *&cobj,  Args ... args) {
-        if (!cobj) {
-            cobj = new ObjContainerProxy<T_NoRef, Args ...>(std::forward<Args>(args)...);
-            return cobj != nullptr;
-        }
-        cobj->set_contents(args...);
-          //new(cobj) ObjContainerProxy<T_NoRef, Args& ...>(args...);
-
-        return true;
+    _createBaseBase(Args ... args) {
+        return new ObjectContainerConstructed<T>(args...);
     }
 
 
     template<typename T>
     template<typename ...Args, int ...S >
-    bool PythonClassWrapper<T,  typename std::enable_if<is_rich_class<T>::value>::type>::
-    _createBase( ObjContainer<T_NoRef> *&cobj, PyObject *args, PyObject *kwds,
+    ObjectContainer<T> *
+    PythonClassWrapper<T,  typename std::enable_if<is_rich_class<T>::value>::type>::
+    _createBase( PyObject *args, PyObject *kwds,
                  const char *const kwlist[],  container<S...> , _____fake<Args> *... ) {
         if (args && PyTuple_Size(args) != sizeof...(Args)) {
             return false;
@@ -1271,8 +1311,7 @@ namespace __pyllars_internal{
         }
 
         return _createBaseBase<Args...>
-                (cobj,
-                std::forward<Args>(*toCArgument<Args,  defaults_to_string<Args>::value>(*pyobjs[S]))...);
+                (std::forward<Args>(*toCArgument<Args,  defaults_to_string<Args>::value>(*pyobjs[S]))...);
     }
 
 

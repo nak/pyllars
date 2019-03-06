@@ -107,8 +107,7 @@ namespace __pyllars_internal {
 
             static T_NoRef *new_copy(T_NoRef *const value);
 
-            static void inplace_copy(T_NoRef *const to, const Py_ssize_t index, const T_NoRef *const from,
-                                     const bool in_place);
+            static void inplace_copy(T_NoRef *const to, const Py_ssize_t index, const T_NoRef *const from);
         };
 
         template<typename T>
@@ -122,8 +121,7 @@ namespace __pyllars_internal {
 
             static T_NoRef *new_copy(T_NoRef *const value) ;
 
-            static void inplace_copy(T_NoRef *const to, const Py_ssize_t index, const T_NoRef *const from,
-                                     const bool in_place);
+            static void inplace_copy(T_NoRef *const to, const Py_ssize_t index, const T_NoRef *const from);
         };
 
         template<typename T>
@@ -156,8 +154,7 @@ namespace __pyllars_internal {
 
             static T_array *new_copy(T_array *const value);
 
-            static void inplace_copy(T_array *const to, const Py_ssize_t index, const T_array *const from,
-                                     const bool in_place);
+            static void inplace_copy(T_array *const to, const Py_ssize_t index, const T_array *const from);
         };
 
         template<typename T, size_t size>
@@ -171,8 +168,7 @@ namespace __pyllars_internal {
 
             static T_array *new_copy(T_array *const value);
 
-            static void inplace_copy(T_array *const to, const Py_ssize_t index, const T_array *const from,
-                                     const bool in_place);
+            static void inplace_copy(T_array *const to, const Py_ssize_t index, const T_array *const from);
         };
 
         template<typename T>
@@ -186,8 +182,7 @@ namespace __pyllars_internal {
 
             static T_NoRef *new_copy(T_NoRef *const value);
 
-            static void inplace_copy(T_NoRef *const to, const Py_ssize_t index, const T_NoRef *const from,
-                                     const bool in_place);
+            static void inplace_copy(T_NoRef *const to, const Py_ssize_t index, const T_NoRef *const from);
         };
 
 
@@ -202,8 +197,9 @@ namespace __pyllars_internal {
 
             static T_array* new_copy(T_array *const value){ throw "cannot copy oobject : is not copy construcftible";}
 
-            static void inplace_copy(T_array *const to, const Py_ssize_t index, const T_array *const from,
-                                     const bool in_place){ throw "cannot copy oobject : is not copy construcftible";}
+            static void inplace_copy(T_array *const to, const Py_ssize_t index, const T_array *const from){
+                throw "cannot copy oobject : is not copy construcftible";
+            }
         };
 
 
@@ -278,17 +274,18 @@ namespace __pyllars_internal {
          * Helper for Setting and Getting T values in dereferencing
          * pointer-to-class objects
          **/
-        template<typename T, typename Wrapper = PythonClassWrapper<T>, typename Z = void>
+        template<typename T, typename Z = void>
         class ObjectContent;
 
         /**
          * Specialization for non-pointer copiable and assignable class (instances)
          **/
-        template<typename T, typename ClassWrapper>
-        class ObjectContent<T, ClassWrapper,
+        template<typename T>
+        class ObjectContent<T,
                 typename std::enable_if<
                         !std::is_void<T>::value && !std::is_pointer<T>::value && !std::is_array<T>::value>::type> {
         public:
+            typedef PythonClassWrapper<T> ClassWrapper;
             typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
 
             static PyObject *getObjectAt(T const from, const size_t index, const ssize_t elements_array_size,
@@ -303,13 +300,14 @@ namespace __pyllars_internal {
         /**
          * Specialization for non-const copy-constructible non-ptr-to-void non-const pointer types
          **/
-        template<typename T, typename PtrWrapper>
-        class ObjectContent<T, PtrWrapper,
+        template<typename T>
+        class ObjectContent<T,
                 typename std::enable_if<!std::is_function<typename std::remove_pointer<T>::type>::value &&
                                         !std::is_void<typename std::remove_pointer<T>::type>::value &&
                                         is_complete<typename std::remove_pointer<T>::type>::value &&
                                         (std::is_array<T>::value || std::is_pointer<T>::value)>::type> {
         public:
+            typedef PythonClassWrapper<T> PtrWrapper;
             typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
 
             static PyObject *getObjectAt(T from, const size_t index, const ssize_t elements_array_size,
@@ -322,12 +320,13 @@ namespace __pyllars_internal {
         };
 
         /**
-         * Specialization for non-const copy-constructible non-ptr-to-void non-const pointer types
+         * Specialization for function types
          **/
-        template<typename T, typename PtrWrapper>
-        class ObjectContent<T, PtrWrapper,
+        template<typename T>
+        class ObjectContent<T,
                 typename std::enable_if<std::is_function<typename std::remove_pointer<T>::type>::value>::type> {
         public:
+            typedef PythonClassWrapper<T> PtrWrapper;
             typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
 
             static PyObject *getObjectAt(T const from, const size_t index, const ssize_t elements_array_size,
@@ -342,12 +341,13 @@ namespace __pyllars_internal {
         /*
         * Specialization for non-const copy-constructible non-ptr-to-void non-const pointer types
         **/
-        template<typename T, typename PtrWrapper>
-        class ObjectContent<T, PtrWrapper,
+        template<typename T>
+        class ObjectContent<T,
                 typename std::enable_if<!is_complete<typename std::remove_pointer<T>::type>::value &&
                                         !std::is_function<typename std::remove_pointer<T>::type>::value &&
                                         !std::is_void<typename std::remove_pointer<T>::type>::value>::type> {
         public:
+            typedef PythonClassWrapper<T> PtrWrapper;
             typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
 
             static PyObject *getObjectAt(T const from, const size_t index, const ssize_t elements_array_size,
@@ -367,52 +367,39 @@ namespace __pyllars_internal {
          * Basic deallocation is to assume no special deconstruction is needed, just
          * basic cleanup
          **/
-        template<typename PtrWrapper>
+        template<typename T>
         struct BasicDeallocation {
-            static void _free(PtrWrapper *self);
+            typedef PythonClassWrapper<T> PtrWrapper;
+            static void _free(T obj, const bool as_array);
         };
 
-        template<typename Tptr, typename PtrWrapper, typename E = void>
+        template<typename Tptr, typename E = void>
         struct Deallocation;
 
         /**
          * If core type is not and array and is destructible, call in-place destructor
          * if needed in addition to basic clean-up
          **/
-        template<typename T, typename PtrWrapper>
-        struct Deallocation<T, PtrWrapper, typename std::enable_if<
+        template<typename T>
+        struct Deallocation<T, typename std::enable_if<
                 (std::is_pointer<T>::value || std::is_array<T>::value) &&
-                std::is_class<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value &&
                 std::is_destructible<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value
         >::type> {
-
-            typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
-
-            static void _free(PtrWrapper *self);
+            typedef PythonClassWrapper<T> PtrWrapper;
+            static void _free(T obj, const bool as_array);
 
         };
+
 
         /**
          * If core type is not and array and is destructible, call in-place destructor
          * if needed in addition to basic clean-up
          **/
-        template<typename T, typename PtrWrapper>
-        struct Deallocation<T, PtrWrapper, typename std::enable_if<
-                (std::is_pointer<T>::value || std::is_array<T>::value) &&
-                !std::is_class<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value &&
-                std::is_destructible<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value
-                 >::type> {
-            static void _free(PtrWrapper *self);
-        };
-
-        /**
-         * If core type is not and array and is destructible, call in-place destructor
-         * if needed in addition to basic clean-up
-         **/
-        template<typename T, typename PtrWrapper>
-        struct Deallocation<T, PtrWrapper, typename std::enable_if<
+        template<typename T>
+        struct Deallocation<T, typename std::enable_if<
                 !std::is_destructible<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value>::type> {
-            static void _free(PtrWrapper *self);
+            typedef PythonClassWrapper<T> PtrWrapper;
+            static void _free(T obj, const bool as_array);
         };
 
 
@@ -427,14 +414,11 @@ namespace __pyllars_internal {
 
             class ConstructorContainer {
             public:
-                typedef bool(*constructor)(const char *const kwlist[], PyObject *args, PyObject *kwds,
-                                           ObjContainer <T_NoRef> *&cobj, const bool in_place);
+                typedef T_NoRef* (*constructor)(const char *const kwlist[], PyObject *args, PyObject *kwds, const bool in_place);
 
-                ConstructorContainer(const char *const kwlist[],
-                                     constructor c);
+                ConstructorContainer(const char *const kwlist[],  constructor c);
 
-                bool operator()(PyObject *args, PyObject *kwds, ObjContainer <T_NoRef> *&cobj,
-                                const bool in_place) const ;
+                T_NoRef* operator()(PyObject *args, PyObject *kwds,  const bool in_place) const ;
 
             private:
                 const char *const *const _kwlist;
@@ -448,48 +432,46 @@ namespace __pyllars_internal {
         };
 
 
-        template<typename T,
-                typename PtrWrapper,
-                typename ClassWrapper,
-                typename Z = void>
+        template<typename T, typename Z = void>
         struct Alloc;
 
-        template<typename T,
-                typename PtrWrapper,
-                typename ClassWrapper>
-        struct Alloc<T, PtrWrapper, ClassWrapper,
+        template<typename T>
+        struct Alloc<T,
                      typename std::enable_if<!is_function_ptr<T>::value && !std::is_reference<T>::value &&
-                                        std::is_constructible<T>::value &&
-                                        std::is_destructible<T>::value>::type> : public BasicAlloc<T> {
-
+                             std::is_constructible<T>::value &&
+                             !std::is_pointer<T>::value>::type> : public BasicAlloc<T> {
+            typedef PythonClassWrapper<T*> PtrWrapper;
             typedef typename std::remove_reference<T>::type T_NoRef;
-
-            static void deallocREMOVE(ObjContainer <T_NoRef> *ptr, const bool inPlace, const size_t size);
-
 
             static PyObject *allocbase(PyObject *cls, PyObject *args, PyObject *kwds,
                                        typename BasicAlloc<T>::constructor_list const &constructors);
         };
 
-        template<typename T, typename PtrWrapper, typename ClassWrapper>
-        struct Alloc<T, PtrWrapper,
-                     ClassWrapper,
-                     typename std::enable_if<!is_function_ptr<T>::value && !std::is_reference<T>::value &&
-                                             std::is_constructible<T>::value &&
-                                             !std::is_destructible<T>::value>::type> : public BasicAlloc<T> {
-
+        template<typename T>
+        struct Alloc<T,
+                typename std::enable_if<!is_function_ptr<T>::value && !std::is_reference<T>::value &&
+                                        std::is_constructible<T>::value &&
+                                        std::is_pointer<T>::value>::type > : public BasicAlloc<T> {
+            typedef PythonClassWrapper<T*> PtrWrapper;
             typedef typename std::remove_reference<T>::type T_NoRef;
 
-            static void deallocREMOVE(ObjContainer <T_NoRef> *ptr, const bool inPlace, const size_t size);
+            static PyObject *allocbase(PyObject *cls, PyObject *args, PyObject *kwds,
+                                       typename BasicAlloc<T>::constructor_list const &constructors);
+        };
+
+        template<typename T>
+        struct Alloc<T,
+                     typename std::enable_if<!is_function_ptr<T>::value && !std::is_reference<T>::value &&
+                                             !std::is_constructible<T>::value >::type> : public BasicAlloc<T> {
+            typedef PythonClassWrapper<T*> PtrWrapper;
+            typedef typename std::remove_reference<T>::type T_NoRef;
 
             static PyObject *allocbase(PyObject *cls, PyObject *args, PyObject *kwds,
                                        typename BasicAlloc<T>::constructor_list const &constructors);
         };
 
         template<typename ReturnType, typename ...Args>
-        struct Alloc<ReturnType(*)(Args...), PythonClassWrapper<ReturnType(**)(Args...)>,
-                PythonClassWrapper<ReturnType(*)(Args...)>,
-                void> :
+        struct Alloc<ReturnType(*)(Args...), void> :
                 public BasicAlloc<ReturnType(*)(Args...)> {
 
             typedef PythonClassWrapper<ReturnType(**)(Args...), void> PtrWrapper;
@@ -498,8 +480,32 @@ namespace __pyllars_internal {
 
             typedef typename std::remove_reference<T>::type T_NoRef;
 
-            static void deallocREMOVE(ObjContainer <T_NoRef> *ptr, const bool inPlace, const size_t size,
-                                      const bool nonononon);
+            static PyObject *allocbase(PyObject *cls, PyObject *args, PyObject *kwds,
+                                       typename BasicAlloc<T>::constructor_list const &constructors);
+
+        };
+
+        template<typename T>
+        struct Alloc<T,
+                typename std::enable_if<std::is_void<typename std::remove_volatile<T>::type>::value>::type> :
+                public BasicAlloc<T> {
+
+            typedef PythonClassWrapper<void *, void> PtrWrapper;
+            typedef typename std::remove_reference<T>::type C_NoRef;
+
+            static PyObject *allocbase(PyObject *cls, PyObject *args, PyObject *kwds,
+                                       typename BasicAlloc<T>::constructor_list const &constructors);
+
+        };
+
+
+        template<typename T>
+        struct Alloc<T,
+                typename std::enable_if<!std::is_void<T>::value && !std::is_function<T>::value &&
+                                        (std::is_reference<T>::value || !std::is_constructible<T>::value)>::type> :
+                public BasicAlloc<T> {
+            typedef PythonClassWrapper<T*> PtrWrapper;
+            typedef typename std::remove_reference<T>::type C_NoRef;
 
             static PyObject *allocbase(PyObject *cls, PyObject *args, PyObject *kwds,
                                        typename BasicAlloc<T>::constructor_list const &constructors);
@@ -508,47 +514,10 @@ namespace __pyllars_internal {
 
         template<typename T>
         struct Alloc<T,
-                PythonClassWrapper<T *, void>,
-                PythonClassWrapper<T, void>,
-                typename std::enable_if<std::is_void<typename std::remove_volatile<T>::type>::value>::type> :
-                public BasicAlloc<T> {
-
-            typedef PythonClassWrapper<void *, void> PtrWrapper;
-            typedef typename std::remove_reference<T>::type C_NoRef;
-
-            static void deallocREMOVE(ObjContainer <C_NoRef> *ptr);
-
-            static PyObject *allocbase(PyObject *cls, PyObject *args, PyObject *kwds,
-                                       typename BasicAlloc<T>::constructor_list const &constructors);
-
-        };
-
-
-        template<typename T, typename PtrWrapper, typename ClassWrapper>
-        struct Alloc<T, PtrWrapper,
-                ClassWrapper,
-                typename std::enable_if<!std::is_void<T>::value && !std::is_function<T>::value &&
-                                        (std::is_reference<T>::value || !std::is_constructible<T>::value)>::type> :
-                public BasicAlloc<T> {
-
-            typedef typename std::remove_reference<T>::type C_NoRef;
-
-            static void deallocREMOVE(ObjContainer <C_NoRef> *ptr);
-
-            static PyObject *allocbase(PyObject *cls, PyObject *args, PyObject *kwds,
-                                       typename BasicAlloc<T>::constructor_list const &constructors);
-
-        };
-
-        template<typename T, typename PtrWrapper, typename ClassWrapper>
-        struct Alloc<T, PtrWrapper,
-                ClassWrapper,
                 typename std::enable_if<std::is_function<T>::value>::type> :
                 public BasicAlloc<T> {
-
+            typedef PythonClassWrapper<T*> PtrWrapper;
             typedef typename std::remove_reference<T>::type C_NoRef;
-
-            static void deallocREMOVE(ObjContainer <C_NoRef> *ptr);
 
             static PyObject *allocbase(PyObject *cls, PyObject *args, PyObject *kwds,
                                        typename BasicAlloc<T>::constructor_list const &constructors);
@@ -560,9 +529,10 @@ namespace __pyllars_internal {
     /**
      * Specialization for void-pointer type
      **/
-    template<typename T, typename PtrWrapper>
-    class ObjectLifecycleHelpers::ObjectContent<T *, PtrWrapper, typename std::enable_if<std::is_void<T>::value>::type> {
+    template<typename T>
+    class ObjectLifecycleHelpers::ObjectContent<T *, typename std::enable_if<std::is_void<T>::value>::type> {
     public:
+        typedef PythonClassWrapper<T> PtrWrapper;
 
         static void set(const size_t index, T **const to, T **const from);
 
@@ -574,9 +544,10 @@ namespace __pyllars_internal {
     };
 
 
-    template<typename T, typename PtrWrapper>
-    class ObjectLifecycleHelpers::ObjectContent<T, PtrWrapper, typename std::enable_if<std::is_void<T>::value> > {
+    template<typename T>
+    class ObjectLifecycleHelpers::ObjectContent<T, typename std::enable_if<std::is_void<T>::value> > {
     public:
+        typedef PythonClassWrapper<T> PtrWrapper;
 
         static void set(const size_t index, void *const to, void *const from) ;
 
@@ -590,9 +561,10 @@ namespace __pyllars_internal {
     /**
      * Specialization for void-pointer type
      **/
-    template<typename T, typename PtrWrapper>
-    class ObjectLifecycleHelpers::ObjectContent<T *const, PtrWrapper, typename std::enable_if<std::is_void<T>::value>::type> {
+    template<typename T>
+    class ObjectLifecycleHelpers::ObjectContent<T *const, typename std::enable_if<std::is_void<T>::value>::type> {
     public:
+        typedef PythonClassWrapper<T> PtrWrapper;
 
         static void set(const size_t index, T *const *const to, T *const *const from);
 

@@ -19,3 +19,16 @@ add_custom_target(testCoverage ALL
         COMMAND ./runPyllarsTest && mkdir -p res && lcov -o res/testcov.out -c -d . && genhtml -o res res/testcov.out && google-chrome --new-window ./res/pyllars/index.html
         WORKING_DIRECTORY .
         COMMENT Generated test coverage)
+
+add_executable(runContainmentTests
+        /opt/googletest/googletest/src/gtest_main.cc
+        /opt/googletest/googletest/src/gtest-all.cc
+        cpp/test_containment.cpp
+        )
+target_link_libraries(runContainmentTests PUBLIC pthread)
+
+add_custom_target(testCoverageContainment ALL
+        DEPENDS runContainmentTests
+        COMMAND ./runContainmentTests && mkdir -p res && lcov -o res/testcov.out -c -d . && genhtml -o res res/testcov.out && google-chrome --new-window ./res/pyllars/index.html
+        WORKING_DIRECTORY .
+        COMMENT Generated test coverage)
