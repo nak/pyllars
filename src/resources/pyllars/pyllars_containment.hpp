@@ -22,6 +22,7 @@ namespace __pyllars_internal{
         };
     }
 
+    /////////////////////////////////////////////////////
 
     // DESTRUCTOR LOGIC
 
@@ -90,6 +91,82 @@ namespace __pyllars_internal{
             throw "attempt to deallocate indestructible type";
         }
     };
+
+
+    ///////////////////////////////////
+
+    template<typename T, typename Z=void>
+    struct Constructor;
+
+    template<typename T>
+    struct Constructor<T, typename std::enable_if<std::is_constructible<T>::value && !std::is_array<T>::value>::type>{
+        template<typename ...Args>
+        static T* inplace_allocate(T& obj, Args ...args){
+            return new ((void*)&obj)T(args...);
+        }
+
+        template<typename ...Args>
+        static T* allocate(Args ...args){
+            return new T(args...);
+        }
+
+
+        template<typename ...Args>
+        static T* allocate_array(const size_t size, Args ...args){
+            return new T[size]{T(args...)};
+        }
+    };
+
+
+    template<typename T, size_t size>
+    struct Constructor<T[size], typename std::enable_if<std::is_constructible<T>::value>::type>{
+        typedef T T_array[size];
+
+        static T_array* inplace_allocate(T_array& obj, T_array & from){
+            for(size_t i = 0; i < size; ++i){
+                new ((void*)&obj[i])T(from[i]);
+            }
+            return &obj;
+        }
+
+        static T_array* inplace_allocate(T_array& obj, T* const from){
+            for(size_t i = 0; i < size; ++i){
+                new ((void*)&obj[i])T(from[i]);
+            }
+            return &obj;
+        }
+
+        template<typename ...Args>
+        static T* allocate(Args ...args){
+            return new T[size]{T(args...)};
+        }
+
+        template<typename ...Args>
+        static T* allocate_array(const size_t _size, Args ...args){
+            throw "Cannot instantiate object of given type per rules of C++";
+        }
+    };
+
+
+    template<typename T>
+    struct Constructor<T, typename std::enable_if<!std::is_constructible<T>::value>::type>{
+        template<typename ...Args>
+        static T* inplace_allocate(T& obj, Args ...args){
+            throw "Cannot instantiate object of given type per rules of C++";
+        }
+
+        template<typename ...Args>
+        static T* allocate(Args ...args){
+            throw "Cannot instantiate object of given type per rules of C++";
+        }
+
+        template<typename ...Args>
+        static T* allocate_array(const size_t size, Args ...args){
+            throw "Cannot instantiate object of given type per rules of C++";
+        }
+    };
+    ///////////////////////////////////
+
 
     template<typename T>
     struct ObjectContainer{
@@ -230,13 +307,16 @@ namespace __pyllars_internal{
     template<typename T, size_t size>
     struct ObjectContainerInPlace<T[size], T[size]>: public ObjectContainer<T[size]>{
 
-        ObjectContainerInPlace(T obj[size],  T arg[size]):
-                ObjectContainer<T[size]>(((FixedArrayHelper<T, size>*)obj)->value){
-            typedef T T_array[size];
-            T_array* values = this->ptr();
-            for(size_t i = 0; i < size; ++i){
-                values[0][i] = arg[i];
-            }
+        typedef T T_array[size];
+
+        ObjectContainerInPlace(T_array& obj,  T_array &arg):
+                ObjectContainer<T[size]>(*Constructor<T[size]>::inplace_allocate(obj, arg)){
+
+        }
+
+        ObjectContainerInPlace(T_array& obj,  T* arg):
+                ObjectContainer<T[size]>(*Constructor<T[size]>::inplace_allocate(obj, arg)){
+
         }
 
         ~ObjectContainerInPlace(){

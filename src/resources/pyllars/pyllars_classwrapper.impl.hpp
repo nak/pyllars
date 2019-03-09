@@ -1139,7 +1139,7 @@ namespace __pyllars_internal{
          auto arg = PyList_GetItem(args, 0);
          if (PyLong_Check(arg)){
              const size_t size = PyLong_AsLong(arg);
-             T* values = new T[size]{T()};
+             T* values = Constructor<T>::allocate_array(size);
              return (PyObject*) PythonClassWrapper<T*>::createPy(size, values, ContainmentKind::ALLOCATED);
          } else if (PyTuple_Check(arg)){
              auto list = PyList_New(1);

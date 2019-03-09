@@ -258,6 +258,19 @@ namespace __pyllars_internal {
         static int _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds);
         static PyTypeObject Type;
         static PyMethodDef _methods[];
+
+     private:
+        struct Iter{
+            PyObject_HEAD
+            PythonClassWrapper* obj;
+            size_t max;
+            size_t i;
+            static const std::string name;
+            static PyTypeObject Type;
+
+            static PyObject * iter(PyObject* self);
+            static PyObject * iternext(PyObject* self);
+        };
     };
 
 

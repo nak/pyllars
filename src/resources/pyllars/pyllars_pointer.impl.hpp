@@ -243,7 +243,8 @@ namespace __pyllars_internal {
                 pyobj->_CObject = new ObjectContainer<T>(cobj);
                 break;
             case ContainmentKind::CONSTRUCTED_IN_PLACE:
-                pyobj->_CObject = new ObjectContainerInPlace<T>(cobj);
+                //pyobj->_CObject = new ObjectContainerInPlace<T, T>(cobj);
+                throw "Cannot construct new object in place with no memoery address";
                 break;
             case ContainmentKind::BY_REFERENCE:
                 pyobj->_CObject = new ObjectContainer<T>(cobj);
@@ -461,8 +462,7 @@ namespace __pyllars_internal {
                 self->_referenced = arg;
                 self->_arraySize = 0;
                 self->_allocated = false;
-                T s2 = (T)s;
-                self->_CObject = new ObjectContainer<T>(s2);
+                self->_CObject = (ObjectContainer<T>*) new ObjectContainer<const char* const>(s);
             }
             PyErr_Clear();
             return 0;
@@ -707,8 +707,8 @@ PyObject_HEAD_INIT(nullptr)
             nullptr,                               /* tp_clear */
             nullptr,                               /* tp_richcompare */
             0,                             /* tp_weaklistoffset */
-            nullptr,                               /* tp_iter */
-            nullptr,                               /* tp_iternext */
+            Iter::iter,                               /* tp_iter */
+            Iter::iternext,                               /* tp_iternext */
             _methods,             /* tp_methods */
             nullptr,             /* tp_members */
             nullptr,                         /* tp_getset */
@@ -720,6 +720,128 @@ PyObject_HEAD_INIT(nullptr)
             (initproc) _init,      /* tp_init */
             nullptr,                         /* tp_alloc */
             Base::_new,                 /* tp_new */
+            nullptr,                         /*tp_free*/ // no freeing of fixed-array
+            nullptr,                         /*tp_is_gc*/
+            nullptr,                         /*tp_base*/
+            nullptr,                         /*tp_mro*/
+            nullptr,                         /*tp_cache*/
+            nullptr,                         /*tp_subclasses*/
+            nullptr,                          /*tp_weaklist*/
+            nullptr,                          /*tp_del*/
+            0,                          /*tp_version_tag*/
+    };
+
+
+#if PY_MAJOR_VERSION >=3
+#  define Py_TPFLAGS_HAVE_ITER 0
+#endif
+
+    template<typename T>
+    const std::string
+            PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
+                    !std::is_function<typename std::remove_pointer<T>::type>::value &&
+                    (std::is_pointer<T>::value || std::is_array<T>::value) &&
+                    (ptr_depth<T>::value == 1) >::type>::Iter::name  = std::string(type_name<T>()) + std::string(" iterator");
+
+
+
+    template<typename T>
+    PyObject*
+            PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
+                    !std::is_function<typename std::remove_pointer<T>::type>::value &&
+                    (std::is_pointer<T>::value || std::is_array<T>::value) &&
+                    (ptr_depth<T>::value == 1) >::type>::Iter::iter(PyObject* self){
+
+        Iter *p;
+        auto self_ = (PythonClassWrapper*) self;
+        /* I don't need python callable __init__() method for this iterator,
+           so I'll simply allocate it as PyObject and initialize it by hand. */
+
+        p = PyObject_New(Iter, &Type);
+        if (!p) return nullptr;
+
+        if (!PyObject_Init((PyObject *)p, &Type)) {
+            Py_DECREF(p);
+            return nullptr;
+        }
+        if (!self_->get_CObject()){
+            Py_DECREF(p);
+            return nullptr;
+        }
+
+        p->max = self_->_arraySize > 0? self_->_arraySize: 1;
+        p->i = 0;
+        return (PyObject *)p;
+
+    }
+
+    template<typename T>
+    PyObject*
+    PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
+            !std::is_function<typename std::remove_pointer<T>::type>::value &&
+            (std::is_pointer<T>::value || std::is_array<T>::value) &&
+            (ptr_depth<T>::value == 1) >::type>::Iter::iternext(PyObject* self) {
+        Iter *p = (Iter *)self;
+        if (p->i < p->max) {
+            PyObject *tmp = PythonClassWrapper::_get_item((PyObject*)p->obj, p->i);
+            (p->i)++;
+            return tmp;
+        } else {
+            /* Raising of standard StopIteration exception with empty value. */
+            PyErr_SetNone(PyExc_StopIteration);
+            return nullptr;
+        }
+    }
+
+    template<typename T>
+    PyTypeObject
+            PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
+                    !std::is_function<typename std::remove_pointer<T>::type>::value &&
+                    (std::is_pointer<T>::value || std::is_array<T>::value) &&
+                    (ptr_depth<T>::value == 1) >::type>::Iter::Type = {
+#if PY_MAJOR_VERSION == 3
+            PyVarObject_HEAD_INIT(NULL, 0)
+#else
+    PyObject_HEAD_INIT(nullptr)
+        0,                         /*ob_size*/
+#endif
+            name.c_str(),             /*tp_name*/  //set on call to initialize
+            sizeof(PythonClassWrapper::Iter) + 8,             /*tp_basicsize*/
+            0,                         /*tp_itemsize*/
+            nullptr, /*tp_dealloc*/
+            nullptr,                         /*tp_print*/
+            nullptr,                         /*tp_getattr*/
+            nullptr,                         /*tp_setattr*/
+            nullptr,                         /*tp_compare*/
+            nullptr,                         /*tp_repr*/
+            nullptr,                         /*tp_as_number*/
+            nullptr,                         /*tp_as_sequence*/
+            nullptr,                         /*tp_as_mapping*/
+            nullptr,                         /*tp_hash */
+            nullptr,                         /*tp_call*/
+            nullptr,                         /*tp_str*/
+            nullptr,                         /*tp_getattro*/
+            nullptr,                         /*tp_setattro*/
+            nullptr,                         /*tp_as_buffer*/
+            Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_ITER, /*tp_flags*/
+            "PythonCPointerWrapper iterator object",           /* tp_doc */
+            nullptr,                               /* tp_traverse */
+            nullptr,                               /* tp_clear */
+            nullptr,                               /* tp_richcompare */
+            0,                             /* tp_weaklistoffset */
+            iter,                               /* tp_iter */
+            iternext,                               /* tp_iternext */
+            nullptr,             /* tp_methods */
+            nullptr,             /* tp_members */
+            nullptr,                         /* tp_getset */
+            nullptr,                         /* tp_base */
+            nullptr,                         /* tp_dict */
+            nullptr,                         /* tp_descr_get */
+            nullptr,                         /* tp_descr_set */
+            0,                         /* tp_dictoffset */
+            nullptr,      /* tp_init */
+            nullptr,                         /* tp_alloc */
+            PyType_GenericNew,                 /* tp_new */
             nullptr,                         /*tp_free*/ // no freeing of fixed-array
             nullptr,                         /*tp_is_gc*/
             nullptr,                         /*tp_base*/

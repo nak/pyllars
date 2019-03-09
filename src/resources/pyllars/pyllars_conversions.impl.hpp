@@ -217,7 +217,10 @@ namespace __pyllars_internal {
                     throw "Invalid C type conversion";
                 }
                 auto self =(PythonClassWrapper<T>*)  PyList_GetItem(obj, index);
-                self->setFrom(val);
+                if (!self->get_CObject()){
+                    throw "Cannot set null item";
+                }
+                *self->get_CObject() = val;
                 return (PyObject*)self;
             }
         };
@@ -232,7 +235,11 @@ namespace __pyllars_internal {
                         throw "Invalid C type conversion";
                     }
                     auto self =(PythonClassWrapper<T>*)  PyList_GetItem(obj, index);
-                    self->setFrom(val);
+                    if(!self->get_CObject()){
+                        PyErr_SetString(PyExc_ValueError, "Cannot set null item");
+                        return nullptr;
+                    }
+                    *self->get_CObject() = val;
                     return (PyObject*) self;
                 }
             }
@@ -242,13 +249,17 @@ namespace __pyllars_internal {
         struct Setter<T, typename std::enable_if<std::is_floating_point<T>::value>::type >{
             static PyObject* setItem(PyObject* obj, const size_t index,  T & val, const bool is_bytes, const bool is_str, const bool is_int, const bool is_float){
                 if (is_float) {
-                    return PyList_SetItem(obj, index, PyFloat_FromDouble(val));
+                    PyList_SetItem(obj, index, PyFloat_FromDouble(val));
+                    return PyList_GetItem(obj, index);
                 } else {
                     if(!PyObject_TypeCheck(obj, PythonClassWrapper<T>::getPyType())){
                        throw "Invalid C type conversion";
                     }
                     auto self =(PythonClassWrapper<T>*)  PyList_GetItem(obj, index);
-                    self->setFrom(val);
+                    if (!self->get_CObject()){
+                        throw "Cannot set null item";
+                    }
+                    *self->get_CObject() = val;
                     return (PyObject*) self;
                 }
             }
@@ -266,7 +277,10 @@ namespace __pyllars_internal {
                         throw "Invalid type for conversion";
                     }
                     auto self = (PythonClassWrapper<char*>*) PyList_GetItem(obj, index);
-                    self->setFrom(val);
+                    if (!self->get_CObject()){
+                        throw "Cannot set null item";
+                    }
+                    *self->get_CObject() = val;
                     return (PyObject*) self;
                 }
             }
@@ -284,7 +298,10 @@ namespace __pyllars_internal {
                         throw "Invalid type for conversion";
                     }
                     auto self = (PythonClassWrapper<const char*>*) PyList_GetItem(obj, index);
-                    self->setFrom(val);
+                    if (!self->get_CObject()){
+                        throw "Cannot set null item";
+                    }
+                    *self->get_CObject() = val;
                 }
             }
         };
