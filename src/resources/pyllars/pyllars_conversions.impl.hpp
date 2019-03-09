@@ -218,6 +218,7 @@ namespace __pyllars_internal {
                 }
                 auto self =(PythonClassWrapper<T>*)  PyList_GetItem(obj, index);
                 self->setFrom(val);
+                return (PyObject*)self;
             }
         };
 
@@ -232,6 +233,7 @@ namespace __pyllars_internal {
                     }
                     auto self =(PythonClassWrapper<T>*)  PyList_GetItem(obj, index);
                     self->setFrom(val);
+                    return (PyObject*) self;
                 }
             }
         };
@@ -247,6 +249,7 @@ namespace __pyllars_internal {
                     }
                     auto self =(PythonClassWrapper<T>*)  PyList_GetItem(obj, index);
                     self->setFrom(val);
+                    return (PyObject*) self;
                 }
             }
         };
@@ -264,6 +267,7 @@ namespace __pyllars_internal {
                     }
                     auto self = (PythonClassWrapper<char*>*) PyList_GetItem(obj, index);
                     self->setFrom(val);
+                    return (PyObject*) self;
                 }
             }
         };

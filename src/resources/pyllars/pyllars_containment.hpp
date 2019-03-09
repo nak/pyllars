@@ -22,6 +22,75 @@ namespace __pyllars_internal{
         };
     }
 
+
+    // DESTRUCTOR LOGIC
+
+    template <typename T, typename Z=void>
+    struct Destructor;
+
+    template<typename T>
+    struct Destructor<T, typename std::enable_if<std::is_destructible<T>::value && !std::is_array<T>::value>::type>{
+        static void inplace_destrcuct(T& obj){
+            obj.~T();
+        }
+
+        static void deallocate(T* &obj, const bool asArray){
+            if (asArray){
+                delete [] obj;
+            } else {
+                delete obj;
+            }
+            obj = nullptr;
+        }
+    };
+
+    template<typename T, size_t size>
+    struct Destructor<T[size], typename std::enable_if<std::is_destructible<T>::value>::type>{
+
+        typedef T T_array[size];
+
+        static void inplace_destrcuct(T_array& obj){
+            for(size_t i = 0; i < size; ++i){
+                obj[i].~T();
+            }
+        }
+
+        static void deallocate(T_array* &obj, const bool asArray){
+            if (asArray){
+                delete [] obj;
+            } else {
+                delete obj;
+            }
+            obj = nullptr;
+        }
+
+    };
+
+    template<typename T>
+    struct Destructor<T, typename std::enable_if<!std::is_destructible<T>::value>::type>{
+        static void inplace_destrcuct(T& obj){
+            // nothing to be done
+        }
+
+        static void deallocate(T* &obj, const bool asArray){
+           obj = nullptr;
+           throw "attempt to deallocate indestructible type";
+        }
+    };
+
+
+    template<typename T, size_t size>
+    struct Destructor<T[size], typename std::enable_if<!std::is_destructible<T>::value>::type>{
+        static void inplace_destrcuct(T& obj){
+            // nothing to be done
+        }
+
+        static void deallocate(T* &obj, const bool asArray){
+            obj = nullptr;
+            throw "attempt to deallocate indestructible type";
+        }
+    };
+
     template<typename T>
     struct ObjectContainer{
         typedef typename std::remove_reference<T>::type T_NoRef;
@@ -60,7 +129,7 @@ namespace __pyllars_internal{
     struct ObjectContainerAllocated;
 
     template<typename T>
-    struct ObjectContainerAllocated<T, typename std::enable_if<std::is_destructible<T>::value>::type>: public ObjectContainer<T>{
+    struct ObjectContainerAllocated<T>: public ObjectContainer<T>{
         typedef typename std::remove_reference<T>::type T_NoRef;
 
         ObjectContainerAllocated(T_NoRef* obj, const bool as_array = false):ObjectContainer<T>(*obj),
@@ -68,42 +137,19 @@ namespace __pyllars_internal{
         }
 
         ~ObjectContainerAllocated(){
-            if (_asArray){
-                delete [] ObjectContainer<T>::_containedP;
-            } else {
-                delete ObjectContainer<T>::_containedP;
-            }
+            Destructor<T_NoRef>::deallocate(ObjectContainer<T>::_containedP, _asArray);
         }
 
 
     protected:
         const bool _asArray;
     };
-
 
     template<typename T>
-    struct ObjectContainerAllocated<T, typename std::enable_if<!std::is_destructible<T>::value>::type>: public ObjectContainer<T>{
-        typedef typename std::remove_reference<T>::type T_NoRef;
-
-        ObjectContainerAllocated(T_NoRef* obj, const bool as_array = false):ObjectContainer<T>(*obj),
-                                                                            _asArray(as_array){
-        }
-
-        ~ObjectContainerAllocated(){
-            throw "Attempt to deallocate indestructible typed object";
-        }
-
-
-    protected:
-        const bool _asArray;
-    };
-
-
-    template<typename T, typename Z=void>
     struct ObjectContainerBytePool;
 
     template<typename T>
-    struct ObjectContainerBytePool<T*, typename std::enable_if<std::is_destructible<T>::value>::type>: public ObjectContainer<T*>{
+    struct ObjectContainerBytePool<T*>: public ObjectContainer<T*>{
 
         ObjectContainerBytePool(T*& obj, const size_t arraySize):
             ObjectContainer<T*>(obj), _size(arraySize){
@@ -111,7 +157,7 @@ namespace __pyllars_internal{
 
         ~ObjectContainerBytePool(){
             for(size_t i = 0; i < _size; ++i){
-                ObjectContainer<T>::_contained[i].~T();
+                Destructor<T>::inplace_destrcuct(ObjectContainer<T*>::_contained[i]);
             }
             unsigned char* raw_storage = (unsigned char*) ObjectContainer<T*>::_contained;
             delete [] raw_storage;
@@ -125,16 +171,20 @@ namespace __pyllars_internal{
 
 
     template<typename T>
-    struct ObjectContainerBytePool<T*, typename std::enable_if<!std::is_destructible<T>::value>::type>: public ObjectContainer<T*>{
+    struct ObjectContainerBytePool<T* const>: public ObjectContainer<T* const>{
 
-        ObjectContainerBytePool(T* &obj, const size_t arraySize):
-                ObjectContainer<T*>(obj), _size(arraySize){
+        ObjectContainerBytePool(T* const& obj, const size_t arraySize):
+                ObjectContainer<T* const>(obj), _size(arraySize){
         }
 
         ~ObjectContainerBytePool(){
-            unsigned char* raw_storage = (unsigned char*) ObjectContainer<T*>::_contained;
+            for(size_t i = 0; i < _size; ++i){
+                Destructor<T>::inplace_destrcuct(ObjectContainer<T* const>::_contained[i]);
+            }
+            unsigned char* raw_storage = (unsigned char*) ObjectContainer<T* const>::_contained;
             delete [] raw_storage;
         }
+
 
     protected:
         const size_t _size;
@@ -142,18 +192,17 @@ namespace __pyllars_internal{
     };
 
     template<typename T, size_t size>
-    struct ObjectContainerBytePool<T[size],
-            typename std::enable_if<std::is_destructible<T>::value>::type>: public ObjectContainer<T[size]>{
+    struct ObjectContainerBytePool<T[size]>: public ObjectContainer<T[size]>{
 
         typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
 
         ObjectContainerBytePool(T * const&obj, const size_t arraySize):
-                ObjectContainer<T[size]>(((new ((void*)obj)FixedArrayHelper<T, size>())->value)), _size(arraySize){
+                ObjectContainer<T[size]>(((FixedArrayHelper<T, size>*)obj)->value), _size(arraySize){
         }
 
         ~ObjectContainerBytePool(){
             for(size_t i = 0; i < _size; ++i){
-                ObjectContainer<T[size]>::_contained[i].~T();
+                Destructor<T>::inplace_destrcuct(ObjectContainer<T[size]>::_contained[i]);
             }
             unsigned char* raw_storage = (unsigned char*) ObjectContainer<T[size]>::_contained;
             delete [] raw_storage;
@@ -163,27 +212,6 @@ namespace __pyllars_internal{
         const size_t _size;
 
     };
-
-    template<typename T, size_t size>
-    struct ObjectContainerBytePool<T[size],
-            typename std::enable_if<!std::is_destructible<T>::value>::type>: public ObjectContainer<T[size]>{
-
-        typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
-
-        ObjectContainerBytePool(T * const&obj, const size_t arraySize):
-                ObjectContainer<T[size]>(((new ((void*)obj)FixedArrayHelper<T, size>())->value)), _size(arraySize){
-        }
-
-        ~ObjectContainerBytePool(){
-            unsigned char* raw_storage = (unsigned char*) ObjectContainer<T[size]>::_contained;
-            delete [] raw_storage;
-        }
-
-    protected:
-        const size_t _size;
-
-    };
-
 
     template<typename T, typename ...Args>
     struct ObjectContainerInPlace: public ObjectContainer<T>{
@@ -203,7 +231,7 @@ namespace __pyllars_internal{
     struct ObjectContainerInPlace<T[size], T[size]>: public ObjectContainer<T[size]>{
 
         ObjectContainerInPlace(T obj[size],  T arg[size]):
-                ObjectContainer<T[size]>((new ((void*)obj) FixedArrayHelper<T, size>())->value){
+                ObjectContainer<T[size]>(((FixedArrayHelper<T, size>*)obj)->value){
             typedef T T_array[size];
             T_array* values = this->ptr();
             for(size_t i = 0; i < size; ++i){

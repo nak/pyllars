@@ -60,18 +60,9 @@ namespace __pyllars_internal {
         template<typename T2>
         using ObjectContent = ObjectLifecycleHelpers::template ObjectContent<T2, void>;
 
-        template<typename PtrWrapper>
-        friend
-        struct ObjectLifecycleHelpers::BasicDeallocation;
-
         template<typename T2, bool is_array, typename E>
         friend
         class CObjectConversionHelper;
-
-
-        template<typename T2, typename PtrWrapper, typename E>
-        friend
-        struct ObjectLifecycleHelpers::Deallocation;
 
         template<typename Other, typename EE>
         friend class PythonClassWrapper;

@@ -344,46 +344,6 @@ namespace __pyllars_internal {
         return (T *) &self->_CObject;
     }
 
-
-    template<typename T>
-    void ObjectLifecycleHelpers::BasicDeallocation<T>::_free(T obj, const bool as_array) {
-        if (as_array) {
-            delete[] obj;
-        } else {
-            delete obj;
-        }
-    }
-
-
-    /**
-     * If core type is not and array and is destructible, call in-place destructor
-     * if needed in addition to basic clean-up
-     **/
-    template<typename T>
-    void ObjectLifecycleHelpers::Deallocation<T, typename std::enable_if<
-            (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            std::is_destructible<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value
-    >::type>::
-    _free(T obj, const bool as_array) {
-        if (as_array) {
-            delete[] obj;
-        } else {
-            delete obj;
-        }
-    }
-
-
-    /**
-     * If core type is not and array and is destructible, call in-place destructor
-     * if needed in addition to basic clean-up
-     **/
-    template<typename T>
-    void ObjectLifecycleHelpers::Deallocation<T, typename std::enable_if<
-            !std::is_destructible<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value>::type>::
-    _free(T obj, const bool as_array) {
-        //Not destructible, so no delete call
-    }
-
     template<typename T>
     void ObjectLifecycleHelpers::ObjectContent<T *, typename std::enable_if<std::is_void<T>::value>::type>::
     set(const size_t index, T **const to, T **const from) {
