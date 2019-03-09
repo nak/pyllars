@@ -339,9 +339,9 @@ namespace __pyllars_internal {
                                     !is_c_string_like<T>::value &&
                                     !is_bytes_like<T>::value>::type>::
     toPyObject(typename std::remove_reference<T>::type &var, const bool asReference, const ssize_t array_size) {
-        ObjContainer<T_NoRef> *const ref = (asReference ? new ObjContainerPtrProxy<T_NoRef, true>(&var, false, false)
-                                                        : ObjectLifecycleHelpers::Copy<T>::new_copy2(var));
-        PyObject *pyobj = (PyObject *) ClassWrapper::createPy(array_size, ref, !asReference, false, nullptr);
+        PyObject *pyobj =asReference?
+                         (PyObject *) ClassWrapper::createPy(array_size, var, ContainmentKind::BY_REFERENCE):
+                         (PyObject *)  ClassWrapper::createPy(array_size, *ObjectLifecycleHelpers::Copy<T>::new_copy(&var), ContainmentKind::ALLOCATED);
         if (!pyobj || !ClassWrapper::checkType(pyobj)) {
             PyErr_Format(PyExc_TypeError, "Unable to convert C type object to Python object %s: %s",
                          pyobj ? pyobj->ob_type->tp_name : "NULL OBJ", Types<T>::type_name());

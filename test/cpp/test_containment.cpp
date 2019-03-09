@@ -6,7 +6,7 @@
 
 template<typename T>
 void test_container(T& value){
-    using namespace __pyllars_test;
+    using namespace __pyllars_internal;
     ObjectContainer<T> container(value);
     T& contained = container;
     ASSERT_EQ(&contained, &value);
@@ -41,8 +41,21 @@ TEST(ContainmentTestSuite, test_array_and_ptr){
 }
 
 TEST(ContainmentTestSuite, test_constructed_container) {
-    using namespace __pyllars_test;
+    using namespace __pyllars_internal;
     ObjectContainerConstructed<TestClass, double> objectContainer(1.2);
     TestClass &instance = objectContainer;
     ASSERT_DOUBLE_EQ(instance.value(), 1.2);
+}
+
+
+TEST(ContainmentTestSuite, test_constructed_container_array) {
+    using namespace __pyllars_internal;
+
+    static int int_array[3] = {0,10,20};
+    static TestClass *testClassArray = new TestClass[99];
+    ObjectContainerConstructed<int[3], int[3]> objectContainer(int_array);
+    int *val = *objectContainer.ptr();
+    ASSERT_EQ(val[0], 0);
+    ASSERT_EQ(val[1], 10);
+    ASSERT_EQ(val[2], 20);
 }

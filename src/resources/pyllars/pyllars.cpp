@@ -697,8 +697,7 @@ namespace __pyllars_internal {
             }
         }
         number_type *alloced = new number_type(value);
-        return (PythonClassWrapper<number_type *> *) PythonClassWrapper<number_type *>::createPy2(count, &alloced, true,
-                                                                                                  false, nullptr);
+        return (PythonClassWrapper<number_type *> *) PythonClassWrapper<number_type *>::createPy(count, alloced, ContainmentKind ::ALLOCATED);
     }
 
     template<typename number_type>
@@ -780,19 +779,18 @@ namespace __pyllars_internal {
     }
 
     template<typename number_type>
-    __pyllars_internal::PythonClassWrapper<number_type> *PyNumberCustomObject<number_type>::createPy
-            (const ssize_t arraySize,
-             __pyllars_internal::ObjContainer<ntype> *const cobj,
-             const bool isAllocated,
-             const bool inPlace, PyObject *referencing,
-             const size_t depth) {
+    __pyllars_internal::PythonClassWrapper<number_type> *
+    PyNumberCustomObject<number_type>::createPy(const ssize_t arraySize,
+            ntype & cobj, const ContainmentKind  containmentKind, PyObject *referencing) {
         static PyObject *kwds = PyDict_New();
         static PyObject *emptyargs = PyTuple_New(0);
         PyDict_SetItemString(kwds, "__internal_allow_null", Py_True);
 
         __pyllars_internal::PythonClassWrapper<number_type> *pyobj = (__pyllars_internal::PythonClassWrapper<number_type> *) PyObject_Call(
                 (PyObject *) &Type, emptyargs, kwds);
+        pyobj->value = cobj;
         pyobj->_depth = 0;
+        *pyobj->get_CObject() = cobj;
         return pyobj;
     }
 
@@ -1390,8 +1388,7 @@ namespace __pyllars_internal {
             }
         }
         number_type *alloced = new number_type(value);
-        return (PythonClassWrapper<number_type *> *) PythonClassWrapper<number_type *>::createPy2(count, &alloced, true,
-                                                                                                  false, nullptr);
+        return (PythonClassWrapper<number_type *> *) PythonClassWrapper<number_type *>::createPy(count, alloced, ContainmentKind ::ALLOCATED);
     }
 
 
@@ -1473,10 +1470,8 @@ namespace __pyllars_internal {
     template<typename number_type>
     __pyllars_internal::PythonClassWrapper<number_type> *PyFloatingPtCustomObject<number_type>::createPy
             (const ssize_t arraySize,
-             __pyllars_internal::ObjContainer<ntype> *const cobj,
-             const bool isAllocated,
-             const bool inPlace, PyObject *referencing,
-             const size_t depth) {
+             ntype& cobj, const ContainmentKind ,
+             PyObject *referencing) {
         static PyObject *kwds = PyDict_New();
         static PyObject *emptyargs = PyTuple_New(0);
         PyDict_SetItemString(kwds, "__internal_allow_null", Py_True);
@@ -1484,6 +1479,7 @@ namespace __pyllars_internal {
         __pyllars_internal::PythonClassWrapper<number_type> *pyobj = (__pyllars_internal::PythonClassWrapper<number_type> *) PyObject_Call(
                 (PyObject *) &Type, emptyargs, kwds);
         pyobj->_depth = 0;
+        *pyobj->get_CObject() = cobj;
         return pyobj;
     }
 

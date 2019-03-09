@@ -59,7 +59,7 @@ namespace __pyllars_internal {
     typedef PyObject* (*_getattrfunc)(PyObject*, void*);
 
     template<typename T>
-    ObjectContainer;
+    struct ObjectContainer;
 
     template<typename T, typename E=void>
     class InitHelper;
@@ -122,16 +122,14 @@ namespace __pyllars_internal {
          **/
         static PythonClassWrapper *createPy(const ssize_t arraySize, 
 					                        T_NoRef & cobj,
-                                            const bool isAllocated,
-                                            const bool inPlace,
+                                            const ContainmentKind containmenKind,
                                             PyObject *referencing = nullptr) ;
 
-        tempalte<typename ...Args>
+        template<typename ...Args>
         static PythonClassWrapper *constructPy(const ssize_t arraySize,
-                                            Args ...args,
-                                            const bool isAllocated,
-                                            const bool inPlace,
-                                            PyObject *referencing = nullptr) ;
+                                               Args ...args,
+                                               const ContainmentKind containmentKind,
+                                               PyObject *referencing = nullptr) ;
 
          /**
           * return Python object representing the address of the contained object
@@ -384,7 +382,7 @@ namespace __pyllars_internal {
         friend
         class InitHelper;
 
-        constexpr PythonClassWrapper(): _CObject(nullptr), _arraySize(0), _allocated(false), _inPlace(false){}
+        constexpr PythonClassWrapper(): _CObject(nullptr){}
 
         template<bool is_base_return_complete, bool with_ellipsis, typename ReturnType, typename ...Args>
         friend struct PythonFunctionWrapper;
@@ -482,7 +480,8 @@ namespace __pyllars_internal {
 
     private:
 
-        typedef ObjectContainer<T>* (*constructor_t)(const char *const kwlist[], PyObject *args, PyObject *kwds, const bool in_place);
+        typedef ObjectContainer<T>* (*constructor_t)(const char *const kwlist[], PyObject *args, PyObject *kwds,
+                const ContainmentKind containmentKind, unsigned char* const location);
 
         /**
          * Add a constructor for this type
@@ -499,11 +498,10 @@ namespace __pyllars_internal {
           * @param kwlist: list of keyword names of the Python parameters
           * @param args: list of Python args from the Python call into the C constructor
           * @params kwds: keywoards bassed into the copnstructor
-          * @param cobj: container to hold the C-like object created
-          * @param inPlace: whether to create in-memory (existing allocation)
           **/
         template<typename ...Args>
-        static ObjectContainer<T>* create(const char *const kwlist[], PyObject *args, PyObject *kwds) ;
+        static ObjectContainer<T>* create(const char *const kwlist[], PyObject *args, PyObject *kwds, const ContainmentKind,
+                unsigned char*) ;
 
         static PyObject* getThis(PyObject* self, void*){
             return addr(self, nullptr);
@@ -560,11 +558,11 @@ namespace __pyllars_internal {
          * two lower level create functions
          **/
         template<typename ...Args>
-        static bool _createBaseBase(ObjectContainer<T_NoRef> *&cobj, Args ... args);
+        static ObjectContainer<T>* _createBaseBase(Args ... args);
 
         template<typename ...Args, int ...S >
-        static bool _createBase
-                (ObjectContainer<T_NoRef> *&cobj, PyObject *args, PyObject *kwds,
+        static ObjectContainer<T>* _createBase
+                (PyObject *args, PyObject *kwds,
                  const char *const kwlist[], container<S...> unused1, _____fake<Args> *... unused2);
 
         /**
@@ -577,7 +575,8 @@ namespace __pyllars_internal {
         static PyObject* _mapGet(PyObject* self, PyObject* key);
         static int _mapSet(PyObject* self, PyObject* key, PyObject* value);
 
-        static std::vector<constructor_t> _constructors;
+        typedef std::pair<const char* const*, constructor_t> ConstructorContainer;
+        static std::vector<ConstructorContainer> _constructors;
         static std::map<std::string, PyMethodDef> _methodCollection;
         static std::map<std::string, std::pair<std::function<PyObject*(PyObject*, PyObject*)>,
                                      std::function<int(PyObject*, PyObject*, PyObject*)>
@@ -590,12 +589,6 @@ namespace __pyllars_internal {
         static std::map<std::string, const T_NoRef*> _classEnumValues;
         static std::map<std::string, unaryfunc> _unaryOperators;
         static std::map<std::string, binaryfunc> _binaryOperators;
-
-        void set_contents(typename std::remove_reference<T>::type *ptr, const bool allocated, const bool inPlace);
-
-        size_t _arraySize;
-        bool _allocated;
-        bool _inPlace;
 
         static PyTypeObject _Type;
 

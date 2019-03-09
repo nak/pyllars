@@ -17,6 +17,7 @@
 #include <functional>
 #include <memory>
 #include <limits>
+#include "pyllars_type_traits.hpp"
 
 #undef NULL
 #define NULL nullptr
@@ -82,42 +83,6 @@ namespace __pyllars_internal {
         typedef typename ptr_of_depth<T, depth - 1>::type type[size];
     };
 
-
-    //convertion of type with extent to pointer
-    // extent_as_pointer<T[]> = extent_as_pointer<T[size]> = T*
-    template<typename T>
-    struct extent_as_pointer {
-        typedef T type;
-    };
-
-    template<typename T>
-    struct extent_as_pointer<T *> {
-        //typedef typename extent_as_pointer<T>::type *type;
-        typedef T *type;
-    };
-
-    template<typename T>
-    struct extent_as_pointer<T[]> {
-        // typedef typename extent_as_pointer<T>::type *type;
-        typedef T *type;
-    };
-    template<typename T>
-    struct extent_as_pointer<const T[]> {
-        // typedef const typename extent_as_pointer<T>::type *type;
-        typedef const T *type;
-    };
-
-    template<typename T, const size_t max>
-    struct extent_as_pointer<T[max]> {
-        // typedef typename extent_as_pointer<T>::type *type;
-        typedef T *type;
-    };
-
-    template<typename T, const size_t max>
-    struct extent_as_pointer<const T[max]> {
-        //  typedef const typename extent_as_pointer<T>::type *type;
-        typedef const T *type;
-    };
 
     /**
      * container class for holding a tuple, to be expanded to an argument list

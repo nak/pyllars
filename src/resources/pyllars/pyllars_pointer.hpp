@@ -13,6 +13,7 @@
 #include <sys/types.h>
 
 #include "pyllars_classwrapper.hpp"
+#include "pyllars_containment.hpp"
 #include "pyllars_object_lifecycle.hpp"
 
 // TODO (jrusnak#1#): All adding of bases, but not through template parameter....
@@ -61,10 +62,6 @@ namespace __pyllars_internal {
 
         template<typename PtrWrapper>
         friend
-        struct ObjectLifecycleHelpers::BasicAlloc;
-
-        template<typename PtrWrapper>
-        friend
         struct ObjectLifecycleHelpers::BasicDeallocation;
 
         template<typename T2, bool is_array, typename E>
@@ -75,10 +72,6 @@ namespace __pyllars_internal {
         template<typename T2, typename PtrWrapper, typename E>
         friend
         struct ObjectLifecycleHelpers::Deallocation;
-
-        template<typename T2, typename PtrWrapper, typename E>
-        friend
-        struct ObjectLifecycleHelpers::Alloc;
 
         template<typename Other, typename EE>
         friend class PythonClassWrapper;
@@ -100,18 +93,10 @@ namespace __pyllars_internal {
 
 
 
-        static PythonPointerWrapperBase *_createPy2(PyTypeObject & Type,
-                                                    const ssize_t arraySize,
-                                                    T * cobj,
-                                                    const bool isAllocated,
-                                                    const bool inPlace,
-                                                    PyObject *referencing = nullptr);
-
         static PythonPointerWrapperBase *_createPy(PyTypeObject & Type,
-                                                   const ssize_t arraySize,
-                                                   ObjContainer<T> *const cobj,
-                                                   const bool isAllocated,
-                                                   const bool inPlace,
+                                                   const size_t arraySize,
+                                                   T& cobj,
+                                                   const ContainmentKind containmentKind,
                                                    PyObject *referencing = nullptr);
 
         static int _initialize(PyTypeObject & Type);
@@ -142,8 +127,6 @@ namespace __pyllars_internal {
 
         static PyObject *_get_item(PyObject *self, Py_ssize_t index);
 
-        static PyObject *_get_item2(PyObject *self, Py_ssize_t index, const bool make_copy);
-
         static PyObject *_at(PyObject *self, PyObject *args, PyObject *kwds);
 
         static int _contains(PyObject *self, PyObject *obj);
@@ -156,14 +139,16 @@ namespace __pyllars_internal {
 
         T *_get_CObject();
 
-        ObjContainer<T> *_CObject;
+        ObjectContainer<T> *_CObject;
         PyObject *_referenced_elements;
         ssize_t _arraySize;
         size_t _max;
         size_t _depth; //only used for classes with pointer depth > 1, kept here for consistent PyType layout
         bool _allocated;
     private:
-        T* get_CObject();
+        T* get_CObject(){
+            return _CObject?_CObject->ptr():nullptr;
+        }
     };
 
 
@@ -226,20 +211,11 @@ namespace __pyllars_internal {
         static bool checkType(PyObject *const obj);
 
 
-        static PythonClassWrapper *createPy2(const ssize_t arraySize,
-                                             T * const cobj,
-                                             const bool isAllocated,
-                                             const bool inPlace,
-                                             PyObject *referencing = nullptr){
-            return reinterpret_cast<PythonClassWrapper*>(Base::_createPy2(Type, arraySize, cobj, isAllocated, inPlace, referencing));
-        }
-
         static PythonClassWrapper *createPy(const ssize_t arraySize,
-                                            ObjContainer<T> *const cobj,
-                                            const bool isAllocated,
-                                            const bool inPlace,
+                                            T &cobj,
+                                            const ContainmentKind containmentKind,
                                             PyObject *referencing = nullptr){
-            return reinterpret_cast<PythonClassWrapper*>(Base::_createPy(Type, arraySize, cobj, isAllocated, inPlace, referencing));
+            return reinterpret_cast<PythonClassWrapper*>(Base::_createPy(Type, arraySize, cobj,containmentKind, referencing));
         }
 
     protected:
@@ -265,7 +241,7 @@ namespace __pyllars_internal {
         void setFrom(T & value){
             if (Base::_referenced) Py_XDECREF(Base::_referenced);
             Base::_referenced = nullptr;
-            Base::_CObject = new ObjContainerProxy<T, T>(value);
+            Base::_CObject = new ObjectContainer<T>(value);
         }
 
         static PyTypeObject *getPyType(){
@@ -279,20 +255,11 @@ namespace __pyllars_internal {
 
         static bool checkType(PyObject *const obj);
 
-        static PythonClassWrapper *createPy2(const ssize_t arraySize,
-                                             T * const cobj,
-                                             const bool isAllocated,
-                                             const bool inPlace,
-                                             PyObject *referencing = nullptr){
-            return reinterpret_cast<PythonClassWrapper*>(Base::_createPy2(Type, arraySize, cobj, isAllocated, inPlace, referencing));
-        }
-
         static PythonClassWrapper *createPy(const ssize_t arraySize,
-                                            ObjContainer<T> *const cobj,
-                                            const bool isAllocated,
-                                            const bool inPlace,
+                                            T & cobj,
+                                            const ContainmentKind containmentKind,
                                             PyObject *referencing = nullptr){
-            return reinterpret_cast<PythonClassWrapper*>(Base::_createPy(Type, arraySize, cobj, isAllocated, inPlace, referencing));
+            return reinterpret_cast<PythonClassWrapper*>(Base::_createPy(Type, arraySize, cobj, containmentKind, referencing));
         }
 
     protected:

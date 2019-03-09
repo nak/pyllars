@@ -8,8 +8,7 @@
 #include <Python.h>
 
 #include "pyllars_defns.hpp"
-//#include "pyllars_pointer.hpp"
-//#include "pyllars_classwrapper.hpp"
+#include "pyllars_containment.hpp"
 
 /***********************************
 * One's head hurts thinking of all the different types of types in C++:
@@ -28,7 +27,7 @@ namespace __pyllars_internal {
     struct PythonClassWrapper;
 
     template<typename T>
-    struct ObjConatinerPtrProxy;
+    struct ObjectContainer;
 
     class ObjectLifecycleHelpers {
     public:
@@ -45,11 +44,6 @@ namespace __pyllars_internal {
         template<typename T, typename PtrWrapper, typename E>
         friend
         class PyObjectConversionHelper;
-
-        template<typename T>
-        friend
-        struct ObjConatinerPtrProxy;
-
 
     private:
 
@@ -103,7 +97,7 @@ namespace __pyllars_internal {
                                                std::is_assignable<typename std::remove_reference<T>::type&, typename std::remove_reference<T>::type>::value &&
                                                std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type> {
             typedef typename std::remove_reference<T>::type T_NoRef;
-            static ObjContainer <T_NoRef> *new_copy2(const T &value) ;
+            static ObjectContainer<T> *new_copy2(const T &value) ;
 
             static T_NoRef *new_copy(T_NoRef *const value);
 
@@ -117,7 +111,7 @@ namespace __pyllars_internal {
                 std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type> {
             typedef typename std::remove_reference<T>::type T_NoRef;
 
-            static ObjContainer <T_NoRef> *new_copy2(const T_NoRef &value) ;
+            static ObjectContainer<T> *new_copy2(const T_NoRef &value) ;
 
             static T_NoRef *new_copy(T_NoRef *const value) ;
 
@@ -126,11 +120,11 @@ namespace __pyllars_internal {
 
         template<typename T>
         struct Copy<T, typename std::enable_if<std::is_void<T>::value >::type> {
-             static ObjContainer<T> *new_copy2(T *const value) {
+             static ObjectContainer<T> *new_copy2(T *const value) {
                 throw "Attempt to copy void object";
             }
 
-            static ObjContainer<T> *new_copy2(const unsigned char& value) {
+            static ObjectContainer<T> *new_copy2(const unsigned char& value) {
                 throw "Attempt to copy void object";
             }
 
@@ -150,7 +144,7 @@ namespace __pyllars_internal {
             typedef T T_array[size];
             typedef typename std::remove_reference<T>::type T_NoRef;
 
-            static ObjContainer <T_array> *new_copy2(const T_array &value) ;
+            static ObjectContainer <T_array> *new_copy2(const T_array &value) ;
 
             static T_array *new_copy(T_array *const value);
 
@@ -164,7 +158,7 @@ namespace __pyllars_internal {
             typedef T T_array[size];
             typedef typename std::remove_reference<T>::type T_NoRef;
 
-            static ObjContainer <T_array> *new_copy2(const T_array &value) ;
+            static ObjectContainer <T_array> *new_copy2(const T_array &value) ;
 
             static T_array *new_copy(T_array *const value);
 
@@ -178,7 +172,7 @@ namespace __pyllars_internal {
             typedef typename std::remove_reference<T>::type T_NoRef;
             typedef typename std::remove_pointer<T_NoRef>::type& T_baseref;
 
-            static ObjContainer <T_NoRef> *new_copy2(const T_NoRef &value);
+            static ObjectContainer <T> *new_copy2(const T_NoRef &value);
 
             static T_NoRef *new_copy(T_NoRef *const value);
 
@@ -193,7 +187,7 @@ namespace __pyllars_internal {
             typedef typename std::remove_reference<T>::type T_NoRef;
             typedef typename std::remove_pointer<T_NoRef>::type& T_baseref;
 
-            static ObjContainer <T_array> *new_copy2(const T_array &value) { throw "cannot copy oobject : is not copy construcftible";}
+            static ObjectContainer <T_array> *new_copy2(const T_array &value) { throw "cannot copy oobject : is not copy construcftible";}
 
             static T_array* new_copy(T_array *const value){ throw "cannot copy oobject : is not copy construcftible";}
 
@@ -402,127 +396,6 @@ namespace __pyllars_internal {
             static void _free(T obj, const bool as_array);
         };
 
-
-        ///////////////////////////////
-        // ALLOCATION LOGIC FOR VARIOUS TYPES
-        ////////////////////////////////
-
-        template<typename T>
-        struct BasicAlloc {
-            typedef typename std::remove_reference<T>::type T_NoRef;
-            typedef PythonClassWrapper<T_NoRef *> PtrWrapper;
-
-            class ConstructorContainer {
-            public:
-                typedef T_NoRef* (*constructor)(const char *const kwlist[], PyObject *args, PyObject *kwds, const bool in_place);
-
-                ConstructorContainer(const char *const kwlist[],  constructor c);
-
-                T_NoRef* operator()(PyObject *args, PyObject *kwds,  const bool in_place) const ;
-
-            private:
-                const char *const *const _kwlist;
-                const constructor _constructor;
-            };
-
-            typedef std::vector<ConstructorContainer> constructor_list;
-
-            static PyObject *allocbase(PyObject *cls, PyObject *args, PyObject *kwds,
-                                       typename BasicAlloc<T>::constructor_list const &constructors);
-        };
-
-
-        template<typename T, typename Z = void>
-        struct Alloc;
-
-        template<typename T>
-        struct Alloc<T,
-                     typename std::enable_if<!is_function_ptr<T>::value && !std::is_reference<T>::value &&
-                             std::is_constructible<T>::value &&
-                             !std::is_pointer<T>::value>::type> : public BasicAlloc<T> {
-            typedef PythonClassWrapper<T*> PtrWrapper;
-            typedef typename std::remove_reference<T>::type T_NoRef;
-
-            static PyObject *allocbase(PyObject *cls, PyObject *args, PyObject *kwds,
-                                       typename BasicAlloc<T>::constructor_list const &constructors);
-        };
-
-        template<typename T>
-        struct Alloc<T,
-                typename std::enable_if<!is_function_ptr<T>::value && !std::is_reference<T>::value &&
-                                        std::is_constructible<T>::value &&
-                                        std::is_pointer<T>::value>::type > : public BasicAlloc<T> {
-            typedef PythonClassWrapper<T*> PtrWrapper;
-            typedef typename std::remove_reference<T>::type T_NoRef;
-
-            static PyObject *allocbase(PyObject *cls, PyObject *args, PyObject *kwds,
-                                       typename BasicAlloc<T>::constructor_list const &constructors);
-        };
-
-        template<typename T>
-        struct Alloc<T,
-                     typename std::enable_if<!is_function_ptr<T>::value && !std::is_reference<T>::value &&
-                                             !std::is_constructible<T>::value >::type> : public BasicAlloc<T> {
-            typedef PythonClassWrapper<T*> PtrWrapper;
-            typedef typename std::remove_reference<T>::type T_NoRef;
-
-            static PyObject *allocbase(PyObject *cls, PyObject *args, PyObject *kwds,
-                                       typename BasicAlloc<T>::constructor_list const &constructors);
-        };
-
-        template<typename ReturnType, typename ...Args>
-        struct Alloc<ReturnType(*)(Args...), void> :
-                public BasicAlloc<ReturnType(*)(Args...)> {
-
-            typedef PythonClassWrapper<ReturnType(**)(Args...), void> PtrWrapper;
-
-            typedef ReturnType(*T)(Args...);
-
-            typedef typename std::remove_reference<T>::type T_NoRef;
-
-            static PyObject *allocbase(PyObject *cls, PyObject *args, PyObject *kwds,
-                                       typename BasicAlloc<T>::constructor_list const &constructors);
-
-        };
-
-        template<typename T>
-        struct Alloc<T,
-                typename std::enable_if<std::is_void<typename std::remove_volatile<T>::type>::value>::type> :
-                public BasicAlloc<T> {
-
-            typedef PythonClassWrapper<void *, void> PtrWrapper;
-            typedef typename std::remove_reference<T>::type C_NoRef;
-
-            static PyObject *allocbase(PyObject *cls, PyObject *args, PyObject *kwds,
-                                       typename BasicAlloc<T>::constructor_list const &constructors);
-
-        };
-
-
-        template<typename T>
-        struct Alloc<T,
-                typename std::enable_if<!std::is_void<T>::value && !std::is_function<T>::value &&
-                                        (std::is_reference<T>::value || !std::is_constructible<T>::value)>::type> :
-                public BasicAlloc<T> {
-            typedef PythonClassWrapper<T*> PtrWrapper;
-            typedef typename std::remove_reference<T>::type C_NoRef;
-
-            static PyObject *allocbase(PyObject *cls, PyObject *args, PyObject *kwds,
-                                       typename BasicAlloc<T>::constructor_list const &constructors);
-
-        };
-
-        template<typename T>
-        struct Alloc<T,
-                typename std::enable_if<std::is_function<T>::value>::type> :
-                public BasicAlloc<T> {
-            typedef PythonClassWrapper<T*> PtrWrapper;
-            typedef typename std::remove_reference<T>::type C_NoRef;
-
-            static PyObject *allocbase(PyObject *cls, PyObject *args, PyObject *kwds,
-                                       typename BasicAlloc<T>::constructor_list const &constructors);
-
-        };
 
     };
 

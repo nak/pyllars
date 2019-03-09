@@ -10,6 +10,7 @@
 #include <functional>
 
 #include "pyllars_defns.hpp"
+#include "pyllars_containment.hpp"
 
 typedef int status_t;
 
@@ -128,9 +129,8 @@ namespace __pyllars_internal {
 
         static __pyllars_internal::PythonClassWrapper<number_type> *createPy
                 (const ssize_t arraySize,
-                 __pyllars_internal::ObjContainer<ntype> *const cobj,
-                 const bool isAllocated,
-                 const bool inPlace, PyObject *referencing, const size_t depth = 0);
+                 ntype & cobj, const ContainmentKind  containmentKind,
+                 PyObject *referencing);
 
 
         void make_reference(PyObject *obj);
@@ -262,9 +262,8 @@ namespace __pyllars_internal {
 
         static __pyllars_internal::PythonClassWrapper<number_type> *createPy
                 (const ssize_t arraySize,
-                 __pyllars_internal::ObjContainer<ntype> *const cobj,
-                 const bool isAllocated,
-                 const bool inPlace, PyObject *referencing, const size_t depth = 0);
+                 ntype & cobj, const ContainmentKind containmentKind,
+                 PyObject *referencing);
 
 
         void make_reference(PyObject *obj);

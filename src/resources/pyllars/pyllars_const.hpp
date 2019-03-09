@@ -65,9 +65,9 @@ namespace __pyllars_internal {
 
         static __pyllars_internal::PythonClassWrapper<number_type> *createPy
                 (const ssize_t arraySize,
-                 __pyllars_internal::ObjContainer<ntype> *const cobj,
-                 const bool isAllocated,
-                 const bool inPlace, PyObject *referencing, const size_t depth = 0);
+                 ntype &cobj,
+                 const ContainmentKind  containmentKind,
+                 PyObject *referencing);
 
 
         void make_reference(PyObject *obj);
@@ -192,9 +192,8 @@ namespace __pyllars_internal {
 
         static __pyllars_internal::PythonClassWrapper<number_type> *createPy
                 (const ssize_t arraySize,
-                 __pyllars_internal::ObjContainer<ntype> *const cobj,
-                 const bool isAllocated,
-                 const bool inPlace, PyObject *referencing, const size_t depth = 0);
+                 ntype &cobj, const ContainmentKind  containmentKind,
+                 PyObject *referencing);
 
 
         void make_reference(PyObject *obj);
@@ -223,7 +222,7 @@ namespace __pyllars_internal {
 
         PyObject *_referenced;
         size_t _depth;
-        number_type value;
+        typename std::remove_const<number_type>::type value;
 
         class Initializer : public pyllars::Initializer {
         public:

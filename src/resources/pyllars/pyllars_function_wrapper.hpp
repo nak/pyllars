@@ -6,9 +6,10 @@
 #include <Python.h>
 #include <structmember.h>
 #include <limits.h>
-
-#include "pyllars_utils.hpp"
 #include <ffi.h>
+
+#include "pyllars_containment.hpp"
+#include "pyllars_utils.hpp"
 #include "pyllars_varargs.hpp"
 
 namespace __pyllars_internal {
@@ -88,10 +89,10 @@ namespace __pyllars_internal {
                                         extra_arg_values[i].ptrvalue = (void*) string_value;
                                         arg_values[i] = &extra_arg_values[i].ptrvalue;
                                     } else if (COBJ_TYPE == subtype) {
-                                        static const size_t offset = offset_of<ObjContainer<Arbitrary> *, PythonClassWrapper<Arbitrary> >
+                                        static const size_t offset = offset_of<ObjectContainer<Arbitrary> *, PythonClassWrapper<Arbitrary> >
                                                 (&PythonClassWrapper<Arbitrary>::_CObject);
-                                        ObjContainer<void *> **ptrvalue =
-                                                (ObjContainer<void *> **) (((char *) nextArg) + offset);
+                                        ObjectContainer<void *> **ptrvalue =
+                                                (ObjectContainer<void *> **) (((char *) nextArg) + offset);
                                         extra_arg_values[i].ptrvalue = ptrvalue ? (*ptrvalue)->ptr() : nullptr;
                                     } else if (FUNC_TYPE == subtype) {
                                         typedef typename PythonFunctionWrapper<true, with_ellipsis, int, int>::template Wrapper<> wtype;
@@ -463,10 +464,10 @@ namespace __pyllars_internal {
                                         extra_arg_values[i].ptrvalue = const_cast<char*>(PyString_AsString(nextArg));
                                         arg_values[i] = &extra_arg_values[i].ptrvalue;
                                     } else if (COBJ_TYPE == subtype) {
-                                        static const size_t offset = offset_of<ObjContainer<Arbitrary> *, PythonClassWrapper<Arbitrary> >
+                                        static const size_t offset = offset_of<ObjectContainer<Arbitrary> *, PythonClassWrapper<Arbitrary> >
                                                 (&PythonClassWrapper<Arbitrary>::_CObject);
-                                        ObjContainer<int *> **ptrvalue =
-                                                (ObjContainer<int *> **) (((char *) nextArg) + offset);
+                                        ObjectContainer<int *> **ptrvalue =
+                                                (ObjectContainer<int *> **) (((char *) nextArg) + offset);
                                         extra_arg_values[i].ptrvalue = ptrvalue ? (*ptrvalue)->ptr() : nullptr;
                                     } else if (FUNC_TYPE == subtype) {
                                         typedef typename PythonFunctionWrapper<true, with_ellipsis, int, int>::template Wrapper<> wtype;
@@ -689,9 +690,10 @@ namespace __pyllars_internal {
             std::is_function<typename std::remove_pointer<T>::type>::value>::type> :
             public PythonFunctionWrapper2<typename std::remove_pointer<T>::type> {
         static PythonClassWrapper *createPy(const ssize_t arraySize,
-                                               ObjContainer <T> *const cobj, const bool isAllocated,
-                                               const bool inPlace,
-                                               PyObject *referencing = nullptr, const size_t depth = 0) {
+                                             T &cobj,
+                                             const bool isAllocated,
+                                             const bool inPlace,
+                                             PyObject *referencing = nullptr, const size_t depth = 0) {
             static PyObject *kwds = PyDict_New();
             static PyObject *emptyargs = PyTuple_New(0);
             PyDict_SetItemString(kwds, "__internal_allow_null", Py_True);
@@ -702,9 +704,8 @@ namespace __pyllars_internal {
                 return nullptr;
             }
             PythonClassWrapper *pyobj = (PythonClassWrapper *) PyObject_Call((PyObject *) type_, emptyargs, kwds);
-            pyobj->_cfunc._cfunc = *cobj->ptr();//new ObjContainerPtrProxy<T_NoRef>(cobj, isAllocated);
+            pyobj->_cfunc._cfunc = *cobj->ptr();
 
-            //if (referencing) pyobj->_referenced = referencing;
             return pyobj;
         }
     };

@@ -91,6 +91,44 @@ namespace __pyllars_internal {
     struct is_bytes_like<char* const>{
         static constexpr bool value = true;
     };
+
+
+    //convertion of type with extent to pointer
+    // extent_as_pointer<T[]> = extent_as_pointer<T[size]> = T*
+    template<typename T>
+    struct extent_as_pointer {
+        typedef T type;
+    };
+
+    template<typename T>
+    struct extent_as_pointer<T *> {
+        //typedef typename extent_as_pointer<T>::type *type;
+        typedef T *type;
+    };
+
+    template<typename T>
+    struct extent_as_pointer<T[]> {
+        // typedef typename extent_as_pointer<T>::type *type;
+        typedef T *type;
+    };
+    template<typename T>
+    struct extent_as_pointer<const T[]> {
+        // typedef const typename extent_as_pointer<T>::type *type;
+        typedef const T *type;
+    };
+
+    template<typename T, const size_t max>
+    struct extent_as_pointer<T[max]> {
+        // typedef typename extent_as_pointer<T>::type *type;
+        typedef T *type;
+    };
+
+    template<typename T, const size_t max>
+    struct extent_as_pointer<const T[max]> {
+        //  typedef const typename extent_as_pointer<T>::type *type;
+        typedef const T *type;
+    };
+
 }
 
 #endif

@@ -176,9 +176,11 @@ namespace __pyllars_internal {
     public:
 
         template<typename T, typename E>
-        friend PyObject *toPyObject(T &var, const bool asReference);
+        friend PyObject *toPyObject(T &var, const bool asArgument);
+
         template<typename T, typename E>
         friend PyObject *toPyObject(T &var, const bool asArgument, const ssize_t array_size);
+
         template<typename T, typename E>
         friend PyObject *toPyObject(const T &var, const bool asArgument, const ssize_t array_size);
 
