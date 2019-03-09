@@ -165,3 +165,21 @@ TEST(ContainmentTestSuite, test_constructed_container_inplace_array) {
     test_constructed_inplace_containers<int[3], int[3]>(int_array, int_array);
     test_constructed_inplace_containers<TestClass*, TestClass*>(instanceArray, instanceArray);
 }
+
+
+template<typename T, size_t size>
+void test_constructed_bytepool_containers(T &instance){
+    using namespace __pyllars_internal;
+    ObjectContainerBytePool<T> objectContainer(instance, size);
+    Assertion<T>::assert_equal(instance, *objectContainer.ptr());
+}
+
+
+TEST(ContainmentTestSuite, test_constructed_container_bytepool_array) {
+    using namespace __pyllars_internal;
+    unsigned char *raw_int = new unsigned char[sizeof(int)*3];
+    FixedArrayHelper<int, 3>* int_arrayP = (FixedArrayHelper<int, 3>*)raw_int;
+    static double  *instanceArray = new double[99];
+    test_constructed_bytepool_containers<int[3], 3>(int_arrayP->value);
+    test_constructed_bytepool_containers<double*, 99>(instanceArray);
+}

@@ -103,19 +103,17 @@ namespace __pyllars_internal{
     struct ObjectContainerBytePool;
 
     template<typename T>
-    struct ObjectContainerBytePool<T, typename std::enable_if<std::is_pointer<T>::value && std::is_destructible<typename std::remove_pointer<T>::type>::value>::type>: public ObjectContainer<T>{
+    struct ObjectContainerBytePool<T*, typename std::enable_if<std::is_destructible<T>::value>::type>: public ObjectContainer<T*>{
 
-        typedef typename std::remove_pointer<T>::type T_base;
-
-        ObjectContainerBytePool(T obj, const size_t arraySize):
-            ObjectContainer<T>(obj), _size(arraySize){
+        ObjectContainerBytePool(T*& obj, const size_t arraySize):
+            ObjectContainer<T*>(obj), _size(arraySize){
         }
 
         ~ObjectContainerBytePool(){
             for(size_t i = 0; i < _size; ++i){
-                ObjectContainer<T>::_contained[i].~T_base();
+                ObjectContainer<T>::_contained[i].~T();
             }
-            unsigned char* raw_storage = (unsigned char*) ObjectContainer<T>::_contained;
+            unsigned char* raw_storage = (unsigned char*) ObjectContainer<T*>::_contained;
             delete [] raw_storage;
         }
 
@@ -127,14 +125,57 @@ namespace __pyllars_internal{
 
 
     template<typename T>
-    struct ObjectContainerBytePool<T, typename std::enable_if<std::is_pointer<T>::value && !std::is_destructible<typename std::remove_pointer<T>::type>::value>::type>: public ObjectContainer<T>{
+    struct ObjectContainerBytePool<T*, typename std::enable_if<!std::is_destructible<T>::value>::type>: public ObjectContainer<T*>{
 
-        ObjectContainerBytePool(T obj, const size_t arraySize):
-                ObjectContainer<T>(obj), _size(arraySize){
+        ObjectContainerBytePool(T* &obj, const size_t arraySize):
+                ObjectContainer<T*>(obj), _size(arraySize){
         }
 
         ~ObjectContainerBytePool(){
-            unsigned char* raw_storage = (unsigned char*) ObjectContainer<T>::_contained;
+            unsigned char* raw_storage = (unsigned char*) ObjectContainer<T*>::_contained;
+            delete [] raw_storage;
+        }
+
+    protected:
+        const size_t _size;
+
+    };
+
+    template<typename T, size_t size>
+    struct ObjectContainerBytePool<T[size],
+            typename std::enable_if<std::is_destructible<T>::value>::type>: public ObjectContainer<T[size]>{
+
+        typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
+
+        ObjectContainerBytePool(T * const&obj, const size_t arraySize):
+                ObjectContainer<T[size]>(((new ((void*)obj)FixedArrayHelper<T, size>())->value)), _size(arraySize){
+        }
+
+        ~ObjectContainerBytePool(){
+            for(size_t i = 0; i < _size; ++i){
+                ObjectContainer<T[size]>::_contained[i].~T();
+            }
+            unsigned char* raw_storage = (unsigned char*) ObjectContainer<T[size]>::_contained;
+            delete [] raw_storage;
+        }
+
+    protected:
+        const size_t _size;
+
+    };
+
+    template<typename T, size_t size>
+    struct ObjectContainerBytePool<T[size],
+            typename std::enable_if<!std::is_destructible<T>::value>::type>: public ObjectContainer<T[size]>{
+
+        typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
+
+        ObjectContainerBytePool(T * const&obj, const size_t arraySize):
+                ObjectContainer<T[size]>(((new ((void*)obj)FixedArrayHelper<T, size>())->value)), _size(arraySize){
+        }
+
+        ~ObjectContainerBytePool(){
+            unsigned char* raw_storage = (unsigned char*) ObjectContainer<T[size]>::_contained;
             delete [] raw_storage;
         }
 
@@ -149,7 +190,7 @@ namespace __pyllars_internal{
         typedef typename std::remove_reference<T>::type T_NoRef;
 
         ObjectContainerInPlace(T_NoRef& obj,  Args ...args):
-           ObjectContainer<T>(*new ((void*)&obj) T_NoRef(args...)){
+                ObjectContainer<T>(*new ((void*)&obj) T_NoRef(args...)){
 
         }
 
@@ -184,7 +225,6 @@ namespace __pyllars_internal{
     private:
         T _constructed;
     };
-
 
     template<size_t size, typename T>
     struct ObjectContainerConstructed<T[size], T[size]>: public ObjectContainer<T[size]>{
