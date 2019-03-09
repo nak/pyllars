@@ -13,6 +13,15 @@ namespace __pyllars_internal{
         RAW_BYTE_POOL
     };
 
+
+    namespace {
+
+        template<typename T, size_t size>
+        struct FixedArrayHelper{
+            T value[size];
+        };
+    }
+
     template<typename T>
     struct ObjectContainer{
         typedef typename std::remove_reference<T>::type T_NoRef;
@@ -149,6 +158,23 @@ namespace __pyllars_internal{
 
     };
 
+    template<typename T, size_t size>
+    struct ObjectContainerInPlace<T[size], T[size]>: public ObjectContainer<T[size]>{
+
+        ObjectContainerInPlace(T obj[size],  T arg[size]):
+                ObjectContainer<T[size]>((new ((void*)obj) FixedArrayHelper<T, size>())->value){
+            typedef T T_array[size];
+            T_array* values = this->ptr();
+            for(size_t i = 0; i < size; ++i){
+                values[0][i] = arg[i];
+            }
+        }
+
+        ~ObjectContainerInPlace(){
+        }
+
+    };
+
     template<typename T, typename ...Args>
     struct ObjectContainerConstructed: public ObjectContainer<T>{
         ObjectContainerConstructed(Args ...args):_constructed(args...),
@@ -159,13 +185,6 @@ namespace __pyllars_internal{
         T _constructed;
     };
 
-    namespace {
-
-        template<typename T, size_t size>
-        struct FixedArrayHelper{
-            T value[size];
-        };
-    }
 
     template<size_t size, typename T>
     struct ObjectContainerConstructed<T[size], T[size]>: public ObjectContainer<T[size]>{
