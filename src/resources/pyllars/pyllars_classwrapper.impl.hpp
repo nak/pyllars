@@ -869,7 +869,7 @@ namespace __pyllars_internal{
         } catch (const char *const msg) {
             PyErr_SetString(PyExc_RuntimeError, msg);
             return nullptr;
-        }
+        }B
     }
 
     template<typename T>
@@ -1243,7 +1243,7 @@ namespace __pyllars_internal{
     PythonClassWrapper<T,
             typename std::enable_if<is_rich_class<T>::value>::type>::
     _createBaseBase(Args ... args) {
-        return new ObjectContainerConstructed<T, Args...>(args...);
+        return new ObjectContainerConstructed<T, Args...>(std::forward<typename extent_as_pointer<Args>::type>(args)...);
     }
 
 
@@ -1264,7 +1264,7 @@ namespace __pyllars_internal{
         }
 
         return _createBaseBase<Args...>
-                (std::forward<Args>(*toCArgument<Args,  defaults_to_string<Args>::value>(*pyobjs[S]))...);
+                (std::forward<typename extent_as_pointer<Args>::type>(*toCArgument<Args,  defaults_to_string<Args>::value>(*pyobjs[S]))...);
     }
 
 
