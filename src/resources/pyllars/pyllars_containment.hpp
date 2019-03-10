@@ -102,18 +102,18 @@ namespace __pyllars_internal{
     struct Constructor<T, typename std::enable_if<std::is_constructible<T>::value && !std::is_array<T>::value>::type>{
         template<typename ...Args>
         static T* inplace_allocate(T& obj, Args ...args){
-            return new ((void*)&obj)T(args...);
+            return new ((void*)&obj)T(std::forward<typename extent_as_pointer<Args>::type>>(args)...);
         }
 
         template<typename ...Args>
         static T* allocate(Args ...args){
-            return new T(args...);
+            return new T(std::forward<typename extent_as_pointer<Args>::type>>(args)...);
         }
 
 
         template<typename ...Args>
         static T* allocate_array(const size_t size, Args ...args){
-            return new T[size]{T(args...)};
+            return new T[size]{T(std::forward<typename extent_as_pointer<Args>::type>>(args)...)};
         }
     };
 
@@ -138,7 +138,7 @@ namespace __pyllars_internal{
 
         template<typename ...Args>
         static T* allocate(Args ...args){
-            return new T[size]{T(args...)};
+            return new T[size]{T(std::forward<typename extent_as_pointer<Args>::type>>(args)...)};
         }
 
         template<typename ...Args>
@@ -172,7 +172,7 @@ namespace __pyllars_internal{
     struct ObjectContainer{
         typedef typename std::remove_reference<T>::type T_NoRef;
 
-        ObjectContainer(T_NoRef& obj):_contained(obj), _containedP(&_contained){
+        ObjectContainer(T_NoRef & obj):_contained(obj), _containedP(&_contained){
         }
 
         operator T_NoRef&(){
@@ -295,7 +295,7 @@ namespace __pyllars_internal{
         typedef typename std::remove_reference<T>::type T_NoRef;
 
         ObjectContainerInPlace(T_NoRef& obj,  Args ...args):
-                ObjectContainer<T>(*new ((void*)&obj) T_NoRef(args...)){
+                ObjectContainer<T>(*new ((void*)&obj) T_NoRef(std::forward<typename extent_as_pointer<Args>::type>(args)...)){
 
         }
 
@@ -326,12 +326,26 @@ namespace __pyllars_internal{
 
     template<typename T, typename ...Args>
     struct ObjectContainerConstructed: public ObjectContainer<T>{
-        ObjectContainerConstructed(Args ...args):_constructed(args...),
+        ObjectContainerConstructed(Args ...args):_constructed(std::forward<typename extent_as_pointer<Args>::type>(args)...),
         ObjectContainer<T>(_constructed){
 
         }
     private:
         T _constructed;
+    };
+
+    //Reference types should just capture the reference, so same as base class behavior:
+    template<typename T, typename ...Args>
+    struct ObjectContainerConstructed<T&, Args...>: public ObjectContainer<T>{
+        ObjectContainerConstructed(Args ...args):ObjectContainer<T>(std::forward<typename extent_as_pointer<Args>::type>(args)...){
+
+        }
+    };
+    template<typename T, typename ...Args>
+    struct ObjectContainerConstructed<T&&, Args...>: public ObjectContainer<T>{
+        ObjectContainerConstructed(Args ...args):ObjectContainer<T>(std::forward<typename extent_as_pointer<Args>::type>>(args)...){
+
+        }
     };
 
     template<size_t size, typename T>

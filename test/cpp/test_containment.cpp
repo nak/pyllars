@@ -18,12 +18,20 @@ public:
 
     }
 
+    TestClass(const TestClass & t):_v(t._v){
+
+    }
+
+    TestClass(const TestClass && t):_v(t._v){
+
+    }
+
     const double &value() const{
         return _v;
     }
 
     bool operator==(const TestClass v) const{
-        return v.value() == value();
+        return fabs(v.value() - value()) < 0.0000001;
     }
 
 private:
@@ -91,18 +99,24 @@ struct Assertion<T[size]>{
 
 
 template<typename T, typename ...Args>
-void test_constructed_containers(T instance, Args... args){
+void test_constructed_containers(T instance, T compare, Args... args){
     using namespace __pyllars_internal;
-    ObjectContainerConstructed<T, Args...> objectContainer(args...);
-    Assertion<T>::assert_equal(instance, *objectContainer.ptr());
+    ObjectContainerConstructed<T, Args...> objectContainer(std::forward<typename extent_as_pointer<Args>::type>(args)...);
+    Assertion<T>::assert_equal(compare, *objectContainer.ptr());
 }
 
 TEST(ContainmentTestSuite, test_constructed_container) {
     using namespace __pyllars_internal;
     TestClass instance(1.2);
-    test_constructed_containers<TestClass, double>(instance, 1.2);
-    int val = 123;
-    test_constructed_containers<int, int>(val, 123);
+    test_constructed_containers<TestClass, double>(instance, 1.2,  1.2);
+    int val = 0;
+    int baseval = 123;
+    test_constructed_containers<int, int>(val,baseval, baseval);
+    test_constructed_containers<int, const int&>(val,baseval,  baseval);
+    test_constructed_containers<const int&, const int&>(val,baseval,  baseval);
+    TestClass cval(1234.5);
+    TestClass cbaseval(1.0);
+    test_constructed_containers<const TestClass, const TestClass&&>(cval,cbaseval,  1.0);
 
 }
 
@@ -122,8 +136,8 @@ TEST(ContainmentTestSuite, test_constructed_container_array) {
                                          TestClass(0.0),
                                          TestClass(0.0)};
     static TestClass *testClassArray = &instanceArray[0];
-    test_constructed_containers<int[3], int[3]>(int_array, int_array);
-    test_constructed_containers<TestClass*, TestClass*>(instanceArray, instanceArray);
+    test_constructed_containers<int[3], int[3]>(int_array, int_array, int_array);
+    test_constructed_containers<TestClass*, TestClass*>(instanceArray, instanceArray, instanceArray);
 }
 
 
@@ -142,7 +156,7 @@ TEST(ContainmentTestSuite, test_constructed_iplace_container) {
     TestClass instance(1.2);
     test_constructed_inplace_containers<TestClass, double>(instance, 1.2);
     int val = 123;
-    test_constructed_containers<int, int>(val, 123);
+    test_constructed_inplace_containers<int, int>(val, 123);
 
 }
 
