@@ -506,10 +506,12 @@ TEST_F(PythonBased, TestClassEnums){
 
     PyObject* ONE_E = PyObject_GetAttrString((PyObject*)Class::getType(), "E_ONE");
     ASSERT_NE(ONE_E, nullptr);
-    ASSERT_EQ(*(((Class*)ONE_E)->get_CObject()), PythonBased::EnumClass::E_ONE);
+    ASSERT_NE((((Class*)ONE_E)->get_CObject()), nullptr);
+            ASSERT_EQ(*(((Class*)ONE_E)->get_CObject()), PythonBased::EnumClass::E_ONE);
     PyObject *args = PyTuple_New(1);
     PyTuple_SetItem(args, 0, ONE_E);
     Class* new_value = (Class*) PyObject_Call((PyObject*) Class::getPyType(), args, nullptr);
+    ASSERT_NE((new_value->get_CObject()), nullptr);
     ASSERT_EQ(*(new_value->get_CObject()), PythonBased::EnumClass::E_ONE);
 
     PyObject* convert = PyObject_GetAttrString((PyObject*)Class::getPyType(), enum_convert_name);

@@ -147,6 +147,7 @@ void test_basic(T val, PyObject* (*PyFrom)(T)){
     using namespace __pyllars_internal;
     PyObject* obj;
     obj = PyFrom(val);
+    ASSERT_NE(obj, nullptr);
     smart_ptr<T, false> value = toCArgument<T, false>(*obj);
     Assertion<T>::assert_equal(*value, val);
     typedef const char* cstring;

@@ -869,7 +869,7 @@ namespace __pyllars_internal{
         } catch (const char *const msg) {
             PyErr_SetString(PyExc_RuntimeError, msg);
             return nullptr;
-        }B
+        }
     }
 
     template<typename T>

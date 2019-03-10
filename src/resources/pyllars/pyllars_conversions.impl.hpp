@@ -213,10 +213,13 @@ namespace __pyllars_internal {
         template<typename T, typename E=void>
         struct Setter{
             static PyObject* setItem(PyObject* obj, const size_t index, T & val, const bool is_bytes, const bool is_str, const bool is_int, const bool is_float){
-                if(!PyObject_TypeCheck(obj, PythonClassWrapper<T>::getPyType())){
-                    throw "Invalid C type conversion";
+                if(!PyList_Check(obj)){
+                    throw "Invalid conversion in item of non-list object";
                 }
                 auto self =(PythonClassWrapper<T>*)  PyList_GetItem(obj, index);
+                if(!PyObject_TypeCheck((PyObject*)self, PythonClassWrapper<T>::getPyType())){
+                    throw "Incompatible types in C conversion";
+                }
                 if (!self->get_CObject()){
                     throw "Cannot set null item";
                 }
@@ -227,47 +230,51 @@ namespace __pyllars_internal {
 
         template<typename T>
         struct Setter<T, typename std::enable_if<std::is_integral<T>::value>::type >{
-            static PyObject* setItem(PyObject* obj, const size_t index, T & val, const bool is_bytes, const bool is_str, const bool is_int, const bool is_float){
+            static void setItem(PyObject* obj, const size_t index, T & val, const bool is_bytes, const bool is_str, const bool is_int, const bool is_float){
                 if (is_int) {
-                    return PyLong_FromLongLong(val);
+                    PyList_SetItem(obj, index, PyLong_FromLong(val));
                 } else {
-                    if(!PyObject_TypeCheck(obj, PythonClassWrapper<T>::getPyType())){
-                        throw "Invalid C type conversion";
+                    if(!PyList_Check(obj)){
+                        throw "Attempt to set item in non-list object";
                     }
                     auto self =(PythonClassWrapper<T>*)  PyList_GetItem(obj, index);
+
+                    if(!PyObject_TypeCheck((PyObject*)self, PythonClassWrapper<T>::getPyType())){
+                        throw "Invalid C type conversion";
+                    }
                     if(!self->get_CObject()){
-                        PyErr_SetString(PyExc_ValueError, "Cannot set null item");
-                        return nullptr;
+                        throw "Cannot set null item";
                     }
                     *self->get_CObject() = val;
-                    return (PyObject*) self;
                 }
             }
         };
 
         template<typename T>
         struct Setter<T, typename std::enable_if<std::is_floating_point<T>::value>::type >{
-            static PyObject* setItem(PyObject* obj, const size_t index,  T & val, const bool is_bytes, const bool is_str, const bool is_int, const bool is_float){
+            static void setItem(PyObject* obj, const size_t index,  T & val, const bool is_bytes, const bool is_str, const bool is_int, const bool is_float){
                 if (is_float) {
                     PyList_SetItem(obj, index, PyFloat_FromDouble(val));
-                    return PyList_GetItem(obj, index);
                 } else {
-                    if(!PyObject_TypeCheck(obj, PythonClassWrapper<T>::getPyType())){
-                       throw "Invalid C type conversion";
+                    if(!PyList_Check(obj)){
+                        throw "Attempt to set item in non-list object";
                     }
                     auto self =(PythonClassWrapper<T>*)  PyList_GetItem(obj, index);
+
+                    if(!PyObject_TypeCheck((PyObject*)self, PythonClassWrapper<T>::getPyType())){
+                        throw "Invalid C type conversion";
+                    }
                     if (!self->get_CObject()){
                         throw "Cannot set null item";
                     }
                     *self->get_CObject() = val;
-                    return (PyObject*) self;
                 }
             }
         };
 
         template<>
         struct Setter<char*, void>{
-            static PyObject* setItem(PyObject* obj, const size_t index, char* & val, const bool is_bytes, const bool is_str, const bool is_int, const bool is_float){
+            static void setItem(PyObject* obj, const size_t index, char* & val, const bool is_bytes, const bool is_str, const bool is_int, const bool is_float){
                 if (is_bytes) {
                     PyList_SetItem(obj, index, PyBytes_FromString((const char *) val));
                 } else if(is_str){
@@ -281,7 +288,6 @@ namespace __pyllars_internal {
                         throw "Cannot set null item";
                     }
                     *self->get_CObject() = val;
-                    return (PyObject*) self;
                 }
             }
         };
