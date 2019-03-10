@@ -295,15 +295,18 @@ namespace __pyllars_internal {
         template<>
         struct Setter<const char*, void>{
             static void setItem(PyObject* obj, const size_t index, const char* & val, const bool is_bytes, const bool is_str, const bool is_int, const bool is_float){
+                if(!PyList_Check(obj)){
+                    throw "Attempt to set list item on non-list object";
+                }
                 if (is_bytes) {
                     PyList_SetItem(obj, index, PyBytes_FromString((const char *) val));
                 } else if(is_str){
                     PyList_SetItem(obj, index, PyString_FromString((const char *) val));
                 } else {
-                    if(!PyObject_TypeCheck(obj, PythonClassWrapper<const char*>::getPyType())){
+                    auto self = (PythonClassWrapper<const char*>*) PyList_GetItem(obj, index);
+                    if(!PyObject_TypeCheck((PyObject*)self, PythonClassWrapper<const char*>::getPyType())){
                         throw "Invalid type for conversion";
                     }
-                    auto self = (PythonClassWrapper<const char*>*) PyList_GetItem(obj, index);
                     if (!self->get_CObject()){
                         throw "Cannot set null item";
                     }
@@ -345,7 +348,6 @@ namespace __pyllars_internal {
                 }
             };
             return smart_ptr_with_reverse_capture<T[size], array_allocated>(val, reverse_capture, PTR_IS_ALLOCATED);
-
         }
         if (CommonBaseWrapper::template checkImplicitArgumentConversion<T[size]>(&pyobj)) {
             return smart_ptr_with_reverse_capture<T[size], array_allocated>(
@@ -354,7 +356,6 @@ namespace __pyllars_internal {
                     PTR_IS_NOT_ALLOCATED);
         }
         throw "Conversion from incompatible type or const-ness";
-
     }
 
     template<typename T>

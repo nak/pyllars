@@ -357,6 +357,7 @@ TEST_F(PythonSetup, convert_from_native_py_cstring) {
             PyWrapper_FromValue<const char*>, PyWrapper_AsValue<const char*> >(vals, toVals);
 
 }
+
 const char* __PyBytes_ToString(PyObject* obj) {
     return (const char *) PyBytes_AsString(obj);
 }
