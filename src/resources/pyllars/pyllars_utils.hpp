@@ -182,6 +182,20 @@ namespace __pyllars_internal {
         std::function<void()> _reverse_capture;
     };
 
+    template <typename T>
+    struct smart_py_reference: public smart_ptr<T, false>{
+        smart_py_reference(T* obj, PyObject* pyobj): smart_ptr <T, false>(obj, false),
+               _pyobj(pyobj){
+            Py_INCREF(pyobj);
+        }
+
+        ~smart_py_reference(){
+            Py_DECREF(_pyobj);
+        }
+    private:
+        PyObject *_pyobj;
+    };
+
     /**
      *  HACK(?) to determine if type is complete or not
      */

@@ -349,24 +349,29 @@ PyObject* _PyUnicode_FromString(const char* data){
 }
 
 TEST_F(PythonSetup, convert_from_native_py_cstring) {
-    const char*  vals[3] = {"abc", "def", "ghi"};
-    const char*  toVals[3] = {"rst", "uvw", "xyz"};
-    test_conversion_from_native_py<const char* , array_call<const char* >,
-            _PyUnicode_FromString, PyUnicode_AsUTF8>(vals, toVals);
-    test_conversion_from_native_py<const char*, array_call<const char*>,
-            PyWrapper_FromValue<const char*>, PyWrapper_AsValue<const char*> >(vals, toVals);
 
+try {
+
+    const char *vals[3] = {"abc", "def", "ghi"};
+    const char *toVals[3] = {"rst", "uvw", "xyz"};
+    test_conversion_from_native_py<const char *, array_call<const char *>,
+            PyUnicode_FromString, PyUnicode_AsUTF8>(vals, toVals);
+    test_conversion_from_native_py<const char *, array_call<const char *>,
+            PyWrapper_FromValue<const char *>, PyWrapper_AsValue<const char *> >(vals, toVals);
+} catch (const char* msg){
+    throw msg;
+}
 }
 
-const char* __PyBytes_ToString(PyObject* obj) {
-    return (const char *) PyBytes_AsString(obj);
+const char* __PyUnicode_ToString(PyObject* obj) {
+    return (const char *) PyUnicode_AsUTF8(obj);
 }
 
 TEST_F(PythonSetup, convert_from_native_pybytes_cstring) {
     const char*  vals[3] = {"abc", "def", "ghi"};
     const char*  toVals[3] = {"rst", "uvw", "xyz"};
     test_conversion_from_native_py<const char* , array_call<const char* >,
-            PyBytes_FromString, __PyBytes_ToString>(vals, toVals);
+            PyUnicode_FromString, __PyUnicode_ToString>(vals, toVals);
 }
 
 

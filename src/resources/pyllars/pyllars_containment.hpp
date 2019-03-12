@@ -43,6 +43,14 @@ namespace __pyllars_internal{
             }
             obj = nullptr;
         }
+
+        static void deallocate(T* const &obj, const bool asArray){
+            if (asArray){
+                delete [] obj;
+            } else {
+                delete obj;
+            }
+        }
     };
 
     template<typename T, size_t size>
@@ -65,6 +73,13 @@ namespace __pyllars_internal{
             obj = nullptr;
         }
 
+        static void deallocate(T_array* const &obj, const bool asArray){
+            if (asArray){
+                delete [] obj;
+            } else {
+                delete obj;
+            }
+        }
     };
 
     template<typename T>
@@ -77,6 +92,10 @@ namespace __pyllars_internal{
            obj = nullptr;
            throw "attempt to deallocate indestructible type";
         }
+
+        static void deallocate(T* const &obj, const bool asArray){
+            throw "attempt to deallocate indestructible type";
+        }
     };
 
 
@@ -88,6 +107,10 @@ namespace __pyllars_internal{
 
         static void deallocate(T* &obj, const bool asArray){
             obj = nullptr;
+            throw "attempt to deallocate indestructible type";
+        }
+
+        static void deallocate(T* const &obj, const bool asArray){
             throw "attempt to deallocate indestructible type";
         }
     };
@@ -172,8 +195,37 @@ namespace __pyllars_internal{
     struct ObjectContainer{
         typedef typename std::remove_reference<T>::type T_NoRef;
 
-        ObjectContainer(T_NoRef & obj):_contained(obj), _containedP(&_contained){
+
+        virtual operator T_NoRef&() {return *fake;}
+
+        virtual operator const T_NoRef&() const {return *fake;} // gcc complains in some cses if pure virtual :-/
+
+        virtual T_NoRef *ptr() const{
+            return nullptr;  //gcc complains if we make this virtual and use unnamed type such as an enum
         }
+
+        virtual ~ObjectContainer(){
+        }
+    protected:
+        ObjectContainer(){
+        }
+
+    private:
+        ObjectContainer(const ObjectContainer &);
+        static constexpr T* fake =  nullptr;
+    };
+
+    template<typename T>
+    struct ObjectContainerReference: public ObjectContainer<T>{
+        typedef typename std::remove_reference<T>::type T_NoRef;
+
+        ObjectContainerReference(T_NoRef & obj):ObjectContainer<T>(), _contained(obj), _containedP(&_contained){
+        }
+
+        virtual ~ObjectContainerReference(){
+            _containedP = nullptr;
+        }
+
 
         operator T_NoRef&(){
             if(!_containedP) throw "Attempt to dereference null C object";
@@ -184,11 +236,6 @@ namespace __pyllars_internal{
             if(!_containedP) throw "Attempt to dereference null C object";
             return _contained;
         }
-
-        virtual ~ObjectContainer(){
-            _containedP = nullptr;
-        }
-
         T_NoRef *ptr() const{
             return _containedP;
         }
@@ -196,8 +243,6 @@ namespace __pyllars_internal{
         T_NoRef & _contained;
         T_NoRef * _containedP;
 
-    private:
-        ObjectContainer(const ObjectContainer &);
     };
 
 
@@ -206,15 +251,15 @@ namespace __pyllars_internal{
     struct ObjectContainerAllocated;
 
     template<typename T>
-    struct ObjectContainerAllocated<T>: public ObjectContainer<T>{
+    struct ObjectContainerAllocated<T>: public ObjectContainerReference<T>{
         typedef typename std::remove_reference<T>::type T_NoRef;
 
-        ObjectContainerAllocated(T_NoRef* obj, const bool as_array = false):ObjectContainer<T>(*obj),
+        ObjectContainerAllocated(T_NoRef* obj, const bool as_array = false):ObjectContainerReference<T>(*obj),
             _asArray(as_array){
         }
 
-        ~ObjectContainerAllocated(){
-            Destructor<T_NoRef>::deallocate(ObjectContainer<T>::_containedP, _asArray);
+        virtual ~ObjectContainerAllocated(){
+            Destructor<T_NoRef>::deallocate(ObjectContainerReference<T>::_containedP, _asArray);
         }
 
 
@@ -222,21 +267,95 @@ namespace __pyllars_internal{
         const bool _asArray;
     };
 
+
+    template<typename T>
+    struct ObjectContainerAllocatedArray: public ObjectContainerReference<T>{
+        typedef typename std::remove_reference<T>::type T_NoRef;
+
+        ObjectContainerAllocatedArray(T_NoRef &obj, const bool as_array = false):ObjectContainerReference<T>(obj){
+            throw "Invalid call to allocate non-array type";
+        }
+
+        ~ObjectContainerAllocatedArray(){
+        }
+
+    };
+
+    template<typename T>
+    struct ObjectContainerAllocatedArray<T*>: public ObjectContainer<T*>{
+        typedef typename std::remove_reference<T>::type T_NoRef;
+
+        ObjectContainerAllocatedArray(T* obj, const bool as_array = false):_obj(obj), _asArray(as_array){
+        }
+
+        virtual ~ObjectContainerAllocatedArray(){
+            Destructor<T>::deallocate(_obj, _asArray);
+            _obj = nullptr;
+        }
+
+        operator T*&() override{
+            if(!_obj) throw "Attempt to dereference null C object";
+            return _obj;
+        }
+
+        operator T* const&() const override{
+            if(!_obj) throw "Attempt to dereference null C object";
+            return _obj;
+        }
+
+        T **  ptr() const override{
+            return (T**) &_obj;
+        }
+
+    protected:
+        T* _obj;
+        const bool _asArray;
+    };
+
+
+    template<typename T>
+    struct ObjectContainerAllocatedArray<T* const>: public ObjectContainer<T* const>{
+
+        ObjectContainerAllocatedArray(T* const obj, const bool as_array = false):_obj(obj), _asArray(as_array){
+        }
+
+        ~ObjectContainerAllocatedArray(){
+            Destructor<T>::deallocate(_obj, _asArray);
+        }
+
+        operator T* const&() override{
+            if(!_obj) throw "Attempt to dereference null C object";
+            return _obj;
+        }
+        operator T* const&() const override{
+            if(!_obj) throw "Attempt to dereference null C object";
+            return _obj;
+        }
+
+        T *const *  ptr() const override{
+            return &_obj;
+        }
+
+    protected:
+        T* const _obj;
+        const bool _asArray;
+    };
+
     template<typename T>
     struct ObjectContainerBytePool;
 
     template<typename T>
-    struct ObjectContainerBytePool<T*>: public ObjectContainer<T*>{
+    struct ObjectContainerBytePool<T*>: public ObjectContainerReference<T*>{
 
         ObjectContainerBytePool(T*& obj, const size_t arraySize):
-            ObjectContainer<T*>(obj), _size(arraySize){
+            ObjectContainerReference<T*>(obj), _size(arraySize){
         }
 
         ~ObjectContainerBytePool(){
             for(size_t i = 0; i < _size; ++i){
-                Destructor<T>::inplace_destrcuct(ObjectContainer<T*>::_contained[i]);
+                Destructor<T>::inplace_destrcuct(ObjectContainerReference<T*>::_contained[i]);
             }
-            unsigned char* raw_storage = (unsigned char*) ObjectContainer<T*>::_contained;
+            unsigned char* raw_storage = (unsigned char*) ObjectContainerReference<T*>::_contained;
             delete [] raw_storage;
         }
 
@@ -248,17 +367,17 @@ namespace __pyllars_internal{
 
 
     template<typename T>
-    struct ObjectContainerBytePool<T* const>: public ObjectContainer<T* const>{
+    struct ObjectContainerBytePool<T* const>: public ObjectContainerReference<T* const>{
 
         ObjectContainerBytePool(T* const& obj, const size_t arraySize):
-                ObjectContainer<T* const>(obj), _size(arraySize){
+                ObjectContainerReference<T* const>(obj), _size(arraySize){
         }
 
         ~ObjectContainerBytePool(){
             for(size_t i = 0; i < _size; ++i){
-                Destructor<T>::inplace_destrcuct(ObjectContainer<T* const>::_contained[i]);
+                Destructor<T>::inplace_destrcuct(ObjectContainerReference<T* const>::_contained[i]);
             }
-            unsigned char* raw_storage = (unsigned char*) ObjectContainer<T* const>::_contained;
+            unsigned char* raw_storage = (unsigned char*) ObjectContainerReference<T* const>::_contained;
             delete [] raw_storage;
         }
 
@@ -269,19 +388,19 @@ namespace __pyllars_internal{
     };
 
     template<typename T, size_t size>
-    struct ObjectContainerBytePool<T[size]>: public ObjectContainer<T[size]>{
+    struct ObjectContainerBytePool<T[size]>: public ObjectContainerReference<T[size]>{
 
         typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
 
         ObjectContainerBytePool(T * const&obj, const size_t arraySize):
-                ObjectContainer<T[size]>(((FixedArrayHelper<T, size>*)obj)->value), _size(arraySize){
+                ObjectContainerReference<T[size]>(((FixedArrayHelper<T, size>*)obj)->value), _size(arraySize){
         }
 
         ~ObjectContainerBytePool(){
             for(size_t i = 0; i < _size; ++i){
-                Destructor<T>::inplace_destrcuct(ObjectContainer<T[size]>::_contained[i]);
+                Destructor<T>::inplace_destrcuct(ObjectContainerReference<T[size]>::_contained[i]);
             }
-            unsigned char* raw_storage = (unsigned char*) ObjectContainer<T[size]>::_contained;
+            unsigned char* raw_storage = (unsigned char*) ObjectContainerReference<T[size]>::_contained;
             delete [] raw_storage;
         }
 
@@ -291,11 +410,11 @@ namespace __pyllars_internal{
     };
 
     template<typename T, typename ...Args>
-    struct ObjectContainerInPlace: public ObjectContainer<T>{
+    struct ObjectContainerInPlace: public ObjectContainerReference<T>{
         typedef typename std::remove_reference<T>::type T_NoRef;
 
         ObjectContainerInPlace(T_NoRef& obj,  Args ...args):
-                ObjectContainer<T>(*new ((void*)&obj) T_NoRef(std::forward<typename extent_as_pointer<Args>::type>(args)...)){
+                ObjectContainerReference<T>(*new ((void*)&obj) T_NoRef(std::forward<typename extent_as_pointer<Args>::type>(args)...)){
 
         }
 
@@ -305,12 +424,12 @@ namespace __pyllars_internal{
     };
 
     template<typename T, size_t size>
-    struct ObjectContainerInPlace<T[size], T[size]>: public ObjectContainer<T[size]>{
+    struct ObjectContainerInPlace<T[size], T[size]>: public ObjectContainerReference<T[size]>{
 
         typedef T T_array[size];
 
         ObjectContainerInPlace(T_array& obj,  T_array &arg):
-                ObjectContainer<T[size]>(*Constructor<T[size]>::inplace_allocate(obj, arg)){
+                ObjectContainerReference<T[size]>(*Constructor<T[size]>::inplace_allocate(obj, arg)){
 
         }
 
@@ -325,9 +444,9 @@ namespace __pyllars_internal{
     };
 
     template<typename T, typename ...Args>
-    struct ObjectContainerConstructed: public ObjectContainer<T>{
+    struct ObjectContainerConstructed: public ObjectContainerReference<T>{
         ObjectContainerConstructed(Args ...args):_constructed(std::forward<typename extent_as_pointer<Args>::type>(args)...),
-        ObjectContainer<T>(_constructed){
+        ObjectContainerReference<T>(_constructed){
 
         }
     private:
@@ -336,27 +455,94 @@ namespace __pyllars_internal{
 
     //Reference types should just capture the reference, so same as base class behavior:
     template<typename T, typename ...Args>
-    struct ObjectContainerConstructed<T&, Args...>: public ObjectContainer<T>{
-        ObjectContainerConstructed(Args ...args):ObjectContainer<T>(std::forward<typename extent_as_pointer<Args>::type>(args)...){
+    struct ObjectContainerConstructed<T&, Args...>: public ObjectContainerReference<T>{
+        ObjectContainerConstructed(Args ...args):ObjectContainerReference<T>(std::forward<typename extent_as_pointer<Args>::type>(args)...){
 
         }
     };
     template<typename T, typename ...Args>
-    struct ObjectContainerConstructed<T&&, Args...>: public ObjectContainer<T>{
-        ObjectContainerConstructed(Args ...args):ObjectContainer<T>(std::forward<typename extent_as_pointer<Args>::type>>(args)...){
+    struct ObjectContainerConstructed<T&&, Args...>: public ObjectContainerReference<T>{
+        ObjectContainerConstructed(Args ...args):ObjectContainerReference<T>(std::forward<typename extent_as_pointer<Args>::type>>(args)...){
 
         }
     };
 
     template<size_t size, typename T>
-    struct ObjectContainerConstructed<T[size], T[size]>: public ObjectContainer<T[size]>{
-        ObjectContainerConstructed(T args[size]):ObjectContainer<T[size]>(((FixedArrayHelper<T,size>*)&_constructed)->value){
+    struct ObjectContainerConstructed<T[size], T[size]>: public ObjectContainerReference<T[size]>{
+        ObjectContainerConstructed(T args[size]):ObjectContainerReference<T[size]>(((FixedArrayHelper<T,size>*)&_constructed)->value){
             for(size_t i = 0; i < size; ++i){
                 new (&_constructed[0] + sizeof(T)*i) T(args[i]);
             }
         }
     private:
         unsigned char _constructed[size*sizeof(T)];
+    };
+
+    template<typename T>
+    struct ObjectContainerPyReference: public ObjectContainer<T>{
+
+        ~ObjectContainerPyReference(){
+        }
+
+    private:
+        ObjectContainerPyReference(PyObject* obj, typename extent_as_pointer<T>::type (*convert)(PyObject*)){
+        }
+
+
+    };
+
+    template<typename T>
+    struct ObjectContainerPyReference<T*>: public ObjectContainer<T*>{
+        ObjectContainerPyReference(PyObject* obj, T* (*convert)(PyObject*)):_cobj(convert(obj)), _pyobj(obj){
+            if(!&_cobj){throw "Invalid conversion from python to c object";}
+            Py_INCREF(_pyobj);
+        }
+
+        ~ObjectContainerPyReference(){
+            Py_DECREF(_pyobj);
+        }
+
+        operator T*&() override{
+            return _cobj;
+        }
+        operator T* const&() const override{
+            return _cobj;
+        }
+
+        T **  ptr() const override{
+            return (T**) &_cobj;
+        }
+
+    private:
+        PyObject* _pyobj;
+        T* _cobj;
+    };
+
+    template<typename T>
+    struct ObjectContainerPyReference<T* const>: public ObjectContainer<T* const>{
+        ObjectContainerPyReference(PyObject* obj, T*  (*convert)(PyObject*)):_cobj(convert(obj)), _pyobj(obj){
+            if(!&_cobj){throw "Invalid conversion from python to c object";}
+            Py_INCREF(_pyobj);
+        }
+
+        ~ObjectContainerPyReference(){
+            Py_DECREF(_pyobj);
+        }
+
+        operator T* const&() override{
+            return _cobj;
+        }
+        operator T* const&() const override{
+            return _cobj;
+        }
+
+        T * const *  ptr() const override{
+            return &_cobj;
+        }
+
+    private:
+        PyObject* _pyobj;
+        T* const _cobj;
     };
 }
 #endif

@@ -104,23 +104,18 @@ namespace __pyllars_internal {
     CObjectConversionHelper<const char *, array_allocated>::
     toCArgument(PyObject &pyobj) {
         auto self = (CommonBaseWrapper*) &pyobj;
-
+        const char* text = nullptr;
         if (PyString_Check(&pyobj)) {
-            auto name = (const char *) PyString_AsString(&pyobj);
-            if (!name) { throw "Error converting string: null pointer encountered"; }
-            return smart_ptr<const char *, false>(new (const char*)(name), PTR_IS_ALLOCATED);
-        } else if (PyBytes_Check(&pyobj)){
-            auto name = (char *) PyBytes_AsString(&pyobj);
-            if (!name) { throw "Error converting string: null pointer encountered"; }
-            return smart_ptr<const char *, false>(new (const char*)(name), PTR_IS_ALLOCATED);
-        }
-        if (CommonBaseWrapper::template checkImplicitArgumentConversion<const char*>(&pyobj)) {
-            return smart_ptr<const char*, array_allocated>(
-                    reinterpret_cast<PythonClassWrapper<const char*> * >(&pyobj)->get_CObject(),
-                    PTR_IS_NOT_ALLOCATED);
+            text= (const char *) PyString_AsString(&pyobj);
+        } else if (CommonBaseWrapper::template checkImplicitArgumentConversion<const char*>(&pyobj)) {
+           text = *((PythonClassWrapper<const char*> *)(&pyobj))->get_CObject();
         } else {
             throw "Invalid type or const conversion converting to C object";
         }
+        if (!text) {
+            throw "Error converting string: null pointer encountered";
+        }
+        return smart_py_reference<const char*>(new (const char*)(text), &pyobj);
     }
 
     template<bool array_allocated>
@@ -128,19 +123,18 @@ namespace __pyllars_internal {
     CObjectConversionHelper<const char *const, array_allocated>::
     toCArgument(PyObject &pyobj) {
         auto self = (CommonBaseWrapper*) &pyobj;
-
+        const char* text = nullptr;
         if (PyString_Check(&pyobj)) {
-            auto name = (const char *) PyString_AsString(&pyobj);
-            if (!name) { throw "Error converting string: null pointer encountered"; }
-            return smart_ptr<const char * const, false>(new (const char* const)(name), PTR_IS_ALLOCATED);
-        }
-        if (CommonBaseWrapper::template checkImplicitArgumentConversion<const char* const>(&pyobj)) {
-            return smart_ptr<const char* const, array_allocated>(
-                    reinterpret_cast<PythonClassWrapper<const char* const> * >(&pyobj)->get_CObject(),
-                    PTR_IS_NOT_ALLOCATED);
+            text = (const char *) PyString_AsString(&pyobj);
+        } else if (CommonBaseWrapper::template checkImplicitArgumentConversion<const char* const>(&pyobj)) {
+           text = *reinterpret_cast<PythonClassWrapper<const char* const> * >(&pyobj)->get_CObject();
         } else {
             throw "Invalid type or const conversion converting to C object";
         }
+        if (!text) {
+            throw "Error converting string: null pointer encountered";
+        }
+        return smart_py_reference<const char* const>(new (const char*)(text), &pyobj);
     }
 
     template<bool array_allocated>
@@ -148,44 +142,33 @@ namespace __pyllars_internal {
     CObjectConversionHelper<char *const, array_allocated >::
     toCArgument(PyObject &pyobj) {
         auto self = (CommonBaseWrapper*) &pyobj;
-        if (PyString_Check(&pyobj)) {
-            auto name = (char * const ) PyString_AsString(&pyobj);
-            if (!name) { throw "Error converting string: null pointer encountered"; }
-            return smart_ptr<char * const, false>(new (char* const)(name), PTR_IS_ALLOCATED);
-        }
-        if (CommonBaseWrapper::template checkImplicitArgumentConversion< char* const>(&pyobj)) {
-            return smart_ptr< char* const, array_allocated>(
-                    reinterpret_cast<PythonClassWrapper<char* const> * >(&pyobj)->get_CObject(),
-                    PTR_IS_NOT_ALLOCATED);
+        char* bytes = nullptr;
+        if (PyBytes_Check(&pyobj)) {
+            bytes = (char *) PyBytes_AsString(&pyobj);
+        } else if (CommonBaseWrapper::template checkImplicitArgumentConversion< char* const>(&pyobj)) {
+            bytes = *reinterpret_cast<PythonClassWrapper<char* const> * >(&pyobj)->get_CObject();
         } else {
             throw "Invalid type or const conversion converting to C object";
         }
+        if (!bytes) { throw "Error converting string: null pointer encountered"; }
+        return smart_py_reference<char* const>(new (char*)(bytes), &pyobj);
+
     }
 
     template<bool array_allocated>
     typename CObjectConversionHelper<char *, array_allocated>::ptr_t
     CObjectConversionHelper<char *, array_allocated>::
     toCArgument(PyObject &pyobj) {
-        if (PyString_Check(&pyobj)) {
-            char * name = (char *) PyString_AsString(&pyobj);
-            if (!name) { throw "Error converting string: null pointer encountered"; }
-            return smart_ptr<char *, false>(new (char*)(name), PTR_IS_ALLOCATED);
-#if PY_MAJOR_VERSION >= 3
-        } else if (PyBytes_Check(&pyobj)) {
-            auto bytes = (char* ) PyBytes_AsString(&pyobj);
-            if(!bytes){
-                throw "Error converting bytes: null pointer encountered";
-            }
-            return smart_ptr<char*, false>(&bytes, PTR_IS_NOT_ALLOCATED);
-        }
-#endif
-        if (CommonBaseWrapper::template checkImplicitArgumentConversion<const char* const>(&pyobj)) {
-            return smart_ptr<const char* const, array_allocated>(
-                    reinterpret_cast<PythonClassWrapper<char*> * >(&pyobj)->get_CObject(),
-                    PTR_IS_NOT_ALLOCATED);
+        char* bytes = nullptr;
+        if (PyBytes_Check(&pyobj)) {
+            bytes = (char *) PyBytes_AsString(&pyobj);
+        } else if (CommonBaseWrapper::template checkImplicitArgumentConversion< char*>(&pyobj)) {
+            bytes = *reinterpret_cast<PythonClassWrapper<char*> * >(&pyobj)->get_CObject();
         } else {
             throw "Invalid type or const conversion converting to C object";
         }
+        if (!bytes) { throw "Error converting string: null pointer encountered"; }
+        return smart_py_reference<char*>(new (char*)(bytes), &pyobj);
     }
 
     namespace {
@@ -343,8 +326,10 @@ namespace __pyllars_internal {
                 (*val)[i] = *CObjectConversionHelper<T, array_allocated>::toCArgument(*listitem);
             }
             auto reverse_capture = [&pyobj, val, is_bytes, is_str, is_int, is_float]() {
-                for (size_t i = 0; i < size; ++i) {
-                    Setter<T>::setItem(&pyobj, i, (*val)[i], is_bytes[i], is_str[i], is_int[i], is_float[i]);
+                if(!std::is_const<T>::value) {
+                    for (size_t i = 0; i < size; ++i) {
+                        Setter<T>::setItem(&pyobj, i, (*val)[i], is_bytes[i], is_str[i], is_int[i], is_float[i]);
+                    }
                 }
             };
             return smart_ptr_with_reverse_capture<T[size], array_allocated>(val, reverse_capture, PTR_IS_ALLOCATED);
@@ -382,11 +367,14 @@ namespace __pyllars_internal {
     PyObject *ConversionHelpers::PyObjectConversionHelper<T, typename std::enable_if<
             std::is_integral<T>::value || std::is_enum<T>::value>::type>::
     toPyObject(const T &var, const bool asReference, const ssize_t array_size) {
-        static PyObject *args = PyTuple_New(1);
         (void) asReference;
         PyTypeObject *type = PythonClassWrapper<T>::getPyType();
-        PyTuple_SetItem(args, 0, PyLong_FromLong((long int) var));
-        return PyObject_Call((PyObject *) type, args, nullptr);
+        PyObject *args = PyTuple_New(1);
+        auto pyInt = PyLong_FromLong((long int) var);
+        PyTuple_SetItem(args, 0, pyInt);
+        auto ret = PyObject_Call((PyObject *) type, args, nullptr);
+        Py_DECREF(args);
+        return ret;
     }
 
 
@@ -394,25 +382,38 @@ namespace __pyllars_internal {
     PyObject *
     ConversionHelpers::PyObjectConversionHelper<T, typename std::enable_if<std::is_floating_point<T>::value>::type>::
     toPyObject(const T &var, const bool asReference, const ssize_t array_size) {
-        static PyObject *args = PyTuple_New(1);
         (void) asReference;
         PyTypeObject *type = PythonClassWrapper<T>::getPyType();
-        PyTuple_SetItem(args, 0, PyFloat_FromDouble((double) var));
-        return PyObject_Call((PyObject*) type, args, nullptr);
+        PyObject* pyFloat = PyFloat_FromDouble((double) var);
+        PyObject *args = PyTuple_New(1);
+        PyTuple_SetItem(args, 0, pyFloat);
+        auto ret = PyObject_Call((PyObject*) type, args, nullptr);
+        Py_DECREF(args);
+        return ret;
     }
 
     template<typename T>
     PyObject *ConversionHelpers::PyObjectConversionHelper<T, typename std::enable_if<is_c_string_like<T>::value ||
         is_bytes_like<T>::value>::type>::
     toPyObject(T &var, const bool asReference, const ssize_t array_size) {
-        static PyObject *args = PyTuple_New(1);
         (void) asReference;
         if (!var) {
             throw "NULL CHAR* encountered";
         }
         PyTypeObject *type = PythonClassWrapper<T>::getPyType();
-        PyTuple_SetItem(args, 0, PyBytes_FromString((const char*)var));
-        return PyObject_Call((PyObject*) type, args, nullptr);
+        auto obj =  PyUnicode_FromString((const char*)var);
+        if(!obj){
+            PyErr_SetString(PyExc_ValueError, "Unable to extact unicode from given c-string");
+            return nullptr;
+        }
+        PyObject *args = PyTuple_New(1);
+        PyTuple_SetItem(args, 0, obj);
+        auto ret = PyObject_Call((PyObject*) type, args, nullptr);
+        Py_DECREF(args);
+        if(!ret){
+            PyErr_SetString(PyExc_TypeError, "Invalid conversion from C object to Python");
+        }
+        return ret;
     }
 
     template<typename T>
