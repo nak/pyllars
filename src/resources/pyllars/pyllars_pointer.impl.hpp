@@ -209,6 +209,8 @@ namespace __pyllars_internal {
         return 0;
     }
 
+
+
     template<typename T>
     PythonPointerWrapperBase<T> *
     PythonPointerWrapperBase<T>::
@@ -236,8 +238,9 @@ namespace __pyllars_internal {
         pyobj->_arraySize = 0;
         switch (containmentKind) {
             case ContainmentKind::ALLOCATED :
-                pyobj->_CObject = new ObjectContainerAllocated<T>(&cobj, arraySize > 0);
-                pyobj->_arraySize = arraySize;
+                throw "System error";
+                //pyobj->_CObject = new ObjectContainerAllocated<T>(&cobj, arraySize > 0);
+                //pyobj->_arraySize = arraySize;
                 break;
             case ContainmentKind::CONSTRUCTED:
                 pyobj->_CObject = new ObjectContainerReference<T>(cobj);
@@ -457,6 +460,34 @@ namespace __pyllars_internal {
     }
 
     template<typename T>
+    PythonClassWrapper<T, typename std::enable_if<
+            !std::is_function<typename std::remove_pointer<T>::type>::value &&
+            (std::is_pointer<T>::value || std::is_array<T>::value) &&
+            (ptr_depth<T>::value > 1)  &&
+            sizeof(typename extent_as_pointer<T>::type) == sizeof(typename base_type<T>::type*) >::type>*
+    PythonClassWrapper<T, typename std::enable_if<
+            !std::is_function<typename std::remove_pointer<T>::type>::value &&
+            (std::is_pointer<T>::value || std::is_array<T>::value) &&
+            (ptr_depth<T>::value > 1)  &&
+            sizeof(typename extent_as_pointer<T>::type) == sizeof(typename base_type<T>::type*) >::type>::
+    createPyReferenceToAddr() {
+        auto * addrType = PythonClassWrapper<T>::getPyType();
+
+        static PyObject *args = PyTuple_New(0);
+        static PyObject *kwds = PyDict_New();
+        PythonClassWrapper *pyobj = (PythonClassWrapper *) PyObject_Call((PyObject*) &addrType, args, kwds);
+        if (!pyobj) {
+            PyErr_SetString(PyExc_RuntimeError, "Unable to create Python Object");
+            return nullptr;
+        }
+        assert(pyobj->get_CObject() == nullptr);
+        pyobj->_arraySize = 0;
+        pyobj->_Cobject = ObjectContainerPyReference<T>((PyObject*) this,
+                [](PyObject* s)->T*{return (T*)((PythonClassWrapper*)s)->get_CObject()->ptr();});
+        return pyobj;
+    }
+
+    template<typename T>
     PyMethodDef
     PythonClassWrapper<T,  typename std::enable_if<
             !std::is_function<typename std::remove_pointer<T>::type>::value &&
@@ -607,11 +638,9 @@ PyObject_HEAD_INIT(nullptr)
             return nullptr;
         }
         try {
-            T *obj = self->_CObject->ptr();
-            PythonClassWrapper< T*>  *pyobj = PythonClassWrapper< T*>::createPy(1, obj, ContainmentKind ::BY_REFERENCE, (PyObject *) self);
+            auto  *pyobj = self->createPyReferenceToAddr();//1, obj, ContainmentKind ::BY_REFERENCE, (PyObject *) self);
             pyobj->_depth = 2;
             return reinterpret_cast<PyObject *>(pyobj);
-
         } catch (const char *const msg) {
             PyErr_SetString(PyExc_RuntimeError, msg);
             return nullptr;
@@ -655,6 +684,29 @@ PyObject_HEAD_INIT(nullptr)
             }
         }
         return result;
+    }
+
+    template<typename T>
+    PythonClassWrapper<T*>*
+    PythonClassWrapper<T, typename std::enable_if<
+            !std::is_function<typename std::remove_pointer<T>::type>::value &&
+            (std::is_pointer<T>::value || std::is_array<T>::value) &&
+            (ptr_depth<T>::value == 1) >::type>::
+    createPyReferenceToAddr() {
+        auto * addrType = PythonClassWrapper<T*>::getPyType();
+
+        static PyObject *args = PyTuple_New(0);
+        static PyObject *kwds = PyDict_New();
+        PythonClassWrapper<T*> *pyobj = (PythonClassWrapper<T*> *) PyObject_Call((PyObject*) &addrType, args, kwds);
+        if (!pyobj) {
+            PyErr_SetString(PyExc_RuntimeError, "Unable to create Python Object");
+            return nullptr;
+        }
+        assert(pyobj->get_CObject() == nullptr);
+        pyobj->_arraySize = 0;
+        pyobj->_CObject = new ObjectContainerPyReference<T*>((PyObject*) this,
+                [](PyObject* s)->T*{return ((PythonClassWrapper*)s)->_CObject->ptr();});
+        return pyobj;
     }
 
     template<typename T>

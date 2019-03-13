@@ -5,6 +5,14 @@
 
 namespace __pyllars_internal{
 
+    //////////////////////////////////////
+    // Containers for Cobjects in varoious forms.  Containers allow for a wrapper that can
+    // convert what would normally be a compil-time error in C to a more Pythonic run-time error
+    /////////////////////////////////////
+
+    /**
+     * Variou kinds of containers
+     */
     enum class ContainmentKind: unsigned char{
         BY_REFERENCE,
         ALLOCATED,
@@ -16,6 +24,11 @@ namespace __pyllars_internal{
 
     namespace {
 
+        /**
+         * Helper for dealing with schizoprhenic fixed arrays in c (is it a pointer or an object with contigous memory?)
+         * @tparam T: type of element in array
+         * @tparam size : size of array
+         */
         template<typename T, size_t size>
         struct FixedArrayHelper{
             T value[size];
@@ -25,6 +38,8 @@ namespace __pyllars_internal{
     /////////////////////////////////////////////////////
 
     // DESTRUCTOR LOGIC
+    // Converts what would normally be an exception on deletion of an object that is indestructible by the rules of C
+    // to a run-time error for Python
 
     template <typename T, typename Z=void>
     struct Destructor;
@@ -118,6 +133,10 @@ namespace __pyllars_internal{
 
     ///////////////////////////////////
 
+    // CONSTRUCTOR Logic
+    // converts what would be a compile-time error for non-constructible occurrences into run-time erorrs
+    // for compatibility in Python
+
     template<typename T, typename Z=void>
     struct Constructor;
 
@@ -188,15 +207,18 @@ namespace __pyllars_internal{
             throw "Cannot instantiate object of given type per rules of C++";
         }
     };
+
     ///////////////////////////////////
 
-
+    /**
+     * "Abstract" base class for an object container holding an instance or refernce to a C object
+     * @tparam T : Type of C object
+     */
     template<typename T>
     struct ObjectContainer{
         typedef typename std::remove_reference<T>::type T_NoRef;
 
-
-        virtual operator T_NoRef&() {return *fake;}
+        virtual operator T_NoRef&() {return *fake;} // gcc complains in some cses if pure virtual :-/
 
         virtual operator const T_NoRef&() const {return *fake;} // gcc complains in some cses if pure virtual :-/
 
@@ -206,7 +228,9 @@ namespace __pyllars_internal{
 
         virtual ~ObjectContainer(){
         }
+
     protected:
+        //substitute for not being allowed to make abstract
         ObjectContainer(){
         }
 
@@ -215,6 +239,10 @@ namespace __pyllars_internal{
         static constexpr T* fake =  nullptr;
     };
 
+    /**
+     * Constainer for a reference-to-an-object
+     * Client is responsible to ensure lifetime of given object exceeds lifetime of container
+     */
     template<typename T>
     struct ObjectContainerReference: public ObjectContainer<T>{
         typedef typename std::remove_reference<T>::type T_NoRef;
@@ -254,92 +282,48 @@ namespace __pyllars_internal{
     struct ObjectContainerAllocated<T>: public ObjectContainerReference<T>{
         typedef typename std::remove_reference<T>::type T_NoRef;
 
-        ObjectContainerAllocated(T_NoRef* obj, const bool as_array = false):ObjectContainerReference<T>(*obj),
-            _asArray(as_array){
+        template<typename ...Args>
+        static ObjectContainerAllocated*  new_container(Args ...args){
+            return new ObjectContainerAllocated(new T(args...));
+        }
+
+    private:
+
+        ObjectContainerAllocated(T_NoRef* obj):ObjectContainerReference<T>(*_obj), _obj(obj){
         }
 
         virtual ~ObjectContainerAllocated(){
-            Destructor<T_NoRef>::deallocate(ObjectContainerReference<T>::_containedP, _asArray);
+            Destructor<T_NoRef>::deallocate(ObjectContainerReference<T>::_containedP, false);
         }
 
-
-    protected:
-        const bool _asArray;
+        T * _obj;
     };
 
-
-    template<typename T>
-    struct ObjectContainerAllocatedArray: public ObjectContainerReference<T>{
+    template<typename T, size_t size>
+    struct ObjectContainerAllocated<T[size]>: public ObjectContainerReference<T[size]> {
         typedef typename std::remove_reference<T>::type T_NoRef;
+        typedef T T_array[size];
 
-        ObjectContainerAllocatedArray(T_NoRef &obj, const bool as_array = false):ObjectContainerReference<T>(obj){
-            throw "Invalid call to allocate non-array type";
+        template<typename ...Args>
+        static ObjectContainerAllocated*  new_container(T_array&  value){
+            typedef typename std::remove_const<T>::type T_nonconst_array[size];
+            T_nonconst_array *new_value = new T_nonconst_array[1];
+            for (size_t i = 0; i < size; ++i) new_value[0][i] = value[i];
+            return new ObjectContainerAllocated(new_value);
         }
 
-        ~ObjectContainerAllocatedArray(){
+    private:
+
+        ObjectContainerAllocated(T_array* obj):ObjectContainerReference<T[size]>(*_obj), _obj(obj){
+
         }
 
+        virtual ~ObjectContainerAllocated(){
+            Destructor<T[size]>::deallocate(ObjectContainerReference<T[size]>::_containedP, true);
+        }
+        T_array* _obj;
     };
 
-    template<typename T>
-    struct ObjectContainerAllocatedArray<T*>: public ObjectContainer<T*>{
-        typedef typename std::remove_reference<T>::type T_NoRef;
-
-        ObjectContainerAllocatedArray(T* obj, const bool as_array = false):_obj(obj), _asArray(as_array){
-        }
-
-        virtual ~ObjectContainerAllocatedArray(){
-            Destructor<T>::deallocate(_obj, _asArray);
-            _obj = nullptr;
-        }
-
-        operator T*&() override{
-            if(!_obj) throw "Attempt to dereference null C object";
-            return _obj;
-        }
-
-        operator T* const&() const override{
-            if(!_obj) throw "Attempt to dereference null C object";
-            return _obj;
-        }
-
-        T **  ptr() const override{
-            return (T**) &_obj;
-        }
-
-    protected:
-        T* _obj;
-        const bool _asArray;
-    };
-
-
-    template<typename T>
-    struct ObjectContainerAllocatedArray<T* const>: public ObjectContainer<T* const>{
-
-        ObjectContainerAllocatedArray(T* const obj, const bool as_array = false):_obj(obj), _asArray(as_array){
-        }
-
-        ~ObjectContainerAllocatedArray(){
-            Destructor<T>::deallocate(_obj, _asArray);
-        }
-
-        operator T* const&() override{
-            if(!_obj) throw "Attempt to dereference null C object";
-            return _obj;
-        }
-        operator T* const&() const override{
-            if(!_obj) throw "Attempt to dereference null C object";
-            return _obj;
-        }
-
-        T *const *  ptr() const override{
-            return &_obj;
-        }
-
-    protected:
-        T* const _obj;
-        const bool _asArray;
-    };
 
     template<typename T>
     struct ObjectContainerBytePool;
@@ -368,7 +352,7 @@ namespace __pyllars_internal{
 
     template<typename T>
     struct ObjectContainerBytePool<T* const>: public ObjectContainerReference<T* const>{
-
+        
         ObjectContainerBytePool(T* const& obj, const size_t arraySize):
                 ObjectContainerReference<T* const>(obj), _size(arraySize){
         }

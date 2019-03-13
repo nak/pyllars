@@ -46,7 +46,7 @@ namespace __pyllars_internal {
                                     std::is_assignable<typename std::remove_reference<T>::type &, typename std::remove_reference<T>::type>::value &&
                                     std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type>::
     new_copy2(const T &value) {
-        return new ObjectContainerAllocated<T>(new T_NoRef(value));
+        return ObjectContainerAllocated<T>::new_container(value);
     }
 
     template<typename T>
@@ -76,7 +76,7 @@ namespace __pyllars_internal {
              !std::is_destructible<typename std::remove_reference<T>::type>::value) &&
             std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type>::
     new_copy2(const T_NoRef &value) {
-        return new ObjectContainerAllocated<T>(new T_NoRef(value));
+        return ObjectContainerAllocated<T>::new_container(value);
     }
 
     template<typename T>
@@ -105,11 +105,8 @@ namespace __pyllars_internal {
     ObjectLifecycleHelpers::Copy<T[size], typename std::enable_if<(size > 0) &&
         !std::is_const<T>::value &&
         std::is_copy_constructible<typename std::remove_reference<T>::type>::value>::type>::
-    new_copy2(const T_array &value) {
-        typedef typename std::remove_const<T>::type T_nonconst_array[size];
-        T_nonconst_array *new_value = new T_nonconst_array[1];
-        for (size_t i = 0; i < size; ++i) new_value[0][i] = value[i];
-        return new ObjectContainerAllocated<T_array>((T_array * )(new_value), true);
+    new_copy2(T_array &value) {
+        return ObjectContainerAllocated<T_array>::new_container(value);
     }
 
     namespace{

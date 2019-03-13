@@ -210,6 +210,7 @@ namespace __pyllars_internal {
         }
 
     protected:
+        PythonClassWrapper *createPyReferenceToAddr();
         static PyObject *_addr(PyObject *self, PyObject *args);
 
         static int _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds);
@@ -253,6 +254,8 @@ namespace __pyllars_internal {
             return reinterpret_cast<PythonClassWrapper*>(Base::_createPy(Type, arraySize, cobj, containmentKind, referencing));
         }
 
+
+
     protected:
         static PyObject *_addr(PyObject *self_, PyObject *args);
         static int _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds);
@@ -260,6 +263,8 @@ namespace __pyllars_internal {
         static PyMethodDef _methods[];
 
      private:
+        PythonClassWrapper<T*> *createPyReferenceToAddr();
+
         struct Iter{
             PyObject_HEAD
             PythonClassWrapper* obj;

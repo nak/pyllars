@@ -149,7 +149,7 @@ namespace __pyllars_internal {
             typedef T T_array[size];
             typedef typename std::remove_reference<T>::type T_NoRef;
 
-            static ObjectContainer<T_array> *new_copy2(const T_array &value);
+            static ObjectContainer<T_array> *new_copy2( T_array &value);
 
             static T_array *new_copy(T_array *const value);
 
