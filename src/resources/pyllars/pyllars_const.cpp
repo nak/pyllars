@@ -589,7 +589,7 @@ namespace __pyllars_internal {
         PyDict_SetItemString(kwds, "__internal_allow_null", Py_True);
 
         __pyllars_internal::PythonClassWrapper<number_type> *pyobj = (__pyllars_internal::PythonClassWrapper<number_type> *) PyObject_Call(
-                (PyObject *) &Type, emptyargs, kwds);
+                (PyObject *) getPyType(), emptyargs, kwds);
         pyobj->_depth = 0;
         return pyobj;
     }
@@ -1209,8 +1209,8 @@ namespace __pyllars_internal {
         static PyObject *emptyargs = PyTuple_New(0);
         PyDict_SetItemString(kwds, "__internal_allow_null", Py_True);
 
-        PythonClassWrapper<number_type> *pyobj = (PythonClassWrapper<number_type> *) PyObject_Call(
-                (PyObject *) &Type, emptyargs, kwds);
+        auto *pyobj = (PythonClassWrapper<number_type> *) PyObject_Call(
+                (PyObject *) getPyType(), emptyargs, kwds);
         pyobj->value = cobj;
         pyobj->_depth = 0;
         return pyobj;
