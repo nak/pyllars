@@ -1156,28 +1156,28 @@ namespace __pyllars_internal {
             return alloc(cls, list, kwds);
         } else if (PyList_Check(arg)) {
             const ssize_t size = PyList_Size(arg);
-            unsigned char *bytes = new unsigned char[sizeof(T) * size];
-            T_NoRef *objs = (T_NoRef *) bytes;
-            for (size_t i = 0; i < size; ++i) {
+            std::function<void(void*, size_t)> constructor = [args, kwds](void * location, size_t index){
                 ObjectContainer<T> *cobj = nullptr;
+                PyObject* args2 = PyTuple_GetItem(args, index);
+                if (!args2 || !PyTuple_Check(args2)){
+                    throw "Invalid constructor arguments: not a tuple as expected, or index out of range";
+                }
                 for (auto const &[kwlist, constructor] : PythonClassWrapper<T>::_constructors) {
                     try {
-                        cobj = constructor(kwlist, args, kwds, ContainmentKind::CONSTRUCTED_IN_PLACE,
-                                           (unsigned char *) &objs[i]);
+                        cobj = constructor(kwlist, args, nullptr, ContainmentKind::CONSTRUCTED_IN_PLACE,
+                                           (unsigned char*)location);
                         if (cobj) break;
                     } catch (...) {
                     }
                     PyErr_Clear();
                 }
                 if (!cobj) {
-                    PyErr_SetString(PyExc_TypeError, "No matching constructor");
-                    return nullptr;
+                    throw  "No matching constructor";
                 }
-            }
-            return (PyObject *) PythonClassWrapper<T_NoRef *>::createPy(size, objs, ContainmentKind::RAW_BYTE_POOL);
+            };
+            return (PyObject *) PythonClassWrapper<T_NoRef *>::createPyUsingBytePool(size, constructor);
         }
-        PyErr_SetString(PyExc_TypeError, "Invalid constructor arguments");
-        return nullptr;
+        throw "Invalid constructor arguments";
     }
 
     template<typename T>

@@ -1,6 +1,7 @@
 #ifndef __PYLLARS__CONTAINMENT__H
 #define __PYLLARS__CONTAINMENT__H
 
+#include <functional>
 #include "pyllars_type_traits.hpp"
 
 namespace __pyllars_internal{
@@ -17,8 +18,7 @@ namespace __pyllars_internal{
         BY_REFERENCE,
         ALLOCATED,
         CONSTRUCTED,
-        CONSTRUCTED_IN_PLACE,
-        RAW_BYTE_POOL
+        CONSTRUCTED_IN_PLACE
     };
 
 
@@ -222,7 +222,7 @@ namespace __pyllars_internal{
 
         virtual operator const T_NoRef&() const {return *fake;} // gcc complains in some cses if pure virtual :-/
 
-        virtual T_NoRef *ptr() const{
+        virtual T_NoRef * ptr(){
             return nullptr;  //gcc complains if we make this virtual and use unnamed type such as an enum
         }
 
@@ -264,9 +264,11 @@ namespace __pyllars_internal{
             if(!_containedP) throw "Attempt to dereference null C object";
             return _contained;
         }
-        T_NoRef *ptr() const{
+
+        T_NoRef *  ptr(){
             return _containedP;
         }
+
     protected:
         T_NoRef & _contained;
         T_NoRef * _containedP;
@@ -325,48 +327,106 @@ namespace __pyllars_internal{
     };
 
 
+    //////////////////////////
+
+
     template<typename T>
     struct ObjectContainerBytePool;
 
     template<typename T>
-    struct ObjectContainerBytePool<T*>: public ObjectContainerReference<T*>{
+    struct ObjectContainerBytePool<T*>: public ObjectContainer<T*>{
 
-        ObjectContainerBytePool(T*& obj, const size_t arraySize):
-            ObjectContainerReference<T*>(obj), _size(arraySize){
+        ObjectContainerBytePool( const size_t arraySize, std::function<void(void*, size_t)> construct_element ):
+                _raw_bytes(malloc(arraySize*sizeof(T))), _size(arraySize){
+            memset(_raw_bytes, 0, arraySize*sizeof(T));
+            for(size_t i = 0; i < arraySize; ++i){
+                construct_element((void*)(((T*)_raw_bytes) + i), i);
+            }
+        }
+
+        T& operator [](const size_t index){
+            if (index < 0 || index >=_size){
+                throw "Index out of range";
+            }
+            return _contained[index];
+        }
+
+        operator T*&(){
+            if(!_raw_bytes) throw "Attempt to dereference null C object";
+            return _contained;
+        }
+
+        operator T* const&() const{
+            if(!_raw_bytes) throw "Attempt to dereference null C object";
+            return _contained;
+        }
+
+        T** ptr(){
+            return (T**)&_contained;
         }
 
         ~ObjectContainerBytePool(){
             for(size_t i = 0; i < _size; ++i){
-                Destructor<T>::inplace_destrcuct(ObjectContainerReference<T*>::_contained[i]);
+                Destructor<T>::inplace_destrcuct((*this)[i]);
             }
-            unsigned char* raw_storage = (unsigned char*) ObjectContainerReference<T*>::_contained;
-            delete [] raw_storage;
+            free(_raw_bytes);
         }
 
 
     protected:
+        union {
+            void *_raw_bytes;
+            T *_contained;
+        };
         const size_t _size;
-
     };
 
 
     template<typename T>
-    struct ObjectContainerBytePool<T* const>: public ObjectContainerReference<T* const>{
-        
-        ObjectContainerBytePool(T* const& obj, const size_t arraySize):
-                ObjectContainerReference<T* const>(obj), _size(arraySize){
+    struct ObjectContainerBytePool<T* const>: public ObjectContainer<T* const>{
+
+        ObjectContainerBytePool( const size_t arraySize, std::function<void(void*, size_t)> construct_element ):
+                _raw_bytes(malloc(arraySize*sizeof(T))), _size(arraySize){
+            memset(_raw_bytes, 0, arraySize*sizeof(T));
+            for(size_t i = 0; i < arraySize; ++i){
+                construct_element((void*)(((T*)_raw_bytes) +i), i);
+            }
+        }
+
+        T& operator [](const size_t index){
+            if (index < 0 || index >=_size){
+                throw "Index out of range";
+            }
+            return _contained[index];
+        }
+
+
+        operator T*&(){
+            if(!_raw_bytes) throw "Attempt to dereference null C object";
+            return _contained;
+        }
+
+        operator T* const&() const{
+            if(!_raw_bytes) throw "Attempt to dereference null C object";
+            return _contained;
+        }
+
+        T* const * ptr(){
+            return &_contained;
         }
 
         ~ObjectContainerBytePool(){
             for(size_t i = 0; i < _size; ++i){
-                Destructor<T>::inplace_destrcuct(ObjectContainerReference<T* const>::_contained[i]);
+                Destructor<T>::inplace_destrcuct((*this)[i]);
             }
-            unsigned char* raw_storage = (unsigned char*) ObjectContainerReference<T* const>::_contained;
-            delete [] raw_storage;
+            free(_raw_bytes);
         }
 
-
     protected:
+        union {
+            void *_raw_bytes;
+            T* const _contained;
+        };
         const size_t _size;
 
     };
@@ -374,24 +434,53 @@ namespace __pyllars_internal{
     template<typename T, size_t size>
     struct ObjectContainerBytePool<T[size]>: public ObjectContainerReference<T[size]>{
 
-        typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
-
-        ObjectContainerBytePool(T * const&obj, const size_t arraySize):
-                ObjectContainerReference<T[size]>(((FixedArrayHelper<T, size>*)obj)->value), _size(arraySize){
+        ObjectContainerBytePool( std::function<void(void*, size_t)> construct_element ):
+                _raw_bytes(malloc(size*sizeof(T))){
+            memset(_raw_bytes, 0, size*sizeof(T));
+            for(size_t i = 0; i < size; ++i){
+                construct_element((void*)(((T*)_raw_bytes) + i), i);
+            }
         }
+
+        T& operator [](const size_t index){
+            if (index < 0 || index >=size){
+                throw "Index out of range";
+            }
+            return _contained[index];
+        }
+
+        operator T*&(){
+            if(!_raw_bytes) throw "Attempt to dereference null C object";
+            return _contained;
+        }
+
+        operator T* const&() const{
+            if(!_raw_bytes) throw "Attempt to dereference null C object";
+            return _contained;
+        }
+
+        T** ptr(){
+            return &_contained;
+        }
+
 
         ~ObjectContainerBytePool(){
-            for(size_t i = 0; i < _size; ++i){
-                Destructor<T>::inplace_destrcuct(ObjectContainerReference<T[size]>::_contained[i]);
+            for(size_t i = 0; i < size; ++i){
+                Destructor<T>::inplace_destrcuct((*this)[i]);
             }
-            unsigned char* raw_storage = (unsigned char*) ObjectContainerReference<T[size]>::_contained;
-            delete [] raw_storage;
+            free(_raw_bytes);
         }
 
+
     protected:
-        const size_t _size;
+        union {
+            void *_raw_bytes;
+            T* _contained;
+        };
 
     };
+
+    /////////////////////////////
 
     template<typename T, typename ...Args>
     struct ObjectContainerInPlace: public ObjectContainerReference<T>{
@@ -493,7 +582,7 @@ namespace __pyllars_internal{
             return _cobj;
         }
 
-        T **  ptr() const override{
+        T ** ptr() override{
             return (T**) &_cobj;
         }
 
@@ -520,7 +609,7 @@ namespace __pyllars_internal{
             return _cobj;
         }
 
-        T * const *  ptr() const override{
+        T * const * ptr() override{
             return &_cobj;
         }
 

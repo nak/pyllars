@@ -209,6 +209,8 @@ namespace __pyllars_internal {
             return reinterpret_cast<PythonClassWrapper*>(Base::_createPy(Type, arraySize, cobj,containmentKind, referencing));
         }
 
+        static PythonClassWrapper *createPyUsingBytePool(const size_t size, std::function<void(void*, size_t)>& constructor);
+
     protected:
         PythonClassWrapper *createPyReferenceToAddr();
         static PyObject *_addr(PyObject *self, PyObject *args);
@@ -220,7 +222,7 @@ namespace __pyllars_internal {
 
 
     template<typename T>
-    struct PythonClassWrapper<T, typename std::enable_if<//!std::is_pointer<typename std::remove_pointer<T>::type>::value &&
+    struct PythonClassWrapper<T, typename std::enable_if<
             !std::is_function<typename std::remove_pointer<T>::type>::value &&
             (std::is_pointer<T>::value || std::is_array<T>::value) &&
             (ptr_depth<T>::value == 1) >::type> : public PythonPointerWrapperBase<T> {
@@ -254,7 +256,7 @@ namespace __pyllars_internal {
             return reinterpret_cast<PythonClassWrapper*>(Base::_createPy(Type, arraySize, cobj, containmentKind, referencing));
         }
 
-
+        static PythonClassWrapper *createPyUsingBytePool(const size_t size, std::function< void(void*, size_t)>& constructor);
 
     protected:
         static PyObject *_addr(PyObject *self_, PyObject *args);
