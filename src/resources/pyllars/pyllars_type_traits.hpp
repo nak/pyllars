@@ -107,10 +107,17 @@ namespace __pyllars_internal {
     };
 
     template<typename T>
+    struct extent_as_pointer<T * const> {
+        //typedef typename extent_as_pointer<T>::type *type;
+        typedef T * const type;
+    };
+
+    template<typename T>
     struct extent_as_pointer<T[]> {
         // typedef typename extent_as_pointer<T>::type *type;
         typedef T *type;
     };
+
     template<typename T>
     struct extent_as_pointer<const T[]> {
         // typedef const typename extent_as_pointer<T>::type *type;

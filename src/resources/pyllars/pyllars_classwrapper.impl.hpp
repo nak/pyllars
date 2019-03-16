@@ -881,10 +881,15 @@ namespace __pyllars_internal {
         }
         PythonClassWrapper<T_NoRef *>::initialize();
         PythonClassWrapper *self_ = reinterpret_cast<PythonClassWrapper *>(self);
-        PythonClassWrapper<T_NoRef *> *obj = (PythonClassWrapper<T_NoRef *> *) (self_->_CObject ? toPyObject<T_NoRef *>(
-                self_->_CObject->ptr(), AS_VARIABLE, 1) : Py_None);
-        PyErr_Clear();
-        obj->make_reference(self);
+        PyObject*obj;
+        if(self_->_CObject){
+            obj = toPyObject<T_NoRef *>(self_->_CObject->ptr(), AS_REFERNCE, 1);
+            PyErr_Clear();
+            Py_INCREF(self);
+            ((PythonClassWrapper<T_NoRef *> *)obj)->_referenced = self;
+        } else {
+            obj = Py_None;
+        }
         return (PyObject *) obj;
     }
 

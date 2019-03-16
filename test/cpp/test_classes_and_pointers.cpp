@@ -529,16 +529,19 @@ TEST_F(PythonBased, TestPointers){
     PyObject* obj = PyObject_Call((PyObject*) Class::getPyType(), PyTuple_New(0), nullptr);
     auto self = PyObject_GetAttrString(obj, "this");
     ASSERT_NE(self, nullptr);
+
     constexpr int MAX = 1000;
     PyObject *ptrs[MAX] = {nullptr};
     PyObject* empty = PyTuple_New(0);
     ptrs[0] = self;
-    ASSERT_NE(ptrs[0], nullptr);
+
     for (int i = 1; i < MAX; ++i){
         auto addr = PyObject_GetAttrString(ptrs[i-1], "this");
         ASSERT_NE(addr, nullptr);
         ptrs[i] = PyObject_Call(addr, empty, nullptr);
         ASSERT_NE(ptrs[i], nullptr);
+        ASSERT_EQ((void*)*((PythonClassWrapper<PythonBased::BasicClass*>*)ptrs[i])->get_CObject(),
+                  (void*)((PythonClassWrapper<PythonBased::BasicClass*>*)ptrs[i-1])->get_CObject());
     }
     auto args = PyTuple_New(1);
     PyTuple_SetItem(args, 0, PyLong_FromLong(0));

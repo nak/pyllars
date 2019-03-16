@@ -322,9 +322,6 @@ namespace __pyllars_internal {
                 Py_INCREF(pyobj);
             } else if (PyUnicode_Check(pyobj) && (is_bytes_like<T>::value || is_c_string_like<T>::value)) {
                 typedef typename std::remove_const<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::type T_base;
-                /*auto inval =  PyUnicode_AsUTF8(pyobj);
-                auto dup = new char[strlen(inval)+1];
-                strcpy(dup, inval);*/
                 self->_CObject = (ObjectContainerPyReference<T> *) new ObjectContainerPyReference<const char *>(pyobj,
                                                                                                                 PyUnicode_AsUTF8);
             } else {
@@ -505,21 +502,23 @@ namespace __pyllars_internal {
             (ptr_depth<T>::value > 1) &&
             sizeof(typename extent_as_pointer<T>::type) == sizeof(typename base_type<T>::type *)>::type>::
     createPyReferenceToAddr() {
-        auto *addrType = PythonClassWrapper<T>::getPyType();
+        auto addrType = PythonClassWrapper<T>::getPyType();
 
         static PyObject *args = PyTuple_New(0);
-        static PyObject *kwds = PyDict_New();
-        PythonClassWrapper *pyobj = (PythonClassWrapper *) PyObject_Call((PyObject *) &addrType, args, kwds);
+        PythonClassWrapper *pyobj = (PythonClassWrapper *) PyObject_Call((PyObject *) addrType, args, nullptr);
         if (!pyobj) {
             PyErr_SetString(PyExc_RuntimeError, "Unable to create Python Object");
             return nullptr;
         }
         assert(pyobj->get_CObject() == nullptr);
         pyobj->_arraySize = 0;
-        pyobj->_Cobject = ObjectContainerPyReference<T>((PyObject *) this,
-                                                        [](PyObject *s) -> T * {
-                                                            return (T * )((PythonClassWrapper *) s)->get_CObject()->ptr();
-                                                        });
+        typedef  typename extent_as_pointer<T>::type T_ptr_real;
+        auto func = [](PyObject *s) -> T_ptr_real {
+            return (typename extent_as_pointer<T_ptr_real>::type )((PythonClassWrapper *) s)->_CObject->ptr();
+        };
+        pyobj->_CObject = (ObjectContainerPyReference<T>*) new ObjectContainerPyReference<T_ptr_real>((PyObject *) this, func);
+        pyobj->_referenced = (PyObject*) this;
+        Py_INCREF(this);
         return pyobj;
     }
 
@@ -637,9 +636,8 @@ namespace __pyllars_internal {
             return nullptr;
         }
         try {
-            T_bare **obj = (T_bare **) (self->_CObject->ptr());
-            PythonClassWrapper < T_bare * * > *pyobj = reinterpret_cast<PythonClassWrapper < T_bare * * > * > (
-                    PythonClassWrapper<T_bare **>::createPy(1, obj, ContainmentKind::BY_REFERENCE, (PyObject *) self));
+            PythonClassWrapper < T_bare ** > *pyobj = reinterpret_cast<PythonClassWrapper < T_bare ** > * > (
+                    self->createPyReferenceToAddr());
             pyobj->_depth = self->_depth + 1;
             return reinterpret_cast<PyObject *>(pyobj);
         } catch (const char *const msg) {
@@ -761,12 +759,12 @@ namespace __pyllars_internal {
             (std::is_pointer<T>::value || std::is_array<T>::value) &&
             (ptr_depth<T>::value == 1)>::type>::
     createPyReferenceToAddr() {
-        auto *addrType = PythonClassWrapper<T *>::getPyType();
+        auto addrType = PythonClassWrapper<T*>::getPyType();
 
         static PyObject *args = PyTuple_New(0);
         static PyObject *kwds = PyDict_New();
         PythonClassWrapper < T * > *pyobj = (PythonClassWrapper < T * > *)
-        PyObject_Call((PyObject *) &addrType, args, kwds);
+        PyObject_Call((PyObject *) addrType, args, kwds);
         if (!pyobj) {
             PyErr_SetString(PyExc_RuntimeError, "Unable to create Python Object");
             return nullptr;
@@ -775,6 +773,8 @@ namespace __pyllars_internal {
         pyobj->_arraySize = 0;
         pyobj->_CObject = new ObjectContainerPyReference<T *>((PyObject *) this,
                                                               [](PyObject *s) -> T * { return ((PythonClassWrapper *) s)->_CObject->ptr(); });
+        pyobj->_referenced = (PyObject*) this;
+        Py_INCREF(this);
         return pyobj;
     }
 

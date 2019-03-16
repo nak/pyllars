@@ -558,7 +558,7 @@ namespace __pyllars_internal{
         }
 
     private:
-        ObjectContainerPyReference(PyObject* obj, typename extent_as_pointer<T>::type (*convert)(PyObject*)){
+        ObjectContainerPyReference(PyObject* obj, typename extent_as_pointer<T>::type const (*convert)(PyObject*)){
         }
 
 
@@ -593,7 +593,7 @@ namespace __pyllars_internal{
 
     template<typename T>
     struct ObjectContainerPyReference<T* const>: public ObjectContainer<T* const>{
-        ObjectContainerPyReference(PyObject* obj, T*  (*convert)(PyObject*)):_cobj(convert(obj)), _pyobj(obj){
+        ObjectContainerPyReference(PyObject* obj, T* const (*convert)(PyObject*)):_cobj(convert(obj)), _pyobj(obj){
             if(!&_cobj){throw "Invalid conversion from python to c object";}
             Py_INCREF(_pyobj);
         }
