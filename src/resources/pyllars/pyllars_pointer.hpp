@@ -76,7 +76,7 @@ namespace __pyllars_internal {
         typedef PythonClassWrapper<typename std::remove_const<typename std::remove_reference<T>::type>::type> NoRefNonConstWrapper;
         typedef PythonClassWrapper<typename extent_as_pointer<T>::type> AsPtrWrapper;
 
-        PythonPointerWrapperBase():_arraySize(UNKNOWN_SIZE){
+        PythonPointerWrapperBase():_max(UNKNOWN_SIZE){
         }
 
 
@@ -132,8 +132,8 @@ namespace __pyllars_internal {
 
         ObjectContainer<T> *_CObject;
         PyObject *_referenced_elements;
-        ssize_t _arraySize;
-        size_t _max;
+        //ssize_t _arraySize;
+        ssize_t _max;
         size_t _depth; //only used for classes with pointer depth > 1, kept here for consistent PyType layout
         bool _allocated;
     private:

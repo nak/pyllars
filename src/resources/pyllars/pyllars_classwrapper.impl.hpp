@@ -842,7 +842,7 @@ namespace __pyllars_internal {
         PythonClassWrapper *pyobj = (PythonClassWrapper *) PyObject_Call((PyObject *) type_, emptyargs, kwds);
         if (pyobj) {
             pyobj->_CObject = new ObjectContainerReference<T>(cobj);
-            if (referencing) pyobj->_referenced = referencing;
+            if (referencing) pyobj->make_reference(referencing);
         }
         return pyobj;
     }
@@ -885,8 +885,7 @@ namespace __pyllars_internal {
         if(self_->_CObject){
             obj = toPyObject<T_NoRef *>(self_->_CObject->ptr(), AS_REFERNCE, 1);
             PyErr_Clear();
-            Py_INCREF(self);
-            ((PythonClassWrapper<T_NoRef *> *)obj)->_referenced = self;
+            ((PythonClassWrapper<T_NoRef *> *)obj)->make_reference(self);
         } else {
             obj = Py_None;
         }

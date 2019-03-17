@@ -412,42 +412,51 @@ TEST_F(PythonBased, TestBasicClass){
     PyObject* obj = PyObject_Call((PyObject*) PythonClassWrapper<PythonBased::BasicClass>::getPyType(),
             args, nullptr);
     ASSERT_NE(obj, nullptr);
+    ASSERT_FALSE(PyErr_Occurred());
     auto dbl_ptr = (PythonClassWrapper<const double* const>*) PyObject_GetAttrString(obj, dbl_ptr_member_name);
     ASSERT_NE(dbl_ptr, nullptr);
+    ASSERT_FALSE(PyErr_Occurred());
     PyObject* at = PyObject_GetAttrString((PyObject*)dbl_ptr, "at");
     ASSERT_NE(at, nullptr);
+    ASSERT_FALSE(PyErr_Occurred());
     PyObject* at_args = PyTuple_New(1);
     PyTuple_SetItem(at_args, 0, PyLong_FromLong(0));
     PyObject* dbl_value = PyObject_Call(at, at_args, nullptr);
+    ASSERT_FALSE(PyErr_Occurred());
     ASSERT_NE(dbl_value, nullptr);
     ASSERT_NEAR(PyFloat_AsDouble(dbl_value), 2.3, 0.000001);
 
     auto int_array = (PythonClassWrapper<int[3]>*) PyObject_GetAttrString(obj, int_array_member_name);
+    ASSERT_FALSE(PyErr_Occurred());
     ASSERT_NE(int_array, nullptr);
     at = PyObject_GetAttrString((PyObject*)int_array, "at");
     for (int i = 0; i < 3; ++i) {
         PyTuple_SetItem(at_args, 0, PyLong_FromLong(i));
         PyObject *int_value = PyObject_Call(at, at_args, nullptr);
+        ASSERT_FALSE(PyErr_Occurred());
         ASSERT_NE(int_value, nullptr);
         ASSERT_EQ(PyLong_AsLong(int_value), i+1);
     }
     PyTuple_SetItem(at_args, 0, PyLong_FromLong(3));
     PyObject *int_value = PyObject_Call(at, at_args, nullptr);
+    ASSERT_TRUE(PyErr_Occurred()); // index out of range
     ASSERT_EQ(int_value, nullptr);
-    ASSERT_TRUE(PyErr_Occurred());
     PyErr_Clear();
 
     PyTuple_SetItem(at_args, 0, PyLong_FromLong(25));
     PyObject* kwds = PyDict_New();
     PythonClassWrapper<int>* new_value = (PythonClassWrapper<int>*) PyObject_Call((PyObject*)PythonClassWrapper<int>::getPyType(), at_args, nullptr);
+    ASSERT_FALSE(PyErr_Occurred());
     ASSERT_NE(new_value, nullptr);
     PyTuple_SetItem(at_args, 0, PyLong_FromLong(1));
     PyDict_SetItemString(kwds, "set_value", (PyObject*) new_value);
     int_value = PyObject_Call(at, at_args, kwds);
+    ASSERT_FALSE(PyErr_Occurred());
     ASSERT_NE(int_value, nullptr);
     ASSERT_EQ(PyLong_AsLong(int_value), 25);
 
     PyObject* mapped = PyMapping_GetItemString(obj, "123");
+    ASSERT_FALSE(PyErr_Occurred());
     ASSERT_NE(mapped, nullptr);
     ASSERT_EQ(PyLong_AsLong(mapped), 123);
 
@@ -460,7 +469,8 @@ TEST_F(PythonBased, TestBasicClass){
     ASSERT_NE(dbl, nullptr);
     PyTuple_SetItem(dargs, 0, dbl);
     PyObject* intValue = PyObject_Call(public_method, dargs, nullptr);
-    ASSERT_NE(intValue, nullptr);}
+    ASSERT_NE(intValue, nullptr);
+}
 
 TEST_F(PythonBased, TestClassWithEnum){
     using namespace __pyllars_internal;

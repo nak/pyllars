@@ -14,7 +14,7 @@ namespace __pyllars_internal {
     template<typename T>
     Py_ssize_t
     PythonPointerWrapperBase<T>::_size(PyObject *self) {
-        const Py_ssize_t length = ((PythonPointerWrapperBase *) self)->_arraySize;
+        const Py_ssize_t length = ((PythonPointerWrapperBase *) self)->_max + 1;
         return length > 0 ? length : 1;
     }
 
@@ -28,20 +28,21 @@ namespace __pyllars_internal {
             ConstWrapper::checkType(other)) {
             PythonPointerWrapperBase *self_ = (PythonPointerWrapperBase *) self;
             PythonPointerWrapperBase *other_ = (PythonPointerWrapperBase *) other;
-            if (self_->_arraySize <= 0 || other_->_arraySize <= 0) {
+            if (self_->_max <= 0 || other_->_max <= 0) {
                 PyErr_SetString(PyExc_TypeError, "Cannot concatenate array(s) of unknown size");
                 return nullptr;
             }
-            const ssize_t new_size = self_->_arraySize + other_->_arraySize;
+            // TODO: FIX ME!!!!!
+            const ssize_t new_size = self_->_max +1 + other_->_max + 1;
             char *raw_storage = new char[new_size * Sizeof<T_base>::value];
             T_base *values = (T_base *) raw_storage;
-            for (size_t i = 0; i < (size_t) self_->_arraySize; ++i) {
+            for (ssize_t i = 0; i <= self_->_max; ++i) {
                 T &cobj = *self__->get_CObject();
                 ObjectLifecycleHelpers::Copy<T_base>::inplace_copy(
                         values, i, ObjectLifecycleHelpers::Copy<T_base>::new_copy2(
                                 ObjectLifecycleHelpers::Array<T_base *>::at(cobj, i))->ptr());
             }
-            self_->_arraySize = new_size;
+            self_->_max = new_size - 1;
         }
         return nullptr;
     }
@@ -54,8 +55,8 @@ namespace __pyllars_internal {
         try {
             PythonPointerWrapperBase *self_ = (PythonPointerWrapperBase *) self;
             PythonClassWrapper<T> *self__ = (PythonClassWrapper<T> *) self;
-            if (index < 0 && self_->_arraySize > 0) { index = self_->_arraySize + index + 1; };
-            if (index < 0 || index > self_->_arraySize) { return -1; };
+            if (index < 0 && self_->_max > 0) { index = self_->_max + index + 1; };
+            if (index < 0 || (self_->_max != 0 && index > self_->_max)) { return -1; };
             if (!PythonClassWrapper<T_base>::checkType(obj) && !PythonClassWrapper<const T_base>::checkType(obj)) {
                 PyErr_SetString(PyExc_TypeError, "Setting item from incompatible type");
                 return -1;
@@ -84,7 +85,7 @@ namespace __pyllars_internal {
     PyObject *
     PythonPointerWrapperBase<T>::
     _get_item(PyObject *self, Py_ssize_t index) {
-        typedef typename remove_all_pointers<T>::type T_bare;
+        typedef typename remove_all_pointers<typename extent_as_pointer<T>::type>::type T_bare;
         PythonPointerWrapperBase *self_ = reinterpret_cast<PythonPointerWrapperBase *>(self);
         if (!self_ || !self_->_CObject) {
             PyErr_SetString(PyExc_RuntimeError, "Null pointer dereference");
@@ -104,7 +105,7 @@ namespace __pyllars_internal {
                 PythonPointerWrapperBase *item = (PythonPointerWrapperBase *) PyList_GetItem(
                         self_->_referenced_elements,
                         index);
-                element_array_size = item ? item->_arraySize : element_array_size;
+                element_array_size = item ? item->_max+1 : element_array_size;
             }
 
             PyObject *result;
@@ -237,7 +238,7 @@ namespace __pyllars_internal {
             return nullptr;
         }
         assert(pyobj->get_CObject() == nullptr);
-        pyobj->_arraySize = 0;
+        // pyobj->_arraySize = 0;
         switch (containmentKind) {
             case ContainmentKind::ALLOCATED:
                 throw "System error";
@@ -318,8 +319,7 @@ namespace __pyllars_internal {
             if (PyObject_TypeCheck(pyobj, pytypeobj)) {
                 // if this is an instance of a basic class:
                 self->_CObject = reinterpret_cast<PythonPointerWrapperBase *>(pyobj)->_CObject;
-                self->_referenced = pyobj;
-                Py_INCREF(pyobj);
+                self->make_reference(pyobj);
             } else if (PyUnicode_Check(pyobj) && (is_bytes_like<T>::value || is_c_string_like<T>::value)) {
                 typedef typename std::remove_const<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::type T_base;
                 self->_CObject = (ObjectContainerPyReference<T> *) new ObjectContainerPyReference<const char *>(pyobj,
@@ -429,7 +429,7 @@ namespace __pyllars_internal {
     _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds) {
         if (!self) { return -1; }
 
-        self->_arraySize = UNKNOWN_SIZE;
+        //self->_arraySize = UNKNOWN_SIZE;
         self->_referenced_elements = nullptr;
         self->_referenced = nullptr;
         PyTypeObject *const coreTypePtr = PythonClassWrapper<typename core_type<T>::type>::getPyType();
@@ -444,9 +444,8 @@ namespace __pyllars_internal {
             const char *const s = PyString_AsString(arg);
 
             if (s) {
-                Py_INCREF(arg);
-                self->_referenced = arg;
-                self->_arraySize = 0;
+                self->make_reference(arg);
+                //self->_arraySize = 0;
                 self->_allocated = false;
                 self->_CObject = (ObjectContainerReference<T> *) new ObjectContainerReference<const char *const>(s);
             }
@@ -485,7 +484,7 @@ namespace __pyllars_internal {
             return nullptr;
         }
         assert(pyobj->get_CObject() == nullptr);
-        pyobj->_arraySize = size;
+        pyobj->_max = size-1;
         pyobj->_CObject = new ObjectContainerBytePool<T>(size, constructor);
         return pyobj;
     }
@@ -511,14 +510,13 @@ namespace __pyllars_internal {
             return nullptr;
         }
         assert(pyobj->get_CObject() == nullptr);
-        pyobj->_arraySize = 0;
+        //pyobj->_arraySize = 0;
         typedef  typename extent_as_pointer<T>::type T_ptr_real;
         auto func = [](PyObject *s) -> T_ptr_real {
             return (typename extent_as_pointer<T_ptr_real>::type )((PythonClassWrapper *) s)->_CObject->ptr();
         };
         pyobj->_CObject = (ObjectContainerPyReference<T>*) new ObjectContainerPyReference<T_ptr_real>((PyObject *) this, func);
-        pyobj->_referenced = (PyObject*) this;
-        Py_INCREF(this);
+        pyobj->make_reference((PyObject*) this);
         return pyobj;
     }
 
@@ -693,7 +691,7 @@ namespace __pyllars_internal {
     _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds) {
         if (!self) { return -1; }
 
-        self->_arraySize = UNKNOWN_SIZE;
+        //self->_arraySize = UNKNOWN_SIZE;
         self->_referenced_elements = nullptr;
         self->_referenced = nullptr;
         PyTypeObject *const coreTypePtr = PythonClassWrapper<typename core_type<T>::type>::getPyType();
@@ -711,8 +709,8 @@ namespace __pyllars_internal {
                 typedef typename extent_as_pointer<T>::type T_core;
                 T *s2 = (T *) &s;
                 self->_CObject = new ObjectContainerReference<T>(*s2);
-                self->_arraySize = UNKNOWN_SIZE;
-                self->_referenced = arg;
+                //self->_arraySize = UNKNOWN_SIZE;
+                self->make_reference(arg);
                 PyErr_Clear();
                 return 0;
             }
@@ -746,7 +744,7 @@ namespace __pyllars_internal {
             return nullptr;
         }
         assert(pyobj->get_CObject() == nullptr);
-        pyobj->_arraySize = size;
+        pyobj->_max = size;
         pyobj->_CObject = new ObjectContainerBytePool<T>(size, constructor);
         return pyobj;
     }
@@ -770,11 +768,10 @@ namespace __pyllars_internal {
             return nullptr;
         }
         assert(pyobj->get_CObject() == nullptr);
-        pyobj->_arraySize = 0;
+        //pyobj->_arraySize = 0;
         pyobj->_CObject = new ObjectContainerPyReference<T *>((PyObject *) this,
                                                               [](PyObject *s) -> T * { return ((PythonClassWrapper *) s)->_CObject->ptr(); });
-        pyobj->_referenced = (PyObject*) this;
-        Py_INCREF(this);
+        pyobj->make_reference((PyObject*) this);
         return pyobj;
     }
 
@@ -875,7 +872,7 @@ namespace __pyllars_internal {
             return nullptr;
         }
 
-        p->max = self_->_arraySize > 0 ? self_->_arraySize : 1;
+        p->max = self_->_max > 0 ? self_->_max : 1;
         p->i = 0;
         return (PyObject *) p;
 

@@ -154,8 +154,9 @@ namespace __pyllars_internal {
                         base_size > 0 ? sizeof(_this->get_CObject()->*member) / base_size
                                       : UNKNOWN_SIZE;
 
-               PyObject* obj = toPyObject<T_array>(_this->get_CObject()->*member, false,
+               PyObject* obj = toPyObject<T_array>(_this->get_CObject()->*member, AS_REFERNCE,
                                             array_size);
+
                 ((PythonClassWrapper<T_array> *) obj)->make_reference(self);
                 return obj;
             }
