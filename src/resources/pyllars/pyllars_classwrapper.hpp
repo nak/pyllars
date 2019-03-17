@@ -487,7 +487,7 @@ namespace __pyllars_internal {
     private:
 
         typedef ObjectContainer<T>* (*constructor_t)(const char *const kwlist[], PyObject *args, PyObject *kwds,
-                const ContainmentKind containmentKind, unsigned char* const location);
+                unsigned char* const location);
 
         /**
          * Add a constructor for this type
@@ -506,8 +506,7 @@ namespace __pyllars_internal {
           * @params kwds: keywoards bassed into the copnstructor
           **/
         template<typename ...Args>
-        static ObjectContainer<T>* create(const char *const kwlist[], PyObject *args, PyObject *kwds, const ContainmentKind,
-                unsigned char*) ;
+        static ObjectContainer<T>* create(const char *const kwlist[], PyObject *args, PyObject *kwds, unsigned char*) ;
 
         static PyObject* getThis(PyObject* self, void*){
             return addr(self, nullptr);

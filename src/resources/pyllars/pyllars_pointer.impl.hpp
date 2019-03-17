@@ -241,16 +241,10 @@ namespace __pyllars_internal {
         // pyobj->_arraySize = 0;
         switch (containmentKind) {
             case ContainmentKind::ALLOCATED:
-                throw "System error";
-                //pyobj->_CObject = new ObjectContainerAllocated<T>(&cobj, arraySize > 0);
-                //pyobj->_arraySize = arraySize;
+                pyobj->_CObject = ObjectContainerAllocated<T>::new_container(&cobj);
                 break;
             case ContainmentKind::CONSTRUCTED:
                 pyobj->_CObject = new ObjectContainerReference<T>(cobj);
-                break;
-            case ContainmentKind::CONSTRUCTED_IN_PLACE:
-                //pyobj->_CObject = new ObjectContainerInPlace<T, T>(cobj);
-                throw "Cannot construct new object in place with no memory address";
                 break;
             case ContainmentKind::BY_REFERENCE:
                 pyobj->_CObject = new ObjectContainerReference<T>(cobj);

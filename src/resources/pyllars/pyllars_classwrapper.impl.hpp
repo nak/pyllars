@@ -621,7 +621,7 @@ namespace __pyllars_internal {
         self->_CObject = nullptr;
         for (auto const &[kwlist, constructor] : PythonClassWrapper<T>::_constructors) {
             try {
-                if ((self->_CObject = constructor(kwlist, args, kwds, ContainmentKind::CONSTRUCTED, nullptr))) {
+                if ((self->_CObject = constructor(kwlist, args, kwds, nullptr))) {
                     self->_isInitialized = true;
                     return 0;
                 }
@@ -861,7 +861,7 @@ namespace __pyllars_internal {
     template<typename ...Args>
     ObjectContainer<T> *
     PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::
-    create(const char *const kwlist[], PyObject *args, PyObject *kwds, const ContainmentKind containmentKind,
+    create(const char *const kwlist[], PyObject *args, PyObject *kwds,
            unsigned char *location) {
         try {
             return _createBase<Args...>(args, kwds, kwlist, typename argGenerator<sizeof...(Args)>::type(),
@@ -1170,8 +1170,7 @@ namespace __pyllars_internal {
                 }
                 for (auto const &[kwlist, constructor] : PythonClassWrapper<T>::_constructors) {
                     try {
-                        cobj = constructor(kwlist, args, nullptr, ContainmentKind::CONSTRUCTED_IN_PLACE,
-                                           (unsigned char*)location);
+                        cobj = constructor(kwlist, args, nullptr, (unsigned char*)location);
                         if (cobj) break;
                     } catch (...) {
                     }

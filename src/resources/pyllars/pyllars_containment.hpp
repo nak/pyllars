@@ -17,8 +17,7 @@ namespace __pyllars_internal{
     enum class ContainmentKind: unsigned char{
         BY_REFERENCE,
         ALLOCATED,
-        CONSTRUCTED,
-        CONSTRUCTED_IN_PLACE
+        CONSTRUCTED
     };
 
 
