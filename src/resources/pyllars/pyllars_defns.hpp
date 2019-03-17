@@ -391,10 +391,10 @@ namespace __pyllars_internal {
     template<typename T>
     PyObject *toPyObject(const T &var, const bool asArgument, const ssize_t array_size);
 
-    //  template<typename T, bool array_allocated, typename ClassWrapper>
-    //  smart_ptr<typename std::remove_reference<T>::type, array_allocated> toCObject(PyObject &pyobj);
-
     struct ZERO_DEPTH;
+
+    template<typename T>
+    struct argument_capture;
 
     template<typename T, typename E = void>
     struct PythonClassWrapper;
@@ -410,7 +410,7 @@ namespace __pyllars_internal {
      * Class common to all C++ wrapper classes
      **/
     struct CommonBaseWrapper {
-        template<typename T, bool array_allocated, typename E>
+        template<typename T>
         friend class CObjectConversionHelper;
 
         struct Base {

@@ -60,7 +60,7 @@ namespace __pyllars_internal {
         template<typename T2>
         using ObjectContent = ObjectLifecycleHelpers::template ObjectContent<T2, void>;
 
-        template<typename T2, bool is_array, typename E>
+        template<typename T2>
         friend
         class CObjectConversionHelper;
 
@@ -207,6 +207,12 @@ namespace __pyllars_internal {
                                             const ContainmentKind containmentKind,
                                             PyObject *referencing = nullptr){
             return reinterpret_cast<PythonClassWrapper*>(Base::_createPy(Type, arraySize, cobj,containmentKind, referencing));
+        }
+
+        static PythonClassWrapper *createPyAlocated(const ssize_t arraySize,
+                                            T *cobj,
+                                            PyObject *referencing = nullptr){
+            return reinterpret_cast<PythonClassWrapper*>(Base::_createPy(Type, arraySize, *cobj,ContainmentKind::ALLOCATED, referencing));
         }
 
         static PythonClassWrapper *createPyUsingBytePool(const size_t size, std::function<void(void*, size_t)>& constructor);

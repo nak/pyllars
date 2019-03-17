@@ -54,9 +54,9 @@ namespace __pyllars_internal{
         }
 
         if( with_ellipsis){
-            return FunctType::call(method, *toCArgument<Args, false>(*pyargs)..., extra_args);
+            return FunctType::call(method, toCArgument<Args>(*pyargs)..., extra_args);
         }
-        return method(*toCArgument<Args, false>(*pyargs)...);
+        return methodForward(method, toCArgument<Args>(*pyargs)...);
     }
 
     /**
@@ -128,16 +128,16 @@ namespace __pyllars_internal{
 
     template<bool with_ellipsis, typename CClass, const char* const kwlist[], typename T, typename ...Args>
     typename extent_as_pointer<T>::type ClassMethodCallSemantics<with_ellipsis, CClass, kwlist, T, Args...>::FunctType::
-    call(func_type func, Args... args, PyObject *extra_args) {
+    call(func_type func, argument_capture<Args>... args, PyObject *extra_args) {
         typedef typename std::remove_reference<ReturnType>::type ReturnType_NoRef;
         if (!extra_args || PyTuple_Size(extra_args) == 0) {
-            return func(args...);
+            return func(args.value()...);
         } else {
             const ssize_t extra_args_size = PyTuple_Size(extra_args);
 
             ffi_cif cif;
             ffi_type *arg_types[sizeof...(Args) + extra_args_size] = {FFIType<Args>::type()...};
-            void *arg_values[sizeof...(Args) + extra_args_size] = {(void *) &args...};
+            void *arg_values[sizeof...(Args) + extra_args_size] = {(void *) &args.value()...};
             ffi_status status;
 
             // Because the return value from foo() is smaller than sizeof(long), it
@@ -223,7 +223,7 @@ namespace __pyllars_internal{
 
     template<bool with_ellipsis, typename CClass,const char* const kwlist[],  typename ...Args>
     void ClassMethodCallSemantics<with_ellipsis, CClass, kwlist, void, Args...>::FunctType::
-    call(func_type func, Args... args, PyObject *extra_args) {
+    call(func_type func, argument_capture<Args>... args, PyObject *extra_args) {
         if (!extra_args || PyTuple_Size(extra_args) == 0) {
             func(args...);
         } else {
@@ -231,7 +231,7 @@ namespace __pyllars_internal{
 
             ffi_cif cif;
             ffi_type *arg_types[sizeof...(Args) + extra_args_size] = {FFIType<Args>::type()...};
-            void *arg_values[sizeof...(Args) + extra_args_size] = {(void *) &args...};
+            void *arg_values[sizeof...(Args) + extra_args_size] = {(void *) &args.value()...};
             ffi_status status;
 
             // Because the return value from foo() is smaller than sizeof(long), it
@@ -310,8 +310,7 @@ namespace __pyllars_internal{
 
     template<class CClass>
     template<bool with_ellipsis, const char *const name, const char* const kwlist[],  typename ReturnType, typename ...Args>
-    PyObject *ClassMethodContainer<CClass, typename std::enable_if<
-          !std::is_const<CClass>::value>::type>::Container<with_ellipsis, name, kwlist, ReturnType, Args...>::
+    PyObject *ClassMethodContainer<CClass>::Container<with_ellipsis, name, kwlist, ReturnType, Args...>::
     call(PyObject *cls, PyObject *args, PyObject *kwds) {
         (void) cls;
         try {
@@ -320,35 +319,14 @@ namespace __pyllars_internal{
             PyErr_SetString(PyExc_RuntimeError, msg);
             return nullptr;
         }
-        return nullptr;
     }
 
 
     template<class CClass>
     template<bool with_ellipsis, const char *const name, const char* const kwlist[], typename ReturnType, typename ...Args>
-    PyObject *ClassMethodContainer<CClass, typename std::enable_if<
-         std::is_const<CClass>::value>::type>::Container<with_ellipsis, name, kwlist, ReturnType, Args...>::
-    call(PyObject *cls, PyObject *args, PyObject *kwds) {
-        (void) cls;
-        try {
-            return ClassMethodCallSemantics<with_ellipsis, CClass, kwlist, ReturnType, Args...>::call(method, args, kwds);
-        } catch (...) {
-            PyErr_SetString(PyExc_RuntimeError, "Exception in class method");
-            return nullptr;
-        }
-        return nullptr;
-    }
+    typename ClassMethodContainer<CClass>::template Container<with_ellipsis, name, kwlist, ReturnType, Args...>::method_t
+            ClassMethodContainer<CClass>::Container<with_ellipsis, name, kwlist, ReturnType, Args...>::method;
 
-    template<class CClass>
-    template<bool with_ellipsis, const char *const name, const char* const kwlist[], typename ReturnType, typename ...Args>
-    typename ClassMethodContainer<CClass, typename std::enable_if< !std::is_const<CClass>::value>::type>::template Container<with_ellipsis, name, kwlist, ReturnType, Args...>::method_t
-            ClassMethodContainer<CClass, typename std::enable_if<!std::is_const<CClass>::value>::type>::Container<with_ellipsis, name, kwlist, ReturnType, Args...>::method;
-
-
-    template<class CClass>
-    template<bool with_ellipsis, const char *const name, const char* const kwlist[], typename ReturnType, typename ...Args>
-    typename ClassMethodContainer<CClass, typename std::enable_if<std::is_const<CClass>::value>::type>::template Container<with_ellipsis, name, kwlist, ReturnType, Args...>::method_t
-            ClassMethodContainer<CClass, typename std::enable_if<std::is_const<CClass>::value>::type>::Container<with_ellipsis, name, kwlist, ReturnType, Args...>::method;
 
 
 }

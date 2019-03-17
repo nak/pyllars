@@ -125,6 +125,12 @@ namespace __pyllars_internal {
                                             const ContainmentKind containmenKind,
                                             PyObject *referencing = nullptr) ;
 
+        static PythonClassWrapper* createPyAllocated(const ssize_t arraySize,
+                                                     T_NoRef * cobj,
+                                                     PyObject *referencing = nullptr){
+            return createPy(arraySize, *cobj, ContainmentKind::ALLOCATED, referencing);
+        }
+
         template<typename ...Args>
         static PythonClassWrapper *constructPy(const ssize_t arraySize,
                                                Args ...args,
@@ -558,7 +564,7 @@ namespace __pyllars_internal {
          * two lower level create functions
          **/
         template<typename ...Args>
-        static ObjectContainer<T>* _createBaseBase(Args ... args);
+        static ObjectContainer<T>* _createBaseBase(argument_capture<Args> ... args);
 
         template<typename ...Args, int ...S >
         static ObjectContainer<T>* _createBase

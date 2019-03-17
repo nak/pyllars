@@ -26,7 +26,8 @@ namespace __pyllars_internal{
             PyErr_SetString(PyExc_ValueError, "Invalid argument keyword name or type to method call");
             return nullptr;
         } else if (kwds) {
-            Assign<AttrType>::assign(*member,*toCArgument<AttrType, std::is_array<AttrType>::value>(*pyarg));
+            auto value = toCArgument<AttrType>(*pyarg);
+            Assign<AttrType>::assign(*member,value.value());
             return Py_None;
         }
         return toPyObject<AttrType>(*member, false, ArraySize<AttrType>::size);

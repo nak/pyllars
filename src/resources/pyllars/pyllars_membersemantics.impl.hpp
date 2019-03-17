@@ -180,10 +180,10 @@ namespace __pyllars_internal {
             }
             if (PyTuple_Check(pyVal)) {
                 if (PyTuple_Size(pyVal) == size) {
-                    for (size_t i = 0; i < size; ++i)
-                        Assign<T>::assign((_this->get_CObject()->*
-                         member)[i],  *toCArgument<T, true>(
-                                *PyTuple_GetItem(pyVal, i)));
+                    for (size_t i = 0; i < size; ++i) {
+                        auto value =  toCArgument<T>(*PyTuple_GetItem(pyVal, i));
+                        Assign<T>::assign((_this->get_CObject()->*member)[i], value.value());
+                    }
                 } else {
                     static char msg[250];
                     snprintf(msg, 250, "Mismatched array sizes (tuple)%lld!=%lld",
@@ -444,12 +444,12 @@ namespace __pyllars_internal {
             PyErr_SetString(PyExc_ValueError, "Unexpected None value in member setter");
             return -1;
         }
-        smart_ptr<T, false> value = toCArgument<T, false>(*pyVal);
-        if (!BitFieldLimits<T, bits>::is_in_bounds(*value)) {
+        auto value = toCArgument<T>(*pyVal);
+        if (!BitFieldLimits<T, bits>::is_in_bounds(value.value())) {
             PyErr_SetString(PyExc_ValueError, "Value out of bounds");
             return -1;
         }
-        _setter(*(_this->get_CObject()), *value);
+        _setter(*(_this->get_CObject()), value.value());
         return 0;
     }
 

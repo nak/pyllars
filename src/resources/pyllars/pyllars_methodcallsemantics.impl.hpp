@@ -200,10 +200,10 @@ namespace __pyllars_internal {
     PyObject *MethodCallSemantics<is_const, false, kwlist, CClass, T, Args...>::
     call(method_t method, typename std::remove_reference<CClass>::type &self, PyObject *args, PyObject *kwds) {
         try {
-            T result = call_methodBase(method, self, args, kwds, typename argGenerator<sizeof...(Args)>::type());
-            // const ssize_t type_size = Sizeof<T_base>::value;
-            const ssize_t array_size = ArraySize<T>::size;//type_size > 0 ? sizeof(result) / type_size : 1;
-            return toPyObject<T>(result, false, array_size);
+            typedef typename std::remove_reference<T>::type T_NoRef;
+            T_NoRef&& result = call_methodBase(method, self, args, kwds, typename argGenerator<sizeof...(Args)>::type());
+            constexpr ssize_t array_size = ArraySize<T>::size;
+            return toPyObject<T>(result, std::is_reference<T>::value, array_size);
         } catch (const char *const msg) {
             PyErr_SetString(PyExc_RuntimeError, msg);
             return nullptr;
@@ -214,10 +214,10 @@ namespace __pyllars_internal {
     PyObject *MethodCallSemantics<is_const, true, kwlist, CClass, T, Args...>::
     call(method_t method, typename std::remove_reference<CClass>::type &self, PyObject *args, PyObject *kwds) {
         try {
-            T result = call_methodBase(method, self, args, kwds, typename argGenerator<sizeof...(Args)>::type());
-            // const ssize_t type_size = Sizeof<T_base>::value;
-            const ssize_t array_size = ArraySize<T>::size;//type_size > 0 ? sizeof(result) / type_size : 1;
-            return toPyObject<T>(result, false, array_size);
+            typedef typename std::remove_reference<T>::type T_NoRef;
+            T_NoRef&& result = call_methodBase(method, self, args, kwds, typename argGenerator<sizeof...(Args)>::type());
+            constexpr ssize_t array_size = ArraySize<T>::size;//type_size > 0 ? sizeof(result) / type_size : 1;
+            return toPyObject<T>(result, std::is_reference<T>::value, array_size);
         } catch (const char *const msg) {
             PyErr_SetString(PyExc_RuntimeError, msg);
             return nullptr;
@@ -259,7 +259,7 @@ namespace __pyllars_internal {
 	        throw "Invalid arguments to method call";
 	    }
 
-        T retval = make_call( self, method, *toCArgument<Args, false>(*pyargs)...);
+        T retval = make_call( self, method, toCArgument<Args>(*pyargs)...);
         return retval;
     }
 
@@ -291,7 +291,7 @@ namespace __pyllars_internal {
 	        PyErr_Print();
 	        throw "Invalid arguments to method call";
 	    }
-        T retval = call( method, self,  *toCArgument<Args, false >(*pyargs)..., extra_args);
+        T retval = call( method, self,  toCArgument<Args >(*pyargs)..., extra_args);
         return retval;
 
     }
@@ -311,9 +311,9 @@ namespace __pyllars_internal {
         (void) s;
         PyObject pyobjs[sizeof...(Args) + 1];
         (void) pyobjs;
-	if(!method){
-	  throw "Null method pointer encountered";
-	}
+        if(!method){
+          throw "Null method pointer encountered";
+        }
         return call_methodC(method, self, args, kwds, &pyobjs[S]...);
 
     }

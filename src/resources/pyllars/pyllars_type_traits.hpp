@@ -92,7 +92,6 @@ namespace __pyllars_internal {
         static constexpr bool value = true;
     };
 
-
     //convertion of type with extent to pointer
     // extent_as_pointer<T[]> = extent_as_pointer<T[size]> = T*
     template<typename T>

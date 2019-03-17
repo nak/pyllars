@@ -70,8 +70,9 @@ namespace __pyllars_internal {
     private:
 
         static
-        ReturnType make_call(typename std::remove_reference<CClass>::type &self,  method_t method, Args... args){
-            return (self.*method)(args...);
+        ReturnType make_call(typename std::remove_reference<CClass>::type &self,  method_t method,
+                argument_capture<Args>... args){
+            return (self.*method)(args.value()...);
         }
 
         /**

@@ -41,20 +41,30 @@ namespace __pyllars_internal{
     // Converts what would normally be an exception on deletion of an object that is indestructible by the rules of C
     // to a run-time error for Python
 
-    template <typename T, typename Z=void>
-    struct Destructor;
-
-    template<typename T>
-    struct Destructor<T, typename std::enable_if<std::is_destructible<T>::value && !std::is_array<T>::value>::type>{
+    template <typename T>
+    struct Destructor{
         static void inplace_destrcuct(T& obj){
-            obj.~T();
+            if constexpr (std::is_destructible<T>::value){
+                if constexpr(std::is_array<T>::value){
+                    if constexpr(ArraySize<T>::size > 0){
+                        for(size_t i = 0; i < ArraySize<T>::size; ++i){
+                            typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_element;
+                            Destructor<T_element>::inplace_destrcuct(obj[i]);
+                        }
+                    }
+                } else {
+                    obj.~T();
+                }
+            }
         }
 
         static void deallocate(T* &obj, const bool asArray){
-            if (asArray){
-                delete [] obj;
-            } else {
-                delete obj;
+            if constexpr (std::is_destructible<T>::value){
+                if (asArray){
+                    delete [] obj;
+                } else {
+                    delete obj;
+                }
             }
             obj = nullptr;
         }
@@ -65,68 +75,6 @@ namespace __pyllars_internal{
             } else {
                 delete obj;
             }
-        }
-    };
-
-    template<typename T, size_t size>
-    struct Destructor<T[size], typename std::enable_if<std::is_destructible<T>::value>::type>{
-
-        typedef T T_array[size];
-
-        static void inplace_destrcuct(T_array& obj){
-            for(size_t i = 0; i < size; ++i){
-                obj[i].~T();
-            }
-        }
-
-        static void deallocate(T_array* &obj, const bool asArray){
-            if (asArray){
-                delete [] obj;
-            } else {
-                delete obj;
-            }
-            obj = nullptr;
-        }
-
-        static void deallocate(T_array* const &obj, const bool asArray){
-            if (asArray){
-                delete [] obj;
-            } else {
-                delete obj;
-            }
-        }
-    };
-
-    template<typename T>
-    struct Destructor<T, typename std::enable_if<!std::is_destructible<T>::value>::type>{
-        static void inplace_destrcuct(T& obj){
-            // nothing to be done
-        }
-
-        static void deallocate(T* &obj, const bool asArray){
-           obj = nullptr;
-           throw "attempt to deallocate indestructible type";
-        }
-
-        static void deallocate(T* const &obj, const bool asArray){
-            throw "attempt to deallocate indestructible type";
-        }
-    };
-
-
-    template<typename T, size_t size>
-    struct Destructor<T[size], typename std::enable_if<!std::is_destructible<T>::value>::type>{
-        static void inplace_destrcuct(T& obj){
-            // nothing to be done
-        }
-
-        static void deallocate(T* &obj, const bool asArray){
-            obj = nullptr;
-            throw "attempt to deallocate indestructible type";
-        }
-
-        static void deallocate(T* const &obj, const bool asArray){
-            throw "attempt to deallocate indestructible type";
         }
     };
 
@@ -137,74 +85,59 @@ namespace __pyllars_internal{
     // converts what would be a compile-time error for non-constructible occurrences into run-time erorrs
     // for compatibility in Python
 
-    template<typename T, typename Z=void>
-    struct Constructor;
-
     template<typename T>
-    struct Constructor<T, typename std::enable_if<std::is_constructible<T>::value && !std::is_array<T>::value>::type>{
+    struct Constructor{
         template<typename ...Args>
         static T* inplace_allocate(T& obj, Args ...args){
-            return new ((void*)&obj)T(std::forward<typename extent_as_pointer<Args>::type>>(args)...);
+            if constexpr (std::is_constructible<T>::value){
+                if(std::is_array<T>::value){
+                    if (ArraySize<T>::size > 0){
+                        for (size_t i = 0; i < ArraySize<T>::size; ++i){
+                            typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_element;
+                            auto objs = (T_element*)obj;
+                            Constructor<T_element>::inplace_allocate(objs[i], args...);
+                        }
+                        return &obj;
+                    }
+                    throw "Request to instantiate non-constructible object";
+                } else {
+                    return new ((void*)&obj)T(std::forward<typename extent_as_pointer<Args>::type>>(args)...);
+                }
+            }
+            throw "Request to instantiate non-constructible object";
         }
 
         template<typename ...Args>
         static T* allocate(Args ...args){
-            return new T(std::forward<typename extent_as_pointer<Args>::type>>(args)...);
+            if constexpr (std::is_constructible<T>::value){
+                if(std::is_array<T>::value){
+                    if (ArraySize<T>::size > 0){
+                        typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_element;
+                        return new T_element[ArraySize<T>::size]{T(std::forward<typename extent_as_pointer<Args>::type>>(args)...)};
+                    }
+                    throw "Request to instantiate object of unknown size";
+                } else {
+                    return new T(std::forward<typename extent_as_pointer<Args>::type>>(args)...);
+                }
+            }
+            throw "Request to instantiate non-constructible object";
         }
 
 
         template<typename ...Args>
         static T* allocate_array(const size_t size, Args ...args){
-            return new T[size]{T(std::forward<typename extent_as_pointer<Args>::type>>(args)...)};
-        }
-    };
-
-
-    template<typename T, size_t size>
-    struct Constructor<T[size], typename std::enable_if<std::is_constructible<T>::value>::type>{
-        typedef T T_array[size];
-
-        static T_array* inplace_allocate(T_array& obj, T_array & from){
-            for(size_t i = 0; i < size; ++i){
-                new ((void*)&obj[i])T(from[i]);
+            if constexpr (std::is_constructible<T>::value){
+                if constexpr (std::is_array<T>::value){
+                    if constexpr (ArraySize<T>::size > 0){
+                        typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_element;
+                        return new T_element[size][ArraySize<T>::size]{{T(std::forward<typename extent_as_pointer<Args>::type>>(args)...)}};
+                    }
+                    throw "Request to instantiate object of unknown size";
+                } else {
+                    return new T[size]{T(std::forward<typename extent_as_pointer<Args>::type>>(args)...)};
+                }
             }
-            return &obj;
-        }
-
-        static T_array* inplace_allocate(T_array& obj, T* const from){
-            for(size_t i = 0; i < size; ++i){
-                new ((void*)&obj[i])T(from[i]);
-            }
-            return &obj;
-        }
-
-        template<typename ...Args>
-        static T* allocate(Args ...args){
-            return new T[size]{T(std::forward<typename extent_as_pointer<Args>::type>>(args)...)};
-        }
-
-        template<typename ...Args>
-        static T* allocate_array(const size_t _size, Args ...args){
-            throw "Cannot instantiate object of given type per rules of C++";
-        }
-    };
-
-
-    template<typename T>
-    struct Constructor<T, typename std::enable_if<!std::is_constructible<T>::value>::type>{
-        template<typename ...Args>
-        static T* inplace_allocate(T& obj, Args ...args){
-            throw "Cannot instantiate object of given type per rules of C++";
-        }
-
-        template<typename ...Args>
-        static T* allocate(Args ...args){
-            throw "Cannot instantiate object of given type per rules of C++";
-        }
-
-        template<typename ...Args>
-        static T* allocate_array(const size_t size, Args ...args){
-            throw "Cannot instantiate object of given type per rules of C++";
+            throw "Request to instantiate non-constructible object";
         }
     };
 
@@ -236,7 +169,7 @@ namespace __pyllars_internal{
 
     private:
         ObjectContainer(const ObjectContainer &);
-        static constexpr T* fake =  nullptr;
+        static constexpr T_NoRef* fake =  nullptr;
     };
 
     /**
@@ -275,57 +208,56 @@ namespace __pyllars_internal{
 
     };
 
-
-
-    template<typename T, typename Z=void>
-    struct ObjectContainerAllocated;
-
     template<typename T>
-    struct ObjectContainerAllocated<T>: public ObjectContainerReference<T>{
+    struct ObjectContainerAllocated: public ObjectContainerReference<T>{
         typedef typename std::remove_reference<T>::type T_NoRef;
 
         template<typename ...Args>
         static ObjectContainerAllocated*  new_container(Args ...args){
-            return new ObjectContainerAllocated(new T(args...));
+            if constexpr (std::is_constructible<T>::value) {
+                if constexpr (std::is_array<T>::value){
+                    if constexpr(ArraySize<T>::size > 0){
+                        typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_element;
+                        typedef typename std::remove_const<T_element>::type T_nonconst_array[ArraySize<T>::size];
+                        T_nonconst_array *new_value = new T_element[1][ArraySize<T>::size]{{T(args...)}};
+                        //for (size_t i = 0; i < ArraySize<T>::size; ++i) new_value[0][i] = value[i];
+                        return new ObjectContainerAllocated(new_value);
+                    }
+                } else {
+                    return new ObjectContainerAllocated(new T(args...));
+                }
+            }
+            throw "Request to allocate non-cosntrible type";
+        }
+
+        template<typename ...Args>
+        static ObjectContainerAllocated*  new_container(T& value){
+            if constexpr(std::is_constructible<T>::value && std::is_array<T>::value && ArraySize<T>::size > 0) {
+                constexpr size_t size = ArraySize<T>::size;
+                typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_element;
+                typedef typename std::remove_const<T_element>::type T_nonconst_array[size];
+                T_nonconst_array *new_value = new T_nonconst_array[1]{{value[0]}};
+                for (size_t i = 0; i < size; ++i) new_value[0][i] = value[i];
+                return new ObjectContainerAllocated(new_value);
+            }
+            throw "Request to allocate type of unknown size";
+        }
+
+        static ObjectContainerAllocated*  new_container(T_NoRef* already_allocated){
+            return new ObjectContainerAllocated(already_allocated);
         }
 
     private:
 
-        ObjectContainerAllocated(T_NoRef* obj):ObjectContainerReference<T>(*_obj), _obj(obj){
+        ObjectContainerAllocated(T_NoRef* obj):ObjectContainerReference<T>(*obj), _obj(obj){
         }
 
         virtual ~ObjectContainerAllocated(){
             Destructor<T_NoRef>::deallocate(ObjectContainerReference<T>::_containedP, false);
         }
 
-        T * _obj;
+        T_NoRef * _obj;
     };
-
-    template<typename T, size_t size>
-    struct ObjectContainerAllocated<T[size]>: public ObjectContainerReference<T[size]> {
-        typedef typename std::remove_reference<T>::type T_NoRef;
-        typedef T T_array[size];
-
-        template<typename ...Args>
-        static ObjectContainerAllocated*  new_container(T_array&  value){
-            typedef typename std::remove_const<T>::type T_nonconst_array[size];
-            T_nonconst_array *new_value = new T_nonconst_array[1];
-            for (size_t i = 0; i < size; ++i) new_value[0][i] = value[i];
-            return new ObjectContainerAllocated(new_value);
-        }
-
-    private:
-
-        ObjectContainerAllocated(T_array* obj):ObjectContainerReference<T[size]>(*_obj), _obj(obj){
-
-        }
-
-        virtual ~ObjectContainerAllocated(){
-            Destructor<T[size]>::deallocate(ObjectContainerReference<T[size]>::_containedP, true);
-        }
-        T_array* _obj;
-    };
-
 
     //////////////////////////
 

@@ -177,7 +177,9 @@ namespace __pyllars_internal {
 
         ~smart_ptr_with_reverse_capture(){
             if(_reverse_capture) _reverse_capture();
+            std::unique_ptr<typename std::remove_reference<T>::type, smart_delete<T, array_allocated> >::~unique_ptr();
         }
+
     private:
         std::function<void()> _reverse_capture;
     };
@@ -250,22 +252,22 @@ namespace __pyllars_internal {
 
     template<typename T>
     struct ArraySize {
-        static const int size = 1;
+        static constexpr int size = 1;
     };
 
     template<typename T>
     struct ArraySize<T *> {
-        static const int size = -1;
+        static constexpr int size = -1;
     };
 
     template<typename T>
     struct ArraySize<T[]> {
-        static const int size = -1;
+        static constexpr int size = -1;
     };
 
     template<typename T_base, size_t arsize>
     struct ArraySize<T_base[arsize]> {
-        static const int size = arsize;
+        static constexpr int size = arsize;
     };
 
     template<typename T, typename Z = void>

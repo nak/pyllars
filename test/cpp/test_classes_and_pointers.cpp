@@ -667,6 +667,7 @@ TEST_F(PythonBased, TestBasicClassUnaryOperators){
     PyObject* negobj = PyObject_Call(negate, PyTuple_New(0), nullptr);
     ASSERT_NE(negobj, nullptr);
     ASSERT_TRUE(PyObject_TypeCheck(negobj, Class::getPyType()));
+    ASSERT_NE(((Class*)negobj)->get_CObject(), nullptr);
     ASSERT_EQ(((Class*)negobj)->get_CObject()->int_array[0], -1);
     ASSERT_EQ(((Class*)negobj)->get_CObject()->int_array[1], -2);
     ASSERT_EQ(((Class*)negobj)->get_CObject()->int_array[2], -3);

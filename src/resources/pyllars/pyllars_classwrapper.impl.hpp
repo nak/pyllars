@@ -828,7 +828,7 @@ namespace __pyllars_internal {
     createPy(const ssize_t arraySize, T_NoRef &cobj, const ContainmentKind containmentKind, PyObject *referencing) {
         static PyObject *kwds = PyDict_New();
         static PyObject *emptyargs = PyTuple_New(0);
-        if (containmentKind != ContainmentKind::BY_REFERENCE) {
+        if (containmentKind != ContainmentKind::BY_REFERENCE && containmentKind != ContainmentKind::ALLOCATED) {
             PyErr_SetString(PyExc_SystemError, "Invalid container type when create Python Wrapper to C object");
             return nullptr;
         }
@@ -841,7 +841,9 @@ namespace __pyllars_internal {
         }
         PythonClassWrapper *pyobj = (PythonClassWrapper *) PyObject_Call((PyObject *) type_, emptyargs, kwds);
         if (pyobj) {
-            pyobj->_CObject = new ObjectContainerReference<T>(cobj);
+            pyobj->_CObject = containmentKind==ContainmentKind ::BY_REFERENCE?
+                    new ObjectContainerReference<T>(cobj):
+                    ObjectContainerAllocated<T>::new_container(&cobj);
             if (referencing) pyobj->make_reference(referencing);
         }
         return pyobj;
@@ -1032,8 +1034,8 @@ namespace __pyllars_internal {
                                                                             PyObject *item) -> PyObject * {
             PythonClassWrapper *self_ = (PythonClassWrapper *) self;
             try {
-                auto c_key = toCArgument<KeyType, defaults_to_string<KeyType>::value>(*item);
-                return toPyObject((self_->get_CObject()->*method)(*c_key), false, 1);
+                auto c_key = toCArgument<KeyType>(*item);
+                return toPyObject((self_->get_CObject()->*method)(c_key.value()), false, 1);
             } catch (const char *const msg) {
                 PyErr_SetString(PyExc_TypeError, msg);
                 return nullptr;
@@ -1043,9 +1045,9 @@ namespace __pyllars_internal {
                                                                                  PyObject *value) -> int {
             PythonClassWrapper *self_ = (PythonClassWrapper *) self;
             try {
-                auto c_value = toCArgument<ValueType, defaults_to_string<ValueType>::value>(*value);
-                auto c_key = toCArgument<KeyType, defaults_to_string<KeyType>::value>(*item);
-                AssignValue<ValueType>::assign((self_->get_CObject()->*method)(*c_key), *c_value);
+                auto c_value = toCArgument<ValueType>(*value);
+                auto c_key = toCArgument<KeyType>(*item);
+                AssignValue<ValueType>::assign((self_->get_CObject()->*method)(c_key.value()), c_value.value());
             } catch (const char *const msg) {
                 PyErr_SetString(PyExc_TypeError, "Cannot assign to value of unrelated type.");
                 return -1;
@@ -1072,8 +1074,8 @@ namespace __pyllars_internal {
                                                                             PyObject *item) -> PyObject * {
             PythonClassWrapper *self_ = (PythonClassWrapper *) self;
             try {
-                auto c_key = toCArgument<KeyType, defaults_to_string<KeyType>::value>(*item);
-                return toPyObject((self_->get_CObject()->*method)(*c_key), false, 1);
+                auto c_key = toCArgument<KeyType>(*item);
+                return toPyObject((self_->get_CObject()->*method)(c_key.value()), false, 1);
             } catch (const char *const msg) {
                 PyErr_SetString(PyExc_TypeError, msg);
                 return nullptr;
@@ -1256,9 +1258,9 @@ namespace __pyllars_internal {
     ObjectContainer<T> *
     PythonClassWrapper<T,
             typename std::enable_if<is_rich_class<T>::value>::type>::
-    _createBaseBase(Args ... args) {
+    _createBaseBase(argument_capture<Args> ... args) {
         return new ObjectContainerConstructed<T, Args...>(
-                std::forward<typename extent_as_pointer<Args>::type>(args)...);
+                std::forward<typename extent_as_pointer<Args>::type>(args.value())...);
     }
 
 
@@ -1278,9 +1280,7 @@ namespace __pyllars_internal {
             return nullptr;
         }
 
-        return _createBaseBase<Args...>
-                (std::forward<typename extent_as_pointer<Args>::type>(
-                        *toCArgument<Args, defaults_to_string<Args>::value>(*pyobjs[S]))...);
+        return _createBaseBase<Args...>(toCArgument<Args>(*pyobjs[S])...);
     }
 
 
