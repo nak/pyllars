@@ -12,7 +12,8 @@
 namespace __pyllars_internal{
 
     template<typename T>
-    PyObject *GlobalVariable::
+    PyObject *
+    GlobalVariable::
     createGlobalVariable(const char *const name,
                             T *variable,
                             PyObject *module,
@@ -36,17 +37,18 @@ namespace __pyllars_internal{
             }
             callable->member = (typename Container<T>::member_t) variable;
             callable->array_size = size;
-            PyModule_AddObject(module, name, (PyObject *) callable);
-            return (PyObject *) callable;
+            PyModule_AddObject(module, name, reinterpret_cast<PyObject *>(callable));
+            return reinterpret_cast<PyObject *>(callable);
         }
     }
 
 
     template<typename T>
-    int GlobalVariable::Container<T, typename std::enable_if<
-            !std::is_array<T>::value && !std::is_const<T>::value>::type>::
+    int
+    GlobalVariable::
+    Container<T>::
     _init(PyObject *self, PyObject *args, PyObject *kwds) {
-        //avoid compiler warnings (including reinterpret cast to avoid type-punned warning)
+        //avoid compiler warnings
         (void) self;
         (void) args;
         (void) kwds;
@@ -56,8 +58,7 @@ namespace __pyllars_internal{
 
     template<typename T>
     PyObject *
-    GlobalVariable::Container<T, typename std::enable_if<
-            !std::is_array<T>::value && !std::is_const<T>::value>::type>::
+    GlobalVariable::Container<T>::
     _new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
         (void) args;
         (void) kwds;
@@ -65,252 +66,87 @@ namespace __pyllars_internal{
     }
 
     template<typename T>
-    PyObject *GlobalVariable::Container<T, typename std::enable_if<
-            !std::is_array<T>::value && !std::is_const<T>::value>::type>::
+    PyObject *GlobalVariable::Container<T>::
     call(Container *callable, PyObject *args, PyObject *kwds) {
-        (void) callable;
-	try{
-	  typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
-	  const ssize_t type_size = Sizeof<T_base>::value;
-	  const ssize_t array_size = type_size > 0 ? sizeof(*(callable->member)) / type_size : 1;
-	  if(((kwds?PyDict_Size(kwds):0) + PyTuple_Size(args)) > 1){
-	    PyErr_SetString(PyExc_TypeError, "Invalid parameters when getting/setting global variable");
-            return nullptr;
-	  } else if (kwds && PyDict_Size(kwds) == 1) {
-	    PyObject* const v = PyDict_GetItemString(kwds, "value");
-	    if(v){
-	      *(callable->member) = *toCArgument<T, false, PythonClassWrapper<T> >(*v);
-	    } else {
-              PyErr_SetString(PyExc_TypeError, "Invalid parameters when getting/setting global variable");
-              return nullptr;       
-	    }
-	    
-	  } else if (PyTuple_Size(args) ==  1) {
-	    *(callable->member) = *toCArgument<T, false, PythonClassWrapper<T> >(*PyTuple_GetItem(args, 0));
-	  }
-	  return toPyObject<T>(*callable->member,	 false, array_size);
-	} catch (const char* msg){
-	  PyErr_SetString(PyExc_TypeError, msg);
-	  return nullptr;
-	}
-    }
+        if constexpr(!std::is_array<T>::value && !std::is_const<T>::value) {
+            try {
+                typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
+                const ssize_t type_size = Sizeof<T_base>::value;
+                const ssize_t array_size = type_size > 0 ? sizeof(*(callable->member)) / type_size : 1;
+                if (((kwds ? PyDict_Size(kwds) : 0) + PyTuple_Size(args)) > 1) {
+                    PyErr_SetString(PyExc_TypeError, "Invalid parameters when getting/setting global variable");
+                    return nullptr;
+                } else if (kwds && PyDict_Size(kwds) == 1) {
+                    PyObject *const v = PyDict_GetItemString(kwds, "value");
+                    if (v) {
+                        *(callable->member) = *toCArgument<T, false, PythonClassWrapper<T> >(*v);
+                    } else {
+                        PyErr_SetString(PyExc_TypeError, "Invalid parameters when getting/setting global variable");
+                        return nullptr;
+                    }
 
-
-    template<size_t size, typename T>
-    int GlobalVariable::Container<T[size]>::
-    _init(PyObject *self, PyObject *args, PyObject *kwds) {
-        //avoid compiler warnings (including reinterpret cast to avoid type-punned warning)
-        (void) self;
-        (void) args;
-        (void) kwds;
-
-        return 0;
-    }
-
-
-    template<size_t size, typename T>
-    PyObject *GlobalVariable::Container<T[size]>::
-    _new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
-        (void) args;
-        (void) kwds;
-        return type->tp_alloc(type, 0);
-    }
-
-
-    template<size_t size, typename T>
-    PyObject *GlobalVariable::Container<T[size]>::
-    call(Container *callable, PyObject *args, PyObject *kwds) {
-        (void) callable;
-        if (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "value")) {
-            T val[size];
-            auto cval = *toCArgument<T[size], true, PythonClassWrapper<T[size]> >(*PyDict_GetItemString(kwds, "value"));
-            for(unsigned int i = 0; i < size; ++i)
-               val[i] = cval[i];
-            for (size_t i = 0; i < size; ++i) (*callable->member)[i] = val[i];
-        } else if (kwds) {
-            PyErr_SetString(PyExc_RuntimeError, "Invalid parameters when getting/setting global variable");
-            return nullptr;
-        }
-        typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
-        const ssize_t type_size = Sizeof<T_base>::value;
-        const ssize_t array_size = type_size > 0 ? sizeof(*(callable->member)) / type_size : 1;
-        return toPyObject<T[size]>(*callable->member, false, array_size);
-    }
-
-
-    template<size_t size, typename T>
-    void GlobalVariable::Container<T[size]>::
-    setFromPyObject(Container *callable, PyObject *pyobj) {
-    }
-
-    template<typename T>
-    int GlobalVariable::Container<T[], typename std::enable_if<!std::is_const<T>::value>::type>::
-    _init(PyObject *self, PyObject *args, PyObject *kwds) {
-        //avoid compiler warnings (including reinterpret cast to avoid type-punned warning)
-        (void) self;
-        (void) args;
-        (void) kwds;
-
-        return 0;
-    }
-
-    template<typename T>
-    PyObject *GlobalVariable::Container<T[], typename std::enable_if<!std::is_const<T>::value>::type>::
-    _new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
-        (void) args;
-        (void) kwds;
-        return type->tp_alloc(type, 0);
-    }
-
-    template<typename T>
-    PyObject *GlobalVariable::Container<T[], typename std::enable_if<!std::is_const<T>::value>::type>::
-    call(Container *callable, PyObject *args, PyObject *kwds) {
-        (void) callable;
-        if (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "value")) {
-            if (callable->array_size < 0) {
-                PyErr_SetString(PyExc_RuntimeError, "Attempt to set whole array of unknown size");
+                } else if (PyTuple_Size(args) == 1) {
+                    *(callable->member) = *toCArgument<T, false, PythonClassWrapper<T> >(*PyTuple_GetItem(args, 0));
+                }
+                return toPyObject<T>(*callable->member, false, array_size);
+            } catch (const char *msg) {
+                PyErr_SetString(PyExc_TypeError, msg);
                 return nullptr;
             }
-            T *val = *toCArgument<T *, true, PythonClassWrapper<T *> >(
-                    *PyDict_GetItemString(kwds, "value"));
-            for (size_t i = 0; i < callable->array_size; ++i) (*callable->member)[i] = val[i];
-        } else if (kwds && PyDict_Size(kwds) == 2 && PyDict_GetItemString(kwds, "value") &&
-                   PyDict_GetItemString(kwds, "index") &&
-                   PyLong_Check(PyDict_GetItemString(kwds, "index"))) {
-            long i = PyLong_AsLong(PyDict_GetItemString(kwds, "index"));
-            T *val = *toCArgument<T *, false, PythonClassWrapper<T *> >(
-                    *PyDict_GetItemString(kwds, "value"));
-            (*callable->member)[i] = val[i];
-        } else if (kwds && PyDict_Size(kwds) != 0) {
-            PyErr_SetString(PyExc_RuntimeError, "Invalid parameters when getting/setting global variable");
-            return nullptr;
+        } else if constexpr (std::is_array<T>::value && ArraySize<T>::size > 0){
+            typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
+            if (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "value")) {
+                T_base val[size];
+                auto cval = *toCArgument<T_base, true, PythonClassWrapper<T> >(*PyDict_GetItemString(kwds, "value"));
+                for(unsigned int i = 0; i < size; ++i)
+                    val[i] = cval[i];
+                for (size_t i = 0; i < size; ++i) (*callable->member)[i] = val[i];
+            } else if (kwds) {
+                PyErr_SetString(PyExc_RuntimeError, "Invalid parameters when getting/setting global variable");
+                return nullptr;
+            }
+            return toPyObject<T>(*callable->member, false, ArraySize<T>::size);
+        } else if constexpr (std::is_array<T>::value){
+            typedef typename extent_as_pointer<T>::type T_ptr;
+            typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
+            if (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "value")) {
+                if (callable->array_size < 0) {
+                    PyErr_SetString(PyExc_RuntimeError, "Attempt to set whole array of unknown size");
+                    return nullptr;
+                }
+                T_ptr val = *toCArgument<T_ptr, true, PythonClassWrapper<T_ptr> >(*PyDict_GetItemString(kwds, "value"));
+                for (size_t i = 0; i < callable->array_size; ++i) (*callable->member)[i] = val[i];
+            } else if (kwds && PyDict_Size(kwds) == 2 && PyDict_GetItemString(kwds, "value") &&
+                       PyDict_GetItemString(kwds, "index") &&
+                       PyLong_Check(PyDict_GetItemString(kwds, "index"))) {
+                long i = PyLong_AsLong(PyDict_GetItemString(kwds, "index"));
+                T_ptr val = *toCArgument<T *, false, PythonClassWrapper<T_ptr> >(*PyDict_GetItemString(kwds, "value"));
+                (*callable->member)[i] = val[i];
+            } else if (kwds && PyDict_Size(kwds) != 0) {
+                PyErr_SetString(PyExc_RuntimeError, "Invalid parameters when getting/setting global variable");
+                return nullptr;
+            }
+            const ssize_t type_size = Sizeof<T_base>::value;
+            const ssize_t array_size = type_size > 0 ? sizeof(*(callable->member)) / type_size : 1;
+            return toPyObject<T>(*callable->member, false, array_size);
+        } else {
+            if (kwds && PyDict_GetItemString(kwds, "value")) {
+                PyErr_SetString(PyExc_RuntimeError, "Cannot set const global variable!");
+                return nullptr;
+            } else if (kwds && PyDict_Size(kwds) != 0) {
+                PyErr_SetString(PyExc_RuntimeError, "Invalid parameters when getting/setting global variable");
+                return nullptr;
+            }
+            typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
+            const ssize_t type_size = Sizeof<T_base>::value;
+            const ssize_t array_size = type_size > 0 ? sizeof(*(callable->member)) / type_size : 1;
+            return toPyObject<T>(*callable->member, false, array_size);
         }
-        typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
-        const ssize_t type_size = Sizeof<T_base>::value;
-        const ssize_t array_size = type_size > 0 ? sizeof(*(callable->member)) / type_size : 1;
-        return toPyObject<T *>(*callable->member, false, array_size);
     }
-
-
-
-    template<typename T>
-    int GlobalVariable::Container<const T, typename std::enable_if<!std::is_array<T>::value>::type>::
-    _init(PyObject *self, PyObject *args, PyObject *kwds) {
-        //avoid compiler warnings (including reinterpret cast to avoid type-punned warning)
-        (void) self;
-        (void) args;
-        (void) kwds;
-
-        return 0;
-    }
-
-    template<typename T>
-    PyObject *GlobalVariable::Container<const T, typename std::enable_if<!std::is_array<T>::value>::type>::
-    _new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
-        (void) args;
-        (void) kwds;
-        return type->tp_alloc(type, 0);
-    }
-
-    template<typename T>
-    PyObject *GlobalVariable::Container<const T, typename std::enable_if<!std::is_array<T>::value>::type>::
-    call(Container *callable, PyObject *args, PyObject *kwds) {
-        (void) callable;
-        if (kwds && PyDict_GetItemString(kwds, "value")) {
-            PyErr_SetString(PyExc_RuntimeError, "Cannot set const global variable!");
-            return nullptr;
-        } else if (kwds && PyDict_Size(kwds) != 0) {
-            PyErr_SetString(PyExc_RuntimeError, "Invalid parameters when getting/setting global variable");
-            return nullptr;
-        }
-        typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
-        const ssize_t type_size = Sizeof<T_base>::value;
-        const ssize_t array_size = type_size > 0 ? sizeof(*(callable->member)) / type_size : 1;
-        return toPyObject<T>(*callable->member, false, array_size);
-    }
-
-
-
-    template<size_t size, typename T>
-    int GlobalVariable::Container<const T[size], void>::
-    _init(PyObject *self, PyObject *args, PyObject *kwds) {
-        //avoid compiler warnings (including reinterpret cast to avoid type-punned warning)
-        (void) self;
-        (void) args;
-        (void) kwds;
-
-        return 0;
-    }
-
-    template<size_t size, typename T>
-    PyObject *GlobalVariable::Container<const T[size], void>::
-    _new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
-        (void) args;
-        (void) kwds;
-        return type->tp_alloc(type, 0);
-    }
-
-    template<size_t size, typename T>
-    PyObject *GlobalVariable::Container<const T[size], void>::
-    call(Container *callable, PyObject *args, PyObject *kwds) {
-        (void) callable;
-        if (kwds && PyDict_GetItemString(kwds, "value")) {
-            PyErr_SetString(PyExc_RuntimeError, "Cannot set const global variable!");
-            return nullptr;
-        } else if (kwds && PyDict_Size(kwds) != 0) {
-            PyErr_SetString(PyExc_RuntimeError, "Invalid parameters when getting/setting global variable");
-            return nullptr;
-        }
-        typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
-        const ssize_t type_size = Sizeof<T_base>::value;
-        const ssize_t array_size = type_size > 0 ? sizeof(*(callable->member)) / type_size : 1;
-        return toPyObject<T>(callable->member, false, array_size);
-    }
-
-
-
-    template<typename T>
-    int GlobalVariable::Container<const T[], void>::
-    _init(PyObject *self, PyObject *args, PyObject *kwds) {
-        //avoid compiler warnings (including reinterpret cast to avoid type-punned warning)
-        (void) self;
-        (void) args;
-        (void) kwds;
-
-        return 0;
-    }
-
-    template<typename T>
-    PyObject *GlobalVariable::Container<const T[], void>::
-    _new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
-        (void) args;
-        (void) kwds;
-        return type->tp_alloc(type, 0);
-    }
-
-    template<typename T>
-    PyObject *GlobalVariable::Container<const T[], void>::
-    call(Container *callable, PyObject *args, PyObject *kwds) {
-        (void) callable;
-        if (kwds && PyDict_GetItemString(kwds, "value")) {
-            PyErr_SetString(PyExc_RuntimeError, "Cannot set const global variable!");
-            return nullptr;
-        } else if (kwds && PyDict_Size(kwds) != 0) {
-            PyErr_SetString(PyExc_RuntimeError, "Invalid parameters when getting/setting global variable");
-            return nullptr;
-        }
-        typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
-        const ssize_t type_size = Sizeof<T_base>::value;
-        const ssize_t array_size = type_size > 0 ? sizeof(*(callable->member)) / type_size : 1;
-        return toPyObject<const T *>(*callable->member, false, array_size);
-    }
-
-
 
     //Python definition of Type for this function wrapper
     template<typename T>
-    PyTypeObject GlobalVariable::Container<T, typename std::enable_if<
-            !std::is_array<T>::value && !std::is_const<T>::value>::type>::Type = {
+    PyTypeObject GlobalVariable::Container<T>::Type = {
         #if PY_MAJOR_VERSION == 3
                 PyVarObject_HEAD_INIT(nullptr, 0)
         #else
@@ -320,293 +156,6 @@ namespace __pyllars_internal{
             type_name<T>(),                         /*tp_name*/
             sizeof(GlobalVariable::Container<T, typename std::enable_if<
                     !std::is_array<T>::value && !std::is_const<T>::value>::type>),   /*tp_basicsize*/
-            0,                               /*tp_itemsize*/
-            nullptr,                         /*tp_dealloc*/
-            nullptr,                         /*tp_print*/
-            nullptr,                         /*tp_getattr*/
-            nullptr,                         /*tp_setattr*/
-            nullptr,                         /*tp_compare*/
-            nullptr,                         /*tp_repr*/
-            nullptr,                         /*tp_as_number*/
-            nullptr,                         /*tp_as_sequence*/
-            nullptr,                         /*tp_as_mapping*/
-            nullptr,                         /*tp_hash */
-            (ternaryfunc) call,                           /*tp_call*/
-            nullptr,                         /*tp_str*/
-            nullptr,                         /*tp_getattro*/
-            nullptr,                         /*tp_setattro*/
-            nullptr,                         /*tp_as_buffer*/
-            Py_TPFLAGS_DEFAULT, /*tp_flags*/
-            "Global variable object",  /* tp_doc */
-            nullptr,                         /* tp_traverse */
-            nullptr,                         /* tp_clear */
-            nullptr,                         /* tp_richcompare */
-            0,                                 /* tp_weaklistoffset */
-            nullptr,                         /* tp_iter */
-            nullptr,                         /* tp_iternext */
-            nullptr,                         /* tp_methods */
-            nullptr,                         /* tp_members */
-            nullptr,                         /* tp_getset */
-            nullptr,                         /* tp_base */
-            nullptr,                         /* tp_dict */
-            nullptr,                         /* tp_descr_get */
-            nullptr,                         /* tp_descr_set */
-            0,                               /* tp_dictoffset */
-            _init,  /* tp_init */
-            nullptr,                         /* tp_alloc */
-            _new,     /* tp_new */
-            nullptr,                         /*tp_free*/ //TODO: Implement a free??
-            nullptr,                         /*tp_is_gc*/
-            nullptr,                         /*tp_bass*/
-            nullptr,                         /*tp_mro*/
-            nullptr,                         /*tp_cache*/
-            nullptr,                         /*tp_subclasses*/
-            nullptr,                          /*tp_weaklist*/
-            nullptr,                          /*tp_del*/
-            0,                          /*tp_version_tag*/
-    };
-
-
-    //Python definition of Type for this function wrapper
-    template<size_t size, typename T>
-    PyTypeObject GlobalVariable::Container<T[size], void>::Type = {
-        #if PY_MAJOR_VERSION == 3
-                PyVarObject_HEAD_INIT(nullptr, 0)
-        #else
-                PyObject_HEAD_INIT(nullptr)
-                0,                               /*ob_size*/
-        #endif
-             type_name<T>(),                         /*tp_name*/
-            sizeof(GlobalVariable::Container<T[size], void>),   /*tp_basicsize*/
-            0,                               /*tp_itemsize*/
-            nullptr,                         /*tp_dealloc*/
-            nullptr,                         /*tp_print*/
-            nullptr,                         /*tp_getattr*/
-            nullptr,                         /*tp_setattr*/
-            nullptr,                         /*tp_compare*/
-            nullptr,                         /*tp_repr*/
-            nullptr,                         /*tp_as_number*/
-            nullptr,                         /*tp_as_sequence*/
-            nullptr,                         /*tp_as_mapping*/
-            nullptr,                         /*tp_hash */
-            (ternaryfunc) call,                           /*tp_call*/
-            nullptr,                         /*tp_str*/
-            nullptr,                         /*tp_getattro*/
-            nullptr,                         /*tp_setattro*/
-            nullptr,                         /*tp_as_buffer*/
-            Py_TPFLAGS_DEFAULT, /*tp_flags*/
-            "Global variable object",  /* tp_doc */
-            nullptr,                         /* tp_traverse */
-            nullptr,                         /* tp_clear */
-            nullptr,                         /* tp_richcompare */
-            0,                                 /* tp_weaklistoffset */
-            nullptr,                         /* tp_iter */
-            nullptr,                         /* tp_iternext */
-            nullptr,                         /* tp_methods */
-            nullptr,                         /* tp_members */
-            nullptr,                         /* tp_getset */
-            nullptr,                         /* tp_base */
-            nullptr,                         /* tp_dict */
-            nullptr,                         /* tp_descr_get */
-            nullptr,                         /* tp_descr_set */
-            0,                               /* tp_dictoffset */
-            _init,  /* tp_init */
-            nullptr,                         /* tp_alloc */
-            _new,     /* tp_new */
-            nullptr,                         /*tp_free*/ //TODO: Implement a free??
-            nullptr,                         /*tp_is_gc*/
-            nullptr,                         /*tp_bass*/
-            nullptr,                         /*tp_mro*/
-            nullptr,                         /*tp_cache*/
-            nullptr,                         /*tp_subclasses*/
-            nullptr,                          /*tp_weaklist*/
-            nullptr,                          /*tp_del*/
-            0,                          /*tp_version_tag*/
-    };
-
-    //Python definition of Type for this function wrapper
-    template<typename T>
-    PyTypeObject GlobalVariable::Container<const T, typename std::enable_if<!std::is_array<T>::value>::type>::Type = {
-        #if PY_MAJOR_VERSION == 3
-                PyVarObject_HEAD_INIT(nullptr, 0)
-        #else
-                PyObject_HEAD_INIT(nullptr)
-                0,                               /*ob_size*/
-        #endif
-            type_name<T>(),                         /*tp_name*/
-            sizeof(GlobalVariable::Container<const T, typename std::enable_if<!std::is_array<T>::value>::type>),   /*tp_basicsize*/
-            0,                               /*tp_itemsize*/
-            nullptr,                         /*tp_dealloc*/
-            nullptr,                         /*tp_print*/
-            nullptr,                         /*tp_getattr*/
-            nullptr,                         /*tp_setattr*/
-            nullptr,                         /*tp_compare*/
-            nullptr,                         /*tp_repr*/
-            nullptr,                         /*tp_as_number*/
-            nullptr,                         /*tp_as_sequence*/
-            nullptr,                         /*tp_as_mapping*/
-            nullptr,                         /*tp_hash */
-            (ternaryfunc) call,                           /*tp_call*/
-            nullptr,                         /*tp_str*/
-            nullptr,                         /*tp_getattro*/
-            nullptr,                         /*tp_setattro*/
-            nullptr,                         /*tp_as_buffer*/
-            Py_TPFLAGS_DEFAULT, /*tp_flags*/
-            "Global variable object",  /* tp_doc */
-            nullptr,                         /* tp_traverse */
-            nullptr,                         /* tp_clear */
-            nullptr,                         /* tp_richcompare */
-            0,                                 /* tp_weaklistoffset */
-            nullptr,                         /* tp_iter */
-            nullptr,                         /* tp_iternext */
-            nullptr,                         /* tp_methods */
-            nullptr,                         /* tp_members */
-            nullptr,                         /* tp_getset */
-            nullptr,                         /* tp_base */
-            nullptr,                         /* tp_dict */
-            nullptr,                         /* tp_descr_get */
-            nullptr,                         /* tp_descr_set */
-            0,                               /* tp_dictoffset */
-            _init,  /* tp_init */
-            nullptr,                         /* tp_alloc */
-            _new,     /* tp_new */
-            nullptr,                         /*tp_free*/ //TODO: Implement a free??
-            nullptr,                         /*tp_is_gc*/
-            nullptr,                         /*tp_bass*/
-            nullptr,                         /*tp_mro*/
-            nullptr,                         /*tp_cache*/
-            nullptr,                         /*tp_subclasses*/
-            nullptr,                          /*tp_weaklist*/
-            nullptr,                          /*tp_del*/
-            0,                          /*tp_version_tag*/
-    };
-
-    //Python definition of Type for this function wrapper
-    template<size_t size, typename T>
-    PyTypeObject GlobalVariable::Container<const T[size], void>::Type = {
-        #if PY_MAJOR_VERSION == 3
-                PyVarObject_HEAD_INIT(nullptr, 0)
-        #else
-                PyObject_HEAD_INIT(nullptr)
-                0,                               /*ob_size*/
-        #endif
-            type_name<T>(),                         /*tp_name*/
-            sizeof(GlobalVariable::Container<const T[size], void>),   /*tp_basicsize*/
-            0,                               /*tp_itemsize*/
-            nullptr,                         /*tp_dealloc*/
-            nullptr,                         /*tp_print*/
-            nullptr,                         /*tp_getattr*/
-            nullptr,                         /*tp_setattr*/
-            nullptr,                         /*tp_compare*/
-            nullptr,                         /*tp_repr*/
-            nullptr,                         /*tp_as_number*/
-            nullptr,                         /*tp_as_sequence*/
-            nullptr,                         /*tp_as_mapping*/
-            nullptr,                         /*tp_hash */
-            (ternaryfunc) call,                           /*tp_call*/
-            nullptr,                         /*tp_str*/
-            nullptr,                         /*tp_getattro*/
-            nullptr,                         /*tp_setattro*/
-            nullptr,                         /*tp_as_buffer*/
-            Py_TPFLAGS_DEFAULT, /*tp_flags*/
-            "Global variable object",  /* tp_doc */
-            nullptr,                         /* tp_traverse */
-            nullptr,                         /* tp_clear */
-            nullptr,                         /* tp_richcompare */
-            0,                                 /* tp_weaklistoffset */
-            nullptr,                         /* tp_iter */
-            nullptr,                         /* tp_iternext */
-            nullptr,                         /* tp_methods */
-            nullptr,                         /* tp_members */
-            nullptr,                         /* tp_getset */
-            nullptr,                         /* tp_base */
-            nullptr,                         /* tp_dict */
-            nullptr,                         /* tp_descr_get */
-            nullptr,                         /* tp_descr_set */
-            0,                               /* tp_dictoffset */
-            _init,  /* tp_init */
-            nullptr,                         /* tp_alloc */
-            _new,     /* tp_new */
-            nullptr,                         /*tp_free*/ //TODO: Implement a free??
-            nullptr,                         /*tp_is_gc*/
-            nullptr,                         /*tp_bass*/
-            nullptr,                         /*tp_mro*/
-            nullptr,                         /*tp_cache*/
-            nullptr,                         /*tp_subclasses*/
-            nullptr,                          /*tp_weaklist*/
-            nullptr,                          /*tp_del*/
-            0,                          /*tp_version_tag*/
-    };
-
-
-    //Python definition of Type for this function wrapper
-    template<typename T>
-    PyTypeObject GlobalVariable::Container<T[], typename std::enable_if<!std::is_const<T>::value>::type>::Type = {
-        #if PY_MAJOR_VERSION == 3
-                PyVarObject_HEAD_INIT(nullptr, 0)
-        #else
-                PyObject_HEAD_INIT(nullptr)
-                0,                               /*ob_size*/
-        #endif
-            type_name<T>(),                         /*tp_name*/
-            sizeof(GlobalVariable::Container<T[], void>),   /*tp_basicsize*/
-            0,                               /*tp_itemsize*/
-            nullptr,                         /*tp_dealloc*/
-            nullptr,                         /*tp_print*/
-            nullptr,                         /*tp_getattr*/
-            nullptr,                         /*tp_setattr*/
-            nullptr,                         /*tp_compare*/
-            nullptr,                         /*tp_repr*/
-            nullptr,                         /*tp_as_number*/
-            nullptr,                         /*tp_as_sequence*/
-            nullptr,                         /*tp_as_mapping*/
-            nullptr,                         /*tp_hash */
-            (ternaryfunc) call,                           /*tp_call*/
-            nullptr,                         /*tp_str*/
-            nullptr,                         /*tp_getattro*/
-            nullptr,                         /*tp_setattro*/
-            nullptr,                         /*tp_as_buffer*/
-            Py_TPFLAGS_DEFAULT, /*tp_flags*/
-            "Global variable object",  /* tp_doc */
-            nullptr,                         /* tp_traverse */
-            nullptr,                         /* tp_clear */
-            nullptr,                         /* tp_richcompare */
-            0,                                 /* tp_weaklistoffset */
-            nullptr,                         /* tp_iter */
-            nullptr,                         /* tp_iternext */
-            nullptr,                         /* tp_methods */
-            nullptr,                         /* tp_members */
-            nullptr,                         /* tp_getset */
-            nullptr,                         /* tp_base */
-            nullptr,                         /* tp_dict */
-            nullptr,                         /* tp_descr_get */
-            nullptr,                         /* tp_descr_set */
-            0,                               /* tp_dictoffset */
-            _init,  /* tp_init */
-            nullptr,                         /* tp_alloc */
-            _new,     /* tp_new */
-            nullptr,                         /*tp_free*/ //TODO: Implement a free??
-            nullptr,                         /*tp_is_gc*/
-            nullptr,                         /*tp_bass*/
-            nullptr,                         /*tp_mro*/
-            nullptr,                         /*tp_cache*/
-            nullptr,                         /*tp_subclasses*/
-            nullptr,                          /*tp_weaklist*/
-            nullptr,                          /*tp_del*/
-            0,                          /*tp_version_tag*/
-    };
-
-    //Python definition of Type for this function wrapper
-    template<typename T>
-    PyTypeObject GlobalVariable::Container<const T[], void>::Type = {
-        #if PY_MAJOR_VERSION == 3
-                PyVarObject_HEAD_INIT(nullptr, 0)
-        #else
-                PyObject_HEAD_INIT(nullptr)
-                0,                               /*ob_size*/
-        #endif
-            type_name<T>(),                         /*tp_name*/
-            sizeof(GlobalVariable::Container<const T[], void>),   /*tp_basicsize*/
             0,                               /*tp_itemsize*/
             nullptr,                         /*tp_dealloc*/
             nullptr,                         /*tp_print*/

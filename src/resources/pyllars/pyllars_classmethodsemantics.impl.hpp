@@ -274,8 +274,7 @@ namespace __pyllars_internal{
                         } else if (COBJ_TYPE == subtype) {
                             static const size_t offset = offset_of<ObjectContainer<Arbitrary>*, PythonClassWrapper<Arbitrary> >
                                     (&PythonClassWrapper<Arbitrary>::_CObject);
-                            ObjectContainer<void *> **ptrvalue =
-                                    (ObjectContainer<void *> **) (((char *) nextArg) + offset);
+                            auto **ptrvalue = (ObjectContainer<void *> **) (((char *) nextArg) + offset);
                             extra_arg_values[i].ptrvalue = ptrvalue ? (*ptrvalue)->ptr() : nullptr;
                         } else if (FUNC_TYPE == subtype) {
                             typedef typename PythonFunctionWrapper<true, with_ellipsis, int, int>::template Wrapper<> wtype;
