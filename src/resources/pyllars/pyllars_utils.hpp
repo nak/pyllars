@@ -43,11 +43,6 @@ namespace __pyllars_internal {
         static constexpr bool value = true;
     };
 
-    //type trait to determine depth of pointer
-    // ptr_depth<int> = 0
-    // ptr_depth<int*> = ptr_depth<int[]> = ptr_depth<int[size]> = 1
-    // ptr_depth<int**> = 2
-    // ...
     template<typename T>
     struct ptr_depth {
         static constexpr size_t value = 0;
@@ -116,30 +111,6 @@ namespace __pyllars_internal {
         char x[256];
     };
 
-    template <typename T>
-    struct is_C_stringable{
-        static constexpr bool value = false;
-    };
-
-    template<>
-    struct is_C_stringable<const char* const>{
-        static constexpr bool value = true;
-    };
-
-    template<>
-    struct is_C_stringable<const char*>{
-        static constexpr bool value = true;
-    };
-
-    template<>
-    struct is_C_stringable< char* const>{
-        static constexpr bool value = true;
-    };
-
-    template<>
-    struct is_C_stringable< char*>{
-        static constexpr bool value = true;
-    };
 
     template<typename T>
     char256 is_complete_helper(int(*)[sizeof(T)]);
@@ -229,94 +200,6 @@ namespace __pyllars_internal {
 
 namespace __pyllars_internal {
 
-
-    template<typename T, typename E =void>
-    struct Deallocator {
-        static void dealloc(T *const ptr, const bool in_place, const size_t size);
-    };
-
-    template<typename T>
-    struct Deallocator<T, typename std::enable_if<!is_function_ptr<T>::value && !std::is_reference<T>::value &&
-                                                        std::is_destructible<T>::value && !std::is_array<T>::value>::type > {
-        static void dealloc(T *const ptr, const bool in_place, const size_t size) {
-            delete ptr;
-        }
-    };
-
-
-    template<typename T>
-    struct Deallocator<T, typename std::enable_if<!is_function_ptr<T>::value &&
-                                                  !std::is_reference<T>::value &&
-                                                  std::is_destructible<T>::value &&
-                                                  std::is_array<T>::value &&
-                                                  !std::is_array<typename std::remove_pointer<T>::type>::value
-                                                  >::type > {
-
-        static void dealloc(T *const ptr, const bool in_place, const size_t size ) {
-            if (in_place){
-                for(size_t i = 0; i < size; ++i){
-                    if(ptr[i]) ptr[i].~T();
-                }
-            } else {
-                delete[] ptr;
-            }
-        }
-    };
-
-    template<typename T>
-    struct Deallocator<T, typename std::enable_if<!is_function_ptr<T>::value &&
-                                                  !std::is_reference<T>::value &&
-                                                  std::is_destructible<T>::value &&
-                                                  std::is_array<T>::value &&
-                                                  std::is_array<typename std::remove_pointer<T>::type>::value
-                                                 >::type > {
-
-        static void dealloc(T *const ptr, const bool in_place, const size_t size ) {
-                delete[] ptr;
-        }
-    };
-
-
-    template<typename T>
-    struct Deallocator<T, typename std::enable_if<
-            !is_function_ptr<T>::value && !std::is_reference<T>::value &&
-            !std::is_destructible<T>::value>::type> {
-        static void dealloc(T *const ptr, const bool in_place, const size_t size) {
-        }
-    };
-
-    template<typename T>
-    struct Deallocator<T, typename std::enable_if<
-            is_function_ptr<T>::value || std::is_reference<T>::value>::type> {
-        static void dealloc(T *const ptr, const bool in_place, const size_t size) {
-        }
-    };
-
-    template<typename Type>
-    struct defaults_to_string{
-        static constexpr bool value = std::is_array<Type>::value;
-    };
-
-    template<>
-    struct defaults_to_string<char*>{
-        static constexpr bool value = false;
-    };
-
-    template<>
-    struct defaults_to_string<const char*>{
-        static constexpr bool value = false;
-    };
-
-    template<>
-    struct defaults_to_string<char* const>{
-        static constexpr bool value = false;
-    };
-
-    template<>
-    struct defaults_to_string<const char* const>{
-        static constexpr bool value = false;
-    };
-
     template <typename T1, typename T2>
     inline size_t offset_of(T1 T2::*member) {
         T2 object {};
@@ -345,10 +228,6 @@ namespace __pyllars_internal {
         }
     };
 
-
-
-
-
     template<typename T, typename Z=void>
     class AssignValue{
     public:
@@ -358,15 +237,16 @@ namespace __pyllars_internal {
     template<typename T>
     class AssignValue< T, typename std::enable_if< std::is_assignable<T, T>::value >::type >{
     public:
-        static T assign(T v1, const T& v2){
-            return v1 = v2;
+        static T assign(T &v1, const T& v2){
+            v1 = v2;
+            return v1;
         }
     };
 
     template<typename T>
     class AssignValue< T, typename std::enable_if< !std::is_assignable<T, T>::value >::type >{
     public:
-        static T assign(T v1, const T& v2){
+        static T assign(T& v1, const T& v2){
             throw "Unable to assign new value; type is not copy-assignable";
         }
     };

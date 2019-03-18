@@ -18,7 +18,7 @@ namespace __pyllars_internal {
         constexpr size_t MAX_PTR_DEPTH = 5;
         constexpr int ERROR_TYPE_MISMATCH = -2;
         constexpr ssize_t UNKNOWN_SIZE = -1;
-        static constexpr Py_ssize_t INVALID_INDEX = LONG_LONG_MIN;
+        constexpr Py_ssize_t INVALID_INDEX = LONG_LONG_MIN;
         //basic constants (names and such)
         extern const char address_name[] = "this";
         extern const char alloc_name_[] = "new";
@@ -102,7 +102,7 @@ namespace __pyllars_internal {
     template<typename T>
     struct Types<const T> {
         static const char *const type_name() {
-            static char * namebase = new char[7 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+            static auto * namebase = new char[7 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
             strcpy(namebase, "const_");
             strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
             return namebase;
@@ -112,7 +112,7 @@ namespace __pyllars_internal {
     template<typename T>
     struct Types<volatile T> {
         static const char *const type_name() {
-            static char * namebase = new char[10 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+            static auto * namebase = new char[10 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
             strcpy(namebase, "volatile_");
             strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
             return namebase;
@@ -122,7 +122,7 @@ namespace __pyllars_internal {
     template<typename T>
     struct Types<const volatile T> {
         static const char *const type_name() {
-            static char * namebase = new char[16 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+            static auto * namebase = new char[16 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
             strcpy(namebase, "const_volatile_");
             strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
             return namebase;
@@ -132,7 +132,7 @@ namespace __pyllars_internal {
     template<typename T>
     struct Types<T *> {
         static const char *const type_name() {
-            static char * namebase = new char[2 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+            static auto * namebase = new char[2 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
             strcpy(namebase, Types<typename std::remove_const<T>::type>::type_name());
             strcat(namebase, "*");
             return namebase;
@@ -142,7 +142,7 @@ namespace __pyllars_internal {
     template<typename T>
     struct Types<const T *> {
         static const char *const type_name() {
-            static char * namebase = new char[8 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+            static auto * namebase = new char[8 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
             strcpy(namebase, "const_");
             strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
             strcat(namebase, "*");
@@ -153,7 +153,7 @@ namespace __pyllars_internal {
     template<typename T>
     struct Types<volatile T *> {
         static const char *const type_name() {
-            static char * namebase = new char[11 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+            static auto * namebase = new char[11 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
             strcpy(namebase, "volatile_");
             strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
             strcat(namebase, "*");
@@ -164,7 +164,7 @@ namespace __pyllars_internal {
     template<typename T>
     struct Types<const volatile T *> {
         static const char *const type_name() {
-            static char * namebase = new char[17 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+            static auto * namebase = new char[17 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
             strcpy(namebase, "const_volatile_");
             strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
             strcat(namebase, "*");
@@ -175,7 +175,7 @@ namespace __pyllars_internal {
     template<typename T>
     struct Types<T &> {
         static const char *const type_name() {
-            static char * namebase = new char[2 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+            static auto * namebase = new char[2 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
             strcpy(namebase, Types<typename std::remove_const<T>::type>::type_name());
             strcat(namebase, "&");
             return namebase;
@@ -185,7 +185,7 @@ namespace __pyllars_internal {
     template<typename T>
     struct Types<const T &> {
         static const char *const type_name() {
-            static char * namebase = new char[8 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+            static auto * namebase = new char[8 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
             strcpy(namebase, "const_");
             strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
             strcat(namebase, "&");
@@ -196,7 +196,7 @@ namespace __pyllars_internal {
     template<typename T>
     struct Types<volatile T &> {
         static const char *const type_name() {
-            static char * namebase = new char[11 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+            static auto * namebase = new char[11 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
             strcpy(namebase, "volatile_");
             strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
             strcat(namebase, "&");
@@ -207,7 +207,7 @@ namespace __pyllars_internal {
     template<typename T>
     struct Types<const volatile T &> {
         static const char *const type_name() {
-            static char * namebase = new char[17 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+            static auto * namebase = new char[17 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
             strcpy(namebase, "const_volatile_");
             strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
             strcat(namebase, "&");
@@ -218,7 +218,7 @@ namespace __pyllars_internal {
     template<typename T>
     struct Types<T[]> {
         static const char *const type_name() {
-            static char * namebase = new char[3 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+            static auto * namebase = new char[3 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
             strcpy(namebase, Types<typename std::remove_const<T>::type>::type_name());
             strcat(namebase, "[]");
             return namebase;
@@ -228,7 +228,7 @@ namespace __pyllars_internal {
     template<typename T>
     struct Types<const T[]> {
         static const char *const type_name() {
-            static char * namebase = new char[9 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+            static auto * namebase = new char[9 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
             strcpy(namebase, "const_");
             strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
             strcat(namebase, "[]");
@@ -239,7 +239,7 @@ namespace __pyllars_internal {
     template<typename T>
     struct Types<volatile T[]> {
         static const char *const type_name() {
-            static char * namebase = new char[12 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+            static auto * namebase = new char[12 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
             strcpy(namebase, "volatile_");
             strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
             strcat(namebase, "[]");
@@ -250,7 +250,7 @@ namespace __pyllars_internal {
     template<typename T>
     struct Types<const volatile T[]> {
         static const char *const type_name() {
-            static char * namebase = new char[18 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+            static auto * namebase = new char[18 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
             strcpy(namebase, "const_volatile_");
             strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
             strcat(namebase, "[]");
@@ -263,7 +263,7 @@ namespace __pyllars_internal {
         static const char *const type_name() {
             char intstr[32];
             sprintf(intstr, "%ld", (long)size);
-            static char * namebase = new char[44 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+            static auto * namebase = new char[44 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
             strcpy(namebase, Types<typename std::remove_const<T>::type>::type_name());
             strcat(namebase, "[");
             strcat(namebase, intstr);
@@ -277,7 +277,7 @@ namespace __pyllars_internal {
         static const char *const type_name() {
             char intstr[32];
             sprintf(intstr, "%ld", (long)size);
-            static char * namebase = new char[50 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+            static auto * namebase = new char[50 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
             strcpy(namebase, "const_");
             strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
             strcat(namebase, "[");
@@ -292,7 +292,7 @@ namespace __pyllars_internal {
         static const char *const type_name() {
             char intstr[32];
             sprintf(intstr, "%ld", (long)size);
-            static char * namebase = new char[53 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+            static auto * namebase = new char[53 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
             strcpy(namebase, "volatile");
             strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
             strcat(namebase, "[");
@@ -307,7 +307,7 @@ namespace __pyllars_internal {
         static const char *const type_name() {
             char intstr[32];
             sprintf(intstr, "%ld", (long)size);
-            static char * namebase = new char[59 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+            static auto * namebase = new char[59 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
             strcpy(namebase, "const_volatile");
             strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
             strcat(namebase, "[");
@@ -320,7 +320,7 @@ namespace __pyllars_internal {
     template<typename T>
     struct Types<T &&> {
         static const char *const type_name() {
-            static char * namebase = new char[3 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+            static auto * namebase = new char[3 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
             strcpy(namebase, Types<typename std::remove_const<T>::type>::type_name());
             strcat(namebase, "&&");
             return namebase;
@@ -330,7 +330,7 @@ namespace __pyllars_internal {
     template<typename T>
     struct Types<const T &&> {
         static const char *const type_name() {
-            static char * namebase = new char[9 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+            static auto * namebase = new char[9 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
             strcpy(namebase, "const_");
             strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
             strcat(namebase, "&&");
@@ -341,7 +341,7 @@ namespace __pyllars_internal {
     template<typename T>
     struct Types<volatile T &&> {
         static const char *const type_name() {
-            static char * namebase = new char[12 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+            static auto * namebase = new char[12 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
             strcpy(namebase, "volatile_");
             strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
             strcat(namebase, "&&");
@@ -352,7 +352,7 @@ namespace __pyllars_internal {
     template<typename T>
     struct Types<const volatile T &&> {
         static const char *const type_name() {
-            static char * namebase = new char[18 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+            static auto * namebase = new char[18 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
             strcpy(namebase, "const_volatile_");
             strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
             strcat(namebase, "&&");
@@ -386,12 +386,10 @@ namespace __pyllars_internal {
     // Helper conversion functions
     //////////
     template<typename T>
-    PyObject *toPyObject(T &var, const bool asArgument, const ssize_t array_size);
+    PyObject *toPyObject(T &var, bool asArgument, ssize_t array_size);
 
     template<typename T>
-    PyObject *toPyObject(const T &var, const bool asArgument, const ssize_t array_size);
-
-    struct ZERO_DEPTH;
+    PyObject *toPyObject(const T &var, bool asArgument, ssize_t array_size);
 
     template<typename T>
     struct argument_capture;
@@ -410,8 +408,6 @@ namespace __pyllars_internal {
      * Class common to all C++ wrapper classes
      **/
     struct CommonBaseWrapper {
-        template<typename T>
-        friend class CObjectConversionHelper;
 
         struct Base {
             PyObject_HEAD
@@ -419,7 +415,7 @@ namespace __pyllars_internal {
 
             typedef PyTypeObject *TypePtr_t;
 
-            static TypePtr_t constexpr TypePtr = &PyBaseObject_Type;
+            static auto constexpr TypePtr = &PyBaseObject_Type;
 
         } baseClass;
 
@@ -432,7 +428,7 @@ namespace __pyllars_internal {
         static constexpr size_t tp_name_prefix_len = strlen(tp_name_prefix);
 
         static bool IsClassType(PyObject *obj) {
-            PyTypeObject *pytype = (PyTypeObject *) PyObject_Type(obj);
+            auto *pytype = (PyTypeObject *) PyObject_Type(obj);
             return strncmp(pytype->tp_name, tp_name_prefix, tp_name_prefix_len) == 0;
         }
 
@@ -440,7 +436,7 @@ namespace __pyllars_internal {
         static constexpr size_t ptrtp_name_prefix_len = strlen(ptrtp_name_prefix);
 
         static bool IsCFunctionType(PyObject *obj) {
-            PyTypeObject *pytype = (PyTypeObject *) PyObject_Type(obj);
+            auto *pytype = (PyTypeObject *) PyObject_Type(obj);
             return strncmp(pytype->tp_name, ptrtp_name_prefix, ptrtp_name_prefix_len) == 0;
         }
 
@@ -452,6 +448,24 @@ namespace __pyllars_internal {
 
         PyObject *getReferenced() {
             return _referenced;
+        }
+
+        /**
+             * Check for valid conversion to type T from given Python object in use as passing as argument to C function
+             * (after conversino)
+             * @tparam T type to convert to
+             * @param obj Python with underlying C object to convert from
+             * @return true if such a conversion allowed, false otherwise
+             */
+        template<typename T>
+        static bool checkImplicitArgumentConversion(PyObject *obj){
+            static constexpr bool to_is_const = std::is_const<T>::value;
+            static constexpr bool to_is_reference = std::is_reference<T>::value;
+
+            auto const self = reinterpret_cast<CommonBaseWrapper*>(obj);
+            return (bool) PyObject_TypeCheck(obj, &CommonBaseWrapper::_BaseType) && // is truly wrapping a C object
+                   (self->_coreTypePtr == PythonClassWrapper<typename core_type<T>::type>::getPyType()) && //core type match
+                   (to_is_const || !to_is_reference || !self->_is_const); // logic for conversion-is-allowed
         }
 
     protected:
@@ -467,26 +481,9 @@ namespace __pyllars_internal {
             (void) kwds;
             CommonBaseWrapper *self;
             self = (CommonBaseWrapper *) type->tp_alloc(type, 0);
-            return (PyObject *) self;
+            return reinterpret_cast<PyObject*>(self);
         }
 
-        /**
-         * Check for valid conversion to type T from given Python object in use as passing as argument to C function
-         * (after conversino)
-         * @tparam T type to convert to
-         * @param obj Python with underlying C object to convert from
-         * @return true if such a conversion allowed, false otherwise
-         */
-        template<typename T>
-        static bool checkImplicitArgumentConversion(PyObject *obj){
-            static constexpr bool to_is_const = std::is_const<T>::value;
-            static constexpr bool to_is_reference = std::is_reference<T>::value;
-
-            auto const self = reinterpret_cast<CommonBaseWrapper*>(obj);
-            return (bool) PyObject_TypeCheck(obj, &CommonBaseWrapper::_BaseType) && // is truly wrapping a C object
-                    (self->_coreTypePtr == PythonClassWrapper<typename core_type<T>::type>::getPyType()) && //core type match
-                    (to_is_const || !to_is_reference || !self->_is_const); // logic for conversion-is-allowed
-        }
 
         template<typename T>
         void populate_type_info(bool(*checkType)(PyObject* const),
@@ -510,13 +507,13 @@ namespace __pyllars_internal {
 
 
     template<typename T, bool is_array, const ssize_t array_size, typename E = void>
-    PyObject *set_array_values(T values, const ssize_t size, PyObject *fromTuple, PyObject *referenced);
+    PyObject *set_array_values(T values, ssize_t size, PyObject *fromTuple, PyObject *referenced);
 
     template<typename T, bool is_array, const ssize_t array_size, typename std::enable_if<std::is_assignable<T, T>::value>::type>
-    PyObject *set_array_values(T *values, const ssize_t size, PyObject *from, PyObject *referenced);
+    PyObject *set_array_values(T *values, ssize_t size, PyObject *from, PyObject *referenced);
 
     template<>
-    PyObject *set_array_values<const char **, false, -1, void>(const char **values, const ssize_t size, PyObject *from,
+    PyObject *set_array_values<const char **, false, -1, void>(const char **values, ssize_t size, PyObject *from,
                                                                PyObject *referenced);
 
     template<bool varargs, typename ReturnType, typename ...Args>
@@ -592,30 +589,5 @@ namespace __pyllars_internal {
         };
     };
 
-    template<typename T, typename E = void>
-    struct Factory {
-        PyObject *create_single_instance(T &obj, const bool inPlace);
-    };
-
-    template<typename T>
-    struct Factory<T, typename std::enable_if<std::is_integral<T>::value>::type> {
-        PyObject *create_single_instance(const T &value, const bool inPlace) {
-            return PyLong_FromLong(value);
-        }
-    };
-
-    template<typename T>
-    struct Factory<T, typename std::enable_if<std::is_floating_point<T>::value>::type> {
-        PyObject *create_single_instance(T &value, const bool inPlace) {
-            return PyFloat_FromDouble(value);
-        }
-    };
-
-    template<typename T>
-    struct Factory<T, typename std::enable_if<!std::is_fundamental<T>::value>::type> {
-        PyObject *create_single_instance(T &value, const bool inPlace) {
-            return PythonClassWrapper<T>::createPy(1, value, inPlace);
-        }
-    };
 }
 #endif

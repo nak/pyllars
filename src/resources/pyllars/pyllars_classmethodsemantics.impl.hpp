@@ -38,8 +38,8 @@ namespace __pyllars_internal{
         static char format[sizeof...(Args) + 1] = {0};
         if (sizeof...(Args) > 0)
             memset(format, 'O', (size_t) sizeof...(Args));
-        const size_t arg_count = kwds ? PyDict_Size(kwds) : 0 + args ? PyTuple_Size(args) : 0;
-        const size_t kwd_count = kwds ? PyDict_Size(kwds) : 0;
+        const ssize_t arg_count = kwds ? PyDict_Size(kwds) : 0 + args ? PyTuple_Size(args) : 0;
+        const ssize_t kwd_count = kwds ? PyDict_Size(kwds) : 0;
         PyObject *extra_args = nullptr;
         PyObject *tuple = nullptr;
 
@@ -91,8 +91,8 @@ namespace __pyllars_internal{
 
         static char format[sizeof...(Args) + 1] = {0};
         memset(format, 'O', (size_t) sizeof...(Args));
-        const size_t arg_count = kwds ? PyDict_Size(kwds) : 0 + args ? PyTuple_Size(args) : 0;
-        const size_t kwd_count = kwds ? PyDict_Size(kwds) : 0;
+        const ssize_t arg_count = kwds ? PyDict_Size(kwds) : 0 + args ? PyTuple_Size(args) : 0;
+        const ssize_t kwd_count = kwds ? PyDict_Size(kwds) : 0;
         PyObject *extra_args = nullptr;
         PyObject *tuple = nullptr;
 
@@ -162,7 +162,7 @@ namespace __pyllars_internal{
                 const int subtype = getType(nextArg, arg_types[i]);
                 switch (arg_types[i]->type) {
                     case FFI_TYPE_SINT32:
-                        extra_arg_values[i].intvalue = PyInt_AsLong(nextArg);
+                        extra_arg_values[i].intvalue = static_cast<int>(PyInt_AsLong(nextArg));
                         arg_values[i] = &extra_arg_values[i].intvalue;
                         break;
                     case FFI_TYPE_SINT64:
@@ -184,8 +184,7 @@ namespace __pyllars_internal{
                         } else if (COBJ_TYPE == subtype) {
                             static const size_t offset = offset_of<ObjectContainer<Arbitrary>*, PythonClassWrapper<Arbitrary> >
                                     (&PythonClassWrapper<Arbitrary>::_CObject);
-                            ObjectContainer<void *> **ptrvalue =
-                                    (ObjectContainer<void *> **) (((char *) nextArg) + offset);
+                            auto ptrvalue = (ObjectContainer<void *> **) (((char *) nextArg) + offset);
                             extra_arg_values[i].ptrvalue = ptrvalue ? (*ptrvalue)->ptr() : nullptr;
                         } else if (FUNC_TYPE == subtype) {
                             typedef typename PythonFunctionWrapper<true, with_ellipsis, int, int>::template Wrapper<> wtype;
@@ -200,7 +199,6 @@ namespace __pyllars_internal{
                         break;
                     default:
                         throw "Python object cannot be converted to C object";
-                        break;
                 }
             }
 
@@ -254,7 +252,7 @@ namespace __pyllars_internal{
                 const int subtype = getType(nextArg, arg_types[i]);
                 switch (arg_types[i]->type) {
                     case FFI_TYPE_SINT32:
-                        extra_arg_values[i].intvalue = PyInt_AsLong(nextArg);
+                        extra_arg_values[i].intvalue = static_cast<int>(PyInt_AsLong(nextArg));
                         arg_values[i] = &extra_arg_values[i].intvalue;
                         break;
                     case FFI_TYPE_SINT64:
@@ -292,7 +290,6 @@ namespace __pyllars_internal{
                         break;
                     default:
                         throw "Python object cannot be converted to C object";
-                        break;
                 }
             }
             ffi_type *return_type = &ffi_type_sint;

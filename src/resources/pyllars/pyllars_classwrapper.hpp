@@ -64,18 +64,8 @@ namespace __pyllars_internal {
     template<typename T>
     class InitHelper;
 
-    template<class CClass>
-    class ConstMemberContainer;
-
-    template<class CClass>
-    class ClassMember;
-
-    template<class CClass>
-    class ConstClassMember;
-
     template<bool is_base_return_complete, bool with_ellipsis, typename ReturnType, typename ...Args>
     struct PythonFunctionWrapper;
-
 
     /**
      * Class to define Python wrapper to C class/type
@@ -96,7 +86,9 @@ namespace __pyllars_internal {
          */
         typename PythonClassWrapper::T_NoRef *get_CObject() ;
 
-        //void reset_CObject(T_NoRef* val, const bool allocated);
+        template<typename C>
+        friend
+        class InitHelper;
 
         /**
          * Initialize python type if needed
@@ -382,12 +374,6 @@ namespace __pyllars_internal {
             return &_Type;
         }
 
-        static bool isInitialized(){return _isInitialized;}
-
-        template<typename C>
-        friend
-        class InitHelper;
-
         constexpr PythonClassWrapper(): _CObject(nullptr){}
 
         template<bool is_base_return_complete, bool with_ellipsis, typename ReturnType, typename ...Args>
@@ -395,78 +381,6 @@ namespace __pyllars_internal {
 
         template<typename Y, typename YY>
         friend class PythonClassWrapper;
-
-        template<typename Class, typename Z=void>
-        class PyAssign ;
-
-        template<typename Class >
-        class PyAssign<Class, typename std::enable_if<!std::is_integral<typename std::remove_reference<Class>::type>::value &&
-	                                              !std::is_floating_point<typename std::remove_reference<Class>::type>::value &&
-	                                              !is_C_stringable<Class>::value>::type> {
-        public:
-            static int
-            assign(PyObject *self, PyObject *value) {
-                if (!PyObject_TypeCheck(value, &PythonClassWrapper<Class>::Type)) {
-                    return -1;
-                }
-                PythonClassWrapper<T> *self_ = (PythonClassWrapper<T> *) self;
-                PythonClassWrapper<Class> *value_ = (PythonClassWrapper<Class> *) value;
-                *(self_->get_CObject()) = *(value_->get_CObject());
-                return 0;
-            }
-        };
-
-        template<typename Class>
-        class PyAssign<Class,  typename std::enable_if<std::is_integral<typename std::remove_reference<Class>::type>::value >::type>{
-        public:
-            static int
-            assign(PyObject *self, PyObject *value) {
-                PythonClassWrapper<T> *self_ = (PythonClassWrapper<T> *) self;
-                if (PyLong_Check(value)) {
-                    Class value_ = (Class) PyLong_AsLong(value);
-                    *(self_->get_CObject()->ptr()) = value_;
-                } else if (PyInt_Check(value)) {
-                    Class value_ = (Class) PyInt_AsLong(value);
-                    *(self_->get_CObject()->ptr()) = value_;
-                } else if (PyBool_Check(value)) {
-                    Class value_ = (value == Py_True);
-                    *(self_->get_CObject()) = value_;
-                } else {
-                    return -1;
-                }
-                return 0;
-            }
-        };
-
-        template<typename Class>
-        class PyAssign<Class,  typename std::enable_if<std::is_floating_point<typename std::remove_reference<Class>::type>::value>::type > {
-        public:
-            static int assign(PyObject *self, PyObject *value) {
-                PythonClassWrapper<T> *self_ = (PythonClassWrapper<T> *) self;
-                if (PyFloat_Check(value)) {
-                    Class value_ = (Class) PyFloat_AsDouble(value);
-                    *(self_->get_CObject()) = value_;
-                } else {
-                    return -1;
-                }
-                return 0;
-            }
-        };
-
-        template<typename Class>
-        class PyAssign<Class, typename std::enable_if<is_C_stringable<Class>::value>::type> {
-        public:
-            static int assign(PyObject *self, PyObject *value) {
-                PythonClassWrapper<T> *self_ = (PythonClassWrapper<T> *) self;
-                if (PyString_Check(value)) {
-                    const char* const value_ = PyString_AsString(value);
-                    *(self_->get_CObject()) = const_cast<Class>(value_);
-                } else {
-                    return -1;
-                }
-                return 0;
-            }
-        };
 
         static void addAssigner(_setattrfunc func){
             if(!_member_setters.count("this"))

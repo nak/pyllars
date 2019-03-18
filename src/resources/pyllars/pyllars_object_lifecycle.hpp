@@ -37,15 +37,6 @@ namespace __pyllars_internal {
         friend
         struct PythonClassWrapper;
 
-        template<typename T>
-        friend
-        class CObjectConversionHelper;
-
-        template<typename T>
-        friend
-        class PyObjectConversionHelper;
-
-
         template<typename T, typename Z= void>
         struct Array;
 
@@ -103,9 +94,9 @@ namespace __pyllars_internal {
 
             static ObjectContainer<T> *new_copy2(const T &value);
 
-            static T_NoRef *new_copy(T_NoRef *const value);
+            static T_NoRef *new_copy(T_NoRef *value);
 
-            static void inplace_copy(T_NoRef *const to, const Py_ssize_t index, const T_NoRef *const from);
+            static void inplace_copy(T_NoRef *to, Py_ssize_t index, const T_NoRef *from);
         };
 
         template<typename T>
@@ -117,9 +108,9 @@ namespace __pyllars_internal {
 
             static ObjectContainer<T> *new_copy2(const T_NoRef &value);
 
-            static T_NoRef *new_copy(T_NoRef *const value);
+            static T_NoRef *new_copy(T_NoRef *value);
 
-            static void inplace_copy(T_NoRef *const to, const Py_ssize_t index, const T_NoRef *const from);
+            static void inplace_copy(T_NoRef *to, Py_ssize_t index, const T_NoRef *from);
         };
 
         template<typename T>
@@ -150,9 +141,9 @@ namespace __pyllars_internal {
 
             static ObjectContainer<T_array> *new_copy2( T_array &value);
 
-            static T_array *new_copy(T_array *const value);
+            static T_array *new_copy(T_array *value);
 
-            static void inplace_copy(T_array *const to, const Py_ssize_t index, const T_array *const from);
+            static void inplace_copy(T_array *to, Py_ssize_t index, const T_array *from);
         };
 
         template<typename T, size_t size>
@@ -164,9 +155,9 @@ namespace __pyllars_internal {
 
             static ObjectContainer<T_array> *new_copy2(const T_array &value);
 
-            static T_array *new_copy(T_array *const value);
+            static T_array *new_copy(T_array *value);
 
-            static void inplace_copy(T_array *const to, const Py_ssize_t index, const T_array *const from);
+            static void inplace_copy(T_array *to, Py_ssize_t index, const T_array *from);
         };
 
         template<typename T>
@@ -178,9 +169,9 @@ namespace __pyllars_internal {
 
             static ObjectContainer<T> *new_copy2(const T_NoRef &value);
 
-            static T_NoRef *new_copy(T_NoRef *const value);
+            static T_NoRef *new_copy(T_NoRef *value);
 
-            static void inplace_copy(T_NoRef *const to, const Py_ssize_t index, const T_NoRef *const from);
+            static void inplace_copy(T_NoRef *to, Py_ssize_t index, const T_NoRef *from);
         };
 
 
@@ -287,12 +278,12 @@ namespace __pyllars_internal {
             typedef PythonClassWrapper<T> ClassWrapper;
             typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
 
-            static PyObject *getObjectAt(T const from, const size_t index, const ssize_t elements_array_size,
-                                         const bool asArgument = true);
+            static PyObject *getObjectAt(T from, size_t index, ssize_t elements_array_size,
+                                         bool asArgument = true);
 
-            static void set(const size_t index, T *const to, const T *const from);
+            static void set(size_t index, T *to, const T *from);
 
-            static T *getObjectPtr(ClassWrapper *const self);
+            static T *getObjectPtr(ClassWrapper *self);
 
         };
 
@@ -309,12 +300,12 @@ namespace __pyllars_internal {
             typedef PythonClassWrapper<T> PtrWrapper;
             typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
 
-            static PyObject *getObjectAt(T from, const size_t index, const ssize_t elements_array_size,
-                                         const bool asArgument = true);
+            static PyObject *getObjectAt(T from, size_t index, ssize_t elements_array_size,
+                                         bool asArgument = true);
 
-            static void set(const size_t index, T &to, T const from);
+            static void set(size_t index, T &to, T from);
 
-            static T *getObjectPtr(PtrWrapper *const self);
+            static T *getObjectPtr(PtrWrapper *self);
 
         };
 
@@ -328,12 +319,12 @@ namespace __pyllars_internal {
             typedef PythonClassWrapper<T> PtrWrapper;
             typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
 
-            static PyObject *getObjectAt(T const from, const size_t index, const ssize_t elements_array_size,
-                                         const bool asArgument = true);
+            static PyObject *getObjectAt(T from, size_t index, ssize_t elements_array_size,
+                                         bool asArgument = true);
 
-            static void set(const size_t index, T const to, T const from);
+            static void set(size_t index, T to, T from);
 
-            static T *getObjectPtr(PtrWrapper *const self);
+            static T *getObjectPtr(PtrWrapper *self);
 
         };
 
@@ -349,12 +340,12 @@ namespace __pyllars_internal {
             typedef PythonClassWrapper<T> PtrWrapper;
             typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
 
-            static PyObject *getObjectAt(T const from, const size_t index, const ssize_t elements_array_size,
-                                         const bool asArgument = true);
+            static PyObject *getObjectAt(T from, size_t index, ssize_t elements_array_size,
+                                         bool asArgument = true);
 
-            static void set(const size_t index, T const to, T const from);
+            static void set(size_t index, T to, T from);
 
-            static T *getObjectPtr(PtrWrapper *const self);
+            static T *getObjectPtr(PtrWrapper *self);
 
         };
 
@@ -369,12 +360,12 @@ namespace __pyllars_internal {
     public:
         typedef PythonClassWrapper<T> PtrWrapper;
 
-        static void set(const size_t index, T **const to, T **const from);
+        static void set(size_t index, T **to, T **from);
 
-        static PyObject *getObjectAt(T *const from, const size_t index, const ssize_t elements_array_size,
-                                     const bool asArgument = true) ;
+        static PyObject *getObjectAt(T *from, size_t index, ssize_t elements_array_size,
+                                     bool asArgument = true) ;
 
-        static T **getObjectPtr(PtrWrapper *const self);
+        static T **getObjectPtr(PtrWrapper *self);
 
     };
 
@@ -384,12 +375,12 @@ namespace __pyllars_internal {
     public:
         typedef PythonClassWrapper<T> PtrWrapper;
 
-        static void set(const size_t index, void *const to, void *const from) ;
+        static void set(size_t index, void *to, void *from) ;
 
-        static PyObject *getObjectAt(void *const from, const size_t index, const ssize_t elements_array_size,
-                                     const bool asArgument = true);
+        static PyObject *getObjectAt(void *from, size_t index, ssize_t elements_array_size,
+                                     bool asArgument = true);
 
-        static void *getObjectPtr(PtrWrapper *const self);
+        static void *getObjectPtr(PtrWrapper *self);
 
     };
 
@@ -401,12 +392,12 @@ namespace __pyllars_internal {
     public:
         typedef PythonClassWrapper<T> PtrWrapper;
 
-        static void set(const size_t index, T *const *const to, T *const *const from);
+        static void set(size_t index, T *const *to, T *const *from);
 
-        static PyObject *getObjectAt(T *const from, const size_t index, const ssize_t elements_array_size,
-                                     const bool asArgument = true);
+        static PyObject *getObjectAt(T *from, size_t index, ssize_t elements_array_size,
+                                     bool asArgument = true);
 
-        static T *const *getObjectPtr(PtrWrapper *const self);
+        static T *const *getObjectPtr(PtrWrapper *self);
 
     };
 

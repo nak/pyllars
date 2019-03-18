@@ -124,8 +124,6 @@ namespace __pyllars_internal {
             return PyObject_TypeCheck(obj, getPyType());
         }
 
-        static constexpr PyObject *const parent_module = nullptr;
-
         static PyObject *repr(PyObject *o);
 
         static int create(PyObject *subtype, PyObject *args, PyObject *kwds);
@@ -244,7 +242,7 @@ namespace __pyllars_internal {
 
         static int create(PyObject *subtype, PyObject *args, PyObject *kwds);
 
-        explicit PyFloatingPtCustomObject() : _referenced(nullptr), _depth(0) {
+        explicit PyFloatingPtCustomObject() : _referenced(nullptr), _depth(0){
         }
 
         template<typename t=number_type>

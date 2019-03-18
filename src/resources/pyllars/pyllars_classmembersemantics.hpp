@@ -35,7 +35,6 @@ namespace __pyllars_internal {
         class Container {
         public:
 
-            typedef typename std::remove_reference<CClass>::type CClass_NoRef;
             typedef AttrType *member_t;
 
             static member_t member;
@@ -52,7 +51,6 @@ namespace __pyllars_internal {
         template<const char *const name, size_t size, typename AttrType>
         class Container<name, AttrType[size]> {
         public:
-            typedef typename std::remove_reference<CClass>::type CClass_NoRef;
             typedef AttrType *member_t[size];
 
             static member_t member;
@@ -76,7 +74,6 @@ namespace __pyllars_internal {
         template<const char *const name, typename AttrType>
         class Container {
         public:
-            typedef typename std::remove_reference<CClass>::type CClass_NoRef;
             typedef AttrType const *member_t;
 
             static member_t member;
@@ -91,7 +88,6 @@ namespace __pyllars_internal {
         template<const char *const name, size_t size, typename AttrType>
         class Container<name, AttrType[size]> {
         public:
-            typedef typename std::remove_reference<CClass>::type CClass_NoRef;
             typedef AttrType const *member_t[size];
 
             static member_t member;
