@@ -27,22 +27,6 @@
  **/
 namespace __pyllars_internal {
 
-    //type trait to determine if types is a function pointer
-    template<typename T>
-    struct is_function_ptr {
-        static constexpr bool value = false;
-    };
-
-
-    template<typename T, typename...Args>
-    struct is_function_ptr<T(*)(Args...)> {
-        static constexpr bool value = true;
-    };
-    template<typename T, typename...Args>
-    struct is_function_ptr<T(*const)(Args...)> {
-        static constexpr bool value = true;
-    };
-
     template<typename T>
     struct ptr_depth {
         static constexpr size_t value = 0;
@@ -134,71 +118,54 @@ namespace __pyllars_internal {
 
     template<typename T>
     struct ArraySize {
-        static constexpr int size = 1;
+        static constexpr ssize_t size = -1;
     };
 
     template<typename T>
     struct ArraySize<T *> {
-        static constexpr int size = -1;
+        static constexpr ssize_t size = -1;
     };
 
     template<typename T>
     struct ArraySize<T[]> {
-        static constexpr int size = -1;
+        static constexpr ssize_t size = -1;
     };
 
     template<typename T_base, size_t arsize>
     struct ArraySize<T_base[arsize]> {
-        static constexpr int size = arsize;
-    };
-
-    template<typename T, typename Z = void>
-    struct Sizeof;
-
-    template<typename T>
-    struct Sizeof<T, typename std::enable_if<is_complete<T>::value && !std::is_void<T>::value>::type> {
-        static constexpr size_t value = sizeof(T);
-    };
-
-    template<>
-    struct Sizeof<void, void> {
-        static constexpr size_t value = 0;
+        static constexpr size_t size = arsize;
     };
 
     template<typename T>
-    struct Sizeof<T, typename std::enable_if<!is_complete<T>::value>::type> {
-        static constexpr size_t value = 0;
-    };
+    struct Sizeof{
+        static constexpr size_t value = Sizeof::typeSize();
 
-    template<typename T, const size_t bits, typename E = void>
-    struct BitFieldLimits;
-
-    template<typename T, const size_t bits>
-    struct BitFieldLimits<T, bits, typename std::enable_if<
-            std::numeric_limits<T>::is_signed && std::is_integral<T>::value>::type> {
-        static constexpr int64_t lower = -(1ull << bits);
-        static constexpr int64_t upper = -lower + 1;
-
-        static bool is_in_bounds(const T &value) { return (value >= lower) && (value <= upper); }
+    private:
+        static constexpr size_t typeSize(){
+            if constexpr (is_complete<T>::value && !std::is_void<T>::value){
+                return sizeof(T);
+            } else {
+                return 0;
+            }
+        }
     };
 
     template<typename T, const size_t bits>
-    struct BitFieldLimits<T, bits, typename std::enable_if<
-            !std::numeric_limits<T>::is_signed && std::is_integral<T>::value>::type> {
-        static constexpr uint64_t lower = 0;
-        static constexpr uint64_t upper = (1ull << bits) - 1;
-
-        static bool is_in_bounds(const T &value) { return (value >= lower) && (value <= upper); }
+    struct BitFieldLimits {
+        static bool is_in_bounds(const T &value) {
+            if constexpr (std::is_integral<T>::value && std::is_signed<T>::value){
+                static constexpr int64_t lower = -(1ull << bits);
+                static constexpr int64_t upper = -lower + 1;
+                return (value >= lower) && (value <= upper);
+            } else if constexpr (std::is_integral<T>::value && std::is_unsigned<T>::value){
+                static constexpr uint64_t lower = 0;
+                static constexpr uint64_t upper = (1ull << bits) - 1;
+                return (value >= lower) && (value <= upper);
+            } else {
+                return true;/*no meaning here, so always return true*/
+            }
+        }
     };
-
-    template<typename T, const size_t bits>
-    struct BitFieldLimits<T, bits, typename std::enable_if<!std::is_integral<T>::value>::type> {
-        static bool is_in_bounds(const T &value) { return true;/*no meaning here, so always return true*/}
-    };
-}
-
-
-namespace __pyllars_internal {
 
     template <typename T1, typename T2>
     inline size_t offset_of(T1 T2::*member) {
@@ -206,50 +173,32 @@ namespace __pyllars_internal {
         return size_t((long long)(&(object.*member)) - (long long)(&object));
     }
 
-    template<typename T, typename Z=void>
+    template<typename T>
     class Assign{
     public:
-
-    };
-
-    template<typename T>
-    class Assign< T, typename std::enable_if< std::is_copy_assignable<T>::value >::type >{
-    public:
         static T& assign(T& v1, const T&v2){
-            return v1 = v2;
+            if constexpr (std::is_copy_assignable<T>::value) {
+                return v1 = v2;
+            } else {
+                throw "Unable to assign new value; type is not copy-assignable";
+            }
         }
     };
 
-    template<typename T>
-    class Assign< T, typename std::enable_if< !std::is_copy_assignable<T>::value >::type >{
-    public:
-        static T& assign(T& v1, const T&v2){
-            throw "Unable to assign new value; type is not copy-assignable";
-        }
-    };
-
-    template<typename T, typename Z=void>
-    class AssignValue{
-    public:
-
-    };
 
     template<typename T>
-    class AssignValue< T, typename std::enable_if< std::is_assignable<T, T>::value >::type >{
+    class Assignment{
     public:
         static T assign(T &v1, const T& v2){
-            v1 = v2;
-            return v1;
+            if constexpr (std::is_assignable<T, T>::value) {
+                v1 = v2;
+                return v1;
+            } else {
+                throw "Unable to assign new value; type is not copy-assignable";
+            }
         }
     };
 
-    template<typename T>
-    class AssignValue< T, typename std::enable_if< !std::is_assignable<T, T>::value >::type >{
-    public:
-        static T assign(T& v1, const T& v2){
-            throw "Unable to assign new value; type is not copy-assignable";
-        }
-    };
 
 }
 

@@ -857,7 +857,7 @@ namespace __pyllars_internal {
                 if constexpr (!std::is_const<T>::value && std::is_reference<ValueType>::value) {
                     auto c_value = toCArgument<ValueType>(*value);
                     auto c_key = toCArgument<KeyType>(*item);
-                    AssignValue<ValueType>::assign((self_->get_CObject()->*method)(c_key.value()), c_value.value());
+                    Assignment<ValueType>::assign((self_->get_CObject()->*method)(c_key.value()), c_value.value());
                 }
             } catch (const char *const msg) {
                 PyErr_SetString(PyExc_TypeError, "Cannot assign to value of unrelated type.");
