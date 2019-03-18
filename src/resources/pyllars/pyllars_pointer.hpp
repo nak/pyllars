@@ -72,9 +72,6 @@ namespace __pyllars_internal {
         typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
         typedef PythonClassWrapper<T const> ConstWrapper;
         typedef PythonClassWrapper<typename std::remove_const<T>::type> NonConstWrapper;
-        typedef PythonClassWrapper<typename std::remove_reference<T>::type> NoRefWrapper;
-        typedef PythonClassWrapper<typename std::remove_const<typename std::remove_reference<T>::type>::type> NoRefNonConstWrapper;
-        typedef PythonClassWrapper<typename extent_as_pointer<T>::type> AsPtrWrapper;
 
         PythonPointerWrapperBase():_max(UNKNOWN_SIZE){
         }
