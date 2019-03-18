@@ -13,24 +13,44 @@
  **/
 namespace __pyllars_internal {
     namespace {
-        const bool PTR_IS_ALLOCATED = true;
-        const bool PTR_IS_NOT_ALLOCATED = false;
-
         /** for use in asReference/asArgument parameters **/
-        constexpr bool AS_ARGUMENT = true;
         constexpr bool AS_REFERNCE = true;
-        constexpr bool AS_VARIABLE = false;
     }
 
+
+    /////////////////////////
+    // Python-to-C conversions
+    //////////////////////////
+
+    /**
+     * Class, ONLY TO BE USED IN A LOCAL CONTEXT for capturing a
+     * reference to an instance of a type (or in some cases a newly
+     * allocated copy to be controlled by this instance)
+     * TODO: Investigate using ObjectContainer instead(?)
+     * @tparam T : Type of instance reference to capture
+     */
     template<typename T>
     struct argument_capture{
         typedef typename std::remove_reference<T>::type T_bare;
-
         static constexpr auto empty_func = [](){};
 
-        argument_capture(T_bare& value,  std::function<void()> revers_capture=empty_func):
-                _reverse_capture(revers_capture), _valueP(nullptr), _value(value), _array_allocated(false){}
+        /**
+         *
+         * @param value : reference-to-instance to be captured
+         * @param reverse_capture : optional function to be executed once this
+         *    instance goes out of scope.  This is most likley to do a reverse
+         *    capture of data from a call to a c function back into a Python (list) object,
+         *    as C allows modification of its non-const-by-reference inputs to functions
+         */
+        argument_capture(T_bare& value,  std::function<void()> reverse_capture=empty_func):
+                _reverse_capture(reverse_capture), _valueP(nullptr), _value(value), _array_allocated(false){}
 
+        /**
+         *
+         * @param value : a newly allocated (pointer to) instance to be captured
+         * @param array_allocated : whether array-allocation used or not to allocate instance
+         * @param revers_capture : as above
+         */
         argument_capture(T_bare *value, const bool array_allocated= false,
                 std::function<void()> revers_capture=empty_func):
             _reverse_capture(revers_capture), _valueP(value), _value(*_valueP), _array_allocated(array_allocated){}
@@ -60,14 +80,8 @@ namespace __pyllars_internal {
     };
 
     /**
-     * template function to convert python to C object
-     **/
-    template<typename T>
-    class CObjectConversionHelper;
-
-
-    /**
-     * Specialization for function types
+     * template function to convert python to C object (for purpose of passing
+     * as paramter to a C function)
      **/
     template<typename T >
     class CObjectConversionHelper {
@@ -78,7 +92,7 @@ namespace __pyllars_internal {
     };
 
     /**
-     * Specialization for callbacks
+     * Specialization for callbacks (functions)
      **/
     template<typename ReturnType, typename ...Args>
     class CObjectConversionHelper<ReturnType(*)(Args...)> {
@@ -89,7 +103,7 @@ namespace __pyllars_internal {
     };
 
     /**
-     * Specialization for callbacks
+     * Specialization for callbacks (functions) with ellipsis argument
      **/
     template<typename ReturnType, typename ...Args>
     class CObjectConversionHelper<ReturnType(*)(Args..., ...)> {
@@ -118,6 +132,8 @@ namespace __pyllars_internal {
     }
 
     /////////////////////////
+    // C-to-Python conversions
+    //////////////////////////
 
     class ConversionHelpers {
     public:
@@ -137,7 +153,6 @@ namespace __pyllars_internal {
             typedef typename std::remove_reference<T>::type T_NoRef;
 
             static PyObject *toPyObject(T_NoRef &var, const bool asReference, const ssize_t array_size = -1);
-
         };
 
 

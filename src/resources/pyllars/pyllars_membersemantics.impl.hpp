@@ -209,10 +209,9 @@ namespace __pyllars_internal {
     template<const char *const name, ssize_t size, typename T>
     void MemberContainer<CClass>::Container<name, T[size], void>::
     setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj) {
-        smart_ptr<T[size], false> val = toCArgument<T[size], false, PythonClassWrapper<T[size]> >(
-                *pyobj);
+        argument_capture<T[size]> val = toCArgument<T[size] >(*pyobj);
         for (size_t i = 0; i < size; ++i) {
-            (self->*member)[i] = (*val)[i];
+            (self->*member)[i] = (val.value())[i];
         }
     }
 
@@ -246,10 +245,9 @@ namespace __pyllars_internal {
     template<const char *const name, ssize_t size, typename T>
     void MemberContainer<CClass>::Container<name, const T[size], void>::
     setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj) {
-        smart_ptr<T[size], false> val = toCArgument<T[size], false, PythonClassWrapper<T[size]> >(
-                *pyobj);
+        argument_capture<T[size]> val = toCArgument<T[size]>(*pyobj);
         for (size_t i = 0; i < size; ++i) {
-            (self->*member)[i] = (*val)[i];
+            (self->*member)[i] = (val.value())[i];
         }
     }
 
@@ -321,9 +319,9 @@ namespace __pyllars_internal {
     template<const char *const name, typename T>
     void MemberContainer<CClass>::Container<name, T[], typename std::enable_if<!std::is_const<T>::value>::type>::
     setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj) {
-        smart_ptr<T[], false> val = toCArgument<T[], false, PythonClassWrapper<T[]> >(*pyobj);
+        argument_capture<T[]> val = toCArgument<T[]>(*pyobj);
         for (size_t i = 0; i < array_size; ++i) {
-            (self->*member)[i] = (*val)[i];
+            (self->*member)[i] = (val.value())[i];
         }
     }
 
@@ -457,11 +455,11 @@ namespace __pyllars_internal {
     template<const char *const name, typename T, const size_t bits>
     void BitFieldContainer<CClass>::Container<name, T, bits>::
     setFromPyObject(CClass_NoRef *self, PyObject *pyobj) {
-        smart_ptr<T, false> value = toCArgument<T, false, PythonClassWrapper<T> >(*pyobj);
-        if (!BitFieldLimits<T, bits>::is_in_bounds(*value)) {
+        argument_capture<T> value = toCArgument<T>(*pyobj);
+        if (!BitFieldLimits<T, bits>::is_in_bounds(value.value())) {
             throw "Value out of bounds";
         }
-        _setter(*self, *value);
+        _setter(*self, value.value());
     }
 
     template<typename CClass>

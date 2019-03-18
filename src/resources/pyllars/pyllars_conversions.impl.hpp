@@ -14,129 +14,58 @@
 namespace __pyllars_internal {
 
     namespace {
-        template<typename T, typename E=void>
+        template<typename T>
         struct limits{
-            static constexpr bool is_in_bounds(long v){
-                return false;
-            }
-            static constexpr bool is_in_bounds(unsigned  long v){
-                return false;
+            static constexpr bool is_in_bounds(const T & v){
+                if constexpr (std::is_integral<T>::value || std::is_floating_point<T>::value){
+                    return v <= std::numeric_limits<T>::max() || v >= std::numeric_limits<T>::min();
+                } else {
+                    return false;
+                }
             }
         };
 
         template<typename T>
-        struct limits<T,  typename std::enable_if<std::is_integral<T>::value ||
-                                                  std::is_floating_point<T>::value>::type>{
-            static constexpr bool is_in_bounds(long v){
-                return v <= std::numeric_limits<T>::max() || v >= std::numeric_limits<T>::min();
-            }
-            static constexpr bool is_in_bounds(unsigned  long v){
-                return v <= std::numeric_limits<T>::max() || v >= std::numeric_limits<T>::min();
-            }
-        };
-
-        template<typename T, typename E=void>
         struct Setter{
-            static PyObject* setItem(PyObject* obj, const size_t index, T & val, const bool is_bytes, const bool is_str, const bool is_int, const bool is_float){
+            static void setItem(PyObject* obj, const size_t index, T & val){
                 if(!PyList_Check(obj)){
                     throw "Invalid conversion in item of non-list object";
                 }
-                auto self =(PythonClassWrapper<T>*)  PyList_GetItem(obj, index);
-                if(!PyObject_TypeCheck((PyObject*)self, PythonClassWrapper<T>::getPyType())){
+                auto self = (PythonClassWrapper<T> *) PyList_GetItem(obj, index);
+                if (PyLong_Check(self)) {
+                    if constexpr (std::is_integral<T>::value) {
+                        if constexpr (std::is_signed<T>::value) {
+                            PyList_SetItem(obj, index, PyLong_FromLongLong((long long) val));
+                        } else {
+                            PyList_SetItem(obj, index, PyLong_FromUnsignedLongLong((unsigned long long) val));
+                        }
+                        return;
+                    }
+                    throw "Invalid type conversion requested to non-integral type";
+                } else if(PyFloat_Check(self)) {
+                    if constexpr (std::is_floating_point<T>::value) {
+                        PyList_SetItem(obj, index, PyFloat_FromDouble((double) val));
+                        return;
+                    }
+                    throw "Invalid type conversion requested to non-floating-point type";
+                } else if constexpr (is_c_string_like<T>::value) {
+                    if (PyString_Check(self)) {
+                        PyList_SetItem(obj, index, PyString_FromString((const char *) val));
+                        return;
+                    }
+                } else if constexpr (is_bytes_like<T>::value) {
+                    if (PyBytes_Check(self)){
+                        PyList_SetItem(obj, index, PyBytes_FromString(val));
+                        return;
+                    }
+                }
+                if (!PyObject_TypeCheck((PyObject *) self, PythonClassWrapper<T>::getPyType())) {
                     throw "Incompatible types in C conversion";
                 }
-                if (!self->get_CObject()){
+                if (!self->get_CObject()) {
                     throw "Cannot set null item";
                 }
                 *self->get_CObject() = val;
-                return (PyObject*)self;
-            }
-        };
-
-        template<typename T>
-        struct Setter<T, typename std::enable_if<std::is_integral<T>::value>::type >{
-            static void setItem(PyObject* obj, const size_t index, T & val, const bool is_bytes, const bool is_str, const bool is_int, const bool is_float){
-                if (is_int) {
-                    PyList_SetItem(obj, index, PyLong_FromLong(val));
-                } else {
-                    if(!PyList_Check(obj)){
-                        throw "Attempt to set item in non-list object";
-                    }
-                    auto self =(PythonClassWrapper<T>*)  PyList_GetItem(obj, index);
-
-                    if(!PyObject_TypeCheck((PyObject*)self, PythonClassWrapper<T>::getPyType())){
-                        throw "Invalid C type conversion";
-                    }
-                    if(!self->get_CObject()){
-                        throw "Cannot set null item";
-                    }
-                    *self->get_CObject() = val;
-                }
-            }
-        };
-
-        template<typename T>
-        struct Setter<T, typename std::enable_if<std::is_floating_point<T>::value>::type >{
-            static void setItem(PyObject* obj, const size_t index,  T & val, const bool is_bytes, const bool is_str, const bool is_int, const bool is_float){
-                if (is_float) {
-                    PyList_SetItem(obj, index, PyFloat_FromDouble(val));
-                } else {
-                    if(!PyList_Check(obj)){
-                        throw "Attempt to set item in non-list object";
-                    }
-                    auto self =(PythonClassWrapper<T>*)  PyList_GetItem(obj, index);
-
-                    if(!PyObject_TypeCheck((PyObject*)self, PythonClassWrapper<T>::getPyType())){
-                        throw "Invalid C type conversion";
-                    }
-                    if (!self->get_CObject()){
-                        throw "Cannot set null item";
-                    }
-                    *self->get_CObject() = val;
-                }
-            }
-        };
-
-        template<>
-        struct Setter<char*, void>{
-            static void setItem(PyObject* obj, const size_t index, char* & val, const bool is_bytes, const bool is_str, const bool is_int, const bool is_float){
-                if (is_bytes) {
-                    PyList_SetItem(obj, index, PyBytes_FromString((const char *) val));
-                } else if(is_str){
-                    PyList_SetItem(obj, index, PyString_FromString((const char *) val));
-                } else {
-                    if(!PyObject_TypeCheck(obj, PythonClassWrapper<char*>::getPyType())){
-                        throw "Invalid type for conversion";
-                    }
-                    auto self = (PythonClassWrapper<char*>*) PyList_GetItem(obj, index);
-                    if (!self->get_CObject()){
-                        throw "Cannot set null item";
-                    }
-                    *self->get_CObject() = val;
-                }
-            }
-        };
-
-        template<>
-        struct Setter<const char*, void>{
-            static void setItem(PyObject* obj, const size_t index, const char* & val, const bool is_bytes, const bool is_str, const bool is_int, const bool is_float){
-                if(!PyList_Check(obj)){
-                    throw "Attempt to set list item on non-list object";
-                }
-                if (is_bytes) {
-                    PyList_SetItem(obj, index, PyBytes_FromString((const char *) val));
-                } else if(is_str){
-                    PyList_SetItem(obj, index, PyString_FromString((const char *) val));
-                } else {
-                    auto self = (PythonClassWrapper<const char*>*) PyList_GetItem(obj, index);
-                    if(!PyObject_TypeCheck((PyObject*)self, PythonClassWrapper<const char*>::getPyType())){
-                        throw "Invalid type for conversion";
-                    }
-                    if (!self->get_CObject()){
-                        throw "Cannot set null item";
-                    }
-                    *self->get_CObject() = val;
-                }
             }
         };
 
@@ -157,8 +86,15 @@ namespace __pyllars_internal {
                 T_bare *value = new T_bare((T_bare) PyInt_AsLong(&pyobj));
                 return argument_capture<T>(value);
             } else if (PyLong_Check(&pyobj)) {
-                T_bare *value = new T_bare((T_bare) PyLong_AsLongLong(&pyobj));
-                return argument_capture<T>(value);
+                // TODO: throughout code: be consistent on signed vs unsigned
+                // TODO: also add checks here and throughout on limits after conversion to C integral values
+                if (std::is_signed<T>::value) {
+                    T_bare *value = new T_bare((T_bare) PyLong_AsLongLong(&pyobj));
+                    return argument_capture<T>(value);
+                } else {
+                    T_bare *value = new T_bare((T_bare) PyLong_AsUnsignedLongLong(&pyobj));
+                    return argument_capture<T>(value);
+                }
             }
             if (CommonBaseWrapper::template checkImplicitArgumentConversion<T>(&pyobj)) {
                 return argument_capture<T>(
@@ -201,17 +137,13 @@ namespace __pyllars_internal {
                 throw "Invalid type or const conversion converting to C object";
             }
             if (!bytes) { throw "Error converting string: null pointer encountered"; }
-            return smart_py_reference<T>(new (T)(bytes), &pyobj);
+            return argument_capture<T>(new (T)(bytes), false);// &pyobj);
         } else if constexpr (std::is_array<T>::value && ArraySize<T>::size > 0){
             auto self = (CommonBaseWrapper*) &pyobj;
             constexpr auto size = ArraySize<T>::size;
             typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_element;
             typedef typename std::remove_const<T_element>::type NonConst_T_array[size];
             if (PyList_Check(&pyobj)) {
-                bool is_bytes[size] = {false};
-                bool is_str[size] = {false};
-                bool is_int[size] = {false};
-                bool is_float[size] = {false};
                 if (PyList_Size(&pyobj) != size) {
                     throw "Inconsistent sizes in array assignment";
                 }
@@ -221,16 +153,12 @@ namespace __pyllars_internal {
                     if(!listitem){
                         throw "Invalid null value for list item in conversion to C array";
                     }
-                    is_bytes[i] = PyBytes_Check(listitem);
-                    is_str[i] = PyString_Check(listitem);
-                    is_int[i] = PyLong_Check(listitem);
-                    is_float[i] = PyFloat_Check(listitem);
                     (*val)[i] = CObjectConversionHelper<T_element>::toCArgument(*listitem).value();
                 }
-                auto reverse_capture = [&pyobj, val, is_bytes, is_str, is_int, is_float]() {
-                    if constexpr(!std::is_const<T>::value) {
+                auto reverse_capture = [&pyobj, val]() {
+                    if constexpr(!std::is_const<T>::value)) {
                         for (size_t i = 0; i < size; ++i) {
-                            Setter<T_element>::setItem(&pyobj, i, (*val)[i], is_bytes[i], is_str[i], is_int[i], is_float[i]);
+                            Setter<T_element>::setItem(&pyobj, i, (*val)[i]);
                         }
                     }
                 };
@@ -252,7 +180,7 @@ namespace __pyllars_internal {
             throw "Python callback is not callable!";
         }
         callback_t *retval = new callback_t(PyCallbackWrapper<ReturnType, Args...>(&pyobj).get_C_callback());
-        return smart_ptr<callback_t, false>(retval, PTR_IS_ALLOCATED);
+        return argument_capture<callback_t>(retval);
     }
 
     template<typename ReturnType, typename ...Args>
@@ -348,14 +276,12 @@ namespace __pyllars_internal {
 
     template<typename T>
     PyObject *toPyObject(T &var, const bool asArgument, const ssize_t array_size) {
-        return ConversionHelpers::PyObjectConversionHelper<T>::
-        toPyObject(var, asArgument, array_size);
+        return ConversionHelpers::PyObjectConversionHelper<T>::toPyObject(var, asArgument, array_size);
     }
 
     template<typename T>
     PyObject *toPyObject(const T &var, const bool asArgument, const ssize_t array_size) {
-        return ConversionHelpers::PyObjectConversionHelper<const T>::toPyObject(
-                var, asArgument, array_size);
+        return ConversionHelpers::PyObjectConversionHelper<const T>::toPyObject(var, asArgument, array_size);
     }
 
 }
