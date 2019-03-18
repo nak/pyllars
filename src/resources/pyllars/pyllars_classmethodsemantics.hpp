@@ -141,10 +141,6 @@ namespace __pyllars_internal {
      * underlying CClass type
      **/
 
-
-    /**
-     * Specialization for non-const class types
-     **/
     template<class CClass>
     class ClassMethodContainer {
     public:
@@ -160,7 +156,6 @@ namespace __pyllars_internal {
 
         };
     };
-
 
 }
 

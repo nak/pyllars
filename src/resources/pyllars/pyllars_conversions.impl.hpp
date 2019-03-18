@@ -156,7 +156,7 @@ namespace __pyllars_internal {
                     (*val)[i] = CObjectConversionHelper<T_element>::toCArgument(*listitem).value();
                 }
                 auto reverse_capture = [&pyobj, val]() {
-                    if constexpr(!std::is_const<T>::value)) {
+                    if constexpr(!std::is_const<T>::value) {
                         for (size_t i = 0; i < size; ++i) {
                             Setter<T_element>::setItem(&pyobj, i, (*val)[i]);
                         }

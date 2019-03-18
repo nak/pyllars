@@ -61,7 +61,7 @@ namespace __pyllars_internal {
     template<typename T>
     struct ObjectContainer;
 
-    template<typename T, typename E=void>
+    template<typename T>
     class InitHelper;
 
     template<class CClass>
@@ -384,7 +384,7 @@ namespace __pyllars_internal {
 
         static bool isInitialized(){return _isInitialized;}
 
-        template<typename C, typename E>
+        template<typename C>
         friend
         class InitHelper;
 
