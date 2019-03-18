@@ -217,7 +217,6 @@ namespace __pyllars_internal {
         static PyTypeObject Type;
     };
 
-
     template<>
     struct PythonClassWrapper<const float>;
 
@@ -228,7 +227,6 @@ namespace __pyllars_internal {
     struct PythonClassWrapper<const double> : public PyConstFloatingPtCustomObject<const double> {
     };
 
-
     template<>
     struct PythonClassWrapper<const float> : public PyConstFloatingPtCustomObject<const float> {
     };
@@ -236,4 +234,3 @@ namespace __pyllars_internal {
 }
 
 #endif
-//PYLLARS

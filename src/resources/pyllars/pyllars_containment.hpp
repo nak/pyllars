@@ -150,24 +150,22 @@ namespace __pyllars_internal{
     struct ObjectContainer{
         typedef typename std::remove_reference<T>::type T_NoRef;
 
-        virtual operator T_NoRef&() {return *fake;} // gcc complains in some cses if pure virtual :-/
+        virtual explicit operator T_NoRef&() {return *fake;} // gcc complains in some cses if pure virtual :-/
 
-        virtual operator const T_NoRef&() const {return *fake;} // gcc complains in some cses if pure virtual :-/
+        virtual explicit operator const T_NoRef&() const {return *fake;} // gcc complains in some cses if pure virtual :-/
 
         virtual T_NoRef * ptr(){
             return nullptr;  //gcc complains if we make this virtual and use unnamed type such as an enum
         }
 
-        virtual ~ObjectContainer(){
-        }
+        virtual ~ObjectContainer() = default;
 
     protected:
         //substitute for not being allowed to make abstract
-        ObjectContainer(){
-        }
+        ObjectContainer() = default;
 
     private:
-        ObjectContainer(const ObjectContainer &);
+        ObjectContainer(const ObjectContainer &) = delete;
         static constexpr T_NoRef* fake =  nullptr;
     };
 
@@ -179,7 +177,7 @@ namespace __pyllars_internal{
     struct ObjectContainerReference: public ObjectContainer<T>{
         typedef typename std::remove_reference<T>::type T_NoRef;
 
-        ObjectContainerReference(T_NoRef & obj):ObjectContainer<T>(), _contained(obj), _containedP(&_contained){
+        explicit ObjectContainerReference(T_NoRef & obj):ObjectContainer<T>(), _contained(obj), _containedP(&_contained){
         }
 
         virtual ~ObjectContainerReference(){
@@ -187,12 +185,12 @@ namespace __pyllars_internal{
         }
 
 
-        operator T_NoRef&(){
+        explicit operator T_NoRef&(){
             if(!_containedP) throw "Attempt to dereference null C object";
             return _contained;
         }
 
-        operator const T_NoRef&() const{
+        explicit operator const T_NoRef&() const{
             if(!_containedP) throw "Attempt to dereference null C object";
             return _contained;
         }
@@ -235,7 +233,7 @@ namespace __pyllars_internal{
                 constexpr size_t size = ArraySize<T>::size;
                 typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_element;
                 typedef typename std::remove_const<T_element>::type T_nonconst_array[size];
-                T_nonconst_array *new_value = new T_nonconst_array[1]{{value[0]}};
+                auto new_value = new T_nonconst_array[1]{{value[0]}};
                 for (size_t i = 0; i < size; ++i) new_value[0][i] = value[i];
                 return new ObjectContainerAllocated(new_value);
             }
@@ -248,7 +246,7 @@ namespace __pyllars_internal{
 
     private:
 
-        ObjectContainerAllocated(T_NoRef* obj):ObjectContainerReference<T>(*obj), _obj(obj){
+        explicit ObjectContainerAllocated(T_NoRef* obj):ObjectContainerReference<T>(*obj), _obj(obj){
         }
 
         virtual ~ObjectContainerAllocated(){
@@ -260,14 +258,13 @@ namespace __pyllars_internal{
 
     //////////////////////////
 
-
     template<typename T>
     struct ObjectContainerBytePool;
 
     template<typename T>
     struct ObjectContainerBytePool<T*>: public ObjectContainer<T*>{
 
-        ObjectContainerBytePool( const size_t arraySize, std::function<void(void*, size_t)> construct_element ):
+        ObjectContainerBytePool( const size_t arraySize, const std::function<void(void*, size_t)> &construct_element ):
                 _raw_bytes(malloc(arraySize*sizeof(T))), _size(arraySize){
             memset(_raw_bytes, 0, arraySize*sizeof(T));
             for(size_t i = 0; i < arraySize; ++i){
@@ -282,18 +279,18 @@ namespace __pyllars_internal{
             return _contained[index];
         }
 
-        operator T*&(){
+        explicit operator T*&(){
             if(!_raw_bytes) throw "Attempt to dereference null C object";
             return _contained;
         }
 
-        operator T* const&() const{
+        explicit operator T* const&() const{
             if(!_raw_bytes) throw "Attempt to dereference null C object";
             return _contained;
         }
 
         T** ptr(){
-            return (T**)&_contained;
+            return &_contained;
         }
 
         ~ObjectContainerBytePool(){
@@ -302,7 +299,6 @@ namespace __pyllars_internal{
             }
             free(_raw_bytes);
         }
-
 
     protected:
         union {
@@ -316,7 +312,7 @@ namespace __pyllars_internal{
     template<typename T>
     struct ObjectContainerBytePool<T* const>: public ObjectContainer<T* const>{
 
-        ObjectContainerBytePool( const size_t arraySize, std::function<void(void*, size_t)> construct_element ):
+        ObjectContainerBytePool( const size_t arraySize, const std::function<void(void*, size_t)> &construct_element ):
                 _raw_bytes(malloc(arraySize*sizeof(T))), _size(arraySize){
             memset(_raw_bytes, 0, arraySize*sizeof(T));
             for(size_t i = 0; i < arraySize; ++i){
@@ -331,13 +327,20 @@ namespace __pyllars_internal{
             return _contained[index];
         }
 
+        T& operator*(){
+            return *_contained;
+        }
 
-        operator T*&(){
+        const T& operator*() const{
+            return *_contained;
+        }
+
+        explicit operator T*&(){
             if(!_raw_bytes) throw "Attempt to dereference null C object";
             return _contained;
         }
 
-        operator T* const&() const{
+        explicit operator T* const&() const{
             if(!_raw_bytes) throw "Attempt to dereference null C object";
             return _contained;
         }
@@ -365,7 +368,7 @@ namespace __pyllars_internal{
     template<typename T, size_t size>
     struct ObjectContainerBytePool<T[size]>: public ObjectContainerReference<T[size]>{
 
-        ObjectContainerBytePool( std::function<void(void*, size_t)> construct_element ):
+        explicit ObjectContainerBytePool(const std::function<void(void*, size_t)> &construct_element ):
                 _raw_bytes(malloc(size*sizeof(T))){
             memset(_raw_bytes, 0, size*sizeof(T));
             for(size_t i = 0; i < size; ++i){
@@ -380,12 +383,12 @@ namespace __pyllars_internal{
             return _contained[index];
         }
 
-        operator T*&(){
+        explicit operator T*&(){
             if(!_raw_bytes) throw "Attempt to dereference null C object";
             return _contained;
         }
 
-        operator T* const&() const{
+        explicit operator T* const&() const{
             if(!_raw_bytes) throw "Attempt to dereference null C object";
             return _contained;
         }
@@ -417,13 +420,12 @@ namespace __pyllars_internal{
     struct ObjectContainerInPlace: public ObjectContainerReference<T>{
         typedef typename std::remove_reference<T>::type T_NoRef;
 
-        ObjectContainerInPlace(T_NoRef& obj,  Args ...args):
+        explicit ObjectContainerInPlace(T_NoRef& obj,  Args ...args):
                 ObjectContainerReference<T>(*new ((void*)&obj) T_NoRef(std::forward<typename extent_as_pointer<Args>::type>(args)...)){
 
         }
 
-        ~ObjectContainerInPlace(){
-        }
+        ~ObjectContainerInPlace() = default;
 
     };
 
@@ -442,14 +444,13 @@ namespace __pyllars_internal{
 
         }
 
-        ~ObjectContainerInPlace(){
-        }
+        ~ObjectContainerInPlace() = default;
 
     };
 
     template<typename T, typename ...Args>
     struct ObjectContainerConstructed: public ObjectContainerReference<T>{
-        ObjectContainerConstructed(Args ...args):_constructed(std::forward<typename extent_as_pointer<Args>::type>(args)...),
+        explicit ObjectContainerConstructed(Args ...args):_constructed(std::forward<typename extent_as_pointer<Args>::type>(args)...),
         ObjectContainerReference<T>(_constructed){
 
         }
@@ -460,33 +461,32 @@ namespace __pyllars_internal{
     //Reference types should just capture the reference, so same as base class behavior:
     template<typename T, typename ...Args>
     struct ObjectContainerConstructed<T&, Args...>: public ObjectContainerReference<T>{
-        ObjectContainerConstructed(Args ...args):ObjectContainerReference<T>(std::forward<typename extent_as_pointer<Args>::type>(args)...){
+        explicit ObjectContainerConstructed(Args ...args):ObjectContainerReference<T>(std::forward<typename extent_as_pointer<Args>::type>(args)...){
 
         }
     };
     template<typename T, typename ...Args>
     struct ObjectContainerConstructed<T&&, Args...>: public ObjectContainerReference<T>{
-        ObjectContainerConstructed(Args ...args):ObjectContainerReference<T>(std::forward<typename extent_as_pointer<Args>::type>>(args)...){
+        explicit ObjectContainerConstructed(Args ...args):ObjectContainerReference<T>(std::forward<typename extent_as_pointer<Args>::type>>(args)...){
 
         }
     };
 
     template<size_t size, typename T>
     struct ObjectContainerConstructed<T[size], T[size]>: public ObjectContainerReference<T[size]>{
-        ObjectContainerConstructed(T args[size]):ObjectContainerReference<T[size]>(((FixedArrayHelper<T,size>*)&_constructed)->value){
+        explicit ObjectContainerConstructed(T args[size]):ObjectContainerReference<T[size]>(((FixedArrayHelper<T,size>*)&_constructed)->value){
             for(size_t i = 0; i < size; ++i){
                 new (&_constructed[0] + sizeof(T)*i) T(args[i]);
             }
         }
     private:
-        unsigned char _constructed[size*sizeof(T)];
+        unsigned char _constructed[size*sizeof(T)]{};
     };
 
     template<typename T>
     struct ObjectContainerPyReference: public ObjectContainer<T>{
 
-        ~ObjectContainerPyReference(){
-        }
+        ~ObjectContainerPyReference() = default;
 
     private:
         ObjectContainerPyReference(PyObject* obj, typename extent_as_pointer<T>::type const (*convert)(PyObject*)){
@@ -506,10 +506,11 @@ namespace __pyllars_internal{
             Py_DECREF(_pyobj);
         }
 
-        operator T*&() override{
+        explicit operator T*&() override{
             return _cobj;
         }
-        operator T* const&() const override{
+
+        explicit operator T* const&() const override{
             return _cobj;
         }
 
@@ -518,7 +519,7 @@ namespace __pyllars_internal{
         }
 
     private:
-        PyObject* _pyobj;
+        PyObject* _pyobj{};
         T* _cobj;
     };
 
@@ -533,10 +534,11 @@ namespace __pyllars_internal{
             Py_DECREF(_pyobj);
         }
 
-        operator T* const&() override{
+        explicit operator T* const&() override{
             return _cobj;
         }
-        operator T* const&() const override{
+
+        explicit operator T* const&() const override{
             return _cobj;
         }
 
@@ -545,7 +547,7 @@ namespace __pyllars_internal{
         }
 
     private:
-        PyObject* _pyobj;
+        PyObject* _pyobj{};
         T* const _cobj;
     };
 }

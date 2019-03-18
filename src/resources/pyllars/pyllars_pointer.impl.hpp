@@ -623,7 +623,7 @@ namespace __pyllars_internal {
     _addr(PyObject *self_, PyObject *args) {
         typedef typename remove_all_pointers<T>::type T_bare;
         PythonClassWrapper *self = reinterpret_cast<PythonClassWrapper *>(self_);
-        if (!self->_CObject || !*self->_CObject) {
+        if (!self->_CObject || !*((T*)self->_CObject)) {
             PyErr_SetString(PyExc_RuntimeError, "Cannot take address of null pointer!");
             return nullptr;
         }
