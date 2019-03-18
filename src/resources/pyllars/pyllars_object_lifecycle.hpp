@@ -45,7 +45,6 @@ namespace __pyllars_internal {
         friend
         class PyObjectConversionHelper;
 
-    private:
 
         template<typename T, typename Z= void>
         struct Array;

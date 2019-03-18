@@ -59,14 +59,9 @@ namespace __pyllars_internal {
                  const ContainmentKind  containmentKind,
                  PyObject *referencing);
 
-
-        void make_reference(PyObject *obj);
-
         inline static bool checkType(PyObject *const obj) {
             return PyObject_TypeCheck(obj, &Type);
         }
-
-        static constexpr PyObject *const parent_module = nullptr;
 
         static PyObject *repr(PyObject *o);
 
@@ -174,9 +169,6 @@ namespace __pyllars_internal {
                 (const ssize_t arraySize,
                  ntype &cobj, const ContainmentKind  containmentKind,
                  PyObject *referencing);
-
-
-        void make_reference(PyObject *obj);
 
         inline static bool checkType(PyObject *const obj) {
             return PyObject_TypeCheck(obj, &Type);

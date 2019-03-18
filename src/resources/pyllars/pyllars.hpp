@@ -60,7 +60,7 @@ namespace pyllars {
             if (!_initializers) {
                 static std::vector<Initializer*> initializers;
                 // allocate here as this may be called before main
-                // and do not want to depend on static initailization order of files which is
+                // and do not want to depend on static initialization order of files which is
                 // unpredictable in C++
                 _initializers = &initializers;
             }
@@ -77,9 +77,9 @@ namespace pyllars {
 
     };
 
-    int pyllars_register(Initializer *const init);
+    int pyllars_register(Initializer *init);
 
-    int pyllars_register_last(Initializer *const init);
+    int pyllars_register_last(Initializer *init);
 
     int init(PyObject *global_mod);
 
@@ -105,8 +105,6 @@ namespace __pyllars_internal {
     public:
         PyObject_HEAD
         typedef number_type ntype;
-        typedef PythonClassWrapper<ntype const,   void> ConstWrapper;
-        typedef PythonClassWrapper<typename std::remove_const<ntype>::type > NonConstWrapper;
 
         static PyTypeObject Type;
 
@@ -118,12 +116,9 @@ namespace __pyllars_internal {
         static PyObject *richcompare(PyObject *a, PyObject *b, int op);
 
         static __pyllars_internal::PythonClassWrapper<number_type> *createPy
-                (const ssize_t arraySize,
-                 ntype & cobj, const ContainmentKind  containmentKind,
+                (ssize_t arraySize,
+                 ntype & cobj, ContainmentKind  containmentKind,
                  PyObject *referencing);
-
-
-        void make_reference(PyObject *obj);
 
         inline static bool checkType(PyObject *const obj) {
             return PyObject_TypeCheck(obj, getPyType());
@@ -135,7 +130,7 @@ namespace __pyllars_internal {
 
         static int create(PyObject *subtype, PyObject *args, PyObject *kwds);
 
-        PyNumberCustomObject() : _referenced(nullptr), _depth(0) {
+        explicit PyNumberCustomObject() : _referenced(nullptr), _depth(0) {
         }
 
         template<typename t=number_type>
@@ -219,8 +214,6 @@ namespace __pyllars_internal {
     public:
         PyObject_HEAD
         typedef number_type ntype;
-        typedef PythonClassWrapper<ntype const,   void> ConstWrapper;
-        typedef PythonClassWrapper<typename std::remove_const<ntype>::type > NonConstWrapper;
 
         static PythonClassWrapper<number_type *> *alloc(PyObject *cls, PyObject *args, PyObject *kwds);
         static PyObject* to_float(PyObject *cls, PyObject *args, PyObject *kwds);
@@ -237,12 +230,9 @@ namespace __pyllars_internal {
         static PyObject *richcompare(PyObject *a, PyObject *b, int op);
 
         static __pyllars_internal::PythonClassWrapper<number_type> *createPy
-                (const ssize_t arraySize,
-                 ntype & cobj, const ContainmentKind containmentKind,
+                (ssize_t arraySize,
+                 ntype & cobj, ContainmentKind containmentKind,
                  PyObject *referencing);
-
-
-        void make_reference(PyObject *obj);
 
         inline static bool checkType(PyObject *const obj) {
             return PyObject_TypeCheck(obj, &Type);
@@ -254,16 +244,13 @@ namespace __pyllars_internal {
 
         static int create(PyObject *subtype, PyObject *args, PyObject *kwds);
 
-        PyFloatingPtCustomObject() : _referenced(nullptr), _depth(0) {
+        explicit PyFloatingPtCustomObject() : _referenced(nullptr), _depth(0) {
         }
 
         template<typename t=number_type>
         inline t *get_CObject() {
             return &value;
         }
-
-        static PyMethodDef _methods[];
-
         std::function<double()> asDouble;
 
         PyObject *_referenced;
@@ -280,6 +267,8 @@ namespace __pyllars_internal {
         };
 
     private:
+        static PyMethodDef _methods[];
+
         static PyTypeObject Type;
     };
 
@@ -302,7 +291,6 @@ PyObject*
 #else
 PyMODINIT_FUNC
 #endif
-PyllarsInit(const char *const name);
+PyllarsInit(const char *name);
 
 #endif
-//PYLLARS

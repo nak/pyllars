@@ -595,13 +595,6 @@ namespace __pyllars_internal {
     }
 
     template<typename number_type>
-    void PyConstNumberCustomObject<number_type>::make_reference(PyObject *obj) {
-        if (_referenced) { Py_DECREF(_referenced); }
-        if (obj) { Py_INCREF(obj); }
-        _referenced = obj;
-    }
-
-    template<typename number_type>
     int PyConstNumberCustomObject<number_type>::create(PyObject *self_, PyObject *args, PyObject *kwds) {
         PyConstNumberCustomObject *self = (PyConstNumberCustomObject *) self_;
         if (self) {
@@ -1214,14 +1207,6 @@ namespace __pyllars_internal {
         pyobj->value = cobj;
         pyobj->_depth = 0;
         return pyobj;
-    }
-
-
-    template<typename number_type>
-    void PyConstFloatingPtCustomObject<number_type>::make_reference(PyObject *obj) {
-        if (_referenced) { Py_DECREF(_referenced); }
-        if (obj) { Py_INCREF(obj); }
-        _referenced = obj;
     }
 
     template<typename number_type>

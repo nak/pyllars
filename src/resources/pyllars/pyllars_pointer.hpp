@@ -9,7 +9,7 @@
 
 #include <Python.h>
 #include <structmember.h>
-#include <limits.h>
+#include <climits>
 #include <sys/types.h>
 
 #include "pyllars_classwrapper.hpp"
@@ -60,10 +60,6 @@ namespace __pyllars_internal {
         template<typename T2>
         using ObjectContent = ObjectLifecycleHelpers::template ObjectContent<T2, void>;
 
-        template<typename T2>
-        friend
-        class CObjectConversionHelper;
-
         template<typename Other, typename EE>
         friend class PythonClassWrapper;
 
@@ -73,18 +69,14 @@ namespace __pyllars_internal {
         typedef PythonClassWrapper<T const> ConstWrapper;
         typedef PythonClassWrapper<typename std::remove_const<T>::type> NonConstWrapper;
 
-        PythonPointerWrapperBase():_max(UNKNOWN_SIZE){
-        }
-
+        PythonPointerWrapperBase():_max(UNKNOWN_SIZE){}
 
     protected:
 
-
-
         static PythonPointerWrapperBase *_createPy(PyTypeObject & Type,
-                                                   const size_t arraySize,
+                                                   const ssize_t arraySize,
                                                    T& cobj,
-                                                   const ContainmentKind containmentKind,
+                                                   ContainmentKind containmentKind,
                                                    PyObject *referencing = nullptr);
 
         static int _initialize(PyTypeObject & Type);
@@ -121,52 +113,33 @@ namespace __pyllars_internal {
 
         static int _initbase(PythonPointerWrapperBase *self, PyObject *args, PyObject *kwds, PyTypeObject *pytypeobj);
 
-        static Py_ssize_t get_array_index(PythonPointerWrapperBase *const self, PyObject *args, PyObject *kwargs);
-
-        static PySequenceMethods _seqmethods;
-
         T *_get_CObject();
 
         ObjectContainer<T> *_CObject;
-        PyObject *_referenced_elements;
+        PyObject *_referenced_elements{};
         //ssize_t _arraySize;
         ssize_t _max;
-        size_t _depth; //only used for classes with pointer depth > 1, kept here for consistent PyType layout
-        bool _allocated;
+        size_t _depth{}; //only used for classes with pointer depth > 1, kept here for consistent PyType layout
     private:
         T* get_CObject(){
             return _CObject?_CObject->ptr():nullptr;
         }
-    };
 
-
-    template<typename T, typename E=void>
-    struct base_type;
-
-    template<typename T>
-    struct base_type<T, typename std::enable_if<ptr_depth<T>::value == 1>::type>{
-        typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type type;
-    };
-
-    template<typename T>
-    struct base_type<T, typename std::enable_if<(ptr_depth<T>::value > 1)>::type>{
-        typedef typename base_type<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::type type;
+        static PySequenceMethods _seqmethods;
     };
 
     template<typename T>
     struct PythonClassWrapper<T, typename std::enable_if<
             !std::is_function<typename std::remove_pointer<T>::type>::value &&
             (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            (ptr_depth<T>::value > 1) &&
-            sizeof(typename extent_as_pointer<T>::type) == sizeof(typename base_type<T>::type*) >::type> :
+            (ptr_depth<T>::value > 1)>::type> :
         public PythonPointerWrapperBase<T> {
+
         typedef PythonPointerWrapperBase<T> Base;
         typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
+
         typedef PythonClassWrapper<T const> ConstWrapper;
         typedef PythonClassWrapper<typename std::remove_const<T>::type> NonConstWrapper;
-        typedef PythonClassWrapper<typename std::remove_reference<T>::type> NoRefWrapper;
-        typedef PythonClassWrapper<typename std::remove_const<typename std::remove_reference<T>::type>::type> NoRefNonConstWrapper;
-        typedef PythonClassWrapper<typename extent_as_pointer<T>::type> AsPtrWrapper;
 
         template<typename Other>
         friend class PythonPointerWrapperBase;
@@ -181,9 +154,7 @@ namespace __pyllars_internal {
         }
 
         void setFrom(PythonClassWrapper *obj){
-            if(!obj){
-               obj->_free();
-            }
+            if(!obj){obj->_free();}
             Py_INCREF(obj);
         }
 
@@ -196,7 +167,7 @@ namespace __pyllars_internal {
 
         static int initialize(){return Base::_initialize(Type);}
 
-        static bool checkType(PyObject *const obj);
+        static bool checkType(PyObject *obj);
 
 
         static PythonClassWrapper *createPy(const ssize_t arraySize,
@@ -212,7 +183,7 @@ namespace __pyllars_internal {
             return reinterpret_cast<PythonClassWrapper*>(Base::_createPy(Type, arraySize, *cobj,ContainmentKind::ALLOCATED, referencing));
         }
 
-        static PythonClassWrapper *createPyUsingBytePool(const size_t size, std::function<void(void*, size_t)>& constructor);
+        static PythonClassWrapper *createPyUsingBytePool(size_t size, std::function<void(void*, size_t)>& constructor);
 
     protected:
         PythonClassWrapper *createPyReferenceToAddr();
@@ -250,7 +221,7 @@ namespace __pyllars_internal {
 
         static int initialize(){return Base::_initialize(Type);}
 
-        static bool checkType(PyObject *const obj);
+        static bool checkType(PyObject *obj);
 
         static PythonClassWrapper *createPy(const ssize_t arraySize,
                                             T & cobj,
@@ -259,7 +230,7 @@ namespace __pyllars_internal {
             return reinterpret_cast<PythonClassWrapper*>(Base::_createPy(Type, arraySize, cobj, containmentKind, referencing));
         }
 
-        static PythonClassWrapper *createPyUsingBytePool(const size_t size, std::function< void(void*, size_t)>& constructor);
+        static PythonClassWrapper *createPyUsingBytePool(size_t size, std::function< void(void*, size_t)>& constructor);
 
     protected:
         static PyObject *_addr(PyObject *self_, PyObject *args);
