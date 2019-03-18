@@ -39,7 +39,7 @@ namespace __pyllars_internal{
         int _init(PyObject *self, PyObject *args, PyObject *kwds);
 
         static void create(const char* const name, const char* const short_name, PyObject * const module,
-                                std::map<std::string, PythonClassTemplate*> & map);
+                std::map<std::string, PythonClassTemplate*> & map);
 
         std::vector<PyObject**>* _parameterSets;
     };

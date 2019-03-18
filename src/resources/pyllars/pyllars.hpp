@@ -144,9 +144,7 @@ namespace __pyllars_internal {
         }
 
         static PyTypeObject* getPyType(){
-            if(initialize() != 0){
-                return nullptr;
-            }
+            if(initialize() != 0){ return nullptr;}
             return &Type;
         }
 
@@ -167,7 +165,6 @@ namespace __pyllars_internal {
             static Initializer *initializer;
         };
     };
-
 
     template<>
     class PythonClassWrapper<char> : public PyNumberCustomObject<char> {
@@ -223,18 +220,7 @@ namespace __pyllars_internal {
         PyObject_HEAD
         typedef number_type ntype;
         typedef PythonClassWrapper<ntype const,   void> ConstWrapper;
-        typedef PythonClassWrapper<ntype const&,   void> ConstRefWrapper;
-        typedef PythonClassWrapper<ntype volatile,   void> VolatileWrapper;
-        typedef PythonClassWrapper<ntype volatile&,   void> VolatileRefWrapper;
-        typedef PythonClassWrapper<ntype const volatile,   void> ConstVolatileWrapper;
-        typedef PythonClassWrapper<ntype const volatile&,   void> ConstVolatileRefWrapper;
         typedef PythonClassWrapper<typename std::remove_const<ntype>::type > NonConstWrapper;
-        typedef PythonClassWrapper<typename std::remove_const<ntype>::type&> NonConstRefWrapper;
-        typedef PythonClassWrapper<typename std::remove_reference<ntype>::type> NoRefWrapper;
-        typedef PythonClassWrapper<typename std::remove_reference<ntype>::type &> RefWrapper;
-        typedef PythonClassWrapper<typename std::remove_reference<typename std::remove_const<ntype>::type>::type> NoRefNonConstWrapper;
-        typedef PythonClassWrapper<typename std::remove_reference<typename std::remove_const<ntype>::type>::type&> RefNonConstWrapper;
-
 
         static PythonClassWrapper<number_type *> *alloc(PyObject *cls, PyObject *args, PyObject *kwds);
         static PyObject* to_float(PyObject *cls, PyObject *args, PyObject *kwds);
