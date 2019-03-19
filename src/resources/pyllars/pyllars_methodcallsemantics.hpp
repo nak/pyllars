@@ -45,7 +45,7 @@ namespace __pyllars_internal {
     };
 
    /**
-     * class to hold referecne to a class method and define
+     * class to hold reference to a class method and define
      * method call semantics
      **/
     template< bool is_const, bool with_ellipsis, const char* const kwlist[], typename CClass, typename T, typename ... Args>
@@ -53,7 +53,7 @@ namespace __pyllars_internal {
 
 
     /**
-     * class to hold referecne to a class method and define
+     * class to hold reference to a class method and define
      * method call semantics
      **/
     template<bool is_const, const char* const kwlist[], typename CClass, typename T, typename ... Args>

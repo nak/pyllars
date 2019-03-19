@@ -17,13 +17,8 @@ namespace __pyllars_internal {
     class MemberContainer {
     public:
 
-        template<const char *const name, typename T, typename E = void>
-        class Container;
-
-
         template<const char *const name, typename T>
-        class Container<name, T, typename std::enable_if<
-                !std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value != 0>::type> {
+        class Container{
         public:
             typedef typename std::remove_reference<CClass>::type CClass_NoRef;
             typedef T CClass_NoRef::* member_t;
@@ -36,111 +31,6 @@ namespace __pyllars_internal {
 
             static void setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj);
 
-        };
-
-        //C++ forces this since T[0] is not an array type
-        template<const char *const name, typename T>
-        class Container<name, T, typename std::enable_if<
-                !std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value == 0>::type> {
-        public:
-            typedef typename std::remove_reference<CClass>::type CClass_NoRef;
-            typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type CClass_NoRef::* member_t;
-
-            static member_t member;
-            static size_t array_size;
-
-            static int set(PyObject* o,  PyObject* value, void* v=nullptr);
-            static PyObject* get(PyObject* o, void* v=nullptr);
-
-
-            static void setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj);
-        };
-
-
-        template<const char *const name, typename T>
-        class Container<name, T, typename std::enable_if<
-                std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value != 0>::type> {
-        public:
-            typedef typename std::remove_reference<CClass>::type CClass_NoRef;
-            typedef const T CClass_NoRef::* member_t;
-
-            static member_t member;
-            static size_t array_size;
-
-            static int set(PyObject* o, PyObject* value, void* v=nullptr);
-            static PyObject* get(PyObject* o, void* v= nullptr);
-
-
-            static void setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj);
-        };
-
-        template<const char *const name, ssize_t size, typename T>
-        class Container<name, T[size], void> {
-        public:
-            typedef typename std::remove_reference<CClass>::type CClass_NoRef;
-            typedef T T_array[size];
-            typedef T_array CClass_NoRef::* member_t;
-
-            static member_t member;
-            static size_t array_size;
-
-            static int set(PyObject* o, PyObject* value, void* v=nullptr);
-            static PyObject* get(PyObject* o, void* v=nullptr);
-
-            static void setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj);
-
-        };
-
-        template<const char *const name, ssize_t size, typename T>
-        class Container<name, const T[size], void> {
-        public:
-            typedef typename std::remove_reference<CClass>::type CClass_NoRef;
-            typedef const T T_array[size];
-            typedef T_array CClass_NoRef::* member_t;
-
-            static member_t member;
-            static size_t array_size;
-
-            static int set(PyObject* o, PyObject* value, void* v=nullptr);
-            static PyObject* get(PyObject* o, void* v=nullptr);
-
-            static void setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj);
-
-        };
-
-
-        template<const char *const name, typename T>
-        class Container<name, T[], typename std::enable_if<!std::is_const<T>::value>::type> {
-        public:
-            typedef typename std::remove_reference<CClass>::type CClass_NoRef;
-            typedef T T_array[];
-            typedef T_array CClass_NoRef::* member_t;
-
-            static member_t member;
-            static size_t array_size;
-
-            static int set(PyObject* o, PyObject* value, void* v=nullptr);
-            static PyObject* get(PyObject* o, void* v=nullptr);
-
-            static void setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj);
-
-        };
-
-        template<const char *const name, typename T>
-        class Container<name, T[], typename std::enable_if<std::is_const<T>::value>::type> {
-        public:
-            typedef typename std::remove_reference<CClass>::type CClass_NoRef;
-            typedef const T T_array[];
-            typedef T_array CClass_NoRef::* member_t;
-
-            static member_t member;
-            static size_t array_size;
-
-            static int set(PyObject* o, PyObject* value, void* v=nullptr);
-            static PyObject* get(PyObject* o, void* v=nullptr);
-
-
-            static void setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj);
         };
 
     };
