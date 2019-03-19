@@ -12,31 +12,19 @@ namespace __pyllars_internal {
 
     template<typename T>
     typename std::remove_pointer<typename extent_as_pointer<T>::type>::type &
-    ObjectLifecycleHelpers::Array<T, typename std::enable_if<
-            is_complete<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value &&
-            !std::is_void<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value>::type>::
+    ObjectLifecycleHelpers::Array<T>::
     at(T array, size_t index) {
-        if (!array) {
-            throw "Cannot dereference null object!";
+        if constexpr((std::is_array<T>::value || std::is_pointer<T>::value)) {
+            typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
+            if constexpr (std::is_void<T_base>::value ){
+                throw "Cannot index into void-pointer/array";
+            }
+            if (!array) {
+                throw "Cannot dereference null object!";
+            }
+            return array[index];
         }
-        return array[index];
-    }
-
-
-    template<typename T>
-    typename std::remove_pointer<typename extent_as_pointer<T>::type>::type &
-    ObjectLifecycleHelpers::Array<T, typename std::enable_if<
-            !std::is_void<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value &&
-            !is_complete<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value>::type>::
-    at(T array, size_t index) {
-        if (!array) {
-            throw "Cannot dereference null object!";
-        }
-        if (index > 0) {
-            throw "Cannot index into pointer to incomplete type";
-        }
-        typename std::remove_pointer<typename extent_as_pointer<T>::type>::type &value = *array;
-        return value;
+        throw "Cannot get element of non-array or array-of/pointer-to  incomplete or void type";
     }
 
 

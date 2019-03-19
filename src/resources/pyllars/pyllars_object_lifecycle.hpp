@@ -37,52 +37,13 @@ namespace __pyllars_internal {
         friend
         struct PythonClassWrapper;
 
-        template<typename T, typename Z= void>
-        struct Array;
-
         template<typename T>
-        struct Array<T, typename std::enable_if<
-                is_complete<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value &&
-                !std::is_void<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value>::type> {
+        struct Array {
             typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
 
             static T_base &at(T array, size_t index);
         };
 
-        template<typename T>
-        struct Array<T, typename std::enable_if<
-                !std::is_void<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value &&
-                !is_complete<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value>::type> {
-            typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
-
-            static T_base &at(T array, size_t index);
-        };
-
-
-        template<typename T>
-        struct Array<T, typename std::enable_if<
-                std::is_const<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value &&
-                std::is_void<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value>::type> {
-            typedef const unsigned char T_base;
-
-            static T_base &at(const void *array, size_t index) {
-                return ((const unsigned char *) array)[index];
-            }
-        };
-
-        template<typename T>
-        struct Array<T, typename std::enable_if<
-                !std::is_const<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value &&
-                std::is_void<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::value>::type> {
-            typedef unsigned char T_base;
-
-            static T_base &at(void *array, size_t index) {
-                return ((unsigned char *) array)[index];
-            }
-        };
-
-
-    public:
         template<typename T, typename Z = void>
         struct Copy;
 
