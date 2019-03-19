@@ -58,7 +58,7 @@ namespace __pyllars_internal {
     struct PythonPointerWrapperBase: public CommonBaseWrapper{
 
         template<typename T2>
-        using ObjectContent = ObjectLifecycleHelpers::template ObjectContent<T2, void>;
+        using ObjectContent = ObjectLifecycleHelpers::template ObjectContent<T2>;
 
         template<typename Other, typename EE>
         friend class PythonClassWrapper;
