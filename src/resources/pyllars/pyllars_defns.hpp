@@ -15,10 +15,8 @@ namespace __pyllars_internal {
     typedef const char *const cstring;
 
     namespace {
-        constexpr size_t MAX_PTR_DEPTH = 5;
         constexpr int ERROR_TYPE_MISMATCH = -2;
         constexpr ssize_t UNKNOWN_SIZE = -1;
-        constexpr Py_ssize_t INVALID_INDEX = LONG_LONG_MIN;
         //basic constants (names and such)
         extern const char address_name[] = "this";
         extern const char alloc_name_[] = "new";
