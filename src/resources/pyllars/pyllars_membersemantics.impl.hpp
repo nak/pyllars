@@ -102,7 +102,7 @@ namespace __pyllars_internal {
                 return -1;
             }
             try {
-                Assign<T>::assign((_this->get_CObject()->*member),
+                Assignment<T>::assign((_this->get_CObject()->*member),
                                   *toCArgument<T, false, PythonClassWrapper<T> >(*pyVal));
             } catch (const char *const msg) {
                 PyErr_SetString(PyExc_RuntimeError, msg);
@@ -125,7 +125,7 @@ namespace __pyllars_internal {
                     if (PyTuple_Size(pyVal) == size) {
                         for (size_t i = 0; i < size; ++i) {
                             auto value =  toCArgument<T_base>(*PyTuple_GetItem(pyVal, i));
-                            Assign<T_base>::assign((_this->get_CObject()->*member)[i], value.value());
+                            Assignment<T_base>::assign((_this->get_CObject()->*member)[i], value.value());
                         }
                     } else {
                         static char msg[250];
@@ -138,7 +138,7 @@ namespace __pyllars_internal {
                 } else if (PythonClassWrapper<T>::checkType(pyVal)) {
                     T *val = reinterpret_cast<PythonClassWrapper<T> *>(pyVal)->get_CObject();
                     for (size_t i = 0; i < size; ++i)
-                        Assign<T_base>::assign((_this->get_CObject()->*member)[i] , (*val)[i]);
+                        Assignment<T_base>::assign((_this->get_CObject()->*member)[i] , (*val)[i]);
 
                 }
             } catch (const char *const msg) {
@@ -159,7 +159,7 @@ namespace __pyllars_internal {
                 if (PyTuple_Check(pyVal)) {
                     if (PyTuple_Size(pyVal) == array_size) {
                         for (size_t i = 0; i < array_size; ++i)
-                            Assign<T>::assign((_this->get_CObject()->*
+                            Assignment<T>::assign((_this->get_CObject()->*
                                                member)[i], *toCArgument<T, false, PythonClassWrapper<T> >(
                                     *PyTuple_GetItem(pyVal, i)));
                     } else {
@@ -174,7 +174,7 @@ namespace __pyllars_internal {
                     T *val = ((PythonClassWrapper<T> *) pyVal)->get_CObject();
                     //TODO: check size????
                     for (size_t i = 0; i < array_size; ++i)
-                        Assign<T>::assign((_this->get_CObject()->*member)[i], (*val)[i]);
+                        Assignment<T>::assign((_this->get_CObject()->*member)[i], (*val)[i]);
 
                 } else {
                     PyErr_SetString(PyExc_ValueError, "Invalid argument type when setting attribute");
@@ -193,7 +193,7 @@ namespace __pyllars_internal {
     void MemberContainer<CClass>::Container<name, T>::
     setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj) {
         if constexpr ( !std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value != 0) {
-            Assign<T>::assign(self->*member, *toCArgument<T, false, PythonClassWrapper<T> >(*pyobj));
+            Assignment<T>::assign(self->*member, *toCArgument<T, false, PythonClassWrapper<T> >(*pyobj));
         } else if constexpr(  !std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value == 0){
 
         } else if constexpr( std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value != 0){

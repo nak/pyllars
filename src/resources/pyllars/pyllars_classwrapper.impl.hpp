@@ -528,6 +528,7 @@ namespace __pyllars_internal {
                         ++def;
                     }
                 }
+                index++;
             }
         }
         _Type.tp_methods = new PyMethodDef[_methodCollection.size() + 1];

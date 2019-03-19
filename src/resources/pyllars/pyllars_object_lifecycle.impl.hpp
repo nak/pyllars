@@ -134,19 +134,19 @@ namespace __pyllars_internal {
         typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
         if constexpr ( !std::is_void<T>::value && !std::is_pointer<T>::value && !std::is_array<T>::value) {
             if (ptr_depth<T>::value > 1) {
-                Assign<T *, T *>::assign(((T **) to)[index], *((T **) from));
+                Assignment<T *, T *>::assign(((T **) to)[index], *((T **) from));
             } else {
-                Assign<T, T>::assign(to[index], *from);
+                Assignment<T, T>::assign(to[index], *from);
             }
         } else if constexpr (!std::is_function<typename std::remove_pointer<T>::type>::value &&
                              !std::is_void<typename std::remove_pointer<T>::type>::value &&
                              is_complete<typename std::remove_pointer<T>::type>::value &&
                              (std::is_array<T>::value || std::is_pointer<T>::value)){
             if (ptr_depth<T>::value == 1) {
-                Assign<T, T>::assign(Array<T>::at(to, index), *from);
+                Assignment<T, T>::assign(Array<T>::at(to, index), *from);
             } else {
                 typedef typename std::remove_reference<T>::type T_NoRef;
-                Assign<T_NoRef, T_NoRef>::assign(Array<T_NoRef *>::at((T_NoRef *) to, index), *((T_NoRef *) from));
+                Assignment<T_NoRef, T_NoRef>::assign(Array<T_NoRef *>::at((T_NoRef *) to, index), *((T_NoRef *) from));
             }
         } else if constexpr((std::is_array<T>::value || std::is_pointer<T>::value) && std::is_void<T_base>::value){
             to[index] = *from;

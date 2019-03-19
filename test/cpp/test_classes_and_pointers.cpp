@@ -301,6 +301,7 @@ protected:
             Class::addMethod<false, create_bclass2_method_name, kwlist2, PythonBased::BasicClass2>(
                     &PythonBased::MultiInheritanceClass::createBasicClass2);
             Class::addBaseClass(PythonClassWrapper<PythonBased::BasicClass>::getPyType());
+            Class::addBaseClass(PythonClassWrapper<PythonBased::BasicClass2>::getPyType());
             ASSERT_EQ(Class::initialize(), 0);
         }
         {
@@ -391,6 +392,7 @@ TEST_F(PythonBased, TestPythonClassWrappperChar){
     ASSERT_NE(obj->ob_type->tp_as_number->nb_remainder, nullptr);
     ASSERT_NE(obj->ob_type->tp_as_number->nb_divmod, nullptr);
     ASSERT_NE(obj->ob_type->tp_as_number->nb_power, nullptr);
+    Py_DECREF(obj);
 
 }
 
@@ -470,6 +472,7 @@ TEST_F(PythonBased, TestBasicClass){
     PyTuple_SetItem(dargs, 0, dbl);
     PyObject* intValue = PyObject_Call(public_method, dargs, nullptr);
     ASSERT_NE(intValue, nullptr);
+    Py_DECREF(obj);
 }
 
 TEST_F(PythonBased, TestClassWithEnum){
@@ -484,6 +487,7 @@ TEST_F(PythonBased, TestClassWithEnum){
     auto second = PyObject_GetAttrString(obj, "SECOND");
     ASSERT_NE(second, nullptr);
     ASSERT_EQ(PyInt_AsLong(second), PythonBased::ClassWithEnum::SECOND);
+    Py_DECREF(obj);
 }
 
 TEST_F(PythonBased, TestBitFields){

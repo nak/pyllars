@@ -173,30 +173,31 @@ namespace __pyllars_internal {
         return size_t((long long)(&(object.*member)) - (long long)(&object));
     }
 
-    template<typename T>
-    class Assign{
-    public:
-        static T& assign(T& v1, const T&v2){
-            if constexpr (std::is_copy_assignable<T>::value) {
-                return v1 = v2;
+
+    template<typename To, typename From=To>
+    struct Assignment {
+
+        static void assign(To &to, const From &from, const size_t arraySize = 0) {
+            typedef typename std::remove_pointer<typename extent_as_pointer<To>::type>::type To_base;
+            typedef typename std::remove_pointer<typename extent_as_pointer<From>::type>::type From_base;
+
+            if constexpr ( !std::is_array<To>::value && std::is_assignable<typename std::remove_reference<To>::type,
+                    typename std::remove_reference<From>::type>::value) {
+                to = from;
+            } else if constexpr (std::is_array<To>::value && ArraySize<To>::size > 0 &&
+                                 std::is_array<From>::value && ArraySize<From>::size == ArraySize<To>::size &&
+                                 std::is_assignable<typename std::remove_reference<To_base>::type, typename std::remove_reference<From_base>::type>::value){
+                for (size_t i = 0; i < ArraySize<To>::size; ++i)
+                    to[i] = from[i];
+            }else if constexpr (std::is_array<To>::value && std::is_array<From>::value  &&
+                                std::is_assignable<typename std::remove_reference<To_base>::type, typename std::remove_reference<From_base>::type>::value){
+                for (size_t i = 0; i < arraySize; ++i)
+                    to[i] = from[i];
             } else {
-                throw "Unable to assign new value; type is not copy-assignable";
+                throw "Attempt to assign incompatible or unassinable type";
             }
         }
-    };
 
-
-    template<typename T>
-    class Assignment{
-    public:
-        static T assign(T &v1, const T& v2){
-            if constexpr (std::is_assignable<T, T>::value) {
-                v1 = v2;
-                return v1;
-            } else {
-                throw "Unable to assign new value; type is not copy-assignable";
-            }
-        }
     };
 
 

@@ -55,35 +55,6 @@ namespace __pyllars_internal {
             static void inplace_copy(T_NoRef *to, Py_ssize_t index, const T_NoRef *from);
         };
 
-
-    private:
-
-        template<typename To, typename From>
-        struct Assign {
-
-            static void assign(To &to, const Py_ssize_t index, const From &from, const size_t arraySize = 0) {
-                typedef typename std::remove_pointer<typename extent_as_pointer<To>::type>::type To_base;
-                typedef typename std::remove_pointer<typename extent_as_pointer<From>::type>::type From_base;
-
-                if constexpr ( !std::is_array<To>::value && std::is_assignable<typename std::remove_reference<To>::type,
-                        typename std::remove_reference<From>::type>::value) {
-                    to = from;
-                } else if constexpr (std::is_array<To>::value && ArraySize<To>::size > 0 &&
-                                     std::is_array<From>::value && ArraySize<From>::size == ArraySize<To>::size &&
-                                     std::is_assignable<typename std::remove_reference<To_base>::type, typename std::remove_reference<From_base>::type>::value){
-                    for (size_t i = 0; i < ArraySize<To>::size; ++i)
-                        to[i] = from[i];
-                }else if constexpr (std::is_array<To>::value && std::is_array<From>::value  &&
-                                    std::is_assignable<typename std::remove_reference<To_base>::type, typename std::remove_reference<From_base>::type>::value){
-                    for (size_t i = 0; i < arraySize; ++i)
-                        to[i] = from[i];
-                } else {
-                    throw "Attempt to assign incompatible or unassinable type";
-                }
-            }
-
-        };
-
         ////////////////////////////////
         // POINTER DEREFERENCING AND ARRAY INDEXING SET/GET HELPERS
         //

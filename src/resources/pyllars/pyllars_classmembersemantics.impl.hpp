@@ -27,7 +27,7 @@ namespace __pyllars_internal{
             return nullptr;
         } else if (kwds) {
             auto value = toCArgument<AttrType>(*pyarg);
-            Assign<AttrType>::assign(*member,value.value());
+            Assignment<AttrType>::assign(*member,value.value());
             return Py_None;
         }
         return toPyObject<AttrType>(*member, false, ArraySize<AttrType>::size);
@@ -37,7 +37,7 @@ namespace __pyllars_internal{
     template<const char *const name, typename AttrType>
     void ClassMember<CClass>::Container<name, AttrType>::
     setFromPyObject(PyObject *pyobj) {
-        Assign<AttrType>::assign(*member ,*toCArgument<AttrType, false>(*pyobj));
+        Assignment<AttrType>::assign(*member ,*toCArgument<AttrType, false>(*pyobj));
     }
 
     template<class CClass>
