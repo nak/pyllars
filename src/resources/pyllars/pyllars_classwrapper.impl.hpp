@@ -859,6 +859,9 @@ namespace __pyllars_internal {
                     auto c_value = toCArgument<ValueType>(*value);
                     auto c_key = toCArgument<KeyType>(*item);
                     Assignment<ValueType>::assign((self_->get_CObject()->*method)(c_key.value()), c_value.value());
+                } else {
+                    PyErr_SetString(PyExc_TypeError, "Cannot set const or non-reference returned item");
+                    return -1;
                 }
             } catch (const char *const msg) {
                 PyErr_SetString(PyExc_TypeError, "Cannot assign to value of unrelated type.");
@@ -963,7 +966,7 @@ namespace __pyllars_internal {
         if (PyTuple_Size(args) != 1) {
             throw "new takes only one arg (and int, a tuple, or list of tuples)";
         }
-        auto arg = PyList_GetItem(args, 0);
+        auto arg = PyTuple_GetItem(args, 0);
         if (PyLong_Check(arg)) {
             const ssize_t size = PyLong_AsLong(arg);
             if (size < 0){
@@ -980,15 +983,15 @@ namespace __pyllars_internal {
             if(size < 0){
                 throw "Internal error getting size of list";
             }
-            std::function<void(void*, size_t)> constructor = [args, kwds](void * location, size_t index){
+            std::function<void(void*, size_t)> constructor = [arg, kwds](void * location, size_t index){
                 ObjectContainer<T> *cobj = nullptr;
-                PyObject* args2 = PyTuple_GetItem(args, index);
-                if (!args2 || !PyTuple_Check(args2)){
+                PyObject* constructor_args = PyList_GetItem(arg, index);
+                if (!constructor_args || !PyTuple_Check(constructor_args)){
                     throw "Invalid constructor arguments: not a tuple as expected, or index out of range";
                 }
                 for (auto const &[kwlist_, constructor_] : PythonClassWrapper<T>::_constructors) {
                     try {
-                        cobj = constructor_(kwlist_, args, nullptr, (unsigned char*)location);
+                        cobj = constructor_(kwlist_, constructor_args, nullptr, (unsigned char*)location);
                         if (cobj) break;
                     } catch (...) {
                     }

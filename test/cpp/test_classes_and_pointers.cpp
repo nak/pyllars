@@ -8,6 +8,7 @@
 #include "pyllars/pyllars_membersemantics.impl.hpp"
 #include "pyllars/pyllars_classmembersemantics.impl.hpp"
 #include "pyllars/pyllars_classmethodsemantics.impl.hpp"
+#include <map>
 
 typedef const char c_string[];
 
@@ -80,31 +81,41 @@ public:
             int_array[0] = 1;
             int_array[1] = 2;
             int_array[2] = 3;
+            _mapped_values["123"] = 123;
+        }
+
+        BasicClass(const double val, const char* const unused):double_ptr_member(new double(val)){
+            int_array[0] = 1;
+            int_array[1] = 2;
+            int_array[2] = 3;
+            _mapped_values["123"] = 123;
         }
 
         BasicClass(const BasicClass &obj):double_ptr_member(new double(*obj.double_ptr_member)){
             int_array[0] = obj.int_array[0];
             int_array[1] = obj.int_array[1];
             int_array[2] = obj.int_array[2];
+            _mapped_values["123"] = 123;
         }
 
         BasicClass(const BasicClass &&obj):double_ptr_member(new double(*obj.double_ptr_member)){
             int_array[0] = obj.int_array[0];
             int_array[1] = obj.int_array[1];
             int_array[2] = obj.int_array[2];
+            _mapped_values["123"] = 123;
         }
 
         int public_method(const double value){
             return (int)value;
         }
 
-        int operator [](const char* const name){
-            return atoi(name);
+        int &operator [](const char* const name){
+            return _mapped_values[std::string(name)];
         }
 
 
-        int operator [](const char* const name) const{
-            return atoi(name);
+        const int &operator [](const char* const name) const{
+            return _mapped_values[std::string(name)];
         }
 
         BasicClass operator +() const{
@@ -150,6 +161,7 @@ public:
 
     private:
         void private_method();
+        mutable std::map<std::string, int> _mapped_values;
     };
 
     class ClassWithEnum{
@@ -217,11 +229,14 @@ protected:
         static const char *const kwlist[] = {"value", nullptr};
         static const char *const empty_list[] = {nullptr};
         static const char *const kwlist_copy_constr[] = {"obj", nullptr};
+        static const char *const kwlist_copy_constr2[] = {"float_val", "unused", nullptr};
         {
             typedef PythonClassWrapper<PythonBased::BasicClass> Class;
             Class::addConstructor<>(empty_list);
             Class::addConstructor<const PythonBased::BasicClass &>(kwlist_copy_constr);
             Class::addConstructor<const PythonBased::BasicClass &&>(kwlist_copy_constr);
+            Class::addConstructor<const double>(kwlist);
+            Class::addConstructor<const double, const char* const>(kwlist_copy_constr2);
             Class::addPosOperator(&PythonBased::BasicClass::operator+);
             Class::addNegOperator(&PythonBased::BasicClass::operator-);
             Class::addInvOperator(&PythonBased::BasicClass::operator~);
@@ -229,8 +244,8 @@ protected:
             Class::addSubOperator<kwlist, BasicClass, const double, false>(&PythonBased::BasicClass::operator-);
             Class::addMethod<false, method_name, kwlist, int, const double>(&PythonBased::BasicClass::public_method);
             Class::addClassMethod<static_method_name, kwlist, const char *const>(&PythonBased::BasicClass::static_public_method);
-            Class::addMapOperatorMethod<kwlist, const char *const, int>(&PythonBased::BasicClass::operator[]);
-            Class::addMapOperatorMethodConst<kwlist, const char *const, int>(&PythonBased::BasicClass::operator[]);
+            Class::addMapOperatorMethod<kwlist, const char *const, int&>(&PythonBased::BasicClass::operator[]);
+            Class::addMapOperatorMethodConst<kwlist, const char *const, const int &>(&PythonBased::BasicClass::operator[]);
             Class::addClassAttributeConst<class_const_member_name, int>(&PythonBased::BasicClass::class_const_member);
             Class::addClassAttribute<class_member_name, int>(&PythonBased::BasicClass::class_member);
             Class::addAttribute<int_array_member_name, int[3]>(&PythonBased::BasicClass::int_array);
@@ -405,6 +420,50 @@ TEST(TypesName, TestTypeNameVariants){
 }
 
 
+
+
+TEST_F(PythonBased, TestBasicClassOffNominal) {
+    using namespace __pyllars_internal;
+    static const char *const kwlist[] = {"value", nullptr};
+    static const char *const empty_list[] = {nullptr};
+    static const char *const kwlist_copy_constr[] = {"obj", nullptr};
+    PyObject *args = PyTuple_New(2);
+    PyTuple_SetItem(args, 0, PyLong_FromLong(1));
+    PyTuple_SetItem(args, 1, PyLong_FromLong(2));
+    PyObject *obj = PyObject_Call((PyObject *) PythonClassWrapper<PythonBased::BasicClass>::getPyType(),
+                                  args, nullptr);
+    ASSERT_EQ(obj, nullptr);
+    ASSERT_TRUE(PyErr_Occurred());
+    PyErr_Clear();
+}
+
+
+TEST_F(PythonBased, TestBasicClassNew) {
+    using namespace __pyllars_internal;
+    PyObject *args = PyTuple_New(0);
+
+    PyObject *new_op = PyObject_GetAttrString((PyObject*)PythonClassWrapper<PythonBased::BasicClass>::getPyType(), "new");
+
+    ASSERT_NE(new_op, nullptr);
+    ASSERT_FALSE(PyErr_Occurred());
+
+    PyObject* args_tuple1 = PyTuple_New(1);
+    PyTuple_SetItem(args_tuple1, 0, PyFloat_FromDouble(1.1));
+    PyObject* args_tuple2 = PyTuple_New(2);
+    PyTuple_SetItem(args_tuple2, 0, PyFloat_FromDouble(2.2));
+    PyTuple_SetItem(args_tuple2, 1, PyUnicode_FromString("unused"));
+
+    PyObject* tuple_list = PyList_New(0);
+    PyList_Append(tuple_list, args_tuple1);
+    PyList_Append(tuple_list, args_tuple2);
+
+    PyObject* call_args = PyTuple_New(1);
+    PyTuple_SetItem(call_args, 0, tuple_list);
+    PyObject* obj = PyObject_Call(new_op, call_args, nullptr);
+    ASSERT_FALSE(PyErr_Occurred());
+    ASSERT_NE(obj, nullptr);
+}
+
 TEST_F(PythonBased, TestBasicClass){
     using namespace __pyllars_internal;
     static const char* const kwlist[] = {"value", nullptr};
@@ -461,6 +520,11 @@ TEST_F(PythonBased, TestBasicClass){
     ASSERT_FALSE(PyErr_Occurred());
     ASSERT_NE(mapped, nullptr);
     ASSERT_EQ(PyLong_AsLong(mapped), 123);
+    PyMapping_SetItemString(obj, "123", PyLong_FromLong(99));
+    mapped =  PyMapping_GetItemString(obj, "123");
+    ASSERT_FALSE(PyErr_Occurred());
+    ASSERT_NE(mapped, nullptr);
+    ASSERT_EQ(PyLong_AsLong(mapped), 99);
 
 
     PyObject* public_method = PyObject_GetAttrString(obj, method_name);
