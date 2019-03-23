@@ -643,7 +643,7 @@ namespace __pyllars_internal {
 
 
     template<typename number_type>
-    PythonClassWrapper<number_type *> *
+    PythonClassWrapper<typename std::remove_reference<number_type>::type *> *
     PyNumberCustomObject<number_type>::alloc(PyObject *, PyObject *args, PyObject *kwds) {
         if (kwds && PyDict_Size(kwds) > 0) {
             static const char *const msg = "Allocator does not accept keywords";
@@ -1328,7 +1328,7 @@ namespace __pyllars_internal {
     }
 
     template<typename number_type>
-    PythonClassWrapper<number_type *> *
+    PythonClassWrapper<typename std::remove_reference<number_type>::type *> *
     PyFloatingPtCustomObject<number_type>::alloc(PyObject *, PyObject *args, PyObject *kwds) {
         if (kwds && PyDict_Size(kwds) > 0) {
             static const char *const msg = "Allocator does not accept keywords";

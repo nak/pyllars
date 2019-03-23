@@ -42,7 +42,13 @@ protected:
     }
 
     static void SetUpTestSuite() {
+        using namespace __pyllars_internal;
+
         Py_Initialize();
+        static const char* const empty[] = {nullptr};
+        static const char* const kwlist[]= {"obj", nullptr};
+        PythonClassWrapper<A>::addConstructor<const A&>(kwlist);
+        PythonClassWrapper<A>::addConstructor<>(empty);
     }
 
 
@@ -166,8 +172,6 @@ PyObject* PyFloat_FromFloat(float v){
 
 PyObject* PyClass_FromClass(A v){
     using namespace __pyllars_internal;
-    static const char* const kwlist[]= {"obj", nullptr};
-    PythonClassWrapper<A>::addConstructor<const A&>(kwlist);
     auto args = PyTuple_New(1);
     PyTuple_SetItem(args, 0, toPyObject(v, true, 1));
     return PyObject_Call((PyObject*)PythonClassWrapper<A>::getPyType(), args, nullptr);

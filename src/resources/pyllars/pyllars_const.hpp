@@ -37,6 +37,8 @@ namespace __pyllars_internal {
     public:
         PyObject_HEAD
         typedef number_type ntype;
+        typedef typename std::remove_reference<number_type>::type number_type_basic;
+
         typedef PythonClassWrapper<ntype const,   void> ConstWrapper;
         typedef PythonClassWrapper<typename std::remove_const<ntype>::type > NonConstWrapper;
 
@@ -47,7 +49,7 @@ namespace __pyllars_internal {
             return &Type;
         }
 
-        static PythonClassWrapper<number_type *> *alloc(PyObject *cls, PyObject *args, PyObject *kwds);
+        static PythonClassWrapper<number_type_basic *> *alloc(PyObject *cls, PyObject *args, PyObject *kwds);
 
         static int initialize();
 
@@ -135,6 +137,48 @@ namespace __pyllars_internal {
     };
 
 
+
+    template<>
+    struct PythonClassWrapper<const char&> : public PyConstNumberCustomObject<const char&> {
+    };
+
+    template<>
+    struct PythonClassWrapper<const short&> : public PyConstNumberCustomObject<const short&> {
+    };
+
+    template<>
+    struct PythonClassWrapper<const int&> : public PyConstNumberCustomObject<const int&> {
+    };
+
+    template<>
+    struct PythonClassWrapper<const long&> : public PyConstNumberCustomObject<const long&> {
+    };
+
+    template<>
+    struct PythonClassWrapper<const long long&> : public PyConstNumberCustomObject<const long long&> {
+    };
+
+    template<>
+    struct PythonClassWrapper<const unsigned char&> : public PyConstNumberCustomObject<const unsigned char&> {
+    };
+
+    template<>
+    struct PythonClassWrapper<const unsigned short&> : public PyConstNumberCustomObject<const unsigned short&> {
+    };
+
+    template<>
+    struct PythonClassWrapper<const unsigned int&> : public PyConstNumberCustomObject<const unsigned int&> {
+    };
+
+    template<>
+    struct PythonClassWrapper<const unsigned long&> : public PyConstNumberCustomObject<const unsigned long&> {
+    };
+
+    template<>
+    struct PythonClassWrapper<const unsigned long long&> : public PyConstNumberCustomObject<const unsigned long long&> {
+    };
+
+
     struct PyConstFloatingPtCustomBase: public CommonBaseWrapper {
         static PyTypeObject Type;
 
@@ -146,6 +190,8 @@ namespace __pyllars_internal {
     public:
         PyObject_HEAD
         typedef number_type ntype;
+        typedef typename std::remove_reference<ntype>::type ntype_basic;
+
         typedef PythonClassWrapper<ntype const,   void> ConstWrapper;
         typedef PythonClassWrapper<typename std::remove_const<ntype>::type > NonConstWrapper;
 
@@ -156,7 +202,7 @@ namespace __pyllars_internal {
             return &Type;
         }
 
-        static PythonClassWrapper<number_type *> *alloc(PyObject *cls, PyObject *args, PyObject *kwds);
+        static PythonClassWrapper<ntype_basic *> *alloc(PyObject *cls, PyObject *args, PyObject *kwds);
 
         static int initialize();
 
@@ -216,6 +262,14 @@ namespace __pyllars_internal {
 
     template<>
     struct PythonClassWrapper<const float> : public PyConstFloatingPtCustomObject<const float> {
+    };
+
+    template<>
+    struct PythonClassWrapper<const double&> : public PyConstFloatingPtCustomObject<const double&> {
+    };
+
+    template<>
+    struct PythonClassWrapper<const float&> : public PyConstFloatingPtCustomObject<const float&> {
     };
 
 }

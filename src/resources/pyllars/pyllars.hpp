@@ -105,10 +105,11 @@ namespace __pyllars_internal {
     public:
         PyObject_HEAD
         typedef number_type ntype;
+        typedef typename std::remove_reference<number_type>::type number_type_basic;
 
         static PyTypeObject Type;
 
-        static PythonClassWrapper<number_type *> *alloc(PyObject *cls, PyObject *args, PyObject *kwds);
+        static PythonClassWrapper<number_type_basic *> *alloc(PyObject *cls, PyObject *args, PyObject *kwds);
         static PyObject *to_int(PyObject *self, PyObject *args, PyObject *kwds);
 
         static int initialize();
@@ -130,7 +131,7 @@ namespace __pyllars_internal {
         }
 
         template<typename t=number_type>
-        inline t *get_CObject() {
+        inline typename std::remove_reference<t>::type *get_CObject() {
             return &value;
         }
 
@@ -162,11 +163,22 @@ namespace __pyllars_internal {
     };
 
     template<>
+    class PythonClassWrapper<char&> : public PyNumberCustomObject<char&> {
+    };
+
+    template<>
     class PythonClassWrapper<short> : public PyNumberCustomObject<short> {
     };
 
     template<>
+    class PythonClassWrapper<short&> : public PyNumberCustomObject<short&> {
+    };
+
+    template<>
     class PythonClassWrapper<int> : public PyNumberCustomObject<int> {
+    };
+    template<>
+    class PythonClassWrapper<int&> : public PyNumberCustomObject<int&> {
     };
 
     template<>
@@ -174,7 +186,15 @@ namespace __pyllars_internal {
     };
 
     template<>
+    class PythonClassWrapper<long&> : public PyNumberCustomObject<long&> {
+    };
+
+    template<>
     class PythonClassWrapper<long long> : public PyNumberCustomObject<long long> {
+    };
+
+    template<>
+    class PythonClassWrapper<long long&> : public PyNumberCustomObject<long long&> {
     };
 
     template<>
@@ -182,7 +202,15 @@ namespace __pyllars_internal {
     };
 
     template<>
+    class PythonClassWrapper<unsigned char&> : public PyNumberCustomObject<unsigned char&> {
+    };
+
+    template<>
     class PythonClassWrapper<unsigned short> : public PyNumberCustomObject<unsigned short> {
+    };
+
+    template<>
+    class PythonClassWrapper<unsigned short&> : public PyNumberCustomObject<unsigned short&> {
     };
 
     template<>
@@ -190,11 +218,23 @@ namespace __pyllars_internal {
     };
 
     template<>
+    class PythonClassWrapper<unsigned int&> : public PyNumberCustomObject<unsigned int&> {
+    };
+
+    template<>
     class PythonClassWrapper<unsigned long> : public PyNumberCustomObject<unsigned long> {
     };
 
     template<>
+    class PythonClassWrapper<unsigned long&> : public PyNumberCustomObject<unsigned long&> {
+    };
+
+    template<>
     class PythonClassWrapper<unsigned long long> : public PyNumberCustomObject<unsigned long long> {
+    };
+
+    template<>
+    class PythonClassWrapper<unsigned long long&> : public PyNumberCustomObject<unsigned long long&> {
     };
 
 
@@ -210,8 +250,9 @@ namespace __pyllars_internal {
     public:
         PyObject_HEAD
         typedef number_type ntype;
+        typedef typename std::remove_reference<ntype>::type ntype_basic;
 
-        static PythonClassWrapper<number_type *> *alloc(PyObject *cls, PyObject *args, PyObject *kwds);
+        static PythonClassWrapper<ntype_basic *> *alloc(PyObject *cls, PyObject *args, PyObject *kwds);
         static PyObject* to_float(PyObject *cls, PyObject *args, PyObject *kwds);
 
         static PyTypeObject *getPyType(){
@@ -275,6 +316,13 @@ namespace __pyllars_internal {
     class PythonClassWrapper<double> : public PyFloatingPtCustomObject<double> {
     };
 
+    template<>
+    class PythonClassWrapper<float&> : public PyFloatingPtCustomObject<float&> {
+    };
+
+    template<>
+    class PythonClassWrapper<double&> : public PyFloatingPtCustomObject<double&> {
+    };
 
 }
 

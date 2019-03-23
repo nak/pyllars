@@ -55,11 +55,12 @@ namespace __pyllars_internal {
 
     template<typename T>
     struct is_rich_class {
+        typedef typename std::remove_reference<T>::type T_NoRef;
         static constexpr bool value =
-                !std::is_arithmetic<T>::value &&
-                !std::is_floating_point<T>::value &&
-                !std::is_array<T>::value &&
-                !std::is_pointer<T>::value;
+                !std::is_arithmetic<T_NoRef>::value &&
+                !std::is_floating_point<T_NoRef>::value &&
+                !std::is_array<T_NoRef>::value &&
+                !std::is_pointer<T_NoRef>::value;
     };
 
     template<typename T>
