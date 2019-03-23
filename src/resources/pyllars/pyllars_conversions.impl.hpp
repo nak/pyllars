@@ -260,11 +260,18 @@ namespace __pyllars_internal {
             }
             return ret;
         } else {
-            PyObject *pyobj = asReference ?
-                              (PyObject *) ClassWrapper::createPy(array_size, var, ContainmentKind::BY_REFERENCE) :
-                              (PyObject *) ClassWrapper::createPy(array_size,
-                                                                  *ObjectLifecycleHelpers::Copy<T>::new_copy(&var),
-                                                                  ContainmentKind::ALLOCATED);
+            PyObject *pyobj = nullptr;
+            if constexpr (std::is_array<T>::value || std::is_pointer<T>::value) {
+                 pyobj = asReference ?
+                                  (PyObject *) ClassWrapper::createPyReference(var, array_size) :
+                                  (PyObject *) ClassWrapper::createPyFromAllocatedInstance(
+                                          *ObjectLifecycleHelpers::Copy<T>::new_copy(&var),
+                                          array_size);
+            } else {
+                pyobj = asReference ?
+                        (PyObject *) ClassWrapper::createPyReference(var) :
+                        (PyObject *) ClassWrapper::createPyFromAllocated(ObjectLifecycleHelpers::Copy<T>::new_copy(&var));
+            }
             if (!pyobj || !ClassWrapper::checkType(pyobj)) {
                 PyErr_Format(PyExc_TypeError, "Unable to convert C type object to Python object %s: %s",
                              pyobj ? pyobj->ob_type->tp_name : "NULL OBJ", Types<T>::type_name());

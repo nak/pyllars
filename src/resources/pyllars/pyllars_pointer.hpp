@@ -73,11 +73,15 @@ namespace __pyllars_internal {
 
     protected:
 
-        static PythonPointerWrapperBase *_createPy(PyTypeObject & Type,
-                                                   const ssize_t arraySize,
-                                                   T& cobj,
-                                                   ContainmentKind containmentKind,
-                                                   PyObject *referencing = nullptr);
+        static PythonPointerWrapperBase *_createPyReference(PyTypeObject & Type,
+                                                            T& cobj,
+                                                            const ssize_t arraySize,
+                                                            PyObject *referencing = nullptr);
+
+        static PythonPointerWrapperBase *_createPyFromAllocatedInstance(PyTypeObject & Type,
+                                                                T cobj,
+                                                                const ssize_t arraySize,
+                                                                PyObject *referencing = nullptr);
 
         static int _initialize(PyTypeObject & Type);
 
@@ -170,17 +174,12 @@ namespace __pyllars_internal {
         static bool checkType(PyObject *obj);
 
 
-        static PythonClassWrapper *createPy(const ssize_t arraySize,
-                                            T &cobj,
-                                            const ContainmentKind containmentKind,
-                                            PyObject *referencing = nullptr){
-            return reinterpret_cast<PythonClassWrapper*>(Base::_createPy(Type, arraySize, cobj,containmentKind, referencing));
+        static PythonClassWrapper *createPyReference(T &cobj,const ssize_t arraySize, PyObject *referencing = nullptr){
+            return reinterpret_cast<PythonClassWrapper*>(Base::_createPyReference(Type, cobj, arraySize, referencing));
         }
 
-        static PythonClassWrapper *createPyAlocated(const ssize_t arraySize,
-                                            T *cobj,
-                                            PyObject *referencing = nullptr){
-            return reinterpret_cast<PythonClassWrapper*>(Base::_createPy(Type, arraySize, *cobj,ContainmentKind::ALLOCATED, referencing));
+        static PythonClassWrapper *createPyFromAllocatedInstance( T *cobj, const ssize_t arraySize, PyObject *referencing = nullptr){
+            return reinterpret_cast<PythonClassWrapper*>(Base::_createPyFromAllocatedInstance(Type, cobj, arraySize, referencing));
         }
 
         static PythonClassWrapper *createPyUsingBytePool(size_t size, std::function<void(void*, size_t)>& constructor);
@@ -223,11 +222,11 @@ namespace __pyllars_internal {
 
         static bool checkType(PyObject *obj);
 
-        static PythonClassWrapper *createPy(const ssize_t arraySize,
-                                            T & cobj,
-                                            const ContainmentKind containmentKind,
-                                            PyObject *referencing = nullptr){
-            return reinterpret_cast<PythonClassWrapper*>(Base::_createPy(Type, arraySize, cobj, containmentKind, referencing));
+        static PythonClassWrapper *createPyReference(T & cobj, const ssize_t arraySize, PyObject *referencing = nullptr){
+            return reinterpret_cast<PythonClassWrapper*>(Base::_createPyReference(Type, cobj, arraySize, referencing));
+        }
+        static PythonClassWrapper *createPyFromAllocatedInstance(T cobj, const ssize_t arraySize, PyObject *referencing = nullptr){
+            return reinterpret_cast<PythonClassWrapper*>(Base::_createPyFromAllocatedInstance(Type, cobj, arraySize, referencing));
         }
 
         static PythonClassWrapper *createPyUsingBytePool(size_t size, std::function< void(void*, size_t)>& constructor);

@@ -112,8 +112,8 @@ namespace __pyllars_internal {
             if (self_->_depth > 2) {
                 T_bare **&var = ObjectLifecycleHelpers::Array<T_bare ***>::at((T_bare ***) *self_->_CObject->ptr(),
                                                                               index);
-                PythonClassWrapper<T_bare **> *res = PythonClassWrapper<T_bare **>::createPy(element_array_size, var,
-                                                                                             ContainmentKind::CONSTRUCTED);
+                PythonClassWrapper<T_bare **> *res = PythonClassWrapper<T_bare **>::createPyReference
+                        (var, element_array_size);
 
                 if (res) {
                     res->_depth = self_->_depth - 1;
@@ -121,19 +121,25 @@ namespace __pyllars_internal {
                 result = reinterpret_cast<PyObject *>(res);
             } else if (self_->_depth == 2) {
                 T_bare *&var = ObjectLifecycleHelpers::Array<T_bare **>::at((T_bare **) *self_->_CObject->ptr(), index);
-                PythonClassWrapper<T_bare *> *res = PythonClassWrapper<T_bare *>::createPy(element_array_size, var,
-                                                                                           ContainmentKind::CONSTRUCTED);
+                PythonClassWrapper<T_bare *> *res = PythonClassWrapper<T_bare *>::createPyReference(var, element_array_size);
                 if (res) {
                     ((PythonPointerWrapperBase *) res)->_depth = self_->_depth - 1;
                 }
                 result = reinterpret_cast<PyObject *>(res);
             } else {
-                T_bare &var = ObjectLifecycleHelpers::Array<T_bare *>::at((T_bare *) *self_->_CObject->ptr(), index);
-                auto *res = (PythonClassWrapper<T_bare> *) PythonClassWrapper<T_bare>::createPy(
-                        element_array_size, var,
-                        ContainmentKind::BY_REFERENCE, self);
+                if constexpr (std::is_array<T_bare>::value || std::is_pointer<T_bare>::value) {
+                    T_bare &var = ObjectLifecycleHelpers::Array<T_bare *>::at((T_bare *) *self_->_CObject->ptr(),
+                                                                              index);
+                    auto *res = PythonClassWrapper<T_bare>::createPyReference(var, element_array_size);
 
-                result = reinterpret_cast<PyObject *>(res);
+                    result = reinterpret_cast<PyObject *>(res);
+                } else {
+                    T_bare &var = ObjectLifecycleHelpers::Array<T_bare *>::at((T_bare *) *self_->_CObject->ptr(),
+                                                                              index);
+                    auto *res = PythonClassWrapper<T_bare>::createPyReference(var);
+
+                    result = reinterpret_cast<PyObject *>(res);
+                }
             }
             return result;
         } catch (const char *const msg) {
@@ -217,11 +223,7 @@ namespace __pyllars_internal {
     template<typename T>
     PythonPointerWrapperBase <T> *
     PythonPointerWrapperBase<T>::
-    _createPy(PyTypeObject &Type,
-              const ssize_t arraySize,
-              T &cobj,
-              const ContainmentKind containmentKind,
-              PyObject *referencing) {
+    _createPyReference(PyTypeObject &Type, T &cobj, const ssize_t arraySize, PyObject *referencing) {
         if (_initialize(Type) != 0) {
             PyErr_SetString(PyExc_SystemError, "System error: failed to initialize type");
             return nullptr;
@@ -234,22 +236,39 @@ namespace __pyllars_internal {
             return nullptr;
         }
         assert(pyobj->get_CObject() == nullptr);
-        // pyobj->_arraySize = 0;
-        switch (containmentKind) {
-            case ContainmentKind::ALLOCATED:
-                pyobj->_CObject = ObjectContainerAllocated<T>::new_container(cobj, arraySize> 0);
-                break;
-            case ContainmentKind::CONSTRUCTED:
-                pyobj->_CObject = new ObjectContainerReference<T>(cobj);
-                break;
-            case ContainmentKind::BY_REFERENCE:
-                pyobj->_CObject = new ObjectContainerReference<T>(cobj);
-                break;
+        pyobj->_CObject = new ObjectContainerReference<T>(cobj);
+        if (arraySize > 0) { pyobj->_max = arraySize - 1; }
+        if (referencing) pyobj->make_reference(referencing);
+        return pyobj;
+    }
+
+
+    template<typename T>
+    PythonPointerWrapperBase <T> *
+    PythonPointerWrapperBase<T>::
+    _createPyFromAllocatedInstance(PyTypeObject &Type, T cobj, const ssize_t arraySize, PyObject *referencing) {
+        if (_initialize(Type) != 0) {
+            PyErr_SetString(PyExc_SystemError, "System error: failed to initialize type");
+            return nullptr;
+        }
+        static PyObject *args = PyTuple_New(0);
+        static PyObject *kwds = PyDict_New();
+        auto *pyobj = (PythonPointerWrapperBase *) PyObject_Call((PyObject *) &Type, args, kwds);
+        if (!pyobj) {
+            PyErr_SetString(PyExc_RuntimeError, "Unable to create Python Object");
+            return nullptr;
+        }
+        assert(pyobj->get_CObject() == nullptr);
+        if constexpr (std::is_array<T>::value && ArraySize<T>::size > 0) {
+            pyobj->_CObject = ObjectContainerAllocatedInstance<T>::new_container(cobj);
+        } else {
+            pyobj->_CObject = ObjectContainerAllocated<T>::new_container(cobj, arraySize > 0);
         }
         if (arraySize > 0) { pyobj->_max = arraySize - 1; }
         if (referencing) pyobj->make_reference(referencing);
         return pyobj;
     }
+
 
     template<typename T>
     int

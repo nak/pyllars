@@ -11,16 +11,6 @@ namespace __pyllars_internal{
     // convert what would normally be a compil-time error in C to a more Pythonic run-time error
     /////////////////////////////////////
 
-    /**
-     * Variou kinds of containers
-     */
-    enum class ContainmentKind: unsigned char{
-        BY_REFERENCE,
-        ALLOCATED,
-        CONSTRUCTED
-    };
-
-
     namespace {
 
         /**
@@ -28,10 +18,32 @@ namespace __pyllars_internal{
          * @tparam T: type of element in array
          * @tparam size : size of array
          */
+        template<typename T>
+        struct FixedArrayHelper;
+
         template<typename T, size_t size>
-        struct FixedArrayHelper{
+        struct FixedArrayHelper<T[size]>{
+            typedef T T_array[size];
+
+            void * operator new(const std::size_t count,  T_array& from){
+                auto bytes = ::operator new(count);
+                T* values = reinterpret_cast<T*>(bytes);
+                for(int i = 0; i < size; ++i){
+                    new (values+i) T(from[i]);
+                }
+                return bytes;
+            }
+            void * operator new(const std::size_t count,  const T* const from){
+                auto bytes = ::operator new(count);
+                T* values = reinterpret_cast<T*>(bytes);
+                for(int i = 0; i < size; ++i){
+                    new (values+i) T(from[i]);
+                }
+                return bytes;
+            }
             T value[size];
         };
+
     }
 
     /////////////////////////////////////////////////////
@@ -69,10 +81,14 @@ namespace __pyllars_internal{
         }
 
         static void deallocate(T* const &obj, const bool asArray){
-            if (asArray){
-                delete [] obj;
+            if constexpr(std::is_destructible<T>::value) {
+                if (asArray) {
+                    delete[] obj;
+                } else {
+                    delete obj;
+                }
             } else {
-                delete obj;
+                PyErr_Warn(PyExc_RuntimeWarning, "Attempt to deallocate non-destructible instance");
             }
         }
     };
@@ -205,6 +221,58 @@ namespace __pyllars_internal{
 
     };
 
+
+    template<typename T>
+    struct ObjectContainerAllocatedInstance: public ObjectContainerReference<T>{
+
+        template<typename ...Args>
+        static ObjectContainerAllocatedInstance*  new_container(Args ...args){
+            if constexpr (std::is_constructible<T>::value) {
+                if constexpr (std::is_array<T>::value){
+                    if constexpr(ArraySize<T>::size > 0){
+                        typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_element;
+                        typedef typename std::remove_const<T_element>::type T_nonconst_array[ArraySize<T>::size];
+                        static constexpr size_t arg_length = sizeof...(Args);
+                        static constexpr const bool is_same[] = {std::is_same<typename std::is_reference<Args>::type,
+                                                                 typename std::remove_reference<T>::type>::value...};
+                        static constexpr const bool is_sameptr[] = {std::is_same<typename extent_as_pointer<typename std::remove_reference<Args>::type>::type,
+                                                                    typename extent_as_pointer<typename std::remove_reference<T>::type>::type >::value...};
+                        if constexpr(arg_length==1 && (is_same[0] || is_sameptr[0])){
+                            auto new_raw_value = new (args...) FixedArrayHelper<T>();
+                            auto new_value = reinterpret_cast<T*>(new_raw_value);
+                            return ObjectContainerAllocatedInstance::new_container(new_value);
+
+                        } else {
+                            T_nonconst_array *new_value = new T_element[1][ArraySize<T>::size]{{T(args...)}};
+                            return ObjectContainerAllocatedInstance::new_container(new_value, true);
+                        }
+                    }
+                } else {
+                    T * new_value = new T(args...);
+                    return ObjectContainerAllocatedInstance::new_container(new_value, false);
+                }
+            }
+            throw "Request to allocate non-constructible type";
+        }
+
+
+        static ObjectContainerAllocatedInstance*  new_container(T* already_allocated){
+            return new ObjectContainerAllocatedInstance(already_allocated);
+        }
+
+    private:
+
+        explicit ObjectContainerAllocatedInstance(T* obj):ObjectContainerReference<T>(*obj), _obj(obj){
+        }
+
+        virtual ~ObjectContainerAllocatedInstance(){
+            Destructor<T>::deallocate(_obj, false);
+        }
+
+        T * _obj;
+    };
+
+
     template<typename T>
     struct ObjectContainerAllocated;
 
@@ -216,11 +284,9 @@ namespace __pyllars_internal{
             if constexpr (std::is_constructible<T>::value) {
                 if constexpr (std::is_array<T>::value){
                     if constexpr(ArraySize<T>::size > 0){
-                        typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_element;
-                        typedef typename std::remove_const<T_element>::type T_nonconst_array[ArraySize<T>::size];
-                        T_nonconst_array *new_value = new T_element[1][ArraySize<T>::size]{{T(args...)}};
-                        //for (size_t i = 0; i < ArraySize<T>::size; ++i) new_value[0][i] = value[i];
-                        return ObjectContainerAllocated::new_container(new_value, true);
+                        auto new_helper_value = new (args...) FixedArrayHelper<T>();
+                        auto new_value = reinterpret_cast<T*>(new_helper_value);
+                        return ObjectContainerAllocated::new_container(new_value, false);
                     }
                 } else {
                     T * new_value = new T(args...);
@@ -242,10 +308,51 @@ namespace __pyllars_internal{
         }
 
         virtual ~ObjectContainerAllocated(){
-            Destructor<T>::deallocate(ObjectContainerReference<T*>::_contained, _asArray);
+            Destructor<T>::deallocate(_obj, _asArray);
         }
 
         T * _obj;
+        const bool _asArray;
+    };
+
+
+    template<typename T>
+    struct ObjectContainerAllocated<T* const>: public ObjectContainerReference<T* const>{
+
+        template<typename ...Args>
+        static ObjectContainerAllocated*  new_container(Args ...args){
+            if constexpr (std::is_constructible<T>::value) {
+                if constexpr (std::is_array<T>::value){
+                    if constexpr(ArraySize<T>::size > 0){
+                        auto new_helper_value = new (args...) FixedArrayHelper<T>();
+                        auto new_value = reinterpret_cast<T* const>(new_helper_value);
+                        return ObjectContainerAllocated::new_container(new_value, false);
+                    }
+                } else {
+                    T * new_value = new T(args...);
+                    return ObjectContainerAllocated::new_container(new_value, false);
+                }
+            }
+            throw "Request to allocate non-constructible type";
+        }
+
+
+        static ObjectContainerAllocated*  new_container(T* const already_allocated, const bool asArray=false){
+            return new ObjectContainerAllocated(already_allocated, asArray);
+        }
+
+    private:
+
+        explicit ObjectContainerAllocated(T* const obj, const bool asArray):ObjectContainerReference<T* const>(obj),
+                _obj(obj),
+                _asArray(asArray){
+        }
+
+        virtual ~ObjectContainerAllocated(){
+            Destructor<T>::deallocate(ObjectContainerReference<T* const>::_contained, _asArray);
+        }
+
+        T * const _obj;
         const bool _asArray;
     };
 
@@ -410,38 +517,6 @@ namespace __pyllars_internal{
     /////////////////////////////
 
     template<typename T, typename ...Args>
-    struct ObjectContainerInPlace: public ObjectContainerReference<T>{
-        typedef typename std::remove_reference<T>::type T_NoRef;
-
-        explicit ObjectContainerInPlace(T_NoRef& obj,  Args ...args):
-                ObjectContainerReference<T>(*new ((void*)&obj) T_NoRef(std::forward<typename extent_as_pointer<Args>::type>(args)...)){
-
-        }
-
-        ~ObjectContainerInPlace() = default;
-
-    };
-
-    template<typename T, size_t size>
-    struct ObjectContainerInPlace<T[size], T[size]>: public ObjectContainerReference<T[size]>{
-
-        typedef T T_array[size];
-
-        ObjectContainerInPlace(T_array& obj,  T_array &arg):
-                ObjectContainerReference<T[size]>(*Constructor<T[size]>::inplace_allocate(obj, arg)){
-
-        }
-
-        ObjectContainerInPlace(T_array& obj,  T* arg):
-                ObjectContainer<T[size]>(*Constructor<T[size]>::inplace_allocate(obj, arg)){
-
-        }
-
-        ~ObjectContainerInPlace() = default;
-
-    };
-
-    template<typename T, typename ...Args>
     struct ObjectContainerConstructed: public ObjectContainerReference<T>{
         explicit ObjectContainerConstructed(Args ...args):_constructed(std::forward<typename extent_as_pointer<Args>::type>(args)...),
         ObjectContainerReference<T>(_constructed){
@@ -467,7 +542,7 @@ namespace __pyllars_internal{
 
     template<size_t size, typename T>
     struct ObjectContainerConstructed<T[size], T[size]>: public ObjectContainerReference<T[size]>{
-        explicit ObjectContainerConstructed(T args[size]):ObjectContainerReference<T[size]>(((FixedArrayHelper<T,size>*)&_constructed)->value){
+        explicit ObjectContainerConstructed(T args[size]):ObjectContainerReference<T[size]>(((FixedArrayHelper<T[size]>*)&_constructed)->value){
             for(size_t i = 0; i < size; ++i){
                 new (&_constructed[0] + sizeof(T)*i) T(args[i]);
             }

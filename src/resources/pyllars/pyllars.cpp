@@ -698,7 +698,7 @@ namespace __pyllars_internal {
             }
         }
         auto *alloced = new number_type(value);
-        return PythonClassWrapper<number_type *>::createPy(count, alloced, ContainmentKind ::ALLOCATED);
+        return PythonClassWrapper<number_type *>::createPyFromAllocatedInstance(alloced, count);
     }
 
     template<typename number_type>
@@ -781,8 +781,7 @@ namespace __pyllars_internal {
 
     template<typename number_type>
     __pyllars_internal::PythonClassWrapper<number_type> *
-    PyNumberCustomObject<number_type>::createPy(const ssize_t ,
-            ntype & cobj, const ContainmentKind  , PyObject *) {
+    PyNumberCustomObject<number_type>::createPyReference(ntype& cobj, PyObject *) {
         static PyObject *kwds = PyDict_New();
         static PyObject *emptyargs = PyTuple_New(0);
         PyDict_SetItemString(kwds, "__internal_allow_null", Py_True);
@@ -794,6 +793,8 @@ namespace __pyllars_internal {
         *pyobj->get_CObject() = cobj;
         return pyobj;
     }
+
+
 
     template<typename number_type>
     int PyNumberCustomObject<number_type>::create(PyObject *self_, PyObject *args, PyObject *) {
@@ -1386,7 +1387,7 @@ namespace __pyllars_internal {
             }
         }
         auto *alloced = new number_type(value);
-        return PythonClassWrapper<number_type *>::createPy(count, alloced, ContainmentKind ::ALLOCATED);
+        return PythonClassWrapper<number_type *>::createPyFromAllocatedInstance(alloced, count);
     }
 
 
@@ -1466,10 +1467,8 @@ namespace __pyllars_internal {
     }
 
     template<typename number_type>
-    __pyllars_internal::PythonClassWrapper<number_type> *PyFloatingPtCustomObject<number_type>::createPy
-            (const ssize_t ,
-             ntype& cobj, const ContainmentKind ,
-             PyObject *) {
+    __pyllars_internal::PythonClassWrapper<number_type> *PyFloatingPtCustomObject<number_type>::createPyReference
+            ( ntype& cobj, PyObject *) {
         static PyObject *kwds = PyDict_New();
         static PyObject *emptyargs = PyTuple_New(0);
         PyDict_SetItemString(kwds, "__internal_allow_null", Py_True);

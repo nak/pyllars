@@ -115,10 +115,8 @@ namespace __pyllars_internal {
 
         static PyObject *richcompare(PyObject *a, PyObject *b, int op);
 
-        static __pyllars_internal::PythonClassWrapper<number_type> *createPy
-                (ssize_t arraySize,
-                 ntype & cobj, ContainmentKind  containmentKind,
-                 PyObject *referencing);
+        static __pyllars_internal::PythonClassWrapper<number_type> *createPyReference
+                (ntype & cobj, PyObject *referencing=nullptr);
 
         inline static bool checkType(PyObject *const obj) {
             return PyObject_TypeCheck(obj, getPyType());
@@ -227,10 +225,8 @@ namespace __pyllars_internal {
 
         static PyObject *richcompare(PyObject *a, PyObject *b, int op);
 
-        static __pyllars_internal::PythonClassWrapper<number_type> *createPy
-                (ssize_t arraySize,
-                 ntype & cobj, ContainmentKind containmentKind,
-                 PyObject *referencing);
+        static __pyllars_internal::PythonClassWrapper<number_type> *createPyReference
+                ( ntype & cobj, PyObject *referencing = nullptr);
 
         inline static bool checkType(PyObject *const obj) {
             return PyObject_TypeCheck(obj, &Type);

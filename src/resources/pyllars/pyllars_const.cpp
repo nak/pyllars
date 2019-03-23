@@ -519,7 +519,7 @@ namespace __pyllars_internal {
             }
         }
         auto *alloced = new number_type(value);
-        return PythonClassWrapper<number_type *>::createPy(count, alloced, ContainmentKind ::ALLOCATED);
+        return PythonClassWrapper<number_type *>::createPyFromAllocatedInstance(alloced, count);
     }
 
     template<typename number_type>
@@ -582,10 +582,8 @@ namespace __pyllars_internal {
     }
 
     template<typename number_type>
-    __pyllars_internal::PythonClassWrapper<number_type> *PyConstNumberCustomObject<number_type>::createPy
-            (const ssize_t arraySize,
-             ntype & cobj, const ContainmentKind  containmentKind,
-             PyObject *referencing) {
+    __pyllars_internal::PythonClassWrapper<number_type> *PyConstNumberCustomObject<number_type>::createPyReference
+            (  ntype & cobj, PyObject *referencing) {
         static PyObject *kwds = PyDict_New();
         static PyObject *emptyargs = PyTuple_New(0);
         PyDict_SetItemString(kwds, "__internal_allow_null", Py_True);
@@ -1130,7 +1128,7 @@ namespace __pyllars_internal {
             }
         }
         auto *alloced = new number_type(value);
-        return PythonClassWrapper<number_type *>::createPy(count, alloced, ContainmentKind::ALLOCATED);
+        return PythonClassWrapper<number_type *>::createPyFromAllocatedInstance(alloced, count);
     }
 
 
@@ -1195,11 +1193,8 @@ namespace __pyllars_internal {
     }
 
     template<typename number_type>
-    __pyllars_internal::PythonClassWrapper<number_type> *PyConstFloatingPtCustomObject<number_type>::createPy
-    (const ssize_t arraySize,
-            ntype& cobj,
-            const ContainmentKind  containmentKind,
-            PyObject *referencing) {
+    __pyllars_internal::PythonClassWrapper<number_type> *PyConstFloatingPtCustomObject<number_type>::createPyReference
+    (   ntype& cobj, PyObject *referencing) {
         static PyObject *kwds = PyDict_New();
         static PyObject *emptyargs = PyTuple_New(0);
         PyDict_SetItemString(kwds, "__internal_allow_null", Py_True);

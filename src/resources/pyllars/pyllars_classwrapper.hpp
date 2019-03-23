@@ -112,22 +112,9 @@ namespace __pyllars_internal {
         /**
          * create a Python object of this class type
          **/
-        static PythonClassWrapper *createPy(const ssize_t arraySize, 
-					                        T_NoRef & cobj,
-                                            const ContainmentKind containmenKind,
-                                            PyObject *referencing = nullptr) ;
+        static PythonClassWrapper *createPyReference(T_NoRef & cobj, PyObject *referencing = nullptr);
 
-        static PythonClassWrapper* createPyAllocated(const ssize_t arraySize,
-                                                     T_NoRef * cobj,
-                                                     PyObject *referencing = nullptr){
-            return createPy(arraySize, *cobj, ContainmentKind::ALLOCATED, referencing);
-        }
-
-        template<typename ...Args>
-        static PythonClassWrapper *constructPy(const ssize_t arraySize,
-                                               Args ...args,
-                                               const ContainmentKind containmentKind,
-                                               PyObject *referencing = nullptr) ;
+        static PythonClassWrapper *createPyFromAllocated(T_NoRef* cobj, PyObject *referencing = nullptr) ;
 
          /**
           * return Python object representing the address of the contained object

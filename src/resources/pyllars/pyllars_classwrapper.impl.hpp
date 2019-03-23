@@ -635,13 +635,33 @@ namespace __pyllars_internal {
     template<typename T>
     PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type> *
     PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::
-    createPy(const ssize_t arraySize, T_NoRef &cobj, const ContainmentKind containmentKind, PyObject *referencing) {
+    createPyReference(T_NoRef &cobj, PyObject *referencing) {
         static PyObject *kwds = PyDict_New();
         static PyObject *emptyargs = PyTuple_New(0);
-        if (containmentKind != ContainmentKind::BY_REFERENCE && containmentKind != ContainmentKind::ALLOCATED) {
-            PyErr_SetString(PyExc_SystemError, "Invalid container type when create Python Wrapper to C object");
+        PyDict_SetItemString(kwds, "__internal_allow_null", Py_True);
+        PyTypeObject *type_ = getPyType();
+
+        if (!type_ || !type_->tp_name) {
+            PyErr_SetString(PyExc_RuntimeError, "Uninitialized type when creating object");
             return nullptr;
         }
+        PythonClassWrapper *pyobj = (PythonClassWrapper *) PyObject_Call(
+                reinterpret_cast<PyObject *>(type_), emptyargs, kwds);
+        if (pyobj) {
+            pyobj->_CObject = new ObjectContainerReference<T>(cobj);
+            if (referencing) pyobj->make_reference(referencing);
+        }
+        return pyobj;
+    }
+
+
+    template<typename T>
+    PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type> *
+    PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::
+    createPyFromAllocated(T_NoRef *cobj, PyObject *referencing) {
+        static PyObject *kwds = PyDict_New();
+        static PyObject *emptyargs = PyTuple_New(0);
+
         PyDict_SetItemString(kwds, "__internal_allow_null", Py_True);
         PyTypeObject *type_ = getPyType();
 
@@ -649,11 +669,10 @@ namespace __pyllars_internal {
             PyErr_SetString(PyExc_RuntimeError, "Uninitialized type when creating object");
             return nullptr;
         }
-        PythonClassWrapper *pyobj = (PythonClassWrapper *) PyObject_Call((PyObject *) type_, emptyargs, kwds);
+        PythonClassWrapper *pyobj = (PythonClassWrapper *) PyObject_Call(
+                reinterpret_cast<PyObject *>(type_), emptyargs, kwds);
         if (pyobj) {
-            pyobj->_CObject = containmentKind==ContainmentKind ::BY_REFERENCE?
-                    new ObjectContainerReference<T>(cobj):
-                    nullptr;//ObjectContainerAllocated2<T>::new_container(&cobj);
+            pyobj->_CObject = ObjectContainerAllocatedInstance<T>::new_container(cobj);
             if (referencing) pyobj->make_reference(referencing);
         }
         return pyobj;
@@ -665,7 +684,6 @@ namespace __pyllars_internal {
     addConstructorBase(const char *const kwlist[], constructor_t c) {
         _constructors.push_back(ConstructorContainer(kwlist, c));
     }
-
 
     template<typename T>
     template<typename ...Args>
@@ -973,7 +991,7 @@ namespace __pyllars_internal {
                 throw "Size cannot be negative";
             }
             T *values = Constructor<T>::allocate_array((size_t)size);
-            return (PyObject *) PythonClassWrapper<T *>::createPy(size, values, ContainmentKind::ALLOCATED);
+            return (PyObject *) PythonClassWrapper<T *>::createPyFromAllocatedInstance(values, size);
         } else if (PyTuple_Check(arg)) {
             auto list = PyList_New(1);
             PyList_SetItem(list, 0, arg);
