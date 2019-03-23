@@ -378,13 +378,33 @@ TEST_F(PythonSetup, convert_from_native_pybytes_cstring) {
             PyUnicode_FromString, __PyUnicode_ToString>(vals, toVals);
 }
 
+template <typename T>
+void convert_to_py(){
 
-TEST_F(PythonSetup, convert_to_py) {
+}
+
+
+template<typename T>
+class ToPyTest: public PythonSetup{
+public:
+
+    using Type = T;
+
+};
+
+using TypeList = testing::Types<A, const A, A&, const A&>;
+TYPED_TEST_SUITE(ToPyTest, TypeList);
+
+TYPED_TEST(ToPyTest, convert_to_py ) {
+    using T =typename TestFixture::Type;
+
     using namespace __pyllars_internal;
-    PythonClassWrapper<A>::initialize();
-    A a;
-    auto obj = toPyObject<A>(a, true, 1);
+    PythonClassWrapper<T>::initialize();
+    typedef typename std::remove_reference<T>::type T_NoRef;
+    T_NoRef *a = new T_NoRef();
+    auto obj = toPyObject<T>(*a, true, 1);
     ASSERT_NE(obj, nullptr);
     ASSERT_FALSE(PyErr_Occurred());
-    ASSERT_EQ(&a, reinterpret_cast<PythonClassWrapper<A>*>(obj)->get_CObject());
+    ASSERT_EQ(a, reinterpret_cast<PythonClassWrapper<T>*>(obj)->get_CObject());
 }
+

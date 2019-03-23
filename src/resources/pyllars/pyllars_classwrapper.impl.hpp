@@ -252,13 +252,13 @@ namespace __pyllars_internal {
         _Type.tp_methods = new PyMethodDef[_methodCollection.size() + 1];
         _Type.tp_methods[_methodCollection.size()] = {nullptr};
         size_t index = 0;
-        for (auto const&[key, methodDef]: Basic::_methodCollection) {
+        for (auto const&[key, methodDef]: _methodCollection) {
             (void) key;
             _Type.tp_methods[index] = methodDef;
             ++index;
         }
         _Type.tp_getset = new PyGetSetDef[Basic::_member_getters.size() + 1];
-        _Type.tp_getset[Basic::_member_getters.size()] = {0};
+        _Type.tp_getset[Basic::_member_getters.size()] = {nullptr};
         index = 0;
         for (auto const&[key, getter]: Basic::_member_getters) {
             auto it = Basic::_member_setters.find(key);
@@ -333,7 +333,7 @@ namespace __pyllars_internal {
 
         for (auto const&[name_, value]: Basic::_classEnumValues) {
             // can only be called after ready of _Type:
-            PyObject *pyval = toPyObject<T>(*const_cast<T *>(value), false, 1);
+            PyObject *pyval = toPyObject<T>(*const_cast<T_NoRef *>(value), false, 1);
             if (pyval) {
                 PyDict_SetItemString(_Type.tp_dict, name_.c_str(), pyval);
             } else {
@@ -708,8 +708,8 @@ namespace __pyllars_internal {
             if (size < 0){
                 throw "Size cannot be negative";
             }
-            T *values = Constructor<T>::allocate_array((size_t)size);
-            return (PyObject *) PythonClassWrapper<T *>::createPyFromAllocatedInstance(values, size);
+            T_NoRef *values = Constructor<T_NoRef >::allocate_array((size_t)size);
+            return (PyObject *) PythonClassWrapper<T_NoRef *>::createPyFromAllocatedInstance(values, size);
         } else if (PyTuple_Check(arg)) {
             auto list = PyList_New(1);
             PyList_SetItem(list, 0, arg);

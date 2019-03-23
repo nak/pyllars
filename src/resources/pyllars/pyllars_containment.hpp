@@ -224,6 +224,7 @@ namespace __pyllars_internal{
 
     template<typename T>
     struct ObjectContainerAllocatedInstance: public ObjectContainerReference<T>{
+        typedef typename std::remove_reference<T>::type T_NoRef;
 
         template<typename ...Args>
         static ObjectContainerAllocatedInstance*  new_container(Args ...args){
@@ -256,20 +257,20 @@ namespace __pyllars_internal{
         }
 
 
-        static ObjectContainerAllocatedInstance*  new_container(T* already_allocated){
+        static ObjectContainerAllocatedInstance*  new_container(T_NoRef* already_allocated){
             return new ObjectContainerAllocatedInstance(already_allocated);
         }
 
     private:
 
-        explicit ObjectContainerAllocatedInstance(T* obj):ObjectContainerReference<T>(*obj), _obj(obj){
+        explicit ObjectContainerAllocatedInstance(T_NoRef* obj):ObjectContainerReference<T>(*obj), _obj(obj){
         }
 
         virtual ~ObjectContainerAllocatedInstance(){
-            Destructor<T>::deallocate(_obj, false);
+            Destructor<T_NoRef>::deallocate(_obj, false);
         }
 
-        T * _obj;
+        T_NoRef * _obj;
     };
 
 
