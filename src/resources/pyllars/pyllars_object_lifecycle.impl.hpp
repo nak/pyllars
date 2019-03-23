@@ -45,7 +45,7 @@ namespace __pyllars_internal {
         if constexpr ((std::is_destructible<T_NoRef>::value && std::is_assignable<T_NoRef&, T_NoRef >::value && std::is_copy_constructible<T_NoRef>::value) ||
                 ((!std::is_assignable<T_NoRef  &, T_NoRef >::value || !std::is_destructible<T_NoRef >::value) && std::is_copy_constructible<T_NoRef >::value) ||
                 (std::is_array<T>::value && (ArraySize<T>::size > 0) && !std::is_const<T>::value && std::is_copy_constructible<T_NoRef >::value)){
-            return ObjectContainerAllocated<T>::new_container(value);
+            return new ObjectContainerConstructed<T, const T&>(value);
         } else {
             throw "Attempt to copy non-copy-constructible object";
         }

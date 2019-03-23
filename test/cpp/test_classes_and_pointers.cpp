@@ -462,6 +462,20 @@ TEST_F(PythonBased, TestBasicClassNew) {
     PyObject* obj = PyObject_Call(new_op, call_args, nullptr);
     ASSERT_FALSE(PyErr_Occurred());
     ASSERT_NE(obj, nullptr);
+    Py_DECREF(obj);
+
+    PyTuple_SetItem(call_args, 0, args_tuple2);
+    obj = PyObject_Call(new_op, call_args, nullptr);
+    ASSERT_FALSE(PyErr_Occurred());
+    ASSERT_NE(obj, nullptr);
+    Py_DECREF(obj);
+
+    PyTuple_SetItem(call_args, 0, PyLong_FromLong(100));
+    obj = PyObject_Call(new_op, call_args, nullptr);
+    ASSERT_FALSE(PyErr_Occurred());
+    ASSERT_NE(obj, nullptr);
+
+    Py_DECREF(obj);
 }
 
 TEST_F(PythonBased, TestBasicClass){

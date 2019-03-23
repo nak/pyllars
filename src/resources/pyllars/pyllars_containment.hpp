@@ -206,8 +206,10 @@ namespace __pyllars_internal{
     };
 
     template<typename T>
-    struct ObjectContainerAllocated: public ObjectContainerReference<T>{
-        typedef typename std::remove_reference<T>::type T_NoRef;
+    struct ObjectContainerAllocated;
+
+    template<typename T>
+    struct ObjectContainerAllocated<T*>: public ObjectContainerReference<T*>{
 
         template<typename ...Args>
         static ObjectContainerAllocated*  new_container(Args ...args){
@@ -218,42 +220,33 @@ namespace __pyllars_internal{
                         typedef typename std::remove_const<T_element>::type T_nonconst_array[ArraySize<T>::size];
                         T_nonconst_array *new_value = new T_element[1][ArraySize<T>::size]{{T(args...)}};
                         //for (size_t i = 0; i < ArraySize<T>::size; ++i) new_value[0][i] = value[i];
-                        return new ObjectContainerAllocated(new_value);
+                        return ObjectContainerAllocated::new_container(new_value, true);
                     }
                 } else {
-                    return new ObjectContainerAllocated(new T(args...));
+                    T * new_value = new T(args...);
+                    return ObjectContainerAllocated::new_container(new_value, false);
                 }
             }
-            throw "Request to allocate non-cosntrible type";
+            throw "Request to allocate non-constructible type";
         }
 
-        template<typename ...Args>
-        static ObjectContainerAllocated*  new_container(T& value){
-            if constexpr(std::is_constructible<T>::value && std::is_array<T>::value && ArraySize<T>::size > 0) {
-                constexpr size_t size = ArraySize<T>::size;
-                typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_element;
-                typedef typename std::remove_const<T_element>::type T_nonconst_array[size];
-                auto new_value = new T_nonconst_array[1]{{value[0]}};
-                for (size_t i = 0; i < size; ++i) new_value[0][i] = value[i];
-                return new ObjectContainerAllocated(new_value);
-            }
-            throw "Request to allocate type of unknown size";
-        }
 
-        static ObjectContainerAllocated*  new_container(T_NoRef* already_allocated){
-            return new ObjectContainerAllocated(already_allocated);
+        static ObjectContainerAllocated*  new_container(T* already_allocated, const bool asArray=false){
+            return new ObjectContainerAllocated(already_allocated, asArray);
         }
 
     private:
 
-        explicit ObjectContainerAllocated(T_NoRef* obj):ObjectContainerReference<T>(*obj), _obj(obj){
+        explicit ObjectContainerAllocated(T* obj, const bool asArray):ObjectContainerReference<T*>(obj), _obj(obj),
+        _asArray(asArray){
         }
 
         virtual ~ObjectContainerAllocated(){
-            Destructor<T_NoRef>::deallocate(ObjectContainerReference<T>::_containedP, false);
+            Destructor<T>::deallocate(ObjectContainerReference<T*>::_contained, _asArray);
         }
 
-        T_NoRef * _obj;
+        T * _obj;
+        const bool _asArray;
     };
 
     //////////////////////////

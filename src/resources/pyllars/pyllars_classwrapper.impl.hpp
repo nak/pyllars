@@ -653,7 +653,7 @@ namespace __pyllars_internal {
         if (pyobj) {
             pyobj->_CObject = containmentKind==ContainmentKind ::BY_REFERENCE?
                     new ObjectContainerReference<T>(cobj):
-                    ObjectContainerAllocated<T>::new_container(&cobj);
+                    nullptr;//ObjectContainerAllocated2<T>::new_container(&cobj);
             if (referencing) pyobj->make_reference(referencing);
         }
         return pyobj;
@@ -977,7 +977,11 @@ namespace __pyllars_internal {
         } else if (PyTuple_Check(arg)) {
             auto list = PyList_New(1);
             PyList_SetItem(list, 0, arg);
-            return alloc(cls, list, kwds);
+            auto new_arg = PyTuple_New(1);
+            PyTuple_SetItem(new_arg, 0, list);
+            auto obj = alloc(cls, new_arg, kwds);
+            Py_DECREF(new_arg);
+            return obj;
         } else if (PyList_Check(arg)) {
             const ssize_t size = PyList_Size(arg);
             if(size < 0){

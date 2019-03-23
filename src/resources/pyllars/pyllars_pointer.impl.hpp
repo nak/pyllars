@@ -237,7 +237,7 @@ namespace __pyllars_internal {
         // pyobj->_arraySize = 0;
         switch (containmentKind) {
             case ContainmentKind::ALLOCATED:
-                pyobj->_CObject = ObjectContainerAllocated<T>::new_container(&cobj);
+                pyobj->_CObject = ObjectContainerAllocated<T>::new_container(cobj, arraySize> 0);
                 break;
             case ContainmentKind::CONSTRUCTED:
                 pyobj->_CObject = new ObjectContainerReference<T>(cobj);
