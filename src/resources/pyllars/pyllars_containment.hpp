@@ -46,6 +46,35 @@ namespace __pyllars_internal{
 
     }
 
+    template<typename T, size_t size>
+    struct FixedArrayHelper<const T[size]>{
+        typedef const T T_array[size];
+        typedef T T_nonconst_array[size];
+
+        void * operator new(const std::size_t count,  T_array from){
+            auto bytes = ::operator new(count);
+            T* values = reinterpret_cast<T*>(bytes);
+            for(int i = 0; i < size; ++i){
+                new (values+i) T(from[i]);
+            }
+            return bytes;
+        }
+
+
+        void * operator new(const std::size_t count,  T_nonconst_array from){
+            auto bytes = ::operator new(count);
+            T* values = reinterpret_cast<T*>(bytes);
+            for(int i = 0; i < size; ++i){
+                new (values+i) T(from[i]);
+            }
+            return bytes;
+        }
+
+
+        const T value[size];
+    };
+
+
     /////////////////////////////////////////////////////
 
     // DESTRUCTOR LOGIC
