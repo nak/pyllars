@@ -75,8 +75,6 @@ namespace __pyllars_internal {
         // Convenience typedefs
         typedef CommonBaseWrapper::Base Base;
 
-        //typedef typename ObjectLifecycleHelpers::BasicAlloc<T>::ConstructorContainer ConstructorContainer;
-        //typedef typename ConstructorContainer::constructor constructor;
         typedef typename std::remove_reference<T>::type T_NoRef;
         typedef PyTypeObject *TypePtr;
 
@@ -383,11 +381,11 @@ namespace __pyllars_internal {
 
         // must use object container, since code may have new and delete private and container
         // will shield us from that
-        ObjectContainer<T> *_CObject;
+        ObjectContainer<T_NoRef> *_CObject;
 
     private:
 
-        typedef ObjectContainer<T>* (*constructor_t)(const char *const kwlist[], PyObject *args, PyObject *kwds,
+        typedef ObjectContainer<T_NoRef>* (*constructor_t)(const char *const kwlist[], PyObject *args, PyObject *kwds,
                 unsigned char* const location);
 
         /**

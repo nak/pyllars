@@ -203,6 +203,13 @@ namespace __pyllars_internal {
         if (inited) return 0;
         _isInitialized = false;
         inited = true;
+        if constexpr (std::is_const<T_NoRef >::value){
+            for ( auto & element : Basic::_constructors){
+                _constructors.push_back(*reinterpret_cast<ConstructorContainer*>(&element));
+            }
+        } else {
+            _constructors = Basic::_constructors;
+        }
         const char *const name = type_name<T>();
         if (!name || strlen(name) == 0) return -1;
         int status = 0;
@@ -218,7 +225,8 @@ namespace __pyllars_internal {
                 METH_KEYWORDS | METH_CLASS | METH_VARARGS,
                 "allocate array of single dynamic instance of this class"
         };
-        Basic::_methodCollection[alloc_name_] = pyMethAlloc;
+        _methodCollection = Basic::_methodCollection; // make this same as type with no garnishment
+        _methodCollection[alloc_name_] = pyMethAlloc;
         if (!Basic::_baseClasses.empty()) {
             _Type.tp_bases = PyTuple_New(Basic::_baseClasses.size());
             Py_ssize_t index = 0;
@@ -229,9 +237,9 @@ namespace __pyllars_internal {
                 // so do this manually...
                 {
                     PyMethodDef *def = baseClass->tp_methods;
-                    if (Basic::_methodCollection.count(def->ml_name) == 0) {
+                    if (_methodCollection.count(def->ml_name) == 0) {
                         while (def->ml_name != nullptr) {
-                            Basic::_methodCollection[def->ml_name] = *def;
+                            _methodCollection[def->ml_name] = *def;
                             ++def;
                         }
                     }
@@ -257,14 +265,19 @@ namespace __pyllars_internal {
             _Type.tp_methods[index] = methodDef;
             ++index;
         }
-        _Type.tp_getset = new PyGetSetDef[Basic::_member_getters.size() + 1];
-        _Type.tp_getset[Basic::_member_getters.size()] = {nullptr};
+        _member_getters = Basic::_member_getters;
+        _member_setters = Basic::_member_setters;
+
+        _Type.tp_getset = new PyGetSetDef[_member_getters.size() + 1];
+        _Type.tp_getset[_member_getters.size()] = {nullptr};
         index = 0;
         for (auto const&[key, getter]: Basic::_member_getters) {
-            auto it = Basic::_member_setters.find(key);
+            auto it = _member_setters.find(key);
             _setattrfunc setter = nullptr;
-            if (it != Basic::_member_setters.end()) {
+            if (not std::is_const<T>::value && it != _member_setters.end()) {
                 setter = it->second;
+            } else {
+                setter = nullptr;
             }
             _Type.tp_getset[index].name = key.c_str();
             _Type.tp_getset[index].get = getter;
@@ -274,7 +287,8 @@ namespace __pyllars_internal {
             index++;
         }
 
-        for (auto const&[name_, func]: Basic::_unaryOperators) {
+        _unaryOperators = Basic::_unaryOperators;
+        for (auto const&[name_, func]: _unaryOperators) {
             static std::map<std::string, unaryfunc *> unary_mapping =
                     {{std::string(OP_UNARY_INV), &_Type.tp_as_number->nb_invert},
                      {std::string(OP_UNARY_NEG), &_Type.tp_as_number->nb_negative},
@@ -286,7 +300,8 @@ namespace __pyllars_internal {
             *unary_mapping[name_] = func;
         }
 
-        for (auto const&[name_, func]: Basic::_binaryOperators) {
+        _binaryOperators = Basic::_binaryOperators;
+        for (auto const&[name_, func]: _binaryOperators) {
             static std::map<std::string, binaryfunc *> binary_mapping =
                     {{OP_BINARY_ADD,     &_Type.tp_as_number->nb_add},
                      {OP_BINARY_AND,     &_Type.tp_as_number->nb_and},
@@ -316,7 +331,7 @@ namespace __pyllars_internal {
             *binary_mapping[name_] = func;
         }
 
-
+        _baseClasses = Basic::_baseClasses;
         if (!_Type.tp_base && _baseClasses.size() == 0) {
             if (PyType_Ready(&CommonBaseWrapper::_BaseType) < 0) {
                 PyErr_SetString(PyExc_RuntimeError, "Failed to set_up type!");
@@ -331,7 +346,8 @@ namespace __pyllars_internal {
            return -1;
         }
 
-        for (auto const&[name_, value]: Basic::_classEnumValues) {
+        _classEnumValues = Basic::_classEnumValues;
+        for (auto const&[name_, value]: _classEnumValues) {
             // can only be called after ready of _Type:
             PyObject *pyval = toPyObject<T>(*const_cast<T_NoRef *>(value), false, 1);
             if (pyval) {
@@ -366,7 +382,7 @@ namespace __pyllars_internal {
         PythonClassWrapper *pyobj = (PythonClassWrapper *) PyObject_Call(
                 reinterpret_cast<PyObject *>(type_), emptyargs, kwds);
         if (pyobj) {
-            pyobj->_CObject = new ObjectContainerReference<T>(cobj);
+            pyobj->_CObject = new ObjectContainerReference<T_NoRef>(cobj);
             if (referencing) pyobj->make_reference(referencing);
         }
         return pyobj;
@@ -390,7 +406,7 @@ namespace __pyllars_internal {
         PythonClassWrapper *pyobj = (PythonClassWrapper *) PyObject_Call(
                 reinterpret_cast<PyObject *>(type_), emptyargs, kwds);
         if (pyobj) {
-            pyobj->_CObject = ObjectContainerAllocatedInstance<T>::new_container(cobj);
+            pyobj->_CObject = ObjectContainerAllocatedInstance<T_NoRef>::new_container(cobj);
             if (referencing) pyobj->make_reference(referencing);
         }
         return pyobj;
@@ -724,7 +740,7 @@ namespace __pyllars_internal {
                 throw "Internal error getting size of list";
             }
             std::function<void(void*, size_t)> constructor = [arg, kwds](void * location, size_t index){
-                ObjectContainer<T> *cobj = nullptr;
+                ObjectContainer<T_NoRef > *cobj = nullptr;
                 PyObject* constructor_args = PyList_GetItem(arg, index);
                 if (!constructor_args || !PyTuple_Check(constructor_args)){
                     throw "Invalid constructor arguments: not a tuple as expected, or index out of range";
