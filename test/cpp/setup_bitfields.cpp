@@ -23,6 +23,9 @@ const char* const __pyllars_internal::_Types<BitFieldContainerClass>::type_name 
 
 void
 SetupBitfields::SetUpTestSuite() {
+    static bool inited = false;
+    if (inited) return;
+    inited = true;
     PythonBased::SetUpTestSuite();
     using namespace __pyllars_internal;
     static const char *const empty_list[] = {nullptr};
