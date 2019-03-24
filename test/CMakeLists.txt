@@ -28,8 +28,8 @@ add_executable(runPyllarsTest
         cpp/test_bit_fields.cpp
         cpp/test_initializer.cpp)
 
-target_link_libraries(runPyllarsTest PUBLIC -L/usr/local/lib64 -lpython3.7m pthread pyllars ffi dl util
-        setupBasicClassLib setupInheritanceLib setupBitFieldsLib)
+target_link_libraries(runPyllarsTest PUBLIC -L/usr/local/lib64 -lpython3.7m pthread  ffi dl util
+        setupBasicClassLib setupInheritanceLib setupBitFieldsLib pyllars)
 
 add_custom_target(testCoverage ALL
         DEPENDS runPyllarsTest
@@ -66,14 +66,13 @@ add_executable(runInheritanceTests
 target_link_libraries(runInheritanceTests PUBLIC -L/usr/local/lib64 -lpython3.7m pthread pyllars ffi dl util
         setpInheritanceLib setupBasicClassLib)
 
-
-
 add_executable(runBitFieldTests
         /opt/googletest/googletest/src/gtest_main.cc
         /opt/googletest/googletest/src/gtest-all.cc
         cpp/test_bit_fields.cpp)
-target_link_libraries(runBitFieldTests PUBLIC -L/usr/local/lib64 -lpython3.7m pthread pyllars ffi dl util
-        setupBitfieldsLib)
+target_link_libraries(runBitFieldTests PUBLIC -L/usr/local/lib64 -lpython3.7m pthread setupBitFieldsLib
+        pyllars ffi dl util
+         )
 
 
 add_executable(runInitializerTests
