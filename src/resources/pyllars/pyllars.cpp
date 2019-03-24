@@ -1547,6 +1547,9 @@ namespace __pyllars_internal {
 
     int getType(PyObject *obj, ffi_type *&type) {
         int subtype = 0;
+        if (!obj){
+            throw "SystemError: null object encountered when getting ffi type";
+        }
         if (PyInt_Check(obj)) {
             type = &ffi_type_sint32;
         } else if (PyLong_Check(obj)) {
