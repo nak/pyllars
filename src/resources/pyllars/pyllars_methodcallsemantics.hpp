@@ -142,8 +142,6 @@ namespace __pyllars_internal {
     public:
         typedef typename MethodTypeDef<is_const, false, CClass, void, Args...>::method_t method_t;
 
-        static PyObject *toPyObj(CClass &self) ;
-
         static PyObject *call(method_t method, typename std::remove_reference<CClass>::type &self, PyObject *args, PyObject *kwds);
 
     private:
@@ -167,8 +165,6 @@ namespace __pyllars_internal {
     class MethodCallSemantics<is_const, true, kwlist,  CClass, void, Args...> {
     public:
         typedef typename MethodTypeDef<is_const, true, CClass, void, Args...>::method_t method_t;
-
-        static PyObject *toPyObj(CClass &self) ;
 
         static void call(method_t method, typename std::remove_reference<CClass>::type &self,Args... args, PyObject *extra_args);
         static PyObject *call(method_t method, typename std::remove_reference<CClass>::type &self, PyObject *args, PyObject *kwds) ;

@@ -19,7 +19,7 @@ namespace __pyllars_internal{
         try {
             T &&result = call_methodBase(method, args, kwds, typename argGenerator<sizeof...(Args)>::type());
             const ssize_t array_size = ArraySize<T>::size;//sizeof(result) / sizeof(T_base);
-            return toPyObject<T>(result, false, array_size);
+            return toPyObject<T>(result, array_size);
         } catch (const char *const msg) {
             PyErr_SetString(PyExc_RuntimeError, msg);
             return nullptr;

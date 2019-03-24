@@ -173,7 +173,7 @@ PyObject* PyFloat_FromFloat(float v){
 PyObject* PyClass_FromClass(A v){
     using namespace __pyllars_internal;
     auto args = PyTuple_New(1);
-    PyTuple_SetItem(args, 0, toPyObject(v, true, 1));
+    PyTuple_SetItem(args, 0, toPyObject(v, 1));
     return PyObject_Call((PyObject*)PythonClassWrapper<A>::getPyType(), args, nullptr);
 }
 
@@ -244,7 +244,7 @@ void test_conversion(T vals[3]){
     using namespace __pyllars_internal;
     T array[3] = {vals[0], vals[1], vals[2]};
     PythonClassWrapper<T[3]>::initialize();
-    auto obj = toPyObject<T[3]>(array, true, 3);
+    auto obj = toPyObject<T[3]>(array, 3);
     argument_capture<T[3]> avalue = toCArgument<T[3] >(*obj);
     Assertion<T>::assert_equal((avalue.value())[0], array[0]);
     Assertion<T>::assert_equal((avalue.value())[1], array[1]);
@@ -313,7 +313,7 @@ T __PyLong_AsInt(PyObject* obj){
 template<typename T>
 PyObject* PyWrapper_FromValue(T v){
     using namespace __pyllars_internal;
-    return toPyObject<T>(v, true, 1);
+    return toPyObject<T>(v, 1);
 }
 
 template<typename T>
@@ -383,7 +383,6 @@ void convert_to_py(){
 
 }
 
-
 template<typename T>
 class ToPyTest: public PythonSetup{
 public:
@@ -402,7 +401,7 @@ TYPED_TEST(ToPyTest, convert_to_py ) {
     PythonClassWrapper<T>::initialize();
     typedef typename std::remove_reference<T>::type T_NoRef;
     T_NoRef *a = new T_NoRef();
-    auto obj = toPyObject<T>(*a, true, 1);
+    auto obj = toPyArgument<T>(*a, 1);
     ASSERT_NE(obj, nullptr);
     ASSERT_FALSE(PyErr_Occurred());
     ASSERT_TRUE(PyObject_TypeCheck(obj, PythonClassWrapper<T>::getPyType()));
@@ -431,12 +430,11 @@ TYPED_TEST(ToPyTest2, convert_to_py_array ) {
     PythonClassWrapper<T>::initialize();
     typedef typename std::remove_reference<T>::type T_NoRef;
     T values = {T_element()};
-    auto * a = new (values) FixedArrayHelper<T>();
-    auto obj = toPyObject<T>(a->value, true, 1);
+    auto * a = new (values) FixedArrayHelper<T>;
+    auto obj = toPyArgument<T>(a->values(), 1);
     ASSERT_NE(obj, nullptr);
     ASSERT_FALSE(PyErr_Occurred());
     ASSERT_TRUE(PyObject_TypeCheck(obj, PythonClassWrapper<T>::getPyType()));
     ASSERT_EQ((T*)a, reinterpret_cast<PythonClassWrapper<T>*>(obj)->get_CObject());
     Py_DECREF(obj);
 }
-

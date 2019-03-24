@@ -88,7 +88,7 @@ namespace __pyllars_internal{
                 } else if (PyTuple_Size(args) == 1) {
                     *(callable->member) = *toCArgument<T, false, PythonClassWrapper<T> >(*PyTuple_GetItem(args, 0));
                 }
-                return toPyObject<T>(*callable->member, false, array_size);
+                return toPyObject<T>(*callable->member, array_size);
             } catch (const char *msg) {
                 PyErr_SetString(PyExc_TypeError, msg);
                 return nullptr;
@@ -105,7 +105,7 @@ namespace __pyllars_internal{
                 PyErr_SetString(PyExc_RuntimeError, "Invalid parameters when getting/setting global variable");
                 return nullptr;
             }
-            return toPyObject<T>(*callable->member, false, ArraySize<T>::size);
+            return toPyObject<T>(*callable->member, ArraySize<T>::size);
         } else if constexpr (std::is_array<T>::value){
             typedef typename extent_as_pointer<T>::type T_ptr;
             typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
@@ -128,7 +128,7 @@ namespace __pyllars_internal{
             }
             const ssize_t type_size = Sizeof<T_base>::value;
             const ssize_t array_size = type_size > 0 ? sizeof(*(callable->member)) / type_size : 1;
-            return toPyObject<T>(*callable->member, false, array_size);
+            return toPyObject<T>(*callable->member, array_size);
         } else {
             if (kwds && PyDict_GetItemString(kwds, "value")) {
                 PyErr_SetString(PyExc_RuntimeError, "Cannot set const global variable!");
@@ -140,7 +140,7 @@ namespace __pyllars_internal{
             typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
             const ssize_t type_size = Sizeof<T_base>::value;
             const ssize_t array_size = type_size > 0 ? sizeof(*(callable->member)) / type_size : 1;
-            return toPyObject<T>(*callable->member, false, array_size);
+            return toPyObject<T>(*callable->member, array_size);
         }
     }
 

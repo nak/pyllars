@@ -30,7 +30,7 @@ namespace __pyllars_internal{
             Assignment<AttrType>::assign(*member,value.value());
             return Py_None;
         }
-        return toPyObject<AttrType>(*member, false, ArraySize<AttrType>::size);
+        return toPyObject<AttrType>(*member, ArraySize<AttrType>::size);
     }
 
     template<class CClass>
@@ -56,7 +56,7 @@ namespace __pyllars_internal{
             PyErr_SetString(PyExc_ValueError, "C++: const static members cannot change value");
             return nullptr;
         }
-        return toPyObject<AttrType>(*member, false, ArraySize<AttrType>::size);
+        return toPyObject<AttrType>(*member, ArraySize<AttrType>::size);
     }
 
     template<class CClass>
@@ -89,7 +89,7 @@ namespace __pyllars_internal{
             setFromPyObject(pyarg);
             return Py_None;
         }
-        return toPyObject<AttrType>(member, false);
+        return toPyObject<AttrType>(member, 1);
     }
 
     template<class CClass>
@@ -102,7 +102,7 @@ namespace __pyllars_internal{
         auto _this = reinterpret_cast<ClassWrapper *>(self);
         const ssize_t array_size = ArraySize<AttrType>::size;
         if (_this->get_CObject()) {
-            return toPyObject<AttrType>((_this->get_CObject()->*member), false, array_size);
+            return toPyObject<AttrType>((_this->get_CObject()->*member), array_size);
         }
         PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
         return nullptr;

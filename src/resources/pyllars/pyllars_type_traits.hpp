@@ -93,6 +93,14 @@ namespace __pyllars_internal {
         static constexpr bool value = true;
     };
 
+    template<typename T>
+    struct is_pointer_like{
+        typedef typename std::remove_const<typename std::remove_reference<T>::type>::type T_base;
+        static constexpr bool value =  !std::is_function<typename std::remove_pointer<T>::type>::value &&
+                (std::is_pointer<T_base>::value || std::is_array<T_base>::value) ;
+    };
+
+
     //convertion of type with extent to pointer
     // extent_as_pointer<T[]> = extent_as_pointer<T[size]> = T*
     template<typename T>

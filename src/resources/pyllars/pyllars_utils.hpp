@@ -31,7 +31,10 @@ namespace __pyllars_internal {
     struct ptr_depth {
         static constexpr size_t value = 0;
     };
-
+    template<typename T>
+    struct ptr_depth<T&> {
+        static constexpr size_t value = ptr_depth<T>::value;
+    };
     template<typename T>
     struct ptr_depth<T *> {
         static constexpr size_t value = ptr_depth<T>::value + 1;
@@ -133,6 +136,22 @@ namespace __pyllars_internal {
 
     template<typename T_base, size_t arsize>
     struct ArraySize<T_base[arsize]> {
+        static constexpr size_t size = arsize;
+    };
+
+
+    template<typename T>
+    struct ArraySize<T *&> {
+        static constexpr ssize_t size = -1;
+    };
+
+    template<typename T>
+    struct ArraySize<T(&)[]> {
+        static constexpr ssize_t size = -1;
+    };
+
+    template<typename T_base, size_t arsize>
+    struct ArraySize<T_base(&)[arsize]> {
         static constexpr size_t size = arsize;
     };
 

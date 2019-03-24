@@ -65,7 +65,8 @@ namespace __pyllars_internal {
 
         static constexpr ssize_t last = ArraySize<T>::size - 1;
 
-        typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
+        typedef typename std::remove_pointer<typename extent_as_pointer<typename std::remove_reference<T>::type>::type>::type T_base;
+        typedef typename std::remove_reference<T>::type T_NoRef;
         typedef PythonClassWrapper<T const> ConstWrapper;
         typedef PythonClassWrapper<typename std::remove_const<T>::type> NonConstWrapper;
 
@@ -117,15 +118,15 @@ namespace __pyllars_internal {
 
         static int _initbase(PythonPointerWrapperBase *self, PyObject *args, PyObject *kwds, PyTypeObject *pytypeobj);
 
-        T *_get_CObject();
+        T_NoRef *_get_CObject();
 
-        ObjectContainer<T> *_CObject;
+        ObjectContainer<T_NoRef> *_CObject;
         PyObject *_referenced_elements{};
         //ssize_t _arraySize;
         ssize_t _max;
         size_t _depth{}; //only used for classes with pointer depth > 1, kept here for consistent PyType layout
     private:
-        T* get_CObject(){
+        T_NoRef* get_CObject(){
             return _CObject?_CObject->ptr():nullptr;
         }
 
@@ -133,10 +134,7 @@ namespace __pyllars_internal {
     };
 
     template<typename T>
-    struct PythonClassWrapper<T, typename std::enable_if<
-            !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            (ptr_depth<T>::value > 1)>::type> :
+    struct PythonClassWrapper<T, typename std::enable_if<is_pointer_like<T>::value && (ptr_depth<T>::value > 1)>::type> :
         public PythonPointerWrapperBase<T> {
 
         typedef PythonPointerWrapperBase<T> Base;
@@ -195,20 +193,19 @@ namespace __pyllars_internal {
 
 
     template<typename T>
-    struct PythonClassWrapper<T, typename std::enable_if<
-            !std::is_function<typename std::remove_pointer<T>::type>::value &&
-            (std::is_pointer<T>::value || std::is_array<T>::value) &&
-            (ptr_depth<T>::value == 1) >::type> : public PythonPointerWrapperBase<T> {
+    struct PythonClassWrapper<T, typename std::enable_if<is_pointer_like<T>::value && (ptr_depth<T>::value == 1) >::type> : public PythonPointerWrapperBase<T> {
 
         typedef PythonPointerWrapperBase<T>  Base;
-        T* get_CObject(){
+        typedef typename std::remove_reference<T>::type T_NoRef;
+
+        T_NoRef* get_CObject(){
             return PythonPointerWrapperBase<T>::_get_CObject();
         }
 
         void setFrom(T & value){
             if (Base::_referenced) Py_XDECREF(Base::_referenced);
             Base::_referenced = nullptr;
-            Base::_CObject = new ObjectContainer<T>(value);
+            Base::_CObject = new ObjectContainerReference<T_NoRef>(value);
         }
 
         static PyTypeObject *getPyType(){
@@ -238,7 +235,7 @@ namespace __pyllars_internal {
         static PyMethodDef _methods[];
 
      private:
-        PythonClassWrapper<T*> *createPyReferenceToAddr();
+        PythonClassWrapper<T_NoRef *> *createPyReferenceToAddr();
 
         struct Iter{
             PyObject_HEAD

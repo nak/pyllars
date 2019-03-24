@@ -203,7 +203,7 @@ namespace __pyllars_internal {
             typedef typename std::remove_reference<T>::type T_NoRef;
             T_NoRef&& result = call_methodBase(method, self, args, kwds, typename argGenerator<sizeof...(Args)>::type());
             constexpr ssize_t array_size = ArraySize<T>::size;
-            return toPyObject<T>(result, std::is_reference<T>::value, array_size);
+            return toPyObject<T>(result, array_size);
         } catch (const char *const msg) {
             PyErr_SetString(PyExc_RuntimeError, msg);
             return nullptr;
@@ -217,7 +217,7 @@ namespace __pyllars_internal {
             typedef typename std::remove_reference<T>::type T_NoRef;
             T_NoRef&& result = call_methodBase(method, self, args, kwds, typename argGenerator<sizeof...(Args)>::type());
             constexpr ssize_t array_size = ArraySize<T>::size;//type_size > 0 ? sizeof(result) / type_size : 1;
-            return toPyObject<T>(result, std::is_reference<T>::value, array_size);
+            return toPyObject<T>(result, array_size);
         } catch (const char *const msg) {
             PyErr_SetString(PyExc_RuntimeError, msg);
             return nullptr;
@@ -318,14 +318,6 @@ namespace __pyllars_internal {
 
     }
 
-
-    template<bool is_const, const char* const kwlist[], typename CClass, typename ...Args>
-    PyObject *MethodCallSemantics<is_const, false, kwlist, CClass, void, Args...>::
-    toPyObj(CClass &self) {
-        (void) self;
-        return Py_None;
-    }
-
      /**
      * call that converts python given arguments to make C call:
      **/
@@ -345,13 +337,6 @@ namespace __pyllars_internal {
 	}
         return call_methodC(method, self, args, kwds, &pyobjs[S]...);
 
-    }
-
-    template<bool is_const, const char* const kwlist[], typename CClass, typename ...Args>
-    PyObject *MethodCallSemantics<is_const, true, kwlist, CClass, void, Args...>::
-    toPyObj(CClass &self) {
-        (void) self;
-        return Py_None;
     }
 
     template<bool is_const, const char* const kwlist[], typename CClass, typename ...Args>

@@ -72,6 +72,80 @@ namespace __pyllars_internal {
     }
 
 
+    /**
+     * template function to convert python to C object (for purpose of passing
+     * as paramter to a C function)
+     **/
+    template<typename T >
+    class CObjectConversionHelper {
+    public:
+        typedef typename std::remove_reference<T>::type T_bare;
+
+        static argument_capture<T> toCArgument(PyObject &pyobj) ;
+    };
+
+    /**
+     * Specialization for callbacks (functions)
+     **/
+    template<typename ReturnType, typename ...Args>
+    class CObjectConversionHelper<ReturnType(*)(Args...)> {
+    public:
+        typedef ReturnType(*callback_t)(Args...);
+
+        static argument_capture<callback_t > toCArgument(PyObject &pyobj) ;
+    };
+
+    /**
+     * Specialization for callbacks (functions) with ellipsis argument
+     **/
+    template<typename ReturnType, typename ...Args>
+    class CObjectConversionHelper<ReturnType(*)(Args..., ...)> {
+    public:
+        typedef ReturnType(*callback_t)(Args..., ...);
+
+        static argument_capture<callback_t> toCArgument(PyObject &pyobj);
+    };
+
+    template<typename T >
+    argument_capture<T>
+    toCArgument(PyObject &pyobj) {
+        return CObjectConversionHelper<T>::toCArgument(pyobj);
+    }
+
+    template<typename T, const size_t size >
+    argument_capture<T[size]>
+    toCArgument(PyObject &pyobj) {
+        return CObjectConversionHelper<T[size] >::toCArgument(pyobj);
+    }
+
+    /////////////////////////
+    // C-to-Python conversions
+    //////////////////////////
+
+    class ConversionHelpers {
+    public:
+
+        ///////////
+        // Helper conversion functions
+        //////////
+
+        /**
+         * Define conversion helper class, which allows easier mechanism
+         * for necessary specializations
+         **/
+        template<typename T>
+        class PyObjectConversionHelper{
+        public:
+            typedef PythonClassWrapper<T> ClassWrapper;
+            typedef typename std::remove_reference<T>::type T_NoRef;
+
+            static PyObject *toPyObject(T_NoRef &var, const bool asReference, const ssize_t array_size = -1);
+        };
+
+
+    };
+
+
     template<typename T>
     argument_capture<T>
     CObjectConversionHelper<T>::
@@ -261,7 +335,8 @@ namespace __pyllars_internal {
             return ret;
         } else {
             PyObject *pyobj = nullptr;
-            if constexpr (std::is_array<T>::value || std::is_pointer<T>::value) {
+            if constexpr (std::is_array<typename std::remove_reference<T>::type>::value ||
+                          std::is_pointer<typename std::remove_reference<T>::type>::value) {
                  pyobj = asReference ?
                                   (PyObject *) ClassWrapper::createPyReference(var, array_size) :
                                   (PyObject *) ClassWrapper::createPyFromAllocatedInstance(
@@ -282,15 +357,26 @@ namespace __pyllars_internal {
     }
 
     template<typename T>
-    PyObject *toPyObject(T &var, const bool asArgument, const ssize_t array_size) {
+    PyObject *toPyObject(T &var,  const ssize_t array_size) {
+        static constexpr bool asArgument = std::is_reference<T>::value;
         return ConversionHelpers::PyObjectConversionHelper<T>::toPyObject(var, asArgument, array_size);
     }
 
     template<typename T>
-    PyObject *toPyObject(const T &var, const bool asArgument, const ssize_t array_size) {
+    PyObject *toPyObject(const T &var, const ssize_t array_size) {
+        static constexpr bool asArgument = std::is_reference<T>::value;
         return ConversionHelpers::PyObjectConversionHelper<const T>::toPyObject(var, asArgument, array_size);
     }
 
+    template<typename T>
+    PyObject *toPyArgument(T &var,  const ssize_t array_size) {
+        return ConversionHelpers::PyObjectConversionHelper<T>::toPyObject(var, true, array_size);
+    }
+
+    template<typename T>
+    PyObject *toPyArgument(const T &var, const ssize_t array_size) {
+        return ConversionHelpers::PyObjectConversionHelper<const T>::toPyObject(var, true, array_size);
+    }
 }
 
 #endif

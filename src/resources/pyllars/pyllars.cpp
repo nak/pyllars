@@ -1637,5 +1637,6 @@ namespace __pyllars_internal {
             nullptr,                          /*tp_del*/
             0,                          /*tp_version_tag*/
     };
+
 }
 #include "pyllars_const.cpp"

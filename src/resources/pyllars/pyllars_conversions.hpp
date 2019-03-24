@@ -80,94 +80,35 @@ namespace __pyllars_internal {
     };
 
     /**
-     * template function to convert python to C object (for purpose of passing
-     * as paramter to a C function)
-     **/
-    template<typename T >
-    class CObjectConversionHelper {
-    public:
-        typedef typename std::remove_reference<T>::type T_bare;
-
-        static argument_capture<T> toCArgument(PyObject &pyobj) ;
-    };
-
-    /**
-     * Specialization for callbacks (functions)
-     **/
-    template<typename ReturnType, typename ...Args>
-    class CObjectConversionHelper<ReturnType(*)(Args...)> {
-    public:
-        typedef ReturnType(*callback_t)(Args...);
-
-        static argument_capture<callback_t > toCArgument(PyObject &pyobj) ;
-    };
-
-    /**
-     * Specialization for callbacks (functions) with ellipsis argument
-     **/
-    template<typename ReturnType, typename ...Args>
-    class CObjectConversionHelper<ReturnType(*)(Args..., ...)> {
-    public:
-        typedef ReturnType(*callback_t)(Args..., ...);
-
-        static argument_capture<callback_t> toCArgument(PyObject &pyobj);
-    };
-
-    /**
      * function to convert python object to underlying C type using a class helper
      **/
     template<typename T >
     argument_capture<T>
-    toCArgument(PyObject &pyobj) {
-        return CObjectConversionHelper<T>::toCArgument(pyobj);
-    }
+    toCArgument(PyObject &pyobj);
 
     /**
      * function to convert python object to underlying C type using a class helper
      **/
     template<typename T, const size_t size >
     argument_capture<T[size]>
-    toCArgument(PyObject &pyobj) {
-        return CObjectConversionHelper<T[size] >::toCArgument(pyobj);
-    }
-
-    /////////////////////////
-    // C-to-Python conversions
-    //////////////////////////
-
-    class ConversionHelpers {
-    public:
-
-        ///////////
-        // Helper conversion functions
-        //////////
-
-        /**
-         * Define conversion helper class, which allows easier mechanism
-         * for necessary specializations
-         **/
-        template<typename T>
-        class PyObjectConversionHelper{
-        public:
-            typedef PythonClassWrapper<T> ClassWrapper;
-            typedef typename std::remove_reference<T>::type T_NoRef;
-
-            static PyObject *toPyObject(T_NoRef &var, const bool asReference, const ssize_t array_size = -1);
-        };
-
-
-    };
+    toCArgument(PyObject &pyobj);
 
     /**
      * convert C Object to python object
      * @param var: value to convert
      * @param asArgument: whether to be used as argument or not (can determine if copy is made or reference semantics used)
      **/
-    template<typename T, typename E>
-    PyObject *toPyObject(T &var, const bool asArgument, const ssize_t array_size) ;
+    template<typename T>
+    PyObject *toPyObject(T &var, const ssize_t array_size) ;
 
-    template<typename T, typename E>
-    PyObject *toPyObject(const T &var, const bool asArgument, const ssize_t array_size) ;
+    template<typename T>
+    PyObject *toPyObject(const T &var,  const ssize_t array_size) ;
+
+    template<typename T>
+    PyObject *toPyArgyment(T &var, const ssize_t array_size) ;
+
+    template<typename T>
+    PyObject *toPyArgument(const T &var,  const ssize_t array_size) ;
 
 }
 

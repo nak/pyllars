@@ -12,6 +12,7 @@ namespace __pyllars_internal {
     PyObject *MemberContainer<CClass>::Container<name, T>::
     get(PyObject *self, void*) {
         if (!self) return nullptr;
+        typedef typename std::remove_reference<T>::type T_NoRef;
         typedef PythonClassWrapper<CClass> Wrapper;
         Wrapper *_this = (Wrapper *) self;
         if constexpr ( !std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value != 0) {
@@ -19,7 +20,7 @@ namespace __pyllars_internal {
             const ssize_t array_size = base_size > 0 ? sizeof(_this->get_CObject()->*member) / base_size
                                                      : UNKNOWN_SIZE;
             if (_this->get_CObject()) {
-                return toPyObject<T>(_this->get_CObject()->*member, true, array_size);
+                return toPyObject<T_NoRef&>(_this->get_CObject()->*member, array_size);
             }
             PyErr_SetString(PyExc_RuntimeError,
                             "Internal Pyllars Error: No C Object found to get member attribute value!");
@@ -30,7 +31,7 @@ namespace __pyllars_internal {
                     base_size > 0 ? sizeof(_this->get_CObject()->*member) / base_size
                                   : UNKNOWN_SIZE;
             if (_this->get_CObject()) {
-                return toPyObject<T>(_this->get_CObject()->*member, false, array_size);
+                return toPyObject<T_NoRef&>(_this->get_CObject()->*member, array_size);
             }
             PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
             return nullptr;
@@ -40,7 +41,7 @@ namespace __pyllars_internal {
                 const ssize_t array_size =
                         base_size > 0 ? sizeof(_this->get_CObject()->*member) / base_size
                                       : UNKNOWN_SIZE;
-                return toPyObject<T>(_this->get_CObject()->*member, true, array_size);
+                return toPyObject<T_NoRef&>(_this->get_CObject()->*member, array_size);
             }
             PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
             return nullptr;
@@ -60,8 +61,7 @@ namespace __pyllars_internal {
                             base_size > 0 ? sizeof(_this->get_CObject()->*member) / base_size
                                           : UNKNOWN_SIZE;
 
-                    PyObject* obj = toPyObject<T>(_this->get_CObject()->*member, AS_REFERNCE,
-                                                        array_size);
+                    PyObject* obj = toPyObject<T_NoRef&>(_this->get_CObject()->*member, array_size);
 
                     ((PythonClassWrapper<T> *) obj)->make_reference(self);
                     return obj;
@@ -74,7 +74,7 @@ namespace __pyllars_internal {
             }
         } else if constexpr (std::is_array<T>::value){
             if (_this->get_CObject()) {
-                PyObject *obj = toPyObject<T>(*(_this->get_CObject()->*member), true, array_size);
+                PyObject *obj = toPyObject<T_NoRef&>(*(_this->get_CObject()->*member), array_size);
                 ((PythonClassWrapper<T> *) obj)->make_reference(self);
                 return obj;
             }
@@ -235,7 +235,7 @@ namespace __pyllars_internal {
         Wrapper *_this = (Wrapper *) self;
 
         if (_this->get_CObject()) {
-            return toPyObject<T>(_getter(*(_this->get_CObject())), false, 1);
+            return toPyObject<T>(_getter(*(_this->get_CObject())), 1);
         }
         PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
         return nullptr;
@@ -288,7 +288,7 @@ namespace __pyllars_internal {
         Wrapper *_this = (Wrapper *) self;
 
         if (_this->get_CObject()) {
-            return toPyObject<T>(_getter(*(_this->get_CObject())), false, 1);
+            return toPyObject<T>(_getter(*(_this->get_CObject())), 1);
         }
         PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
         return nullptr;

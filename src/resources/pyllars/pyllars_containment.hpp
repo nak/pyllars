@@ -41,7 +41,22 @@ namespace __pyllars_internal{
                 }
                 return bytes;
             }
-            T value[size];
+
+            T_array &values(){
+                return *reinterpret_cast<T_array*>(&_data);
+            }
+
+            ~FixedArrayHelper(){
+                if constexpr (std::is_destructible<T>::value) {
+                    T *values = reinterpret_cast<T *>(_data);
+                    for (int i = 0; i < size; ++i) {
+                        values[i].~T();
+                    }
+                }
+            }
+
+        private:
+            unsigned char _data[size*sizeof(T)];
         };
 
     }
@@ -70,8 +85,21 @@ namespace __pyllars_internal{
             return bytes;
         }
 
+        T_array &values(){
+            return *reinterpret_cast<T_array*>(&_data);
+        }
 
-        const T value[size];
+        ~FixedArrayHelper(){
+            if constexpr (std::is_destructible<T>::value) {
+                T *values = reinterpret_cast<T *>(_data);
+                for (int i = 0; i < size; ++i) {
+                    values[i].~T();
+                }
+            }
+        }
+
+    private:
+        unsigned char _data[size*sizeof(T)];
     };
 
 
@@ -268,7 +296,7 @@ namespace __pyllars_internal{
                         static constexpr const bool is_sameptr[] = {std::is_same<typename extent_as_pointer<typename std::remove_reference<Args>::type>::type,
                                                                     typename extent_as_pointer<typename std::remove_reference<T>::type>::type >::value...};
                         if constexpr(arg_length==1 && (is_same[0] || is_sameptr[0])){
-                            auto new_raw_value = new (args...) FixedArrayHelper<T>();
+                            auto new_raw_value = new (args...) FixedArrayHelper<T>;
                             auto new_value = reinterpret_cast<T*>(new_raw_value);
                             return ObjectContainerAllocatedInstance::new_container(new_value);
 
@@ -314,7 +342,7 @@ namespace __pyllars_internal{
             if constexpr (std::is_constructible<T>::value) {
                 if constexpr (std::is_array<T>::value){
                     if constexpr(ArraySize<T>::size > 0){
-                        auto new_helper_value = new (args...) FixedArrayHelper<T>();
+                        auto new_helper_value = new (args...) FixedArrayHelper<T>;
                         auto new_value = reinterpret_cast<T*>(new_helper_value);
                         return ObjectContainerAllocated::new_container(new_value, false);
                     }
@@ -354,7 +382,7 @@ namespace __pyllars_internal{
             if constexpr (std::is_constructible<T>::value) {
                 if constexpr (std::is_array<T>::value){
                     if constexpr(ArraySize<T>::size > 0){
-                        auto new_helper_value = new (args...) FixedArrayHelper<T>();
+                        auto new_helper_value = new (args...) FixedArrayHelper<T>;
                         auto new_value = reinterpret_cast<T* const>(new_helper_value);
                         return ObjectContainerAllocated::new_container(new_value, false);
                     }
@@ -496,10 +524,13 @@ namespace __pyllars_internal{
     };
 
     template<typename T, size_t size>
-    struct ObjectContainerBytePool<T[size]>: public ObjectContainerReference<T[size]>{
+    struct ObjectContainerBytePool<T[size]>: public ObjectContainer<T[size]>{
 
-        explicit ObjectContainerBytePool(const std::function<void(void*, size_t)> &construct_element ):
-                _raw_bytes(malloc(size*sizeof(T))){
+        typedef T T_array[size];
+
+        explicit ObjectContainerBytePool(const size_t unused, const std::function<void(void*, size_t)> &construct_element ):
+            ObjectContainer<T[size]>(),
+            _raw_bytes(malloc(size*sizeof(T))){
             memset(_raw_bytes, 0, size*sizeof(T));
             for(size_t i = 0; i < size; ++i){
                 construct_element((void*)(((T*)_raw_bytes) + i), i);
@@ -510,21 +541,21 @@ namespace __pyllars_internal{
             if (index < 0 || index >=size){
                 throw "Index out of range";
             }
-            return _contained[index];
+            return _contained->value[index];
         }
 
         explicit operator T*&(){
             if(!_raw_bytes) throw "Attempt to dereference null C object";
-            return _contained;
+            return _contained->value;
         }
 
         explicit operator T* const&() const{
             if(!_raw_bytes) throw "Attempt to dereference null C object";
-            return _contained;
+            return _contained->value;
         }
 
-        T** ptr(){
-            return &_contained;
+        T_array* ptr(){
+            return &_contained->value;
         }
 
 
@@ -539,7 +570,7 @@ namespace __pyllars_internal{
     protected:
         union {
             void *_raw_bytes;
-            T* _contained;
+            FixedArrayHelper<T[size]>* _contained;
         };
 
     };

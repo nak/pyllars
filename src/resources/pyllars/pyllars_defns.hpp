@@ -384,10 +384,17 @@ namespace __pyllars_internal {
     // Helper conversion functions
     //////////
     template<typename T>
-    PyObject *toPyObject(T &var, bool asArgument, ssize_t array_size);
+    PyObject *toPyObject(T &var, ssize_t array_size);
 
     template<typename T>
-    PyObject *toPyObject(const T &var, bool asArgument, ssize_t array_size);
+    PyObject *toPyObject(const T &var, ssize_t array_size);
+
+    template<typename T>
+    PyObject *toPyArgument(T &var, ssize_t array_size);
+
+    template<typename T>
+    PyObject *toPyArgument(const T &var, ssize_t array_size);
+
 
     template<typename T>
     struct argument_capture;

@@ -60,9 +60,8 @@ namespace __pyllars_internal {
                 ( (!std::is_assignable<T_NoRef &, T_NoRef>::value || !std::is_destructible<T_NoRef>::value) && std::is_copy_constructible<T_NoRef>::value)){
             return new T_NoRef(*value);
         } else if constexpr (!std::is_const<T>::value && std::is_array<T>::value && ArraySize<T>::size > 0){
-            auto new_array = new (*value) FixedArrayHelper<T>();
-            //for (size_t i = 0; i < size; ++i) new_array->value[i] = (*value)[i];
-            return reinterpret_cast<T_NoRef*>(new_array);//&new_array->value;
+            auto new_array = new (*value) FixedArrayHelper<T>;
+            return reinterpret_cast<T_NoRef*>(new_array);
         } else {
             throw "Attempt to copy non-copy-constructible object";
         }

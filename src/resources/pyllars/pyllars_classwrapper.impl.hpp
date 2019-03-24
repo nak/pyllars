@@ -349,7 +349,7 @@ namespace __pyllars_internal {
         _classEnumValues = Basic::_classEnumValues;
         for (auto const&[name_, value]: _classEnumValues) {
             // can only be called after ready of _Type:
-            PyObject *pyval = toPyObject<T>(*const_cast<T_NoRef *>(value), false, 1);
+            PyObject *pyval = toPyObject<T>(*const_cast<T_NoRef *>(value), 1);
             if (pyval) {
                 PyDict_SetItemString(_Type.tp_dict, name_.c_str(), pyval);
             } else {
@@ -447,7 +447,7 @@ namespace __pyllars_internal {
         PythonClassWrapper *self_ = reinterpret_cast<PythonClassWrapper *>(self);
         PyObject*obj;
         if(self_->_CObject){
-            obj = toPyObject<T_NoRef *>(self_->_CObject->ptr(), AS_REFERNCE, 1);
+            obj = toPyObject<T_NoRef *>(self_->_CObject->ptr(), 1); // by reference? pointer -- so probably no need
             PyErr_Clear();
             (reinterpret_cast<PythonClassWrapper<T_NoRef *>*>(obj))->make_reference(self);
         } else {
@@ -597,7 +597,7 @@ namespace __pyllars_internal {
             PythonClassWrapper *self_ = (PythonClassWrapper *) self;
             try {
                 auto c_key = toCArgument<KeyType>(*item);
-                return toPyObject((self_->get_CObject()->*method)(c_key.value()), false, 1);
+                return toPyObject((self_->get_CObject()->*method)(c_key.value()), 1);
             } catch (const char *const msg) {
                 PyErr_SetString(PyExc_TypeError, msg);
                 return nullptr;
@@ -642,7 +642,7 @@ namespace __pyllars_internal {
             PythonClassWrapper *self_ = (PythonClassWrapper *) self;
             try {
                 auto c_key = toCArgument<KeyType>(*item);
-                return toPyObject((self_->get_CObject()->*method)(c_key.value()), false, 1);
+                return toPyObject((self_->get_CObject()->*method)(c_key.value()), 1);
             } catch (const char *const msg) {
                 PyErr_SetString(PyExc_TypeError, msg);
                 return nullptr;
