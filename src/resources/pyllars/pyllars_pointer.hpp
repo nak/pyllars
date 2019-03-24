@@ -80,7 +80,7 @@ namespace __pyllars_internal {
                                                             PyObject *referencing = nullptr);
 
         static PythonPointerWrapperBase *_createPyFromAllocatedInstance(PyTypeObject & Type,
-                                                                T cobj,
+                                                                T &cobj,
                                                                 const ssize_t arraySize,
                                                                 PyObject *referencing = nullptr);
 
@@ -222,7 +222,7 @@ namespace __pyllars_internal {
         static PythonClassWrapper *createPyReference(T & cobj, const ssize_t arraySize, PyObject *referencing = nullptr){
             return reinterpret_cast<PythonClassWrapper*>(Base::_createPyReference(Type, cobj, arraySize, referencing));
         }
-        static PythonClassWrapper *createPyFromAllocatedInstance(T cobj, const ssize_t arraySize, PyObject *referencing = nullptr){
+        static PythonClassWrapper *createPyFromAllocatedInstance(T& cobj, const ssize_t arraySize, PyObject *referencing = nullptr){
             return reinterpret_cast<PythonClassWrapper*>(Base::_createPyFromAllocatedInstance(Type, cobj, arraySize, referencing));
         }
 

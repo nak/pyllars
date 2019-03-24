@@ -200,15 +200,15 @@ namespace __pyllars_internal {
             typedef typename std::remove_pointer<typename extent_as_pointer<To>::type>::type To_base;
             typedef typename std::remove_pointer<typename extent_as_pointer<From>::type>::type From_base;
 
-            if constexpr ( !std::is_array<To>::value && std::is_assignable<To, typename std::remove_reference<From>::type>::value) {
+            if constexpr ( !std::is_array<To>::value && std::is_assignable<To&, typename std::remove_reference<From>::type>::value) {
                 to = from;
             } else if constexpr (std::is_array<To>::value && ArraySize<To>::size > 0 &&
                                  std::is_array<From>::value && ArraySize<From>::size == ArraySize<To>::size &&
-                                 std::is_assignable<typename std::remove_reference<To_base>::type, typename std::remove_reference<From_base>::type>::value){
+                                 std::is_assignable<typename std::remove_reference<To_base>::type&, typename std::remove_reference<From_base>::type>::value){
                 for (size_t i = 0; i < ArraySize<To>::size; ++i)
                     to[i] = from[i];
             }else if constexpr (std::is_array<To>::value && std::is_array<From>::value  &&
-                                std::is_assignable<typename std::remove_reference<To_base>::type, typename std::remove_reference<From_base>::type>::value){
+                                std::is_assignable<typename std::remove_reference<To_base>::type&, typename std::remove_reference<From_base>::type>::value){
                 for (size_t i = 0; i < arraySize; ++i)
                     to[i] = from[i];
             } else {

@@ -361,7 +361,7 @@ namespace __pyllars_internal{
 
     private:
 
-        explicit ObjectContainerAllocated(T* obj, const bool asArray):ObjectContainerReference<T*>(obj), _obj(obj),
+        explicit ObjectContainerAllocated(T* obj, const bool asArray):ObjectContainerReference<T*>(_obj), _obj(obj),
         _asArray(asArray){
         }
 
@@ -401,7 +401,7 @@ namespace __pyllars_internal{
 
     private:
 
-        explicit ObjectContainerAllocated(T* const obj, const bool asArray):ObjectContainerReference<T* const>(obj),
+        explicit ObjectContainerAllocated(T* const obj, const bool asArray):ObjectContainerReference<T* const>(_obj),
                 _obj(obj),
                 _asArray(asArray){
         }

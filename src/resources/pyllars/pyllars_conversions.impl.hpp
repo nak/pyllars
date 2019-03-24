@@ -358,13 +358,13 @@ namespace __pyllars_internal {
 
     template<typename T>
     PyObject *toPyObject(T &var,  const ssize_t array_size) {
-        static constexpr bool asArgument = std::is_reference<T>::value;
+        static constexpr bool asArgument = std::is_reference<T>::value|| std::is_array<typename std::remove_reference<T>::type>::value;
         return ConversionHelpers::PyObjectConversionHelper<T>::toPyObject(var, asArgument, array_size);
     }
 
     template<typename T>
     PyObject *toPyObject(const T &var, const ssize_t array_size) {
-        static constexpr bool asArgument = std::is_reference<T>::value;
+        static constexpr bool asArgument = std::is_reference<T>::value || std::is_array<typename std::remove_reference<T>::type>::value;
         return ConversionHelpers::PyObjectConversionHelper<const T>::toPyObject(var, asArgument, array_size);
     }
 

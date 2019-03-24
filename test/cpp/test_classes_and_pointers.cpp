@@ -550,6 +550,31 @@ TEST_F(PythonBased, TestBasicClass){
     PyTuple_SetItem(dargs, 0, dbl);
     PyObject* intValue = PyObject_Call(public_method, dargs, nullptr);
     ASSERT_NE(intValue, nullptr);
+
+    {
+        int int_vals[3] = {6, 7, 8};
+        PyObject *vals = toPyObject(int_vals, 3);
+        ASSERT_NE(vals, nullptr);
+        PyObject_SetAttrString(obj, int_array_member_name, vals);
+        vals = PyObject_GetAttrString(obj, int_array_member_name);
+        ASSERT_NE(vals, nullptr);
+        for (size_t i = 0; i < 3; ++i) {
+            ASSERT_EQ((*reinterpret_cast<PythonClassWrapper<int[3]> *>(vals)->get_CObject())[i], int_vals[i]);
+        }
+    }
+    {
+        int *int_vals = new int[3]{6, 7, 8};
+
+        PyObject *vals = toPyObject(int_vals, 3);
+        ASSERT_NE(vals, nullptr);
+        PyObject_SetAttrString(obj, int_array_member_name, vals);
+        vals = PyObject_GetAttrString(obj, int_array_member_name);
+        ASSERT_NE(vals, nullptr);
+        for (size_t i = 0; i < 3; ++i) {
+            ASSERT_EQ((*reinterpret_cast<PythonClassWrapper<int[3]> *>(vals)->get_CObject())[i], int_vals[i]);
+        }
+        delete[] int_vals;
+    }
     Py_DECREF(obj);
 }
 

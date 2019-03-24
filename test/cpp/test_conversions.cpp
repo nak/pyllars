@@ -401,12 +401,22 @@ TYPED_TEST(ToPyTest, convert_to_py ) {
     PythonClassWrapper<T>::initialize();
     typedef typename std::remove_reference<T>::type T_NoRef;
     T_NoRef *a = new T_NoRef();
-    auto obj = toPyArgument<T>(*a, 1);
-    ASSERT_NE(obj, nullptr);
-    ASSERT_FALSE(PyErr_Occurred());
-    ASSERT_TRUE(PyObject_TypeCheck(obj, PythonClassWrapper<T>::getPyType()));
-    ASSERT_EQ(a, reinterpret_cast<PythonClassWrapper<T>*>(obj)->get_CObject());
-    Py_DECREF(obj);
+    {
+        auto obj = toPyArgument<T>(*a, 1);
+        ASSERT_NE(obj, nullptr);
+        ASSERT_FALSE(PyErr_Occurred());
+        ASSERT_TRUE(PyObject_TypeCheck(obj, PythonClassWrapper<T>::getPyType()));
+        ASSERT_EQ(a, reinterpret_cast<PythonClassWrapper<T> *>(obj)->get_CObject());
+        Py_DECREF(obj);
+    }
+    {
+        auto obj = toPyObject<T&>(*a, 1);
+        ASSERT_NE(obj, nullptr);
+        ASSERT_FALSE(PyErr_Occurred());
+        ASSERT_TRUE(PyObject_TypeCheck(obj, PythonClassWrapper<T&>::getPyType()));
+        ASSERT_EQ(a, reinterpret_cast<PythonClassWrapper<T&> *>(obj)->get_CObject());
+        Py_DECREF(obj);
+    }
 }
 
 
@@ -430,11 +440,22 @@ TYPED_TEST(ToPyTest2, convert_to_py_array ) {
     PythonClassWrapper<T>::initialize();
     typedef typename std::remove_reference<T>::type T_NoRef;
     T values = {T_element()};
-    auto * a = new (values) FixedArrayHelper<T>;
-    auto obj = toPyArgument<T>(a->values(), 1);
-    ASSERT_NE(obj, nullptr);
-    ASSERT_FALSE(PyErr_Occurred());
-    ASSERT_TRUE(PyObject_TypeCheck(obj, PythonClassWrapper<T>::getPyType()));
-    ASSERT_EQ((T*)a, reinterpret_cast<PythonClassWrapper<T>*>(obj)->get_CObject());
-    Py_DECREF(obj);
+    {
+        auto *a = new(values) FixedArrayHelper<T>;
+        auto obj = toPyArgument<T>(a->values(), 1);
+        ASSERT_NE(obj, nullptr);
+        ASSERT_FALSE(PyErr_Occurred());
+        ASSERT_TRUE(PyObject_TypeCheck(obj, PythonClassWrapper<T>::getPyType()));
+        ASSERT_EQ((T *) a, reinterpret_cast<PythonClassWrapper<T> *>(obj)->get_CObject());
+        Py_DECREF(obj);
+    }
+    {
+        auto *a = new(values) FixedArrayHelper<T>;
+        auto obj = toPyObject<T&>(a->values(), 1);
+        ASSERT_NE(obj, nullptr);
+        ASSERT_FALSE(PyErr_Occurred());
+        ASSERT_TRUE(PyObject_TypeCheck(obj, PythonClassWrapper<T&>::getPyType()));
+        ASSERT_EQ((T *) a, reinterpret_cast<PythonClassWrapper<T&> *>(obj)->get_CObject());
+        Py_DECREF(obj);
+    }
 }

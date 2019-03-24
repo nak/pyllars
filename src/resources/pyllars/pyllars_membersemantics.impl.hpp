@@ -62,7 +62,10 @@ namespace __pyllars_internal {
                                           : UNKNOWN_SIZE;
 
                     PyObject* obj = toPyObject<T_NoRef&>(_this->get_CObject()->*member, array_size);
-
+                    if(!obj){
+                        PyErr_SetString(PyExc_RuntimeError, "Failed to convert cobject to python");
+                        return nullptr;
+                    }
                     ((PythonClassWrapper<T> *) obj)->make_reference(self);
                     return obj;
                 }
@@ -75,6 +78,10 @@ namespace __pyllars_internal {
         } else if constexpr (std::is_array<T>::value){
             if (_this->get_CObject()) {
                 PyObject *obj = toPyObject<T_NoRef&>(*(_this->get_CObject()->*member), array_size);
+                if(!obj){
+                    PyErr_SetString(PyExc_RuntimeError, "Failed to convert cobject to python");
+                    return nullptr;
+                }
                 ((PythonClassWrapper<T> *) obj)->make_reference(self);
                 return obj;
             }
@@ -127,6 +134,7 @@ namespace __pyllars_internal {
                             auto value =  toCArgument<T_base>(*PyTuple_GetItem(pyVal, i));
                             Assignment<T_base>::assign((_this->get_CObject()->*member)[i], value.value());
                         }
+                        return 0;
                     } else {
                         static char msg[250];
                         snprintf(msg, 250, "Mismatched array sizes (tuple)%lld!=%lld",
@@ -137,16 +145,22 @@ namespace __pyllars_internal {
                     }
                 } else if (PythonClassWrapper<T>::checkType(pyVal)) {
                     T *val = reinterpret_cast<PythonClassWrapper<T> *>(pyVal)->get_CObject();
-                    for (size_t i = 0; i < size; ++i)
-                        Assignment<T_base>::assign((_this->get_CObject()->*member)[i] , (*val)[i]);
-
+                    Assignment<T>::assign(_this->get_CObject()->*member, *val);
+                    return 0;
+                } else if (PythonClassWrapper<typename extent_as_pointer<T>::type>::checkType(pyVal)) {
+                    T_base **val = reinterpret_cast<PythonClassWrapper<typename extent_as_pointer<T>::type> *>(pyVal)->get_CObject();
+                    T_base * toVal = _this->get_CObject()->*member;
+                    Assignment<T_base*>::assign(toVal, *val, ArraySize<T>::size );
+                    return 0;
                 }
             } catch (const char *const msg) {
                 PyErr_SetString(PyExc_RuntimeError, msg);
                 return -1;
             }
-            return 0;
+            PyErr_SetString(PyExc_TypeError, "Unknown or incompatible type in setting member of class");
+            return -1;
         } else if constexpr (std::is_array<T>::value){
+            typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
             try{
                 if (pyVal == Py_None) {
                     PyErr_SetString(PyExc_RuntimeError, "Unexpcted None value in member setter");
@@ -162,6 +176,7 @@ namespace __pyllars_internal {
                             Assignment<T>::assign((_this->get_CObject()->*
                                                member)[i], *toCArgument<T, false, PythonClassWrapper<T> >(
                                     *PyTuple_GetItem(pyVal, i)));
+                        return 0;
                     } else {
                         static char msg[250];
                         snprintf(msg, 250, "Mismatched array sizes (tuple)%lld!=%lld",
@@ -175,7 +190,12 @@ namespace __pyllars_internal {
                     //TODO: check size????
                     for (size_t i = 0; i < array_size; ++i)
                         Assignment<T>::assign((_this->get_CObject()->*member)[i], (*val)[i]);
-
+                    return 0;
+                }  else if (PythonClassWrapper<typename extent_as_pointer<T>::type>::checkType(pyVal)) {
+                    T_base **val = reinterpret_cast<PythonClassWrapper<typename extent_as_pointer<T>::type> *>(pyVal)->get_CObject();
+                    T_base * toVal = _this->get_CObject()->*member;
+                    Assignment<T_base*>::assign(toVal, *val, ArraySize<T>::size );
+                    return 0;
                 } else {
                     PyErr_SetString(PyExc_ValueError, "Invalid argument type when setting attribute");
                     return -1;
@@ -184,7 +204,8 @@ namespace __pyllars_internal {
                 PyErr_SetString(PyExc_RuntimeError, msg);
                 return -1;
             }
-            return 0;
+            PyErr_SetString(PyExc_TypeError, "Unknown or incompatible type in setting member of class");
+            return -1;
         }
     }
 
