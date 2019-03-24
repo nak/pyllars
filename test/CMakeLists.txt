@@ -32,11 +32,6 @@ target_link_libraries(runAllPyllarsTest PUBLIC -L/usr/local/lib64 -lpython3.7m
         setupBasicClassLib setupInheritanceLib setupBitFieldsLib setupAnonEnumsLib
         pyllars pthread  ffi dl util)
 
-add_custom_target(testCoverage ALL
-        DEPENDS runPyllarsTest
-        COMMAND ./runPyllarsTest && mkdir -p res && lcov -o res/testcov.out -c -d . && genhtml -o res res/testcov.out && google-chrome --new-window ./res/pyllars/index.html
-        WORKING_DIRECTORY .
-        COMMENT Generated test coverage)
 
 add_executable(runContainmentTests
         /opt/googletest/googletest/src/gtest_main.cc
@@ -45,11 +40,6 @@ add_executable(runContainmentTests
         )
 target_link_libraries(runContainmentTests PUBLIC pthread)
 
-add_custom_target(testCoverageContainment ALL
-        DEPENDS runContainmentTests
-        COMMAND ./runContainmentTests && mkdir -p res && lcov -o res/testcov.out -c -d . && genhtml -o res res/testcov.out && google-chrome --new-window ./res/pyllars/index.html
-        WORKING_DIRECTORY .
-        COMMENT Generated test coverage)
 
 add_executable(runBasicClassTests
         /opt/googletest/googletest/src/gtest_main.cc
@@ -89,3 +79,16 @@ add_executable(runAnonEmumTests
         )
 target_link_libraries(runAnonEmumTests PUBLIC -L/usr/local/lib64 -lpython3.7m
         setupAnonEnumsLib pthread pyllars ffi dl util)
+
+
+add_custom_target(testCoverage ALL
+        DEPENDS runAllPyllarsTest
+        COMMAND ./runAllPyllarsTest && mkdir -p res && lcov -o res/testcov.out -c -d . && genhtml -o res res/testcov.out && google-chrome --new-window ./res/pyllars/index.html
+        WORKING_DIRECTORY .
+        COMMENT Generated test coverage)
+
+add_custom_target(testCoverageContainment ALL
+        DEPENDS runContainmentTests
+        COMMAND ./runContainmentTests && mkdir -p res && lcov -o res/testcov.out -c -d . && genhtml -o res res/testcov.out && google-chrome --new-window ./res/pyllars/index.html
+        WORKING_DIRECTORY .
+        COMMENT Generated test coverage)
