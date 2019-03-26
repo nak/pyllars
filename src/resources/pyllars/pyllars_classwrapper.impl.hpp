@@ -30,10 +30,21 @@ namespace __pyllars_internal {
             typename std::enable_if<is_rich_class<T>::value>::type>::
             _methodCollection = std::map<std::string, PyMethodDef>();
 
+
+    template<typename T>
+    std::map<std::string, PyMethodDef> PythonClassWrapper<T,
+            typename std::enable_if<is_rich_class<T>::value>::type>::
+            _methodCollectionConst = std::map<std::string, PyMethodDef>();
+
     template<typename T>
     std::vector<PyTypeObject *> PythonClassWrapper<T,
             typename std::enable_if<is_rich_class<T>::value>::type>::
             _baseClasses = std::vector<PyTypeObject *>();
+
+    template<typename T>
+    std::vector<PyTypeObject *> PythonClassWrapper<T,
+            typename std::enable_if<is_rich_class<T>::value>::type>::
+            _baseClassesConst = std::vector<PyTypeObject *>();
 
     template<typename T>
     std::map<std::string, const typename std::remove_reference<T>::type *> PythonClassWrapper<T,
@@ -44,11 +55,20 @@ namespace __pyllars_internal {
     std::map<std::string, unaryfunc> PythonClassWrapper<T,
             typename std::enable_if<is_rich_class<T>::value>::type>::
             _unaryOperators = std::map<std::string, unaryfunc>();
+    template<typename T>
+    std::map<std::string, unaryfunc> PythonClassWrapper<T,
+            typename std::enable_if<is_rich_class<T>::value>::type>::
+            _unaryOperatorsConst = std::map<std::string, unaryfunc>();
 
     template<typename T>
     std::map<std::string, binaryfunc> PythonClassWrapper<T,
             typename std::enable_if<is_rich_class<T>::value>::type>::
             _binaryOperators = std::map<std::string, binaryfunc>();
+
+    template<typename T>
+    std::map<std::string, binaryfunc> PythonClassWrapper<T,
+            typename std::enable_if<is_rich_class<T>::value>::type>::
+            _binaryOperatorsConst = std::map<std::string, binaryfunc>();
 
     template<typename T>
     std::vector<typename PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::ConstructorContainer>
@@ -225,14 +245,26 @@ namespace __pyllars_internal {
                 METH_KEYWORDS | METH_CLASS | METH_VARARGS,
                 "allocate array of single dynamic instance of this class"
         };
-        _methodCollection = Basic::_methodCollection; // make this same as type with no garnishment
+        _methodCollectionConst = Basic::_methodCollectionConst; // make this same as type with no garnishment
+        if constexpr(std::is_const<T>::value) {
+            _methodCollection = Basic::_methodCollection; // make this same as type with no garnishment
+        }
         _methodCollection[alloc_name_] = pyMethAlloc;
         if (!Basic::_baseClasses.empty()) {
-            _Type.tp_bases = PyTuple_New(Basic::_baseClasses.size());
-            Py_ssize_t index = 0;
-            for (auto const &baseClass: Basic::_baseClasses) {
-                PyTuple_SetItem(_Type.tp_bases, index, (PyObject *) baseClass);
-                // tp_bases not usable for inheritance of methods/membser as it doesn't really do the right thing and
+            if (Basic::_baseClasses.size() > 1) {
+                _Type.tp_bases = PyTuple_New(Basic::_baseClasses.size());
+            } else if (Basic::_baseClasses.size() == 1) {
+                if constexpr (std::is_const<T>::value) {
+                    _Type.tp_base = Basic::_baseClassesConst[0];
+                } else {
+                    _Type.tp_base = Basic::_baseClasses[0];
+                }
+            }
+            for (size_t index = 0; index < Basic::_baseClasses.size(); ++ index){
+                auto baseClass = std::is_const<T>::value?_baseClassesConst[index]:_baseClasses[index];
+                if (Basic::_baseClasses.size() > 1)
+                    PyTuple_SetItem(_Type.tp_bases, index, (PyObject *) baseClass);
+                // tp_bases not usable for inheritance of methods/members as it doesn't really do the right thing and
                 // causes problems on lookup of base classes,
                 // so do this manually...
                 {
@@ -254,11 +286,10 @@ namespace __pyllars_internal {
                         ++def;
                     }
                 }
-                index++;
             }
         }
-        _Type.tp_methods = new PyMethodDef[_methodCollection.size() + 1];
-        _Type.tp_methods[_methodCollection.size()] = {nullptr};
+        _Type.tp_methods = new PyMethodDef[_methodCollection.size() +_methodCollectionConst.size() + 1];
+        _Type.tp_methods[_methodCollection.size() + _methodCollectionConst.size()] = {nullptr};
         // for const-style T, this converts calls to pass in a const T pointer in the std::function call,
         // important for disallowing setting of a const *value
         _mapMethodCollection = Basic::_mapMethodCollection;
@@ -266,6 +297,11 @@ namespace __pyllars_internal {
         _Type.tp_as_mapping = &methods;
         size_t index = 0;
         for (auto const&[key, methodDef]: _methodCollection) {
+            (void) key;
+            _Type.tp_methods[index] = methodDef;
+            ++index;
+        }
+        for (auto const&[key, methodDef]: _methodCollectionConst) {
             (void) key;
             _Type.tp_methods[index] = methodDef;
             ++index;
@@ -291,8 +327,10 @@ namespace __pyllars_internal {
             _Type.tp_getset[index].closure = nullptr;
             index++;
         }
-
-        _unaryOperators = Basic::_unaryOperators;
+        if constexpr (!std::is_const<T>::value) {
+            _unaryOperators = Basic::_unaryOperators;
+        }
+        _unaryOperatorsConst = Basic::_unaryOperatorsConst;
         for (auto const&[name_, func]: _unaryOperators) {
             static std::map<std::string, unaryfunc *> unary_mapping =
                     {{std::string(OP_UNARY_INV), &_Type.tp_as_number->nb_invert},
@@ -304,9 +342,51 @@ namespace __pyllars_internal {
             }
             *unary_mapping[name_] = func;
         }
+        for (auto const&[name_, func]: _unaryOperatorsConst) {
+            static std::map<std::string, unaryfunc *> unary_mapping =
+                    {{std::string(OP_UNARY_INV), &_Type.tp_as_number->nb_invert},
+                     {std::string(OP_UNARY_NEG), &_Type.tp_as_number->nb_negative},
+                     {std::string(OP_UNARY_POS), &_Type.tp_as_number->nb_positive}};
 
-        _binaryOperators = Basic::_binaryOperators;
+            if (unary_mapping.count(name_) == 0) {
+                return -1;
+            }
+            *unary_mapping[name_] = func;
+        }
+        if constexpr (!std::is_const<T>::value) {
+            _binaryOperators = Basic::_binaryOperators;
+        }
+        _binaryOperatorsConst = Basic::_binaryOperatorsConst;
         for (auto const&[name_, func]: _binaryOperators) {
+            static std::map<std::string, binaryfunc *> binary_mapping =
+                    {{OP_BINARY_ADD,     &_Type.tp_as_number->nb_add},
+                     {OP_BINARY_AND,     &_Type.tp_as_number->nb_and},
+                     {OP_BINARY_OR,      &_Type.tp_as_number->nb_or},
+                     {OP_BINARY_XOR,     &_Type.tp_as_number->nb_xor},
+                     {OP_BINARY_DIV,     &_Type.tp_as_number->nb_true_divide},
+                     {OP_BINARY_MOD,     &_Type.tp_as_number->nb_remainder},
+                     {OP_BINARY_MUL,     &_Type.tp_as_number->nb_multiply},
+                     {OP_BINARY_LSHIFT,  &_Type.tp_as_number->nb_lshift},
+                     {OP_BINARY_RSHIFT,  &_Type.tp_as_number->nb_rshift},
+                     {OP_BINARY_SUB,     &_Type.tp_as_number->nb_subtract},
+                     {OP_BINARY_IADD,    &_Type.tp_as_number->nb_inplace_add},
+                     {OP_BINARY_IAND,    &_Type.tp_as_number->nb_inplace_and},
+                     {OP_BINARY_IOR,     &_Type.tp_as_number->nb_inplace_or},
+                     {OP_BINARY_IXOR,    &_Type.tp_as_number->nb_inplace_xor},
+                     {OP_BINARY_IDIV,    &_Type.tp_as_number->nb_inplace_true_divide},
+                     {OP_BINARY_IMOD,    &_Type.tp_as_number->nb_inplace_remainder},
+                     {OP_BINARY_IMUL,    &_Type.tp_as_number->nb_inplace_multiply},
+                     {OP_BINARY_ILSHIFT, &_Type.tp_as_number->nb_inplace_lshift},
+                     {OP_BINARY_IRSHIFT, &_Type.tp_as_number->nb_inplace_rshift},
+                     {OP_BINARY_ISUB,    &_Type.tp_as_number->nb_inplace_subtract},
+
+                    };
+            if (binary_mapping.count(name_) == 0) {
+                throw "Undefined operator name (internal error)";
+            }
+            *binary_mapping[name_] = func;
+        }
+        for (auto const&[name_, func]: _binaryOperatorsConst) {
             static std::map<std::string, binaryfunc *> binary_mapping =
                     {{OP_BINARY_ADD,     &_Type.tp_as_number->nb_add},
                      {OP_BINARY_AND,     &_Type.tp_as_number->nb_and},
@@ -478,7 +558,7 @@ namespace __pyllars_internal {
         };
 
         ClassMethodContainer<T>::template Container<false, name, kwlist, ReturnType, Args...>::method = method;
-        _addMethod(pyMeth);
+        _addMethod<true>(pyMeth);
     }
 
     template<typename T>
@@ -498,7 +578,7 @@ namespace __pyllars_internal {
         };
 
         ClassMethodContainer<T>::template Container<true, name, ReturnType, Args...>::method = method;
-        _addMethod(pyMeth);
+        _addMethod<true>(pyMeth);
     }
 
 
@@ -519,7 +599,7 @@ namespace __pyllars_internal {
         };
 
         _Container::template Container<is_const, kwlist, ReturnType, Args...>::setMethod(method);
-        _addMethod(pyMeth);
+        _addMethod<is_const>(pyMeth);
     }
 
 
@@ -530,7 +610,12 @@ namespace __pyllars_internal {
     addUnaryOperator(
             typename MethodContainer<T_NoRef, name>::template Container<is_const, emptylist, Arg>::method_t method) {
         MethodContainer<T_NoRef, name>::template Container<is_const, emptylist, Arg>::setMethod(method);
-        _unaryOperators[name] = (unaryfunc) MethodContainer<T_NoRef, name>::callAsUnaryFunc;
+        if constexpr (is_const){
+            _unaryOperatorsConst[name] = (unaryfunc) MethodContainer<T_NoRef, name>::callAsUnaryFunc;
+
+        } else {
+            _unaryOperators[name] = (unaryfunc) MethodContainer<T_NoRef, name>::callAsUnaryFunc;
+        }
     }
 
 
@@ -541,7 +626,11 @@ namespace __pyllars_internal {
     addBinaryOperator(
             typename MethodContainer<T_NoRef, name>::template Container<is_const, kwlist, ReturnType, Arg>::method_t method) {
         MethodContainer<T_NoRef, name>::template Container<is_const, kwlist, ReturnType, Arg>::setMethod(method);
-        _binaryOperators[name] = (binaryfunc) MethodContainer<T_NoRef, name>::callAsBinaryFunc;
+        if constexpr(is_const){
+            _binaryOperatorsConst[name] = (binaryfunc) MethodContainer<T_NoRef, name>::callAsBinaryFunc;
+        } else {
+            _binaryOperators[name] = (binaryfunc) MethodContainer<T_NoRef, name>::callAsBinaryFunc;
+        }
     }
 
     template<typename T>
@@ -580,14 +669,12 @@ namespace __pyllars_internal {
 #include <functional>
 
     template<typename T>
-    template<const char *const kwlist[], typename KeyType, typename ValueType>
+    template<bool method_is_const, const char *const kwlist[], typename KeyType, typename ValueType>
     void PythonClassWrapper<T,
             typename std::enable_if<is_rich_class<T>::value>::type>::
     addMapOperatorMethod(
-            typename MethodContainer<T_NoRef, operatormapname>::template Container<false, kwlist, ValueType, KeyType>::method_t method,
-            typename MethodContainer<T_NoRef, operatormapname>::template Container<true, kwlist, ValueType, KeyType>::method_t method_const_obj) {
-        std::function<PyObject *(PyObject *, PyObject *)> getter = [method](PyObject *self,
-                                                                            PyObject *item) -> PyObject * {
+            typename MethodContainer<T_NoRef, operatormapname>::template Container<method_is_const, kwlist, ValueType, KeyType>::method_t method) {
+        std::function<PyObject *(PyObject *, PyObject *)> getter = [method](PyObject *self, PyObject *item) -> PyObject * {
             PythonClassWrapper *self_ = (PythonClassWrapper *) self;
             try {
                 auto c_key = toCArgument<KeyType>(*item);
@@ -599,7 +686,7 @@ namespace __pyllars_internal {
         };
         // since elements can be mutable, even const map operators must allow for setters
         std::function<int(bool, PyObject *, PyObject *, PyObject *)> setter =
-                [method, method_const_obj](bool obj_is_const, PyObject *self, PyObject *item, PyObject *value) -> int {
+                [method](bool obj_is_const, PyObject *self, PyObject *item, PyObject *value) -> int {
             PythonClassWrapper *self_ = (PythonClassWrapper *) self;
             auto cobj = self_->get_CObject();
             if (!cobj){
@@ -611,34 +698,28 @@ namespace __pyllars_internal {
                     auto c_value = toCArgument<ValueType>(*value);
                     auto c_key = toCArgument<KeyType>(*item);
                     if (obj_is_const){
-                        //mutable fields are still settable against const-ness of owning object
-                        //NOTE: we re-use this std::function for PythonClassWrapper<const T>, so need
-                        //   to get const bool to determine if this really should be a const-C object
-                        if (!method_const_obj){
-                            PyErr_SetString(PyExc_TypeError, "const-map-operator to be called");
-                            return -1;
-                        }
-                        auto const_cobj = reinterpret_cast<const T_NoRef *>(cobj);
-                        try {
-                            Assignment<ValueType>::assign((const_cobj->*method_const_obj)(c_key.value()), c_value.value());
-                        } catch (const char*){
-                            PyErr_SetString(PyExc_TypeError, "Cannot assign to const element");
-                            return -1;
-                        }
-                    } else {
-                        if(method) {
-                            Assignment<ValueType>::assign((cobj->*method)(c_key.value()), c_value.value());
-                        } else {
-                            if (!method_const_obj){
-                                PyErr_SetString(PyExc_TypeError, "const-map-operator to be called");
-                                return -1;
-                            }
-                            try{
-                                Assignment<ValueType>::assign((cobj->*method_const_obj)(c_key.value()), c_value.value());
-                            } catch (const char*){
+                        if constexpr(method_is_const) {
+                            //mutable fields are still settable against const-ness of owning object
+                            //NOTE: we re-use this std::function for PythonClassWrapper<const T>, so need
+                            //   to get const bool to determine if this really should be a const-C object
+                            auto const_cobj = reinterpret_cast<const T_NoRef *>(cobj);
+                            try {
+                                Assignment<ValueType>::assign((const_cobj->*method)(c_key.value()), c_value.value());
+                            } catch (const char *) {
                                 PyErr_SetString(PyExc_TypeError, "Cannot assign to const element");
                                 return -1;
                             }
+                        } else {
+
+                            PyErr_SetString(PyExc_TypeError, "Cannot call non-const method with const this");
+                            return -1;
+                        }
+                    } else {
+                        try{
+                            Assignment<ValueType>::assign((cobj->*method)(c_key.value()), c_value.value());
+                        } catch (const char* msg){
+                            PyErr_SetString(PyExc_TypeError, msg);
+                            return -1;
                         }
                     }
                 } else {
@@ -671,19 +752,15 @@ namespace __pyllars_internal {
     }
 
     template<typename T>
+    template<typename Base>
     void PythonClassWrapper<T,
             typename std::enable_if<is_rich_class<T>::value>::type>::
-    addBaseClass(PyTypeObject *base) {
+    addBaseClass() {
+        PyTypeObject * base = PythonClassWrapper<Base>::getPyType();
+        PyTypeObject * const_base = PythonClassWrapper<const Base>::getPyType();
         if (!base) return;
-        if (!_Type.tp_base && _baseClasses.empty()) {
-            _Type.tp_base = base;
-        } else {
-            if (_Type.tp_base) {
-                _baseClasses.push_back(_Type.tp_base);
-                _Type.tp_base = nullptr;
-            }
-            _baseClasses.insert(_baseClasses.begin(), base);
-        }
+        _baseClasses.insert(_baseClasses.begin(), base);
+        _baseClassesConst.insert(_baseClassesConst.begin(), const_base);
     }
 
     template<typename T>
@@ -854,11 +931,16 @@ namespace __pyllars_internal {
 
 
     template<typename T>
+    template<bool is_const>
     void PythonClassWrapper<T,
             typename std::enable_if<is_rich_class<T>::value>::type>::
     _addMethod(PyMethodDef method) {
         //insert at beginning to keep null sentinel at end of list:
-        _methodCollection[method.ml_name] = method;
+        if constexpr(is_const){
+            _methodCollectionConst[method.ml_name] = method;
+        } else {
+            _methodCollection[method.ml_name] = method;
+        }
     }
 
     template<typename T>
@@ -955,7 +1037,7 @@ namespace __pyllars_internal {
                               METH_VARARGS | METH_KEYWORDS | METH_CLASS,
                               doc_string
         };
-        _addMethod(pyMeth);
+        _addMethod<true>(pyMeth);
     }
 
     template<typename T>
@@ -973,7 +1055,7 @@ namespace __pyllars_internal {
                               METH_VARARGS | METH_KEYWORDS | METH_CLASS,
                               doc_string
         };
-        _addMethod(pyMeth);
+        _addMethod<true>(pyMeth);
     }
 }
 

@@ -33,7 +33,7 @@ SetupInheritanceTest::SetUpTestSuite() {
         Class::addConstructor<>(empty_list);
         Class::addMethod<true, new_method_name, kwlist2, int, const char *const>(
                 &InheritanceClass::new_method);
-        Class::addBaseClass( PythonClassWrapper<BasicClass>::getPyType());
+        Class::addBaseClass<BasicClass>();
         ASSERT_EQ(Class::initialize(), 0);
     }
 
@@ -43,8 +43,8 @@ SetupInheritanceTest::SetUpTestSuite() {
         static const char *const kwlist2[] = {"data", nullptr};
         Class::addMethod<false, create_bclass2_method_name, kwlist2, BasicClass2>(
                 &MultiInheritanceClass::createBasicClass2);
-        Class::addBaseClass(PythonClassWrapper<BasicClass>::getPyType());
-        Class::addBaseClass(PythonClassWrapper<BasicClass2>::getPyType());
+        Class::addBaseClass<BasicClass>();
+        Class::addBaseClass<BasicClass2>();
         ASSERT_EQ(Class::initialize(), 0);
     }
 }

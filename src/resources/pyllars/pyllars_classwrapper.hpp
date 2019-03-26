@@ -123,7 +123,8 @@ namespace __pyllars_internal {
         /**
          * Add a base class to this Python definition (called before initialize)
          **/
-        static void addBaseClass(PyTypeObject *base) ;
+        template<typename Base>
+        static void addBaseClass() ;
 
         /**
          * add a constructor method with given compile-time-known name to the contained collection
@@ -338,9 +339,8 @@ namespace __pyllars_internal {
         template<const char* const kwlist[2], typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
         static void addInplaceDicOperator(typename MethodContainer<T_NoRef, OP_BINARY_IDIV>::template Container<is_const, kwlist, ReturnType, Arg>::method_t method){ addBinaryOperator<OP_BINARY_IDIV, is_const,  ReturnType, Arg>(method, kwlist);}
 
-        template<const char* const kwlist[2], typename KeyType, typename ValueType>
-        static void addMapOperatorMethod( typename MethodContainer<T_NoRef, operatormapname>::template Container<false, kwlist, ValueType, KeyType>::method_t method,
-                                          typename MethodContainer<T_NoRef, operatormapname>::template Container<true, kwlist, ValueType, KeyType>::method_t method_const_obj);
+        template<bool is_const, const char* const kwlist[2], typename KeyType, typename ValueType>
+        static void addMapOperatorMethod( typename MethodContainer<T_NoRef, operatormapname>::template Container<is_const, kwlist, ValueType, KeyType>::method_t method);
 
         static bool checkType(PyObject *const obj);
 
@@ -464,6 +464,7 @@ namespace __pyllars_internal {
         /**
          * helper methods
          **/
+         template<bool is_const>
         static void _addMethod(PyMethodDef method);
 
 
@@ -474,6 +475,7 @@ namespace __pyllars_internal {
         typedef std::pair<const char* const*, constructor_t> ConstructorContainer;
         static std::vector<ConstructorContainer> _constructors;
         static std::map<std::string, PyMethodDef> _methodCollection;
+        static std::map<std::string, PyMethodDef> _methodCollectionConst;
         static std::map<std::string, std::pair<std::function<PyObject*(PyObject*, PyObject*)>,
                                      std::function<int(bool, PyObject*, PyObject*, PyObject*)>>
                           >_mapMethodCollection;
@@ -481,9 +483,12 @@ namespace __pyllars_internal {
         static std::map<std::string, _setattrfunc > _member_setters;
         static std::vector<_setattrfunc > _assigners;
         static std::vector<PyTypeObject *> _baseClasses;
+        static std::vector<PyTypeObject *> _baseClassesConst;
         static std::map<std::string, const T_NoRef*> _classEnumValues;
         static std::map<std::string, unaryfunc> _unaryOperators;
+        static std::map<std::string, unaryfunc> _unaryOperatorsConst;
         static std::map<std::string, binaryfunc> _binaryOperators;
+        static std::map<std::string, binaryfunc> _binaryOperatorsConst;
 
         static PyTypeObject _Type;
 
