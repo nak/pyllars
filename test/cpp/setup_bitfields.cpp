@@ -23,9 +23,6 @@ const char* const __pyllars_internal::_Types<BitFieldContainerClass>::type_name 
 
 void
 SetupBitfields::SetUpTestSuite() {
-    static bool inited = false;
-    if (inited) return;
-    inited = true;
     PythonBased::SetUpTestSuite();
     using namespace __pyllars_internal;
     static const char *const empty_list[] = {nullptr};
@@ -39,7 +36,7 @@ SetupBitfields::SetUpTestSuite() {
                     c.bit = value;
                     return value;
                 };
-        Class::addBitField<bit_name, unsigned char, 1>(getter, setter);
+        Class::addBitField<bit_name, unsigned char, 1>(getter, &setter);
         ASSERT_EQ(Class::initialize(), 0);
     }
 }

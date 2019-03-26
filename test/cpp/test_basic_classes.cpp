@@ -52,8 +52,8 @@ TEST_F(SetupBasicClass, TestBasicClass){
     static const char* const empty_list[] = {nullptr};
     static const char* const kwlist_copy_constr[] = {"obj", nullptr};
     PyObject* args = PyTuple_New(0);
-    PyObject* obj = PyObject_Call((PyObject*) PythonClassWrapper<BasicClass>::getPyType(),
-                                  args, nullptr);
+    PyObject* obj = PyObject_Call((PyObject*) PythonClassWrapper<BasicClass>::getPyType(), args, nullptr);
+    PyObject* objconst = PyObject_Call((PyObject*) PythonClassWrapper<const BasicClass>::getPyType(), args, nullptr);
     ASSERT_NE(obj, nullptr);
     ASSERT_FALSE(PyErr_Occurred());
     auto dbl_ptr = (PythonClassWrapper<const double* const>*) PyObject_GetAttrString(obj, dbl_ptr_member_name);
@@ -98,17 +98,27 @@ TEST_F(SetupBasicClass, TestBasicClass){
     ASSERT_NE(int_value, nullptr);
     ASSERT_EQ(PyLong_AsLong(int_value), 25);
 
-    PyObject* mapped = PyMapping_GetItemString(obj, "123");
-    ASSERT_FALSE(PyErr_Occurred());
-    ASSERT_NE(mapped, nullptr);
-    ASSERT_EQ(PyLong_AsLong(mapped), 123);
-    PyMapping_SetItemString(obj, "123", PyLong_FromLong(99));
-    mapped =  PyMapping_GetItemString(obj, "123");
-    ASSERT_FALSE(PyErr_Occurred());
-    ASSERT_NE(mapped, nullptr);
-    ASSERT_EQ(PyLong_AsLong(mapped), 99);
-
-
+    {
+        PyObject *mapped = PyMapping_GetItemString(obj, "123");
+        ASSERT_FALSE(PyErr_Occurred());
+        ASSERT_NE(mapped, nullptr);
+        ASSERT_EQ(PyLong_AsLong(mapped), 123);
+        PyMapping_SetItemString(obj, "123", PyLong_FromLong(99));
+        mapped = PyMapping_GetItemString(obj, "123");
+        ASSERT_FALSE(PyErr_Occurred());
+        ASSERT_NE(mapped, nullptr);
+        ASSERT_EQ(PyLong_AsLong(mapped), 99);
+    }
+    {
+        PyObject *mapped = PyMapping_GetItemString(objconst, "123");
+        ASSERT_FALSE(PyErr_Occurred());
+        ASSERT_NE(mapped, nullptr);
+        ASSERT_EQ(PyLong_AsLong(mapped), 123);
+        typedef const char* cstring;
+        ASSERT_EQ( PyMapping_SetItemString(objconst, "123", PyLong_FromLong(99)), -1);
+        ASSERT_TRUE(PyErr_Occurred());
+        PyErr_Clear();
+    }
     PyObject* public_method = PyObject_GetAttrString(obj, method_name);
     ASSERT_NE(public_method, nullptr);
     PyObject* dargs = PyTuple_New(1);

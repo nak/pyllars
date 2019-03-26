@@ -24,6 +24,7 @@
 #include "pyllars_object_lifecycle.hpp"
 typedef const char cstring[];
 static constexpr cstring operatormapname = "operator[]";
+static constexpr cstring operatormapnameconst = "operator[]const";
 
 static constexpr cstring OP_UNARY_INV = "__inv__";
 static constexpr cstring OP_UNARY_POS = "__pos_";
@@ -182,14 +183,7 @@ namespace __pyllars_internal {
         template<const char *const name, typename FieldType, const size_t bits>
         static void addBitField(
                 typename BitFieldContainer<T_NoRef>::template Container<name, FieldType, bits>::getter_t &getter,
-                typename BitFieldContainer<T_NoRef>::template Container<name, FieldType,  bits>::setter_t &setter);
-
-        /**
-         * Add a constant bit field to this Python type definition
-         **/
-        template<const char *const name, typename FieldType, const size_t bits>
-        static void addBitFieldConst(
-                typename BitFieldContainer<T_NoRef>::template Container<name, FieldType, bits>::getter_t &getter);
+                typename BitFieldContainer<T_NoRef>::template Container<name, FieldType,  bits>::setter_t *setter=nullptr);
 
         /**
          * add a getter method for the given compile-time-known named public class member
@@ -344,11 +338,9 @@ namespace __pyllars_internal {
         template<const char* const kwlist[2], typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
         static void addInplaceDicOperator(typename MethodContainer<T_NoRef, OP_BINARY_IDIV>::template Container<is_const, kwlist, ReturnType, Arg>::method_t method){ addBinaryOperator<OP_BINARY_IDIV, is_const,  ReturnType, Arg>(method, kwlist);}
 
-        template< const char* const kwlist[2], typename KeyType, typename ValueType>
-        static void addMapOperatorMethod( typename MethodContainer<T_NoRef, operatormapname>::template Container<false, kwlist, ValueType, KeyType>::method_t method);
-
-        template<const char* const kwlist[2],  typename KeyType, typename ValueType>
-        static void addMapOperatorMethodConst( typename MethodContainer<T_NoRef, operatormapname>::template Container<true, kwlist, ValueType, KeyType>::method_t method);
+        template<const char* const kwlist[2], typename KeyType, typename ValueType>
+        static void addMapOperatorMethod( typename MethodContainer<T_NoRef, operatormapname>::template Container<false, kwlist, ValueType, KeyType>::method_t method,
+                                          typename MethodContainer<T_NoRef, operatormapname>::template Container<true, kwlist, ValueType, KeyType>::method_t method_const_obj);
 
         static bool checkType(PyObject *const obj);
 
@@ -483,8 +475,7 @@ namespace __pyllars_internal {
         static std::vector<ConstructorContainer> _constructors;
         static std::map<std::string, PyMethodDef> _methodCollection;
         static std::map<std::string, std::pair<std::function<PyObject*(PyObject*, PyObject*)>,
-                                     std::function<int(PyObject*, PyObject*, PyObject*)>
-                                     >
+                                     std::function<int(bool, PyObject*, PyObject*, PyObject*)>>
                           >_mapMethodCollection;
         static std::map<std::string, _getattrfunc > _member_getters;
         static std::map<std::string, _setattrfunc > _member_setters;

@@ -15,14 +15,8 @@ add_executable(runAllPyllarsTest
         /opt/googletest/googletest/src/gtest_main.cc
         /opt/googletest/googletest/src/gtest-all.cc
         cpp/test_anon_enums.cpp
-        cpp/test_conversions.cpp
-        cpp/class_test_defns.h
-        cpp/anon_enum_defns.h
-        cpp/setup.h
-        cpp/setup_basic_class.h
         cpp/setup_anon_enums.hpp
-        cpp/setup_bitfields.h
-        cpp/setup_inheritance_test.h
+        cpp/test_conversions.cpp
         cpp/test_basic_classes.cpp
         cpp/test_inheritance.cpp
         cpp/test_bit_fields.cpp
@@ -83,7 +77,7 @@ target_link_libraries(runAnonEmumTests PUBLIC -L/usr/local/lib64 -lpython3.7m
 
 add_custom_target(testCoverage ALL
         DEPENDS runAllPyllarsTest
-        COMMAND ./runAllPyllarsTest && mkdir -p res && lcov -o res/testcov.out -c -d . && genhtml -o res res/testcov.out && google-chrome --new-window ./res/pyllars/index.html
+        COMMAND ./runAllPyllarsTest && mkdir -p res && lcov -o res/testcov.out -c -d . --exclude \"test_*\" && genhtml -o res res/testcov.out && google-chrome --new-window ./res/pyllars/index.html
         WORKING_DIRECTORY .
         COMMENT Generated test coverage)
 

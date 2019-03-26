@@ -78,7 +78,7 @@ namespace __pyllars_internal {
 
     template<typename T>
     std::map<std::string, std::pair<std::function<PyObject *(PyObject *, PyObject *)>,
-            std::function<int(PyObject *, PyObject *, PyObject *)>
+            std::function<int(bool is_const, PyObject *, PyObject *, PyObject *)>
     >
     >
             PythonClassWrapper<T,
@@ -259,6 +259,11 @@ namespace __pyllars_internal {
         }
         _Type.tp_methods = new PyMethodDef[_methodCollection.size() + 1];
         _Type.tp_methods[_methodCollection.size()] = {nullptr};
+        // for const-style T, this converts calls to pass in a const T pointer in the std::function call,
+        // important for disallowing setting of a const *value
+        _mapMethodCollection = Basic::_mapMethodCollection;
+        static PyMappingMethods methods = {nullptr, _mapGet, _mapSet};
+        _Type.tp_as_mapping = &methods;
         size_t index = 0;
         for (auto const&[key, methodDef]: _methodCollection) {
             (void) key;
@@ -560,8 +565,9 @@ namespace __pyllars_internal {
             typename std::enable_if<is_rich_class<T>::value>::type>::
     _mapSet(PyObject *self, PyObject *key, PyObject *value) {
         int status = -1;
+        auto self_ = reinterpret_cast<PythonClassWrapper*>(self);
         for (auto const &[_, method]: _mapMethodCollection) {
-            if ((status = method.second(self, key, value)) == 0) {
+            if ((status = method.second(std::is_const<T_NoRef >::value, self, key, value)) == 0) {
                 PyErr_Clear();
                 break;
             }
@@ -569,19 +575,6 @@ namespace __pyllars_internal {
         return status;
     }
 
-    namespace {
-
-
-        template<typename K, typename V>
-        class Name {
-        public:
-            static const std::string name;
-        };
-
-        template<typename K, typename V>
-        const std::string
-                Name<K, V>::name = std::string(typeid(K).name()) + std::string(typeid(V).name());
-    }
 
 
 #include <functional>
@@ -591,7 +584,8 @@ namespace __pyllars_internal {
     void PythonClassWrapper<T,
             typename std::enable_if<is_rich_class<T>::value>::type>::
     addMapOperatorMethod(
-            typename MethodContainer<T_NoRef, operatormapname>::template Container<false, kwlist, ValueType, KeyType>::method_t method) {
+            typename MethodContainer<T_NoRef, operatormapname>::template Container<false, kwlist, ValueType, KeyType>::method_t method,
+            typename MethodContainer<T_NoRef, operatormapname>::template Container<true, kwlist, ValueType, KeyType>::method_t method_const_obj) {
         std::function<PyObject *(PyObject *, PyObject *)> getter = [method](PyObject *self,
                                                                             PyObject *item) -> PyObject * {
             PythonClassWrapper *self_ = (PythonClassWrapper *) self;
@@ -603,16 +597,52 @@ namespace __pyllars_internal {
                 return nullptr;
             }
         };
-        std::function<int(PyObject *, PyObject *, PyObject *)> setter = [method](PyObject *self, PyObject *item,
-                                                                                 PyObject *value) -> int {
+        // since elements can be mutable, even const map operators must allow for setters
+        std::function<int(bool, PyObject *, PyObject *, PyObject *)> setter =
+                [method, method_const_obj](bool obj_is_const, PyObject *self, PyObject *item, PyObject *value) -> int {
             PythonClassWrapper *self_ = (PythonClassWrapper *) self;
+            auto cobj = self_->get_CObject();
+            if (!cobj){
+                PyErr_SetString(PyExc_TypeError, "Cannot operate on nullptr");
+                return -1;
+            }
             try {
-                if constexpr (!std::is_const<T>::value && std::is_reference<ValueType>::value) {
+                if constexpr (std::is_reference<ValueType>::value) {
                     auto c_value = toCArgument<ValueType>(*value);
                     auto c_key = toCArgument<KeyType>(*item);
-                    Assignment<ValueType>::assign((self_->get_CObject()->*method)(c_key.value()), c_value.value());
+                    if (obj_is_const){
+                        //mutable fields are still settable against const-ness of owning object
+                        //NOTE: we re-use this std::function for PythonClassWrapper<const T>, so need
+                        //   to get const bool to determine if this really should be a const-C object
+                        if (!method_const_obj){
+                            PyErr_SetString(PyExc_TypeError, "const-map-operator to be called");
+                            return -1;
+                        }
+                        auto const_cobj = reinterpret_cast<const T_NoRef *>(cobj);
+                        try {
+                            Assignment<ValueType>::assign((const_cobj->*method_const_obj)(c_key.value()), c_value.value());
+                        } catch (const char*){
+                            PyErr_SetString(PyExc_TypeError, "Cannot assign to const element");
+                            return -1;
+                        }
+                    } else {
+                        if(method) {
+                            Assignment<ValueType>::assign((cobj->*method)(c_key.value()), c_value.value());
+                        } else {
+                            if (!method_const_obj){
+                                PyErr_SetString(PyExc_TypeError, "const-map-operator to be called");
+                                return -1;
+                            }
+                            try{
+                                Assignment<ValueType>::assign((cobj->*method_const_obj)(c_key.value()), c_value.value());
+                            } catch (const char*){
+                                PyErr_SetString(PyExc_TypeError, "Cannot assign to const element");
+                                return -1;
+                            }
+                        }
+                    }
                 } else {
-                    PyErr_SetString(PyExc_TypeError, "Cannot set const or non-reference returned item");
+                    PyErr_SetString(PyExc_TypeError, "Cannot set non-reference returned item");
                     return -1;
                 }
             } catch (const char *const msg) {
@@ -622,48 +652,11 @@ namespace __pyllars_internal {
             return 0;
         };
 
-        const std::string name = Name<ValueType, KeyType>::name;
+        const std::string name = type_name<ValueType>() + std::string(":") + type_name<KeyType>();
         _mapMethodCollection[name] = std::pair<std::function<PyObject *(PyObject *, PyObject *)>,
-                std::function<int(PyObject *, PyObject *, PyObject *)>
+                std::function<int(bool, PyObject *, PyObject *, PyObject *)>
         >(getter, setter);
 
-        static PyMappingMethods methods = {nullptr, _mapGet, _mapSet};
-        _Type.tp_as_mapping = &methods;
-    }
-
-    template<typename T>
-    template<const char *const kwlist[], typename KeyType, typename ValueType>
-    void PythonClassWrapper<T,
-            typename std::enable_if<is_rich_class<T>::value>::type>::
-    addMapOperatorMethodConst(
-            typename MethodContainer<T_NoRef, operatormapname>::template Container<true, kwlist, ValueType, KeyType>::method_t method) {
-        std::function<PyObject *(PyObject *, PyObject *)> getter = [method](PyObject *self,
-                                                                            PyObject *item) -> PyObject * {
-            PythonClassWrapper *self_ = (PythonClassWrapper *) self;
-            try {
-                auto c_key = toCArgument<KeyType>(*item);
-                return toPyObject((self_->get_CObject()->*method)(c_key.value()), 1);
-            } catch (const char *const msg) {
-                PyErr_SetString(PyExc_TypeError, msg);
-                return nullptr;
-            }
-        };
-
-        std::function<int(PyObject *, PyObject *, PyObject *)> setter = [method](PyObject *self, PyObject *item,
-                                                                                 PyObject *value) -> int {
-            PyErr_SetString(PyExc_TypeError, "Unable to set value of const mapping");
-            return 1;
-        };
-
-        const std::string name = Name<ValueType, KeyType>::name;
-        //do not override a non-const with const version of operator[]
-        if (!_mapMethodCollection.count(name)) {
-            _mapMethodCollection[name] = std::pair<std::function<PyObject *(PyObject *, PyObject *)>,
-                    std::function<int(PyObject *, PyObject *, PyObject *)>
-            >(getter, setter);
-        }
-        static PyMappingMethods methods = {nullptr, _mapGet, _mapSet};
-        _Type.tp_as_mapping = &methods;
     }
 
 
@@ -874,30 +867,17 @@ namespace __pyllars_internal {
             typename std::enable_if<is_rich_class<T>::value>::type>::
     addBitField(
             typename BitFieldContainer<typename std::remove_reference<T>::type>::template Container<name, FieldType, bits>::getter_t &getter,
-            typename BitFieldContainer<typename std::remove_reference<T>::type>::template Container<name, FieldType, bits>::setter_t &setter) {
+            typename BitFieldContainer<typename std::remove_reference<T>::type>::template Container<name, FieldType, bits>::setter_t *setter) {
         static const char *const doc = "Get bit-field attribute ";
         char *doc_string = new char[strlen(name) + strlen(doc) + 1];
         snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
         BitFieldContainer<T_NoRef>::template Container<name, FieldType, bits>::_getter = getter;
-        BitFieldContainer<T_NoRef>::template Container<name, FieldType, bits>::_setter = setter;
         _member_getters[name] = BitFieldContainer<T_NoRef>::template Container<name, FieldType, bits>::get;
-        _member_setters[name] = BitFieldContainer<T_NoRef>::template Container<name, FieldType, bits>::set;
-
+        if (setter) {
+            BitFieldContainer<T_NoRef>::template Container<name, FieldType, bits>::_setter = *setter;
+            _member_setters[name] = BitFieldContainer<T_NoRef>::template Container<name, FieldType, bits>::set;
+        }
     }
-
-    template<typename T>
-    template<const char *const name, typename FieldType, const size_t bits>
-    void PythonClassWrapper<T,
-            typename std::enable_if<is_rich_class<T>::value>::type>::
-    addBitFieldConst(
-            typename BitFieldContainer<T_NoRef>::template Container<name, FieldType, bits>::getter_t &getter) {
-        static const char *const doc = "Get bit-field attribute ";
-        char *doc_string = new char[strlen(name) + strlen(doc) + 1];
-        snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
-        BitFieldContainer<T_NoRef>::template ConstContainer<name, FieldType, bits>::_getter = getter;
-        _member_getters[name] = BitFieldContainer<T_NoRef>::template ConstContainer<name, FieldType, bits>::get;
-    }
-
 
     template<typename T>
     template<const char *const name, typename FieldType>

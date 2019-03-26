@@ -17,25 +17,18 @@ protected:
     }
 
     static void SetUpTestSuite() {
-        static bool inited = false;
-        if(!inited) {
-            Py_Initialize();
-            PyErr_Clear();
-            inited = true;
-        }
+        Py_Initialize();
+        PyErr_Clear();
     }
 
     static void TearDownTestSuite(){
-        static bool invoked = false;
-        if(!invoked) {
-            ASSERT_FALSE(PyErr_Occurred());
-            ASSERT_TRUE(Py_FinalizeEx() == 0);
-            invoked = true;
-        }
+        ASSERT_FALSE(PyErr_Occurred());
+        ASSERT_TRUE(Py_FinalizeEx() == 0);
     }
 
     void TearDown(){
         ASSERT_FALSE(PyErr_Occurred());
+        PyErr_Clear();
     }
 
 };

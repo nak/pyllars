@@ -70,7 +70,7 @@ namespace __pyllars_internal {
         }
 
         template<typename t=number_type>
-        inline const t *get_CObject() {
+        inline const typename std::remove_reference<t>::type *get_CObject() {
             return &value;
         }
 
