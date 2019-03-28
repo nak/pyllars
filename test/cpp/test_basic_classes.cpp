@@ -192,6 +192,14 @@ TEST_F(SetupBasicClass, TestBasicClassOffNominal) {
     ASSERT_EQ(obj, nullptr);
     ASSERT_TRUE(PyErr_Occurred());
     PyErr_Clear();
+
+    PyObject* kwds = PyDict_New();
+    PyDict_SetItemString(kwds, "ununsed", PyLong_FromLong(33));
+    obj =  PyObject_Call((PyObject *) PythonClassWrapper<BasicClass>::getPyType(),
+                         nullptr, kwds);
+    ASSERT_EQ(obj, nullptr);
+    ASSERT_TRUE(PyErr_Occurred());
+    PyErr_Clear();
 }
 
 TEST_F(SetupBasicClass, TestPointers){

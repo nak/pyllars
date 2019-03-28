@@ -185,6 +185,7 @@ namespace __pyllars_internal {
             if ((!args || PyTuple_Size(args) == 0) && kwds && PyDict_Size(kwds) == 1) {
                 if (PyDict_GetItemString(kwds, "__internal_allow_null") == Py_True) {
                     PyErr_Clear();
+                    return 0;
                 } else {
                     PyErr_SetString(PyExc_RuntimeError, "Creation of null C object not allowed");
                     return -1;
@@ -896,7 +897,7 @@ namespace __pyllars_internal {
         char format[sizeof...(PyO) + 1] = {0};
         if (sizeof...(PyO) > 0)
             memset(format, 'O', sizeof...(PyO));
-        return sizeof...(PyO) == 0 || PyArg_ParseTupleAndKeywords(args, kwds, format, (char **) kwlist, &pyargs...);
+        return (args && !kwds && sizeof...(PyO) == 0) || PyArg_ParseTupleAndKeywords(args, kwds, format, (char **) kwlist, &pyargs...);
     }
 
     template<typename T>
