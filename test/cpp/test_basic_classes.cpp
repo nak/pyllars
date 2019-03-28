@@ -303,3 +303,32 @@ TEST_F(SetupBasicClass, TestBasicClassBinaryOperators){
     ASSERT_NE(dbl_value, nullptr);
     ASSERT_DOUBLE_EQ(PyFloat_AsDouble(dbl_value), 1.2);
 }
+
+class UnaryOperatorTest : public SetupBasicClass,
+                          public testing::WithParamInterface<std::pair<const char*, const BasicClass*> >{
+
+};
+
+TEST_P(UnaryOperatorTest, InvokesOperator){
+    using namespace __pyllars_internal;
+    typedef PythonClassWrapper<BasicClass> Class;
+
+    auto  [name, expected] = GetParam();
+    PyObject * obj = PyObject_Call((PyObject*)Class::getPyType(), PyTuple_New(0), nullptr);
+    ASSERT_NE(obj, nullptr);
+    auto func = PyObject_GetAttrString(obj, name);
+    ASSERT_NE(func, nullptr);
+    auto pyobj = PyObject_Call(func, PyTuple_New(0), nullptr);
+    ASSERT_NE(pyobj, nullptr);
+    const BasicClass& cobj = toCArgument<BasicClass>(*pyobj).value();
+    ASSERT_EQ(cobj, *expected);
+}
+
+static const BasicClass val_pos = BasicClass();
+static const BasicClass val_neg = -val_pos;
+static const BasicClass val_inv = ~val_pos;
+
+INSTANTIATE_TEST_SUITE_P(UnaryOperatorTestSuite, UnaryOperatorTest, ::testing::Values(std::pair<const char*, const BasicClass*>((const char*)OP_UNARY_POS, &val_pos),
+        std::pair<const char*, const BasicClass*>(OP_UNARY_NEG, &val_neg),
+        std::pair<const char*, const BasicClass*>(OP_UNARY_INV, &val_inv)
+        ));

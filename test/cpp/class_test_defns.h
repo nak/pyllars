@@ -92,6 +92,15 @@ public:
     static constexpr int class_const_member = 42;
     static int class_member;
 
+
+    bool operator==(const BasicClass& obj) const{
+        return int_array[0] == obj.int_array[0] &&
+            int_array[1] == obj.int_array[1] &&
+            int_array[2] == obj.int_array[2] &&
+            *double_ptr_member ==  *obj.double_ptr_member;
+    }
+
+
 private:
     void private_method();
     mutable std::map<std::string, int> _mapped_values;

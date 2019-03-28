@@ -26,8 +26,8 @@ typedef const char cstring[];
 static constexpr cstring operatormapname = "operator[]";
 static constexpr cstring operatormapnameconst = "operator[]const";
 
-static constexpr cstring OP_UNARY_INV = "__inv__";
-static constexpr cstring OP_UNARY_POS = "__pos_";
+static constexpr cstring OP_UNARY_INV = "__invert__";
+static constexpr cstring OP_UNARY_POS = "__pos__";
 static constexpr cstring OP_UNARY_NEG = "__neg__";
 
 static constexpr cstring OP_BINARY_ADD = "__add__";
@@ -248,10 +248,6 @@ namespace __pyllars_internal {
 
 
 
-        template<const char *const name, bool is_const, typename Arg=T_NoRef>
-        static void addUnaryOperator(
-                typename MethodContainer<T_NoRef, name>::template Container<is_const, emptylist, Arg>::method_t method);
-
         template<typename Arg = T_NoRef, bool is_const = true>
         static void addInvOperator(typename MethodContainer<T_NoRef, OP_UNARY_INV>::template Container<is_const, emptylist, Arg>::method_t method)
         { addUnaryOperator<OP_UNARY_INV, is_const, Arg>(method);}
@@ -263,10 +259,6 @@ namespace __pyllars_internal {
         template<typename Arg = T_NoRef, bool is_const = true>
         static void addNegOperator(typename MethodContainer<T_NoRef, OP_UNARY_NEG>::template Container<is_const, emptylist, Arg>::method_t method)
         { addUnaryOperator<OP_UNARY_NEG, is_const, Arg>(method);}
-
-        template<const char *const name, bool is_const, const char* const kwlist[2], typename ReturnType=T_NoRef, typename Arg=T_NoRef>
-        static void addBinaryOperator(
-                typename MethodContainer<T_NoRef, name>::template Container<is_const, kwlist,  ReturnType, Arg>::method_t method);
 
         template<const char* const kwlist[2], typename ReturnType=T_NoRef, typename Arg = T_NoRef, bool is_const = true>
         static void addAddOperator(typename MethodContainer<T_NoRef, OP_BINARY_ADD>::template Container<is_const, kwlist, ReturnType, Arg>::method_t method){
@@ -376,6 +368,14 @@ namespace __pyllars_internal {
         ObjectContainer<T_NoRef> *_CObject;
 
     private:
+
+        template<const char *const name, bool is_const, typename Arg=T_NoRef>
+        static void addUnaryOperator(
+                typename MethodContainer<T_NoRef, name>::template Container<is_const, emptylist, Arg>::method_t method);
+
+        template<const char *const name, bool is_const, const char* const kwlist[2], typename ReturnType=T_NoRef, typename Arg=T_NoRef>
+        static void addBinaryOperator(
+                typename MethodContainer<T_NoRef, name>::template Container<is_const, kwlist,  ReturnType, Arg>::method_t method);
 
         typedef ObjectContainer<T_NoRef>* (*constructor_t)(const char *const kwlist[], PyObject *args, PyObject *kwds,
                 unsigned char* const location);

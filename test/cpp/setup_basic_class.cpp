@@ -98,6 +98,8 @@ SetupBasicClass::SetUpTestSuite() {
     ASSERT_FALSE(PyErr_Occurred());
 }
 
+
 typedef int int_array[3];
 template PyObject* __pyllars_internal::toPyObject<int[3]>(int_array& var, ssize_t array_size);
 template PyObject* __pyllars_internal::toPyObject<int*>(int* &var, ssize_t array_size);
+template __pyllars_internal::argument_capture<BasicClass> __pyllars_internal::toCArgument(PyObject&);

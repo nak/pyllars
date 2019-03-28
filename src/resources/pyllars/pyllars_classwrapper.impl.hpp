@@ -332,23 +332,18 @@ namespace __pyllars_internal {
             _unaryOperators = Basic::_unaryOperators;
         }
         _unaryOperatorsConst = Basic::_unaryOperatorsConst;
-        for (auto const&[name_, func]: _unaryOperators) {
-            static std::map<std::string, unaryfunc *> unary_mapping =
-                    {{std::string(OP_UNARY_INV), &_Type.tp_as_number->nb_invert},
-                     {std::string(OP_UNARY_NEG), &_Type.tp_as_number->nb_negative},
-                     {std::string(OP_UNARY_POS), &_Type.tp_as_number->nb_positive}};
 
+        static std::map<std::string, unaryfunc *> unary_mapping =
+                {{std::string(OP_UNARY_INV), &_Type.tp_as_number->nb_invert},
+                 {std::string(OP_UNARY_NEG), &_Type.tp_as_number->nb_negative},
+                 {std::string(OP_UNARY_POS), &_Type.tp_as_number->nb_positive}};
+        for (auto const&[name_, func]: _unaryOperators) {
             if (unary_mapping.count(name_) == 0) {
                return -1;
             }
             *unary_mapping[name_] = func;
         }
         for (auto const&[name_, func]: _unaryOperatorsConst) {
-            static std::map<std::string, unaryfunc *> unary_mapping =
-                    {{std::string(OP_UNARY_INV), &_Type.tp_as_number->nb_invert},
-                     {std::string(OP_UNARY_NEG), &_Type.tp_as_number->nb_negative},
-                     {std::string(OP_UNARY_POS), &_Type.tp_as_number->nb_positive}};
-
             if (unary_mapping.count(name_) == 0) {
                 return -1;
             }
@@ -358,59 +353,37 @@ namespace __pyllars_internal {
             _binaryOperators = Basic::_binaryOperators;
         }
         _binaryOperatorsConst = Basic::_binaryOperatorsConst;
-        for (auto const&[name_, func]: _binaryOperators) {
-            static std::map<std::string, binaryfunc *> binary_mapping =
-                    {{OP_BINARY_ADD,     &_Type.tp_as_number->nb_add},
-                     {OP_BINARY_AND,     &_Type.tp_as_number->nb_and},
-                     {OP_BINARY_OR,      &_Type.tp_as_number->nb_or},
-                     {OP_BINARY_XOR,     &_Type.tp_as_number->nb_xor},
-                     {OP_BINARY_DIV,     &_Type.tp_as_number->nb_true_divide},
-                     {OP_BINARY_MOD,     &_Type.tp_as_number->nb_remainder},
-                     {OP_BINARY_MUL,     &_Type.tp_as_number->nb_multiply},
-                     {OP_BINARY_LSHIFT,  &_Type.tp_as_number->nb_lshift},
-                     {OP_BINARY_RSHIFT,  &_Type.tp_as_number->nb_rshift},
-                     {OP_BINARY_SUB,     &_Type.tp_as_number->nb_subtract},
-                     {OP_BINARY_IADD,    &_Type.tp_as_number->nb_inplace_add},
-                     {OP_BINARY_IAND,    &_Type.tp_as_number->nb_inplace_and},
-                     {OP_BINARY_IOR,     &_Type.tp_as_number->nb_inplace_or},
-                     {OP_BINARY_IXOR,    &_Type.tp_as_number->nb_inplace_xor},
-                     {OP_BINARY_IDIV,    &_Type.tp_as_number->nb_inplace_true_divide},
-                     {OP_BINARY_IMOD,    &_Type.tp_as_number->nb_inplace_remainder},
-                     {OP_BINARY_IMUL,    &_Type.tp_as_number->nb_inplace_multiply},
-                     {OP_BINARY_ILSHIFT, &_Type.tp_as_number->nb_inplace_lshift},
-                     {OP_BINARY_IRSHIFT, &_Type.tp_as_number->nb_inplace_rshift},
-                     {OP_BINARY_ISUB,    &_Type.tp_as_number->nb_inplace_subtract},
 
-                    };
+        static std::map<std::string, binaryfunc *> binary_mapping =
+                {{OP_BINARY_ADD,     &_Type.tp_as_number->nb_add},
+                 {OP_BINARY_AND,     &_Type.tp_as_number->nb_and},
+                 {OP_BINARY_OR,      &_Type.tp_as_number->nb_or},
+                 {OP_BINARY_XOR,     &_Type.tp_as_number->nb_xor},
+                 {OP_BINARY_DIV,     &_Type.tp_as_number->nb_true_divide},
+                 {OP_BINARY_MOD,     &_Type.tp_as_number->nb_remainder},
+                 {OP_BINARY_MUL,     &_Type.tp_as_number->nb_multiply},
+                 {OP_BINARY_LSHIFT,  &_Type.tp_as_number->nb_lshift},
+                 {OP_BINARY_RSHIFT,  &_Type.tp_as_number->nb_rshift},
+                 {OP_BINARY_SUB,     &_Type.tp_as_number->nb_subtract},
+                 {OP_BINARY_IADD,    &_Type.tp_as_number->nb_inplace_add},
+                 {OP_BINARY_IAND,    &_Type.tp_as_number->nb_inplace_and},
+                 {OP_BINARY_IOR,     &_Type.tp_as_number->nb_inplace_or},
+                 {OP_BINARY_IXOR,    &_Type.tp_as_number->nb_inplace_xor},
+                 {OP_BINARY_IDIV,    &_Type.tp_as_number->nb_inplace_true_divide},
+                 {OP_BINARY_IMOD,    &_Type.tp_as_number->nb_inplace_remainder},
+                 {OP_BINARY_IMUL,    &_Type.tp_as_number->nb_inplace_multiply},
+                 {OP_BINARY_ILSHIFT, &_Type.tp_as_number->nb_inplace_lshift},
+                 {OP_BINARY_IRSHIFT, &_Type.tp_as_number->nb_inplace_rshift},
+                 {OP_BINARY_ISUB,    &_Type.tp_as_number->nb_inplace_subtract},
+
+                };
+        for (auto const&[name_, func]: _binaryOperators) {
             if (binary_mapping.count(name_) == 0) {
                 throw "Undefined operator name (internal error)";
             }
             *binary_mapping[name_] = func;
         }
         for (auto const&[name_, func]: _binaryOperatorsConst) {
-            static std::map<std::string, binaryfunc *> binary_mapping =
-                    {{OP_BINARY_ADD,     &_Type.tp_as_number->nb_add},
-                     {OP_BINARY_AND,     &_Type.tp_as_number->nb_and},
-                     {OP_BINARY_OR,      &_Type.tp_as_number->nb_or},
-                     {OP_BINARY_XOR,     &_Type.tp_as_number->nb_xor},
-                     {OP_BINARY_DIV,     &_Type.tp_as_number->nb_true_divide},
-                     {OP_BINARY_MOD,     &_Type.tp_as_number->nb_remainder},
-                     {OP_BINARY_MUL,     &_Type.tp_as_number->nb_multiply},
-                     {OP_BINARY_LSHIFT,  &_Type.tp_as_number->nb_lshift},
-                     {OP_BINARY_RSHIFT,  &_Type.tp_as_number->nb_rshift},
-                     {OP_BINARY_SUB,     &_Type.tp_as_number->nb_subtract},
-                     {OP_BINARY_IADD,    &_Type.tp_as_number->nb_inplace_add},
-                     {OP_BINARY_IAND,    &_Type.tp_as_number->nb_inplace_and},
-                     {OP_BINARY_IOR,     &_Type.tp_as_number->nb_inplace_or},
-                     {OP_BINARY_IXOR,    &_Type.tp_as_number->nb_inplace_xor},
-                     {OP_BINARY_IDIV,    &_Type.tp_as_number->nb_inplace_true_divide},
-                     {OP_BINARY_IMOD,    &_Type.tp_as_number->nb_inplace_remainder},
-                     {OP_BINARY_IMUL,    &_Type.tp_as_number->nb_inplace_multiply},
-                     {OP_BINARY_ILSHIFT, &_Type.tp_as_number->nb_inplace_lshift},
-                     {OP_BINARY_IRSHIFT, &_Type.tp_as_number->nb_inplace_rshift},
-                     {OP_BINARY_ISUB,    &_Type.tp_as_number->nb_inplace_subtract},
-
-                    };
             if (binary_mapping.count(name_) == 0) {
                 throw "Undefined operator name (internal error)";
             }
