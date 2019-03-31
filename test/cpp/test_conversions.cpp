@@ -26,7 +26,7 @@ struct A{
     }
 };
 
-
+template _object* __pyllars_internal::toPyArgument<A>(A&, const long);
 
 class DisparateType{
 };
@@ -174,7 +174,7 @@ PyObject* PyFloat_FromFloat(float v){
 PyObject* PyClass_FromClass(A v){
     using namespace __pyllars_internal;
     auto args = PyTuple_New(1);
-    PyTuple_SetItem(args, 0, toPyObject(v, 1));
+    PyTuple_SetItem(args, 0, toPyObject<A>(v, 1));
     return PyObject_Call((PyObject*)PythonClassWrapper<A>::getPyType(), args, nullptr);
 }
 

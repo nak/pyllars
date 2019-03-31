@@ -143,6 +143,24 @@ namespace __pyllars_internal {
         //  typedef const typename extent_as_pointer<T>::type *type;
         typedef const T *type;
     };
+    template <bool asReference, typename T>
+    struct apply_const;
+
+    template <typename T>
+    struct apply_const<false, T>{
+        typedef T type;
+    };
+
+    template <typename T>
+    struct apply_const<true, T>{
+        typedef const T type;
+    };
+
+    template <typename T>
+    struct as_argument{
+        static constexpr bool asArgument = std::is_reference<T>::value|| std::is_array<typename std::remove_reference<T>::type>::value;
+        typedef typename apply_const<!asArgument, T>::type type;
+    };
 
 }
 

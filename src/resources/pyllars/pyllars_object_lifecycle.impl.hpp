@@ -40,7 +40,7 @@ namespace __pyllars_internal {
     template<typename T>
     ObjectContainer<T> *ObjectLifecycleHelpers::
     Copy<T>::
-    new_copy2(const T &value) {
+    new_copy2(const T_Arg &value) {
         typedef typename std::remove_reference<T>::type T_NoRef;
         if constexpr ((std::is_destructible<T_NoRef>::value && std::is_assignable<T_NoRef&, T_NoRef >::value && std::is_copy_constructible<T_NoRef>::value) ||
                 ((!std::is_assignable<T_NoRef  &, T_NoRef >::value || !std::is_destructible<T_NoRef >::value) && std::is_copy_constructible<T_NoRef >::value) ||
@@ -54,8 +54,7 @@ namespace __pyllars_internal {
     template<typename T>
     typename std::remove_reference<T>::type *ObjectLifecycleHelpers::
     Copy<T>::
-    new_copy(T_NoRef *const value) {
-        typedef typename std::remove_reference<T>::type T_NoRef;
+    new_copy(T_Arg *const value) {
         if constexpr ((std::is_destructible<T_NoRef>::value && std::is_assignable<T_NoRef &, T_NoRef>::value && std::is_copy_constructible<T_NoRef>::value) ||
                 ( (!std::is_assignable<T_NoRef &, T_NoRef>::value || !std::is_destructible<T_NoRef>::value) && std::is_copy_constructible<T_NoRef>::value)){
             return new T_NoRef(*value);

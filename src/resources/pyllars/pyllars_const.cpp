@@ -1134,7 +1134,11 @@ namespace __pyllars_internal {
 
     template<typename number_type>
     int PyConstFloatingPtCustomObject<number_type>::initialize() {
-        int rc = PyType_Ready(&CommonBaseWrapper::_BaseType);
+        static bool inited = false;
+        static int rc = -1;
+        if (inited) return rc;
+        inited = true;
+        rc = PyType_Ready(&CommonBaseWrapper::_BaseType);
         rc |= PyType_Ready(&PyConstFloatingPtCustomBase::Type);
         rc |= PyType_Ready(&PyConstFloatingPtCustomObject::Type);
         return rc;

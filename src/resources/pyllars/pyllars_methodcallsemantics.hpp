@@ -213,7 +213,10 @@ namespace __pyllars_internal {
         static PyObject *callAsBinaryFunc(PyObject *self, PyObject *arg){
             auto args = PyTuple_New(1);
             PyTuple_SetItem(args, 0, arg);
-            return call(self, /*Py_BuildValue("(O)",*/ args, nullptr);
+            auto retval = call(self, /*Py_BuildValue("(O)",*/ args, nullptr);
+            Py_INCREF(arg); // because tuple setitem steals one
+            Py_DECREF(args);
+            return retval;
         }
 
         class BaseContainer{

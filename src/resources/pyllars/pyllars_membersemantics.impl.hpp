@@ -253,10 +253,11 @@ namespace __pyllars_internal {
     get(PyObject *self, void*) {
         if (!self) return nullptr;
         typedef PythonClassWrapper<CClass> Wrapper;
+        typedef typename std::remove_reference<T>::type T_NoRef;
         Wrapper *_this = (Wrapper *) self;
 
         if (_this->get_CObject()) {
-            return toPyObject<T>(_getter(*(_this->get_CObject())), 1);
+            return toPyObject<T_NoRef>(_getter(*(_this->get_CObject())), 1);
         }
         PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
         return nullptr;

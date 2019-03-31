@@ -131,7 +131,7 @@ TEST_F(SetupBasicClass, TestBasicClass){
 
     {
         int int_vals[3] = {6, 7, 8};
-        PyObject *vals = toPyObject(int_vals, 3);
+        PyObject *vals = toPyObject<int[3]>(int_vals, 3);
         ASSERT_NE(vals, nullptr);
         PyObject_SetAttrString(obj, int_array_member_name, vals);
         vals = PyObject_GetAttrString(obj, int_array_member_name);
@@ -143,7 +143,7 @@ TEST_F(SetupBasicClass, TestBasicClass){
     {
         int *int_vals = new int[3]{6, 7, 8};
 
-        PyObject *vals = toPyObject(int_vals, 3);
+        PyObject *vals = toPyObject<int*>(int_vals, 3);
         ASSERT_NE(vals, nullptr);
         PyObject_SetAttrString(obj, int_array_member_name, vals);
         vals = PyObject_GetAttrString(obj, int_array_member_name);
@@ -332,3 +332,37 @@ INSTANTIATE_TEST_SUITE_P(UnaryOperatorTestSuite, UnaryOperatorTest, ::testing::V
         std::pair<const char*, const BasicClass*>(OP_UNARY_NEG, &val_neg),
         std::pair<const char*, const BasicClass*>(OP_UNARY_INV, &val_inv)
         ));
+
+
+class BinaryOperatorTest : public SetupBasicClass,
+                          public testing::WithParamInterface<std::tuple<const char*, const BasicClass*, std::function<void(PyObject*)> > >{
+
+};
+
+TEST_P(BinaryOperatorTest, InvokesOperator){
+    using namespace __pyllars_internal;
+    typedef PythonClassWrapper<BasicClass> Class;
+
+    auto  [name, val1, expectation] = GetParam();
+    PyObject * obj = PyObject_Call((PyObject*)Class::getPyType(), PyTuple_New(0), nullptr);
+    ASSERT_NE(obj, nullptr);
+    auto func = PyObject_GetAttrString(obj, name);
+    ASSERT_NE(func, nullptr);
+    auto args = PyTuple_New(1);
+    PyTuple_SetItem(args, 0, toPyArgument<const BasicClass>(*val1, 1));
+    auto pyobj = PyObject_Call(func, args, nullptr);
+    ASSERT_NE(pyobj, nullptr);
+    expectation(pyobj);
+}
+
+static const BasicClass val_add = val_pos;
+static const BasicClass expected_add = val_pos + val_pos;
+static std::function<void(PyObject*)> expectation_add = [](PyObject* result){
+    using namespace __pyllars_internal;
+    ASSERT_TRUE(PyObject_TypeCheck(result, PythonClassWrapper<double>::getPyType()));
+    ASSERT_FLOAT_EQ(*reinterpret_cast<PythonClassWrapper<double>*>(result)->get_CObject(), *expected_add.double_ptr_member);
+};
+
+INSTANTIATE_TEST_SUITE_P(BinaryOperatorTestSuite, BinaryOperatorTest, ::testing::Values(
+        std::tuple<const char*, const BasicClass*, std::function<void(PyObject*)>>((const char*)OP_BINARY_ADD, &val_pos, expectation_add)
+));

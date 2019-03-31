@@ -99,16 +99,17 @@ namespace __pyllars_internal {
      * @param asArgument: whether to be used as argument or not (can determine if copy is made or reference semantics used)
      **/
     template<typename T>
-    PyObject *toPyObject(T &var, const ssize_t array_size) ;
+    PyObject *toPyObject(typename std::remove_reference<typename as_argument<T>::type>::type &var, const ssize_t array_size) ;
 
     template<typename T>
-    PyObject *toPyObject(const T &var,  const ssize_t array_size) ;
+    PyObject *toPyArgument(T &var, const ssize_t array_size) ;
 
     template<typename T>
-    PyObject *toPyArgyment(T &var, const ssize_t array_size) ;
+    PyObject *toPyArgument(const T &var, const ssize_t array_size) ;
 
-    template<typename T>
-    PyObject *toPyArgument(const T &var,  const ssize_t array_size) ;
+    template<typename T, size_t size>
+    PyObject *toPyArgument(T var[size], const ssize_t array_size = size);
+
 
 }
 

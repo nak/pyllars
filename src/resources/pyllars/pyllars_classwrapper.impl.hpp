@@ -652,7 +652,7 @@ namespace __pyllars_internal {
             PythonClassWrapper *self_ = (PythonClassWrapper *) self;
             try {
                 auto c_key = toCArgument<KeyType>(*item);
-                return toPyObject((self_->get_CObject()->*method)(c_key.value()), 1);
+                return toPyObject<T>((self_->get_CObject()->*method)(c_key.value()), 1);
             } catch (const char *const msg) {
                 PyErr_SetString(PyExc_TypeError, msg);
                 return nullptr;

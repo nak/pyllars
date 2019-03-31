@@ -46,11 +46,12 @@ namespace __pyllars_internal {
 
         template<typename T>
         struct Copy {
+            typedef typename std::remove_reference<typename as_argument<T>::type>::type T_Arg;
             typedef typename std::remove_reference<T>::type T_NoRef;
 
-            static ObjectContainer<T> *new_copy2(const T &value);
+            static ObjectContainer<T> *new_copy2(const T_Arg &value);
 
-            static T_NoRef *new_copy(T_NoRef *value);
+            static T_NoRef *new_copy(T_Arg *value);
 
             static void inplace_copy(T_NoRef *to, Py_ssize_t index, const T_NoRef *from);
         };
