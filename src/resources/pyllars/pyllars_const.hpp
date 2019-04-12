@@ -66,12 +66,14 @@ namespace __pyllars_internal {
 
         static int create(PyObject *subtype, PyObject *args, PyObject *kwds);
 
+        static PyObject *createPyFromAllocated(number_type_basic *cobj, PyObject *referencing=nullptr);
+
         PyConstNumberCustomObject() : _referenced(nullptr), _depth(0), value(0) {
         }
 
         template<typename t=number_type>
         inline const typename std::remove_reference<t>::type *get_CObject() {
-            return &value;
+            return reinterpret_cast<const typename std::remove_reference<t>::type*>(&value);
         }
 
         static PyMethodDef _methods[];
@@ -80,7 +82,7 @@ namespace __pyllars_internal {
 
         PyObject *_referenced;
         size_t _depth;
-        number_type value;
+        typename representation<number_type>::type  value;
 
         class Initializer : public pyllars::Initializer {
         public:
@@ -221,6 +223,8 @@ namespace __pyllars_internal {
 
         static int create(PyObject *subtype, PyObject *args, PyObject *kwds);
 
+        static PyObject *createPyFromAllocated(ntype_basic *cobj, PyObject *referencing=nullptr);
+
         PyConstFloatingPtCustomObject() : _referenced(nullptr), _depth(0), value(0.0) {
         }
 
@@ -235,7 +239,7 @@ namespace __pyllars_internal {
 
         PyObject *_referenced;
         size_t _depth;
-        typename std::remove_const<number_type>::type value;
+        typename representation<number_type>::type  value;
 
         class Initializer : public pyllars::Initializer {
         public:

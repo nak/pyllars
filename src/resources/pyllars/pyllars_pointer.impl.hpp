@@ -246,7 +246,7 @@ namespace __pyllars_internal {
     template<typename T>
     PythonPointerWrapperBase <T> *
     PythonPointerWrapperBase<T>::
-    _createPyFromAllocatedInstance(PyTypeObject &Type, T& cobj, const ssize_t arraySize, PyObject *referencing) {
+    _createPyFromAllocatedInstance(PyTypeObject &Type, T &cobj, const ssize_t arraySize, PyObject *referencing) {
         if (_initialize(Type) != 0) {
             PyErr_SetString(PyExc_SystemError, "System error: failed to initialize type");
             return nullptr;

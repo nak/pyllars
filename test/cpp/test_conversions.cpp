@@ -406,8 +406,8 @@ TYPED_TEST(ToPyTest, convert_to_py ) {
         auto obj = toPyArgument<T>(*a, 1);
         ASSERT_NE(obj, nullptr);
         ASSERT_FALSE(PyErr_Occurred());
-        ASSERT_TRUE(PyObject_TypeCheck(obj, PythonClassWrapper<T>::getPyType()));
-        ASSERT_EQ(a, reinterpret_cast<PythonClassWrapper<T> *>(obj)->get_CObject());
+        ASSERT_TRUE(PyObject_TypeCheck(obj, PythonClassWrapper<T&>::getPyType()));
+        ASSERT_EQ(a, reinterpret_cast<PythonClassWrapper<T&> *>(obj)->get_CObject());
         Py_DECREF(obj);
     }
     {
@@ -446,8 +446,8 @@ TYPED_TEST(ToPyTest2, convert_to_py_array ) {
         auto obj = toPyArgument<T>(a->values(), 1);
         ASSERT_NE(obj, nullptr);
         ASSERT_FALSE(PyErr_Occurred());
-        ASSERT_TRUE(PyObject_TypeCheck(obj, PythonClassWrapper<T>::getPyType()));
-        ASSERT_EQ((T *) a, reinterpret_cast<PythonClassWrapper<T> *>(obj)->get_CObject());
+        ASSERT_TRUE(PyObject_TypeCheck(obj, PythonClassWrapper<T&>::getPyType()));
+        ASSERT_EQ((T *) a, reinterpret_cast<PythonClassWrapper<T&> *>(obj)->get_CObject());
         Py_DECREF(obj);
     }
     {

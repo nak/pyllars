@@ -55,8 +55,12 @@ namespace __pyllars_internal{
                 }
             }
 
+            FixedArrayHelper():_values(reinterpret_cast<T*const>(_data)){
+            }
+
         private:
             unsigned char _data[size*sizeof(T)];
+            T *const _values;
         };
 
     }

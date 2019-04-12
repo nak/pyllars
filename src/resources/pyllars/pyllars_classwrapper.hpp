@@ -173,8 +173,10 @@ namespace __pyllars_internal {
             return 0;
         }
 
-        static int addEnumClassValue( const char* const name, const T& value){
-            _classEnumValues[name] = &value;
+        static int addEnumClassValue( const char* const name, const T value){
+            if constexpr (std::is_constructible<T>::value) {
+                _classEnumValues[name] = new T(value);
+            }
             return 0;
         }
 

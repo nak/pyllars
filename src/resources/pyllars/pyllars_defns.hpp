@@ -386,16 +386,11 @@ namespace __pyllars_internal {
 
 
     template<typename T>
-    PyObject *toPyObject(typename std::remove_reference<typename as_argument<T>::type>::type &var, const ssize_t array_size) ;
+    PyObject *toPyObject(T var, const ssize_t array_size) ;
 
-  //  template<typename T>
-  //  PyObject *toPyObject(const T &var, ssize_t array_size);
+    template<typename T, ssize_t size>
+    PyObject *toPyObject(T var[size], const ssize_t array_size) ;
 
-    template<typename T>
-    PyObject *toPyArgument(T &var, ssize_t array_size);
-
-    template<typename T>
-    PyObject *toPyArgument(const T &var, ssize_t array_size);
 
     template<typename T>
     struct argument_capture;

@@ -98,13 +98,14 @@ SetupBasicClass::SetUpTestSuite() {
     ASSERT_FALSE(PyErr_Occurred());
 }
 
-
 typedef int int_array[3];
-template PyObject* __pyllars_internal::toPyObject<int[3]>(int_array& var, ssize_t array_size);
-template PyObject* __pyllars_internal::toPyObject<int*>(int* const &var, ssize_t array_size);
-template PyObject* __pyllars_internal::toPyObject<BasicClass const&>(BasicClass const &, ssize_t);
-template PyObject* __pyllars_internal::toPyObject<double>(double const&, ssize_t);
+template PyObject* __pyllars_internal::toPyObject<int[3]>(int_array var, const ssize_t array_size);
+template PyObject* __pyllars_internal::toPyObject<int*>(int* var, const ssize_t array_size);
+template PyObject* __pyllars_internal::toPyObject<int&>(int& var, const ssize_t array_size);
+template PyObject* __pyllars_internal::toPyObject<const int&>(const int& var, const ssize_t array_size);
+template PyObject* __pyllars_internal::toPyObject<BasicClass const&>(BasicClass const &, const ssize_t);
+template PyObject* __pyllars_internal::toPyObject<double>(double, const ssize_t);
 
-template PyObject* __pyllars_internal::toPyArgument<BasicClass>(BasicClass const&, const ssize_t);
+template PyObject* __pyllars_internal::toPyArgument<BasicClass const&>(BasicClass const &, const ssize_t);
 
 template __pyllars_internal::argument_capture<BasicClass> __pyllars_internal::toCArgument(PyObject&);

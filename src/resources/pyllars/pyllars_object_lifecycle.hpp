@@ -51,7 +51,7 @@ namespace __pyllars_internal {
 
             static ObjectContainer<T> *new_copy2(const T_Arg &value);
 
-            static T_NoRef *new_copy(T_Arg *value);
+            static T_NoRef *new_copy(typename extent_as_pointer<T>::type *value);
 
             static void inplace_copy(T_NoRef *to, Py_ssize_t index, const T_NoRef *from);
         };

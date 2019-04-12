@@ -349,14 +349,14 @@ TEST_P(BinaryOperatorTest, InvokesOperator){
     auto func = PyObject_GetAttrString(obj, name);
     ASSERT_NE(func, nullptr);
     auto args = PyTuple_New(1);
-    PyTuple_SetItem(args, 0, toPyArgument<const BasicClass>(*val1, 1));
+    PyTuple_SetItem(args, 0, toPyArgument<const BasicClass&>(*val1, 1));
     auto pyobj = PyObject_Call(func, args, nullptr);
     ASSERT_NE(pyobj, nullptr);
     expectation(pyobj);
 }
 
 static const BasicClass val_add = val_pos;
-static const BasicClass expected_add = val_pos + val_pos;
+static const BasicClass expected_add = BasicClass(val_pos + val_pos);
 static std::function<void(PyObject*)> expectation_add = [](PyObject* result){
     using namespace __pyllars_internal;
     ASSERT_TRUE(PyObject_TypeCheck(result, PythonClassWrapper<double>::getPyType()));

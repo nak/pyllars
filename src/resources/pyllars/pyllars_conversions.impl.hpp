@@ -118,35 +118,6 @@ namespace __pyllars_internal {
         return CObjectConversionHelper<T[size] >::toCArgument(pyobj);
     }
 
-    /////////////////////////
-    // C-to-Python conversions
-    //////////////////////////
-
-
-    class ConversionHelpers {
-    public:
-
-        ///////////
-        // Helper conversion functions
-        //////////
-
-        /**
-         * Define conversion helper class, which allows easier mechanism
-         * for necessary specializations
-         **/
-        template<typename T>
-        class PyObjectConversionHelper{
-        public:
-            typedef PythonClassWrapper<T> ClassWrapper;
-            typedef typename std::remove_reference<T>::type T_NoRef;
-
-            static PyObject *toPyObject(typename std::remove_reference<typename as_argument<T>::type>::type &var, const ssize_t array_size = -1);
-        };
-
-
-    };
-
-
     template<typename T>
     argument_capture<T>
     CObjectConversionHelper<T>::
@@ -272,74 +243,46 @@ namespace __pyllars_internal {
     ///////////////////////////
 
 
+    /////////////////////////
+    // C-to-Python conversions
+    //////////////////////////
+
+
+    class ConversionHelpers {
+    public:
+
+        ///////////
+        // Helper conversion functions
+        //////////
+
+        /**
+         * Define conversion helper class, which allows easier mechanism
+         * for necessary specializations
+         **/
+        template<typename T>
+        class PyObjectConversionHelper{
+        public:
+            typedef PythonClassWrapper<T> ClassWrapper;
+            typedef typename std::remove_reference<T>::type T_NoRef;
+
+            static PyObject *toPyObject(T var, const ssize_t array_size = -1);
+        };
+
+
+    };
+
+
     template<typename T>
     PyObject *
     ConversionHelpers::PyObjectConversionHelper<T>::
-    toPyObject(typename std::remove_reference<typename as_argument<T>::type>::type &var, const ssize_t array_size) {
-        static constexpr bool asReference = as_argument<T>::asArgument;
+    toPyObject(T var, const ssize_t array_size) {
         if constexpr(is_bool<T>::value) {
             return var?Py_True:Py_False;
-        } else if constexpr (std::is_integral<T>::value || std::is_enum<T>::value){
-                (void) asReference;
-            PyTypeObject *type = PythonClassWrapper<T>::getPyType();
-            PyObject *args = PyTuple_New(1);
-            auto pyInt = PyLong_FromLong((long int) var);
-            PyTuple_SetItem(args, 0, pyInt);
-            auto ret = PyObject_Call((PyObject *) type, args, nullptr);
-            Py_DECREF(args);
-            return ret;
-        } else if constexpr(std::is_floating_point<T>::value) {
-            (void) asReference;
-            PyTypeObject *type = PythonClassWrapper<T>::getPyType();
-            PyObject *pyFloat = PyFloat_FromDouble((double) var);
-            PyObject *args = PyTuple_New(1);
-            PyTuple_SetItem(args, 0, pyFloat);
-            auto ret = PyObject_Call((PyObject *) type, args, nullptr);
-            Py_DECREF(args);
-            return ret;
-        } else if constexpr (is_c_string_like<T>::value){
-            (void) asReference;
-            if (!var) {
-                throw "NULL CHAR* encountered";
-            }
-            PyTypeObject *type = PythonClassWrapper<T>::getPyType();
-            auto obj =  PyUnicode_FromString((const char*)var);
-            if(!obj){
-                PyErr_SetString(PyExc_ValueError, "Unable to extact unicode from given c-string");
-                return nullptr;
-            }
-            PyObject *args = PyTuple_New(1);
-            PyTuple_SetItem(args, 0, obj);
-            auto ret = PyObject_Call((PyObject*) type, args, nullptr);
-            Py_DECREF(args);
-            if(!ret){
-                PyErr_SetString(PyExc_TypeError, "Invalid conversion from C object to Python");
-            }
-            return ret;
-        } else if constexpr (is_bytes_like<T>::value){
-            (void) asReference;
-            if (!var) {
-                throw "NULL CHAR* encountered";
-            }
-            PyTypeObject *type = PythonClassWrapper<T>::getPyType();
-            auto obj =  PyBytes_FromString((char*)var);
-            if(!obj){
-                PyErr_SetString(PyExc_ValueError, "Unable to extact unicode from given c-string");
-                return nullptr;
-            }
-            PyObject *args = PyTuple_New(1);
-            PyTuple_SetItem(args, 0, obj);
-            auto ret = PyObject_Call((PyObject*) type, args, nullptr);
-            Py_DECREF(args);
-            if(!ret){
-                PyErr_SetString(PyExc_TypeError, "Invalid conversion from C object to Python");
-            }
-            return ret;
         } else {
             PyObject *pyobj = nullptr;
             if constexpr (std::is_array<typename std::remove_reference<T>::type>::value ||
                           std::is_pointer<typename std::remove_reference<T>::type>::value) {
-                if constexpr (asReference){
+                if constexpr (std::is_reference<T>::value){
                     pyobj = (PyObject *) ClassWrapper::createPyReference(var, array_size);
                 } else {
                     pyobj = (PyObject *) ClassWrapper::createPyFromAllocatedInstance(
@@ -347,7 +290,7 @@ namespace __pyllars_internal {
                             array_size);
                 }
             } else {
-                if constexpr (asReference) {
+                if constexpr (std::is_reference<T>::value) {
                     pyobj = (PyObject *) ClassWrapper::createPyReference(var);
                 } else {
                     pyobj = (PyObject *) ClassWrapper::createPyFromAllocated( ObjectLifecycleHelpers::Copy<T>::new_copy(&var));
@@ -363,22 +306,21 @@ namespace __pyllars_internal {
     }
 
     template<typename T>
-    PyObject *toPyObject(typename std::remove_reference<typename as_argument<T>::type>::type &var,  const ssize_t array_size) {
+    PyObject *toPyObject(T var,  const ssize_t array_size) {
         return ConversionHelpers::PyObjectConversionHelper<T>::toPyObject(var, array_size);
     }
 
+    template<typename T, ssize_t size>
+    PyObject *toPyObject(T var[size],  const ssize_t array_size) {
+        return ConversionHelpers::PyObjectConversionHelper<T[size]>::toPyObject(var, size);
+    }
 
     ////////////////////
 
 
     template<typename T>
-    PyObject *toPyArgyment(T &var, const ssize_t array_size){
+    PyObject *toPyArgument(T &var, const ssize_t array_size){
         return ConversionHelpers::PyObjectConversionHelper<T&>::toPyObject(var, array_size);
-    }
-
-    template<typename T>
-    PyObject *toPyArgument(const T &var, const ssize_t array_size){
-        return ConversionHelpers::PyObjectConversionHelper<const T&>::toPyObject(var, array_size);
     }
 
     template<typename T, size_t size>

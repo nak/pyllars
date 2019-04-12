@@ -162,6 +162,46 @@ namespace __pyllars_internal {
         typedef typename apply_const<!asArgument, T>::type type;
     };
 
+
+    /**
+     * Sometimes we need to store a value that is a reference (e.g. the value of PythonClassWrapper<int&>,
+     * which we represent internally as int* (an equivalent representation for us, and avoids explicit init needs)
+     * This class helps make the representation somewhat transparent, allowing common base code to exist with minor
+     * differences handled through if constexpr, etc.
+     * Yes, this is quirky
+     * @tparam T
+     */
+    template <typename T>
+    struct representation{
+        typedef T type;
+
+        static inline T& value(T& obj){
+            return obj;
+        }
+
+        static inline T* addr(T& obj){
+            return &obj;
+        }
+    };
+
+    template <typename T>
+    struct representation<T&>{
+        typedef T *type;
+
+        static inline T* value(T& obj){
+            return &obj;
+        }
+
+        static inline T& value(T* obj){
+            return *obj;
+        }
+
+        static inline T* addr(T* obj){
+            return obj;
+        }
+    };
+
+
 }
 
 #endif

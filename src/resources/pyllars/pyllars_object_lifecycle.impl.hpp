@@ -54,7 +54,7 @@ namespace __pyllars_internal {
     template<typename T>
     typename std::remove_reference<T>::type *ObjectLifecycleHelpers::
     Copy<T>::
-    new_copy(T_Arg *const value) {
+    new_copy(typename extent_as_pointer<T>::type *const value) {
         if constexpr ((std::is_destructible<T_NoRef>::value && std::is_assignable<T_NoRef &, T_NoRef>::value && std::is_copy_constructible<T_NoRef>::value) ||
                 ( (!std::is_assignable<T_NoRef &, T_NoRef>::value || !std::is_destructible<T_NoRef>::value) && std::is_copy_constructible<T_NoRef>::value)){
             return new T_NoRef(*value);
