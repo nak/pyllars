@@ -36,7 +36,7 @@ namespace __pyllars_internal{
     template<class CClass>
     template<const char *const name, typename AttrType>
     void ClassMember<CClass>::Container<name, AttrType>::
-    setFromPyObject(PyObject *pyobj) {
+    setFrom(PyObject *pyobj) {
         Assignment<AttrType>::assign(*member ,*toCArgument<AttrType, false>(*pyobj));
     }
 
@@ -66,7 +66,7 @@ namespace __pyllars_internal{
 
     template<class CClass>
     template<const char *const name, size_t size, typename AttrType>
-    void ClassMember<CClass>::Container<name, AttrType[size]>::setFromPyObject(PyObject* pyobj){
+    void ClassMember<CClass>::Container<name, AttrType[size]>::setFrom(PyObject *pyobj){
         AttrType val[] = *toCArgument<AttrType[size], false, PythonClassWrapper<AttrType[size]>>(*pyobj);
         for (size_t i = 0; i < size; ++i)member[i] = val[i];
     }
@@ -77,6 +77,7 @@ namespace __pyllars_internal{
         (void) cls;
         static const char *kwlist[] = {"value", nullptr};
         static char format[2] = {'O', 0};
+
         PyObject *pyarg = nullptr;
         if (PyTuple_Size(args) > 0) {
             PyErr_SetString(PyExc_ValueError,
@@ -86,7 +87,7 @@ namespace __pyllars_internal{
             PyErr_SetString(PyExc_ValueError, "Invalid argument keyword name or type to method call");
             return nullptr;
         } else if (kwds) {
-            setFromPyObject(pyarg);
+            setFrom(pyarg);
             return Py_None;
         }
         return toPyObject<AttrType>(member, 1);
@@ -103,9 +104,10 @@ namespace __pyllars_internal{
         const ssize_t array_size = ArraySize<AttrType>::size;
         if (_this->get_CObject()) {
             return toPyObject<AttrType>((_this->get_CObject()->*member), array_size);
+        } else {
+            PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
+            return nullptr;
         }
-        PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
-        return nullptr;
     }
 
 

@@ -41,7 +41,7 @@ namespace __pyllars_internal {
 
             static PyObject *call(PyObject *cls, PyObject *args, PyObject *kwds);
 
-            static void setFromPyObject(PyObject *pyobj);
+            static void setFrom(PyObject *pyobj);
 
         };
 
@@ -57,7 +57,7 @@ namespace __pyllars_internal {
 
             static PyObject *call(PyObject *cls, PyObject *args, PyObject *kwds);
 
-            static void setFromPyObject(PyObject *pyobj) ;
+            static void setFrom(PyObject *pyobj) ;
         };
     };
 

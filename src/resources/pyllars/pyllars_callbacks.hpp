@@ -8,8 +8,54 @@
 #include <Python.h>
 
 #include "pyllars_classwrapper.hpp"
+#include <functional>
 
 namespace __pyllars_internal{
+
+        template<typename T>
+        T toCObject(PyObject* pyobj);
+
+        template <typename ReturnType, typename ...Args>
+        struct CallbackContainer;
+
+        template <typename ReturnType, typename ...Args>
+        struct CallbackContainer<ReturnType(Args...)>{
+
+            template<std::function<ReturnType(Args...)> **func>
+            struct StaticInstantiation {
+
+                static ReturnType callback(Args ...args) {
+                    if (!func) {
+                        throw "Internal error: No callback defn defined";
+                    }
+                    return (*func)(args...);
+                }
+
+
+                static std::function<ReturnType(Args...)> *initialize(PyObject *callable) {
+                    auto cfunc = new std::function<ReturnType(Args...)>(
+                            [callable](Args ...args) -> ReturnType {
+                                PyObject pyargs_array[] = {toPyArgument(args)...};
+                                auto pyargs = PyTuple_New(sizeof...(args));
+                                for (size_t i = 0; i < sizeof...(args); ++i) {
+                                    PyTuple_SetItem(pyargs, i, pyargs_array[i]);
+                                }
+                                PyObject *ret = PyObject_Call(callable, pyargs, nullptr);
+                                if (!ret) {
+                                    throw "Error in call to python callback-wrapper";
+                                }
+                                if constexpr (std::is_void<ReturnType>::value) {
+                                    return;
+                                } else {
+                                    return toCObject<ReturnType>(ret);
+                                }
+                            }
+                    );
+                    *func = cfunc;
+                    return *func;
+                }
+            };
+        };
 
       /**
        * template class for a pool of C-style callbacks

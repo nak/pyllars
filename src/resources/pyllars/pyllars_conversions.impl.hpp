@@ -14,16 +14,6 @@
 namespace __pyllars_internal {
 
     namespace {
-        template<typename T>
-        struct limits{
-            static constexpr bool is_in_bounds(const T & v){
-                if constexpr (std::is_integral<T>::value || std::is_floating_point<T>::value){
-                    return v <= std::numeric_limits<T>::max() || v >= std::numeric_limits<T>::min();
-                } else {
-                    return false;
-                }
-            }
-        };
 
         template<typename T>
         struct Setter{
