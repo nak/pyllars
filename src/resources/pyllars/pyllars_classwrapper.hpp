@@ -65,7 +65,7 @@ namespace __pyllars_internal {
     template<typename T>
     class InitHelper;
 
-    template<bool is_base_return_complete, bool with_ellipsis, typename ReturnType, typename ...Args>
+    template<typename functype>
     struct PythonFunctionWrapper;
 
     /**
@@ -347,7 +347,7 @@ namespace __pyllars_internal {
 
         constexpr PythonClassWrapper(): _CObject(nullptr){}
 
-        template<bool is_base_return_complete, bool with_ellipsis, typename ReturnType, typename ...Args>
+        template<typename functype>
         friend struct PythonFunctionWrapper;
 
         template<typename Y, typename YY>

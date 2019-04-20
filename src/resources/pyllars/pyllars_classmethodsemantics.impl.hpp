@@ -7,10 +7,17 @@
 
 #include "pyllars_classmethodsemantics.hpp"
 #include "pyllars_function_wrapper.hpp"
+#include <cstddef>
 
 namespace __pyllars_internal{
 
     namespace {
+        struct Arbitrary{
+            float fdata;
+            int idata;
+        };
+
+
 
         template<typename func_type, typename... PyO>
         typename func_traits<func_type>::ReturnType
@@ -83,9 +90,10 @@ namespace __pyllars_internal{
                                 extra_arg_values[i].ptrvalue = ptrvalue ? (*ptrvalue)->ptr() : nullptr;
                             } else if (FUNC_TYPE == subtype) {
                                 static constexpr bool with_ellipsis = true;
-                                typedef typename PythonFunctionWrapper<true, with_ellipsis, int, int>::template Wrapper<> wtype;
-                                typedef typename PythonFunctionWrapper<true, with_ellipsis, int, int>::template Wrapper<>::FuncContainer ftype;
-                                static const size_t offset = offset_of<ftype, wtype>(&wtype::_cfunc);
+
+
+                                typedef PythonFunctionWrapper<func_type> wtype;
+                                static const size_t offset = offsetof(wtype, _function);
                                 void **ptrvalue = (void **) (((char *) nextArg) + offset);
                                 extra_arg_values[i].ptrvalue = *ptrvalue;
                             } else {
@@ -135,16 +143,16 @@ namespace __pyllars_internal{
     /**
     * Used for regular methods:
     */
-    template<typename CClass, const char* const kwlist[], typename func_type>
-    PyObject *StaticCallSemantics<CClass, kwlist, func_type>::
-    call(func_type method, PyObject *args, PyObject *kwds) {
+    template< typename func_type>
+    PyObject *StaticCallSemantics<func_type>::
+    call(func_type method, const char* const kwlist[], PyObject *args, PyObject *kwds) {
         typedef typename argGenerator<func_traits<func_type>::argsize>::type arg_generator_t;
         try {
             if constexpr (std::is_void<ReturnType>::value){
-                inoke(method, args, kwds, arg_generator_t());
+                inoke(method, kwlist, args, kwds, arg_generator_t());
                 return Py_None;
             } else {
-                ReturnType &&result = inoke(method, args, kwds, arg_generator_t());
+                ReturnType &&result = invoke(method, kwlist, args, kwds, arg_generator_t());
                 const ssize_t array_size = ArraySize<ReturnType>::size;//sizeof(result) / sizeof(T_base);
                 return toPyObject<ReturnType>(result, array_size);
             }
@@ -157,11 +165,11 @@ namespace __pyllars_internal{
     /**
      * call that converts python given arguments to make C call:
      **/
-    template<typename CClass, const char* const kwlist[], typename func_type>
+    template<typename func_type>
     template<int ...S>
     typename func_traits<func_type>::ReturnType
-    StaticCallSemantics<CClass, kwlist, func_type>::
-    inoke(func_type method, PyObject *args, PyObject *kwds, container<S...> s) {
+    StaticCallSemantics<func_type>::
+    template invoke(func_type method, const char* const kwlist[], PyObject *args, PyObject *kwds, container<S...> s) {
         static char format[func_traits<func_type>::argsize + 1] = {0};
         if (func_traits<func_type>::argsize > 0)
             memset(format, 'O', (size_t) func_traits<func_type>::argsize);
@@ -192,28 +200,25 @@ namespace __pyllars_internal{
         }
     }
 
-    template<class CClass, const char *const name, const char* const kwlist[],  typename func_type>
-    PyObject *ClassMethodContainer<CClass, name, kwlist, func_type>::
-    call(PyObject *cls, PyObject *args, PyObject *kwds) {
+    template<typename func_type>
+    PyObject *
+    StaticFunctionContainerBase<func_type>::call(const char* const kwlist[], func_type function, PyObject *cls, PyObject *args, PyObject *kwds) {
         (void) cls;
-        if (!function){
+        if (!function || !kwlist){
             PyErr_SetString(PyExc_SystemError, "Internal error -- unset (null) function invoked");
             return nullptr;
         }
         try {
-            return StaticCallSemantics<CClass, kwlist, func_type>::call(function, args, kwds);
+            return StaticCallSemantics<func_type>::call(function, kwlist, args, kwds);
         } catch (const char* const msg) {
             PyErr_SetString(PyExc_RuntimeError, msg);
             return nullptr;
         }
     }
 
-
-    template<class CClass, const char *const name, const char* const kwlist[], typename func_type>
+    template<class CClass, const char* const name, const char* const kwlist[], typename func_type>
     func_type*
-    ClassMethodContainer<CClass, name, kwlist,func_type>::function;
-
-
+    ClassMethodContainer<CClass, name, kwlist, func_type>::function;
 
 }
 

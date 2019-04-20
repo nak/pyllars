@@ -1,13 +1,13 @@
 #ifndef __PYLLARS_INTERNAL_DEFNS
 #define __PYLLARS_INTERNAL_DEFNS
 
-#include "pyllars_type_traits.hpp"
 #include <type_traits>
 #include <sys/types.h>
+#include <map>
+
 #include <Python.h>
 
-#include "pyllars_utils.hpp"
-#include <map>
+#include "pyllars_type_traits.hpp"
 
 namespace __pyllars_internal {
 
@@ -462,10 +462,10 @@ namespace __pyllars_internal {
         static bool checkImplicitArgumentConversion(PyObject *obj){
             static constexpr bool to_is_const = std::is_const<T>::value;
             static constexpr bool to_is_reference = std::is_reference<T>::value;
-
+            typedef typename core_type<T>::type core_t;
             auto const self = reinterpret_cast<CommonBaseWrapper*>(obj);
             return (bool) PyObject_TypeCheck(obj, &CommonBaseWrapper::_BaseType) && // is truly wrapping a C object
-                   (self->_coreTypePtr == PythonClassWrapper<typename core_type<T>::type>::getPyType()) && //core type match
+                   (self->_coreTypePtr == PythonClassWrapper<core_t>::getPyType()) && //core type match
                    (to_is_const || !to_is_reference || !self->_is_const); // logic for conversion-is-allowed
         }
 

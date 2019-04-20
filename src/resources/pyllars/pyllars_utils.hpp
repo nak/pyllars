@@ -18,6 +18,7 @@
 #include <memory>
 #include <limits>
 #include "pyllars_type_traits.hpp"
+#include "pyllars_defns.hpp"
 
 #undef NULL
 #define NULL nullptr
@@ -226,9 +227,18 @@ namespace __pyllars_internal {
         constexpr static bool has_ellipsis = false;
         constexpr static size_t argsize = sizeof...(Args);
 
+
         typedef RType(*type)(Args...);
         typedef RType ReturnType;
 
+        const static std::string type_name(){
+            std::string n =  _Types<RType>::type_name() + std::string("(*)(");
+            std::string arg_names[] = {_Types<Args>::type_name()...};
+            for (int i = 0; i < sizeof...(Args); ++i){
+                n += arg_names + ",";
+            }
+            n += std::string(")");
+        }
     };
 
     template<typename RType, typename ...Args>
@@ -236,14 +246,18 @@ namespace __pyllars_internal {
         constexpr static bool has_ellipsis = false;
         constexpr static size_t argsize = sizeof...(Args);
 
-        typedef typename argGenerator<sizeof...(Args)>::type arg_generator_t;
         typedef RType(*type)(Args..., ...);
         typedef RType ReturnType;
-
+        const static std::string type_name(){
+            std::string n =  _Types<RType>::type_name() + std::string("(*)(");
+            std::string arg_names[] = {_Types<Args>::type_name()...};
+            for (int i = 0; i < sizeof...(Args); ++i){
+                n += arg_names + ",";
+            }
+            n += std::string(" ...)");
+        }
 
     };
-
-
 }
 
 

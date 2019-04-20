@@ -527,7 +527,7 @@ namespace __pyllars_internal {
 
         PyMethodDef pyMeth = {
                 name,
-                (PyCFunction) ClassMethodContainer<T_NoRef, name, kwlist, ReturnType(Args...)>::call,
+                (PyCFunction) ClassMethodContainer<T, name, kwlist, ReturnType(Args...)>::call,
                 METH_KEYWORDS | METH_CLASS | METH_VARARGS,
                 doc_string
         };
@@ -547,12 +547,12 @@ namespace __pyllars_internal {
 
         PyMethodDef pyMeth = {
                 name,
-                (PyCFunction) ClassMethodContainer<T_NoRef, name, kwlist, ReturnType(Args..., ...)>::call,
+                (PyCFunction) ClassMethodContainer<T, name, kwlist, ReturnType(Args..., ...)>::call,
                 METH_KEYWORDS | METH_CLASS | METH_VARARGS,
                 doc_string
         };
 
-        ClassMethodContainer<T_NoRef, name, kwlist, ReturnType(Args..., ...)>::function = method;
+        ClassMethodContainer<T, name, kwlist, ReturnType(Args..., ...)>::function = method;
         _addMethod<true>(pyMeth);
     }
 
