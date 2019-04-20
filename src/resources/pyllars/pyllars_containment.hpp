@@ -3,6 +3,7 @@
 
 #include <functional>
 #include "pyllars_type_traits.hpp"
+#include "pyllars_utils.hpp"
 
 namespace __pyllars_internal{
 
@@ -44,6 +45,10 @@ namespace __pyllars_internal{
 
             T_array &values(){
                 return *reinterpret_cast<T_array*>(&_data);
+            }
+
+            T_array *ptr(){
+                return reinterpret_cast<T_array*>(&_data);
             }
 
             ~FixedArrayHelper(){
@@ -545,7 +550,7 @@ namespace __pyllars_internal{
             if (index < 0 || index >=size){
                 throw "Index out of range";
             }
-            return _contained->value[index];
+            return _contained->values()[index];
         }
 
         explicit operator T*&(){
@@ -555,11 +560,11 @@ namespace __pyllars_internal{
 
         explicit operator T* const&() const{
             if(!_raw_bytes) throw "Attempt to dereference null C object";
-            return _contained->value;
+            return _contained->ptr();
         }
 
         T_array* ptr(){
-            return &_contained->value;
+            return _contained->ptr();
         }
 
 
@@ -607,7 +612,7 @@ namespace __pyllars_internal{
 
     template<size_t size, typename T>
     struct ObjectContainerConstructed<T[size], T[size]>: public ObjectContainerReference<T[size]>{
-        explicit ObjectContainerConstructed(T args[size]):ObjectContainerReference<T[size]>(((FixedArrayHelper<T[size]>*)&_constructed)->value){
+        explicit ObjectContainerConstructed(T args[size]):ObjectContainerReference<T[size]>(((FixedArrayHelper<T[size]>*)&_constructed)->values()){
             for(size_t i = 0; i < size; ++i){
                 new (&_constructed[0] + sizeof(T)*i) T(args[i]);
             }

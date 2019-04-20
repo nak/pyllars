@@ -7,7 +7,7 @@
 template<typename T>
 void test_container(T& value){
     using namespace __pyllars_internal;
-    ObjectContainer<T> container(value);
+    ObjectContainerReference<T> container(value);
     T& contained = container;
     ASSERT_EQ(&contained, &value);
 }
@@ -140,60 +140,26 @@ TEST(ContainmentTestSuite, test_constructed_container_array) {
     test_constructed_containers<TestClass*, TestClass*>(instanceArray, instanceArray, instanceArray);
 }
 
-
-template<typename T, typename ...Args>
-void test_constructed_inplace_containers(T instance, Args ...args){
-    using namespace __pyllars_internal;
-    static unsigned char raw[sizeof(T)];
-    T* instanceP = (T*) raw;
-    ObjectContainerInPlace<T, Args...> objectContainer(*instanceP, args...);
-    Assertion<T>::assert_equal(instance, *objectContainer.ptr());
-}
-
-
-TEST(ContainmentTestSuite, test_constructed_iplace_container) {
-    using namespace __pyllars_internal;
-    TestClass instance(1.2);
-    test_constructed_inplace_containers<TestClass, double>(instance, 1.2);
-    int val = 123;
-    test_constructed_inplace_containers<int, int>(val, 123);
-
-}
-
-
-TEST(ContainmentTestSuite, test_constructed_container_inplace_array) {
-    using namespace __pyllars_internal;
-
-    static int int_array[3] = {0,10,20};
-    static TestClass  instanceArray[] = {TestClass(0.0),
-                                         TestClass(0.0),
-                                         TestClass(0.0),
-                                         TestClass(0.0),
-                                         TestClass(0.0),
-                                         TestClass(0.0),
-                                         TestClass(0.0),
-                                         TestClass(0.0),
-                                         TestClass(0.0),
-                                         TestClass(0.0)};
-    static TestClass *testClassArray = &instanceArray[0];
-    test_constructed_inplace_containers<int[3], int[3]>(int_array, int_array);
-    test_constructed_inplace_containers<TestClass*, TestClass*>(instanceArray, instanceArray);
-}
-
-
 template<typename T, size_t size>
 void test_constructed_bytepool_containers(T &instance){
     using namespace __pyllars_internal;
-    ObjectContainerBytePool<T> objectContainer(instance, size);
-    Assertion<T>::assert_equal(instance, *objectContainer.ptr());
+    typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_element;
+    using namespace __pyllars_internal;
+    auto element_ctrctr =  [instance](void* address, size_t index)->void{
+        new (address)T_element(instance[index]);
+    };
+    ObjectContainerBytePool<T> objectContainer(size, element_ctrctr);
+    for (int i = 0; i < size; ++i){
+        Assertion<T_element>::assert_equal(instance[i], objectContainer[i]);
+    }
 }
 
 
 TEST(ContainmentTestSuite, test_constructed_container_bytepool_array) {
     using namespace __pyllars_internal;
     unsigned char *raw_int = new unsigned char[sizeof(int)*3];
-    FixedArrayHelper<int, 3>* int_arrayP = (FixedArrayHelper<int, 3>*)raw_int;
+    FixedArrayHelper<int[3]>* int_arrayP = (FixedArrayHelper<int[3]>*)raw_int;
     static double  *instanceArray = new double[99];
-    test_constructed_bytepool_containers<int[3], 3>(int_arrayP->value);
+    test_constructed_bytepool_containers<int[3], 3>(int_arrayP->values());
     test_constructed_bytepool_containers<double*, 99>(instanceArray);
 }

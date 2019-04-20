@@ -1065,20 +1065,20 @@ class FunctionElement(ScopedElement):
         from .function_lexer import function_lexer
         function_lexer.input(definition)
         tokens = {}
-        has_ellipsis = False
+        func_traits = False
         while True:
             token = function_lexer.token()
             if token is None:
                 break
             tokens[token.type] = token
             if token.type == 'parameters':
-                has_ellipsis = token.has_ellipsis
+                func_traits = token.func_traits
         qualifiers = definition.rsplit(')', maxsplit=1)[-1]
         self._qualifiers += qualifiers.split(' ') if qualifiers.strip() else []
         return_type_name = definition.split('(')[0].strip()
         self._return_type = parse_type(self, definition.split('(')[0], parent) if return_type_name != 'void' else None
         # params added as ParamVarDecl's, except for ellipsis
-        self._has_varargs = has_ellipsis
+        self._has_varargs = func_traits
         self._throws = tokens.get('throws').throws if 'throws' in tokens else []
 
     @property
