@@ -33,6 +33,13 @@ namespace __pyllars_internal {
         }
     };
 
+    template<typename t>
+    struct FFIType<t, typename std::enable_if<std::is_reference<t>::value>::type> {
+        static ffi_type *type() {
+            return &ffi_type_float;
+        }
+    };
+
     template<>
     struct FFIType<void, void> {
         static ffi_type *type() {
@@ -41,7 +48,7 @@ namespace __pyllars_internal {
     };
 
     template<typename T>
-    struct FFIType<T, typename std::enable_if<std::is_pointer<T>::value>::type> {
+    struct FFIType<T, typename std::enable_if<std::is_pointer<T>::value || std::is_array<T>::value>::type> {
         static ffi_type *type() {
             return &ffi_type_pointer;
         }
@@ -56,9 +63,9 @@ namespace __pyllars_internal {
                         return &ffi_type_sint8;
                     case 2:
                         return &ffi_type_sint16;
-                    case 3:
-                        return &ffi_type_sint32;
                     case 4:
+                        return &ffi_type_sint32;
+                    case 8:
                         return &ffi_type_sint64;
                     default:
                         throw "Unsupported return type in var arg function";
@@ -69,9 +76,9 @@ namespace __pyllars_internal {
                         return &ffi_type_uint8;
                     case 2:
                         return &ffi_type_uint16;
-                    case 3:
-                        return &ffi_type_uint32;
                     case 4:
+                        return &ffi_type_uint32;
+                    case 8:
                         return &ffi_type_uint64;
                     default:
                         throw "Unsupported return type in var arg function";

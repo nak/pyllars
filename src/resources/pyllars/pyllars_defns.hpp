@@ -380,6 +380,40 @@ namespace __pyllars_internal {
         return Types<T>::type_name();
     }
 
+    template<typename ReturnType, typename ...Args>
+    struct Types<ReturnType(Args...)>{
+        static const char* type_name(){
+            static std::string n;
+            if (n.size()==0) {
+                n = std::string(__pyllars_internal::type_name<ReturnType>()) + std::string("(*)(");
+
+                std::string arg_names[] = {Types<Args>::type_name()...};
+                for (int i = 0; i < sizeof...(Args); ++i) {
+                    n += arg_names[i] + std::string(",");
+                }
+                n += std::string(")");
+            }
+            return n.c_str();
+        }
+    };
+
+    template<typename ReturnType, typename ...Args>
+    struct Types<ReturnType(Args..., ...)>{
+        static const char* type_name(){
+            static std::string n;
+            if (n.size()==0) {
+                n = std::string(__pyllars_internal::type_name<ReturnType>()) + std::string("(*)(");
+
+                std::string arg_names[] = {Types<Args>::type_name()...};
+                for (int i = 0; i < sizeof...(Args); ++i) {
+                    n += arg_names[i] + std::string(",");
+                }
+                n += std::string(" ...)");
+            }
+            return n.c_str();
+        }
+    };
+
     ///////////
     // Helper conversion functions
     //////////
@@ -453,7 +487,7 @@ namespace __pyllars_internal {
 
         /**
              * Check for valid conversion to type T from given Python object in use as passing as argument to C function
-             * (after conversino)
+             * (after conversion)
              * @tparam T type to convert to
              * @param obj Python with underlying C object to convert from
              * @return true if such a conversion allowed, false otherwise

@@ -60,7 +60,8 @@ namespace __pyllars_internal {
                 !std::is_arithmetic<T_NoRef>::value &&
                 !std::is_floating_point<T_NoRef>::value &&
                 !std::is_array<T_NoRef>::value &&
-                !std::is_pointer<T_NoRef>::value;
+                !std::is_pointer<T_NoRef>::value &&
+                !std::is_function<T_NoRef>::value;
     };
 
     template<typename T>

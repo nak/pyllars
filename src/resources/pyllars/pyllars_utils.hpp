@@ -232,29 +232,20 @@ namespace __pyllars_internal {
         typedef RType ReturnType;
 
         const static std::string type_name(){
-            std::string n =  _Types<RType>::type_name() + std::string("(*)(");
-            std::string arg_names[] = {_Types<Args>::type_name()...};
-            for (int i = 0; i < sizeof...(Args); ++i){
-                n += arg_names + ",";
-            }
-            n += std::string(")");
+            return __pyllars_internal::type_name<RType(Args...)>();
         }
+
     };
 
     template<typename RType, typename ...Args>
     struct func_traits<RType(Args..., ...)>{
-        constexpr static bool has_ellipsis = false;
+        constexpr static bool has_ellipsis = true;
         constexpr static size_t argsize = sizeof...(Args);
 
         typedef RType(*type)(Args..., ...);
         typedef RType ReturnType;
         const static std::string type_name(){
-            std::string n =  _Types<RType>::type_name() + std::string("(*)(");
-            std::string arg_names[] = {_Types<Args>::type_name()...};
-            for (int i = 0; i < sizeof...(Args); ++i){
-                n += arg_names + ",";
-            }
-            n += std::string(" ...)");
+           return __pyllars_internal::type_name<RType(Args..., ...)>();
         }
 
     };

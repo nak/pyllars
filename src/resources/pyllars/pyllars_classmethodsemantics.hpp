@@ -61,51 +61,18 @@ namespace __pyllars_internal {
 
     };
 
-    /**
-    * Container for a static function (global function or static class method)
-    **/
-    template<typename func_type>
-    class StaticFunctionContainerBase{
-    public:
-
-        static PyObject *call(const char* const kwlist[], func_type function, PyObject *cls, PyObject *args, PyObject *kwds) ;
-    };
-
-    /**
-     * Container for a static function (global function or static class method)
-    **/
-    template<typename func_type>
-    class GlobalFunctionContainer : public StaticFunctionContainerBase<func_type>{
-    public:
-        GlobalFunctionContainer(func_type *function=nullptr, const char* const kwlist[]=nullptr):_function(function),
-        _kwlist(kwlist){}
-
-        PyObject *call(PyObject *cls, PyObject *args, PyObject *kwds) {
-            if (!_kwlist || !_function){
-                PyErr_SetString(PyExc_SystemError, "Missing initialization of function and/or keyword list when invoking function");
-                return nullptr;
-            }
-            return StaticFunctionContainerBase<func_type>::call(_kwlist, _function, cls, args, kwds);
-        }
-    private:
-        func_type *_function;
-        const char* const *_kwlist;
-
-    };
 
     /**
       * Container for a static function (global function or static class method)
       *
-      * @param: CClass: to keep instanitation unique among like methods, different classes
-      * @param: name: to keep unique among different methods, same signature
+      * @param: kwlist: list of char strings that are the parameter names of the arguments underlying the C function
+      * @param: function: the C function to call (pointer-to)
      **/
-    template<class CClass, const char* const name, const char* const kwlist[], typename func_type>
-    class ClassMethodContainer : public StaticFunctionContainerBase<func_type>{
+    template<const char* const kwlist[], typename func_type, func_type* function>
+    class StaticFunctionContainer{
     public:
-        static func_type *function;
-        inline static PyObject *call(PyObject *cls, PyObject *args, PyObject *kwds){
-            return StaticFunctionContainerBase<func_type>::call(kwlist, function, cls, args, kwds);
-        }
+        static PyObject *call(PyObject *cls, PyObject *args, PyObject *kwds);
+
     };
 
 }

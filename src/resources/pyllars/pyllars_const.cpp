@@ -647,7 +647,9 @@ namespace __pyllars_internal {
 
         auto *pyobj = (__pyllars_internal::PythonClassWrapper<number_type> *) PyObject_Call(
                 (PyObject *) getPyType(), emptyargs, kwds);
-        pyobj->_depth = 0;
+        if(pyobj) {
+            pyobj->_depth = 0;
+        }
         return pyobj;
     }
 

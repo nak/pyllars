@@ -7,7 +7,7 @@
 #include <Python.h>
 #include "pyllars_utils.hpp"
 #include "pyllars_conversions.hpp"
-
+#include "pyllars_object_lifecycle.impl.hpp"
 #include "pyllars_callbacks.hpp"
 #include "pyllars_pointer.hpp"
 
@@ -112,42 +112,42 @@ namespace __pyllars_internal {
     argument_capture<T>
     CObjectConversionHelper<T>::
     toCArgument(PyObject &pyobj) {
+        constexpr bool is_const_ref = std::is_reference<T>::value && std::is_const<T>::value;
         typedef typename std::remove_reference<T>::type T_NoRef;
         auto self = (CommonBaseWrapper*) &pyobj;
         if constexpr(is_bool<T>::value) {
             return &pyobj == Py_True?true:false;
-        } else if constexpr(std::is_enum<T_NoRef>::value || std::is_integral<T_NoRef>::value){
+        } else if constexpr(is_const_ref || (std::is_enum<T_NoRef>::value || std::is_integral<T_NoRef>::value)){
             typedef typename std::remove_reference<typename std::remove_const<T>::type>::type T_bare;
             if (PyInt_Check(&pyobj)) {
-                T_bare *value = new T_bare((T_bare) PyInt_AsLong(&pyobj));
-                return argument_capture<T>(value);
+                if constexpr (std::is_signed<T>::value) {
+                    T_bare value = (T_bare) PyInt_AsLong(&pyobj);
+                    return argument_capture<T>(new T_bare(value));
+                } else {
+                    T_bare value = (T_bare) PyLong_AsUnsignedLongMask(&pyobj);
+                    return argument_capture<T>(new T_bare(value));
+                }
             } else if (PyLong_Check(&pyobj)) {
                 // TODO: throughout code: be consistent on signed vs unsigned
                 // TODO: also add checks here and throughout on limits after conversion to C integral values
                 if (std::is_signed<T>::value) {
-                    T_bare *value = new T_bare((T_bare) PyLong_AsLongLong(&pyobj));
-                    return argument_capture<T>(value);
+                    T_bare value = (T_bare) PyLong_AsLongLong(&pyobj);
+                    return argument_capture<T>(new T_bare(value));
                 } else {
-                    T_bare *value = new T_bare((T_bare) PyLong_AsUnsignedLongLong(&pyobj));
-                    return argument_capture<T>(value);
+                    T_bare value = (T_bare) PyLong_AsUnsignedLongLong(&pyobj);
+                    return argument_capture<T>(new T_bare(value));
                 }
             }
             if (CommonBaseWrapper::template checkImplicitArgumentConversion<T>(&pyobj)) {
                 return argument_capture<T>(
                         *reinterpret_cast<PythonClassWrapper<T> * >(&pyobj)->get_CObject());
             }
-        } else if constexpr (std::is_floating_point<T_NoRef >::value) {
+        } else if constexpr (is_const_ref || std::is_floating_point<T_NoRef >::value) {
             if (PyFloat_Check(&pyobj)) {
-                if (!std::is_const<T>::value && std::is_reference<T>::value) {
-                    throw "Invalid const-ness in conversion of argument";
-                }
-                T *value = new T(PyFloat_AsDouble(&pyobj));
-                return argument_capture<T>(value);
+                T_NoRef value = (T_NoRef) PyFloat_AsDouble(&pyobj);
+                return argument_capture<T>(new T_NoRef(value));
             }
-            if (CommonBaseWrapper::template checkImplicitArgumentConversion<T>(&pyobj)) {
-                return argument_capture<T>(
-                        *reinterpret_cast<PythonClassWrapper<T> * >(&pyobj)->get_CObject());
-            }
+
         } else if constexpr(is_c_string_like<T>::value){
             auto self = (CommonBaseWrapper*) &pyobj;
             const char* text = nullptr;
@@ -202,8 +202,8 @@ namespace __pyllars_internal {
             }
         }
         if (CommonBaseWrapper::template checkImplicitArgumentConversion<T>(&pyobj)) {
-            return argument_capture<T>(
-                   *reinterpret_cast<PythonClassWrapper<T> * >(&pyobj)->get_CObject());
+            T & val =  *reinterpret_cast<PythonClassWrapper<T> * >(&pyobj)->get_CObject();
+            return argument_capture<T>(val);
         }
         throw "Invalid type or const conversion converting to C object";
     }

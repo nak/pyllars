@@ -517,46 +517,25 @@ namespace __pyllars_internal {
     }
 
     template<typename T>
-    template<const char *const name, const char *const kwlist[], typename ReturnType, typename ...Args>
+    template<const char *const name, const char *const kwlist[], typename func_type, func_type *method>
     void PythonClassWrapper<T,
             typename std::enable_if<is_rich_class<T>::value>::type>::
-    addClassMethod(ReturnType(*method)(Args...)) {
+    addClassMethod() {
         static const char *const doc = "Call class method ";
         char *doc_string = new char[strlen(name) + strlen(doc) + 1];
         snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
 
         PyMethodDef pyMeth = {
                 name,
-                (PyCFunction) ClassMethodContainer<T, name, kwlist, ReturnType(Args...)>::call,
+                (PyCFunction) StaticFunctionContainer<kwlist, func_type, method>::call,
                 METH_KEYWORDS | METH_CLASS | METH_VARARGS,
                 doc_string
         };
 
-        ClassMethodContainer<T, name, kwlist, ReturnType(Args...)>::function = method;
         _addMethod<true>(pyMeth);
     }
 
-    template<typename T>
-    template<const char *const name, const char *const kwlist[], typename ReturnType, typename ...Args>
-    void PythonClassWrapper<T,
-            typename std::enable_if<is_rich_class<T>::value>::type>::
-    addClassMethodVarargs(ReturnType(*method)(Args... ...)) {
-        static const char *const doc = "Call class method ";
-        char *doc_string = new char[strlen(name) + strlen(doc) + 1];
-        snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
-
-        PyMethodDef pyMeth = {
-                name,
-                (PyCFunction) ClassMethodContainer<T, name, kwlist, ReturnType(Args..., ...)>::call,
-                METH_KEYWORDS | METH_CLASS | METH_VARARGS,
-                doc_string
-        };
-
-        ClassMethodContainer<T, name, kwlist, ReturnType(Args..., ...)>::function = method;
-        _addMethod<true>(pyMeth);
-    }
-
-
+   
     template<typename T>
     template<typename _Container, bool is_const, const char *const kwlist[], typename ReturnType, typename ...Args>
     void PythonClassWrapper<T,
@@ -670,8 +649,8 @@ namespace __pyllars_internal {
             }
             try {
                 if constexpr (std::is_reference<ValueType>::value) {
-                    auto c_value = toCArgument<ValueType>(*value);
-                    auto c_key = toCArgument<KeyType>(*item);
+                    auto c_value = toCArgument<const ValueType>(*value);
+                    auto c_key = toCArgument<const KeyType>(*item);
                     if (obj_is_const){
                         if constexpr(method_is_const) {
                             //mutable fields are still settable against const-ness of owning object

@@ -72,6 +72,10 @@ namespace __pyllars_internal {
             return _value;
         }
 
+        T_bare * ptr(){
+            return &_value;
+        }
+
     private:
         std::function<void()> _reverse_capture;
         T_bare * _valueP;

@@ -24,6 +24,7 @@ namespace __pyllars_internal {
         struct Address;
 
     }
+    extern PyTypeObject BasePtrType;
 
     class ObjectLifecycleHelpers;
 

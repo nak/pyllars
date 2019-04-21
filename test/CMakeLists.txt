@@ -10,6 +10,7 @@ add_library(setupBasicClassLib SHARED cpp/setup_basic_class.cpp )
 add_library(setupInheritanceLib SHARED cpp/setup_inheritance_test.cpp )
 add_library(setupBitFieldsLib SHARED cpp/setup_bitfields.cpp )
 add_library(setupAnonEnumsLib SHARED cpp/setup_anon_enums.cpp )
+add_library(setupFunctions SHARED cpp/setup_functions.cpp )
 
 add_executable(runAllPyllarsTest
         /opt/googletest/googletest/src/gtest_main.cc
@@ -20,10 +21,11 @@ add_executable(runAllPyllarsTest
         cpp/test_basic_classes.cpp
         cpp/test_inheritance.cpp
         cpp/test_bit_fields.cpp
-        cpp/test_initializer.cpp)
+        cpp/test_functions.cpp
+        cpp/test_initializer.cpp cpp/function_defns.hpp)
 
 target_link_libraries(runAllPyllarsTest PUBLIC -L/usr/local/lib64 -lpython3.7m
-        setupBasicClassLib setupInheritanceLib setupBitFieldsLib setupAnonEnumsLib
+        setupBasicClassLib setupInheritanceLib setupBitFieldsLib setupAnonEnumsLib setupFunctions
         pyllars pthread  ffi dl util)
 
 
@@ -74,6 +76,13 @@ add_executable(runAnonEmumTests
 target_link_libraries(runAnonEmumTests PUBLIC -L/usr/local/lib64 -lpython3.7m
         setupAnonEnumsLib pthread pyllars ffi dl util)
 
+add_executable(runFunctionTests
+        /opt/googletest/googletest/src/gtest_main.cc
+        /opt/googletest/googletest/src/gtest-all.cc
+        cpp/test_functions.cpp
+        )
+target_link_libraries(runFunctionTests PUBLIC -L/usr/local/lib64 -lpython3.7m
+        setupFunctions pthread pyllars ffi dl util)
 
 add_custom_target(testCoverage ALL
         DEPENDS runAllPyllarsTest

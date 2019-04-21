@@ -71,9 +71,12 @@ namespace __pyllars_internal {
         PyConstNumberCustomObject() : _referenced(nullptr), _depth(0), value(0) {
         }
 
-        template<typename t=number_type>
-        inline const typename std::remove_reference<t>::type *get_CObject() {
-            return reinterpret_cast<const typename std::remove_reference<t>::type*>(&value);
+        inline const typename std::remove_reference<number_type>::type *get_CObject() {
+            if constexpr (std::is_reference<number_type>::value){
+                return value;
+            } else {
+                return &value;
+            }
         }
 
         static PyMethodDef _methods[];
@@ -228,9 +231,12 @@ namespace __pyllars_internal {
         PyConstFloatingPtCustomObject() : _referenced(nullptr), _depth(0), value(0.0) {
         }
 
-        template<typename t=number_type>
-        inline const t *get_CObject() {
-            return &value;
+        inline ntype_basic *get_CObject() {
+            if constexpr (std::is_reference<number_type>::value){
+                return value;
+            } else {
+                return &value;
+            }
         }
 
         static PyMethodDef _methods[];

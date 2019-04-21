@@ -11,6 +11,7 @@
 
 namespace __pyllars_internal {
 
+
     template<typename T>
     Py_ssize_t
     PythonPointerWrapperBase<T>::_size(PyObject *self) {
@@ -198,7 +199,12 @@ namespace __pyllars_internal {
             PyErr_SetString(PyExc_RuntimeError, "Failed to set_up type!");
             return -1;
         }
-        Type.tp_base = &CommonBaseWrapper::_BaseType;
+        BasePtrType.tp_base = &CommonBaseWrapper::_BaseType;
+        if (PyType_Ready(&BasePtrType) < 0) {
+            PyErr_SetString(PyExc_RuntimeError, "Failed to set_up type!");
+            return -1;
+        }
+        Type.tp_base = &BasePtrType;
 
         if (PyType_Ready(&Type) < 0) {
             PyErr_SetString(PyExc_RuntimeError, "Failed to set_up type!");

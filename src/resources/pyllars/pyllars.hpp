@@ -130,8 +130,7 @@ namespace __pyllars_internal {
         explicit PyNumberCustomObject() : _referenced(nullptr), _depth(0) {
         }
 
-        template<typename t=number_type>
-        inline typename std::remove_reference<t>::type *get_CObject() {
+        inline number_type_basic *get_CObject() {
             return representation<number_type>::addr(value);
         }
 
@@ -269,7 +268,7 @@ namespace __pyllars_internal {
 
         static PyObject *richcompare(PyObject *a, PyObject *b, int op);
 
-        static __pyllars_internal::PythonClassWrapper<number_type> *createPyReference
+        static __pyllars_internal::PythonClassWrapper<number_type&> *createPyReference
                 ( ntype & cobj, PyObject *referencing = nullptr);
 
         inline static bool checkType(PyObject *const obj) {
@@ -287,9 +286,12 @@ namespace __pyllars_internal {
         explicit PyFloatingPtCustomObject() : _referenced(nullptr), _depth(0){
         }
 
-        template<typename t=number_type>
-        inline t *get_CObject() {
-            return &value;
+        inline ntype_basic *get_CObject() {
+            if constexpr (std::is_reference<number_type>::value){
+                return value;
+            } else {
+                return &value;
+            }
         }
         std::function<double()> asDouble;
 

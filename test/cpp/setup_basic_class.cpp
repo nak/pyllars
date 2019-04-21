@@ -29,6 +29,10 @@ const char* const __pyllars_internal::_Types<NonDestructible>::type_name = "NonD
 template<>
 const char* const __pyllars_internal::_Types<EnumClass>::type_name = "EnumClass";
 
+long long convertEnum(const EnumClass &val){
+    return (long long)val;
+}
+
 void
 SetupBasicClass::SetUpTestSuite() {
     using namespace __pyllars_internal;
@@ -53,7 +57,7 @@ SetupBasicClass::SetUpTestSuite() {
         Class::addAddOperator<kwlist, double, const BasicClass &>(&BasicClass::operator+);
         Class::addSubOperator<kwlist, BasicClass, const double, false>(&BasicClass::operator-);
         Class::addMethod<false, method_name, kwlist, int, const double>(&BasicClass::public_method);
-        Class::addClassMethod<static_method_name, kwlist, const char *const>(&BasicClass::static_public_method);
+        Class::addClassMethod<static_method_name, kwlist, const char *const(), &BasicClass::static_public_method>();
         Class::addMapOperatorMethod<false, kwlist, const char *const, int &>(&BasicClass::operator[]);
         Class::addMapOperatorMethod<true, kwlist, const char *const, const int &>(&BasicClass::operator[]);
         Class::addClassAttributeConst<class_const_member_name, int>(&BasicClass::class_const_member);
@@ -75,10 +79,8 @@ SetupBasicClass::SetUpTestSuite() {
         static const char *const empty_list[] = {nullptr};
         typedef PythonClassWrapper<NonDestructible> Class;
 
-        Class::addClassMethod<create_method_name, empty_list, NonDestructible *>(
-                NonDestructible::create);
-        Class::addClassMethod<create_const_method_name, empty_list, const NonDestructible *>(
-                NonDestructible::create_const);
+        Class::addClassMethod<create_method_name, empty_list, NonDestructible *(), &NonDestructible::create>();
+        Class::addClassMethod<create_const_method_name, empty_list, const NonDestructible *(), &NonDestructible::create_const>();
         Class::initialize();
     }
 
@@ -89,8 +91,7 @@ SetupBasicClass::SetUpTestSuite() {
         Class::addConstructor<>(empty_list);
         Class::addConstructor<EnumClass>(kwlist);
         typedef long long (*convert)(const EnumClass &);
-        convert func = [](const EnumClass& val)->long long{return (long long)val;};
-        Class::addClassMethod<enum_convert_name, kwlist, long long, const EnumClass&>(func);
+        Class::addClassMethod<enum_convert_name, kwlist, long long(const EnumClass&), &convertEnum >();
         Class::addEnumClassValue("E_ONE", EnumClass::E_ONE);
         ASSERT_EQ(Class::initialize(), 0);
 

@@ -83,8 +83,8 @@ TEST_F(SetupBasicClass, TestBasicClass){
     PyTuple_SetItem(at_args, 0, PyLong_FromLong(3));
     PyObject *int_value = PyObject_Call(at, at_args, nullptr);
     ASSERT_TRUE(PyErr_Occurred()); // index out of range
-    ASSERT_EQ(int_value, nullptr);
     PyErr_Clear();
+    ASSERT_EQ(int_value, nullptr);
 
     PyTuple_SetItem(at_args, 0, PyLong_FromLong(25));
     PyObject* kwds = PyDict_New();

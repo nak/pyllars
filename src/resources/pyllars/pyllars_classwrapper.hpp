@@ -142,14 +142,14 @@ namespace __pyllars_internal {
          * add a method with a ReturnType to be avaialable in this classes' corresponding  Python type object
          *
          * @templateparameter name: name of the method (as it will appear in Python, but should be same as C name)
-         * @templateparam ReturnType: return type of the method being added
-         * @templteparam Args: variadic list of types for the method's arumgnets
+         * @templateparam func_type: function signature in form ReturnType(Args...)
+         * @templateparam method: pointer to method to be added
          *
          * @param method: the pointer to the metho to be added
          * @param kwlist: list of keyword names of araguments
          **/
-        template<const char *const name, const char *const kwlist[], typename ReturnType, typename ...Args>
-        static void addClassMethod(ReturnType(*method)(Args...));
+        template<const char *const name, const char *const kwlist[], typename func_type, func_type *method>
+        static void addClassMethod();
 
         /**
          * add a method with given compile-time-known name to the contained collection

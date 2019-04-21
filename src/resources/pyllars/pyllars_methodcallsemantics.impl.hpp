@@ -166,7 +166,7 @@ namespace __pyllars_internal {
                             extra_arg_values[i].ptrvalue = ptrvalue ? (*ptrvalue)->ptr() : nullptr;
                         } else if (FUNC_TYPE == subtype) {
                             typedef PythonFunctionWrapper< void(void)> wtype;
-                            static const size_t offset = offset_of<GlobalFunctionContainer<void(void)>*, wtype>(&wtype::_func_container);
+                            static const size_t offset = offsetof(wtype, _function);
                             void **ptrvalue = (void **) (((char *) nextArg) + offset);
                             extra_arg_values[i].ptrvalue = *ptrvalue;
                         } else {
