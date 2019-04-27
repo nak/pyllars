@@ -13,26 +13,19 @@
 
 namespace __pyllars_internal {
 
-    template<class CClass>
+    template<const char* const name, class CClass, typename T>
     class MemberContainer {
     public:
+        typedef typename std::remove_reference<CClass>::type CClass_NoRef;
+        typedef T CClass_NoRef::* member_t;
 
-        template<const char *const name, typename T>
-        class Container{
-        public:
-            typedef typename std::remove_reference<CClass>::type CClass_NoRef;
-            typedef T CClass_NoRef::* member_t;
+        static member_t member;
+        static size_t array_size;
 
-            static member_t member;
-            static size_t array_size;
+        static int set(PyObject* o, PyObject* value, void* v=nullptr);
+        static PyObject* get(PyObject* o, void* v=nullptr);
 
-            static int set(PyObject* o, PyObject* value, void* v=nullptr);
-            static PyObject* get(PyObject* o, void* v=nullptr);
-
-            static void setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj);
-
-        };
-
+        static void setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj);
     };
 
 

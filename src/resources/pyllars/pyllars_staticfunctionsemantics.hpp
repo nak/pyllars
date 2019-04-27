@@ -11,9 +11,11 @@
 #include "pyllars_varargs.hpp"
 
 #include <ffi.h>
+
 /**
-* This unit defines template classes needed to contain method pointers and
-* define Python-to-C call semantics for invoking class instance methods
+ * This unit defines template classes needed to contain pointers to static functions and
+ * define Python-to-C call semantics for invoking class instance methods.  This can be a global function
+ * or a static method of  class.
 **/
 
 
@@ -21,11 +23,11 @@ namespace __pyllars_internal {
 
     /**
      * class to hold reference to a global or static class method and define
-     * method call semantics
+     * method call semantics.  This template is instnatiated solely on the function type and not the
+     * (static pointer to) a function instance, so that functions of similar signature share a common instantiation,
+     * reducing generated object code.
      *
-     * @param with ellipsis: whether method has ellipsis
-     * @param ReturnType:  ReturnType of the method (can be "void")
-     * @param Args: template variable arg list of method arguments (can be empty)
+     * @tparam func_type: the function type (signature), typically specified in form ReturnType(Args...)
      **/
     template<typename func_type>
     class StaticCallSemantics {
@@ -38,12 +40,12 @@ namespace __pyllars_internal {
 
         /**
          * Call the C given (static) function, transforming Python arguments as well as return value
-         * @param method : static function to be called
+         * @param function : static function to be called
          * @param args : Python args to transform as arguments to C call
          * @param kwds  : Python keyword args to transform as arguments to C call
          * @return Python object transformed from return of C call (oy Py_None if return is void)
          */
-        static PyObject *call(func_type method, const char* const kwlist[], PyObject *args, PyObject *kwds) ;
+        static PyObject *call(func_type function, const char* const kwlist[], PyObject *args, PyObject *kwds) ;
 
     private:
 
@@ -63,10 +65,13 @@ namespace __pyllars_internal {
 
 
     /**
-      * Container for a static function (global function or static class method)
+      * Container for a static function (global function or static class method).  It is instantiated based on
+      * function type and function instance, to enforce a one-to-one mapping of the function to a Python call
+      * method.
       *
-      * @param: kwlist: list of char strings that are the parameter names of the arguments underlying the C function
-      * @param: function: the C function to call (pointer-to)
+      * @tparam kwlist: a nullptr-terminated list of argument names for the function
+      * @tparam func_type: the function type (signature), typically specified in form ReturnType(Args...)
+      * @tparam function: the instance of the function this instantiation is associated with
      **/
     template<const char* const kwlist[], typename func_type, func_type* function>
     class StaticFunctionContainer{

@@ -22,7 +22,7 @@ namespace __pyllars_internal {
      * Class to hold pointer to a public non-const member of a class, specialized for
      * various types of elements (arrays, pointer, etc...)
      *
-     * @param CClass class that holds the member to be accessed
+     * @tparam CClass: class that holds the member to be accessed
      **/
     template<typename CClass>
     class ClassMember {
@@ -61,7 +61,7 @@ namespace __pyllars_internal {
         };
     };
 
-   /**
+    /**
      * Class member container for const class members
      **/
     template<class CClass>

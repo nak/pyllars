@@ -3,7 +3,7 @@
 #include "gtest/gtest.h"
 #include "pyllars/pyllars.hpp"
 #include "pyllars/pyllars_function_wrapper.hpp"
-#include "pyllars/pyllars_classmethodsemantics.impl.hpp"
+#include "pyllars/pyllars_statocfunctionsemantics.impl.hpp"
 #include <map>
 #include "class_test_defns.h"
 #include "setup.h"

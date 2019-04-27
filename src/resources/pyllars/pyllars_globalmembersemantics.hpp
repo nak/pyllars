@@ -10,6 +10,9 @@
 namespace __pyllars_internal {
 
 
+    /**
+     * struct to hold a global variable, mapping to Python semantics
+     */
     struct GlobalVariable {
         template<typename T>
         static
@@ -19,24 +22,31 @@ namespace __pyllars_internal {
                                        const size_t size);
 
 
+        /**
+         * Container for the variable, which is a Python Type
+         * @tparam T: the type of variable to contain
+         */
         template<typename T>
         class Container{
         public:
+            
             typedef typename std::remove_reference<T>::type T_NoRef;
             typedef T *member_t;
 
             PyObject_HEAD
 
             static PyTypeObject Type;
-            member_t member;
-            size_t array_size;
 
+            
             static int _init(PyObject *self, PyObject *args, PyObject *kwds);
 
             static PyObject *_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 
             static PyObject *call(Container *callable, PyObject *args, PyObject *kwds);
 
+        private:
+            member_t member;
+            size_t array_size;
         };
 
     protected:

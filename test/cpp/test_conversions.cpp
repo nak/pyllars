@@ -12,7 +12,7 @@
 #include "pyllars/pyllars_pointer.impl.hpp"
 #include "pyllars/pyllars_membersemantics.impl.hpp"
 #include "pyllars/pyllars_classmembersemantics.impl.hpp"
-#include "pyllars/pyllars_classmethodsemantics.impl.hpp"
+#include "pyllars/pyllars_statocfunctionsemantics.impl.hpp"
 
 struct A{
     int ivalue;

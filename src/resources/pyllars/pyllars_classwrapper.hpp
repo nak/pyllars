@@ -16,7 +16,7 @@
 #include "pyllars_type_traits.hpp"
 #include "pyllars.hpp"
 #include "pyllars_defns.hpp"
-#include "pyllars_classmethodsemantics.hpp"
+#include "pyllars_staticfunctionsemantics.hpp"
 #include "pyllars_classmembersemantics.hpp"
 #include "pyllars_membersemantics.hpp"
 #include "pyllars_methodcallsemantics.hpp"
@@ -196,11 +196,11 @@ namespace __pyllars_internal {
          * add a getter method for the given compile-time-known named public class member
          **/
         template<const char *const name, typename FieldType>
-        static void addAttribute(typename MemberContainer<T_NoRef>::template Container<name, FieldType>::member_t member);
+        static void addAttribute(typename MemberContainer<name, T_NoRef, FieldType>::member_t member);
 
         template<const char *const name, ssize_t size, typename FieldType>
         static void addConstAttribute(
-                typename MemberContainer<T_NoRef>::template Container<name, FieldType[size]>::member_t member,
+                typename MemberContainer<name, T_NoRef, FieldType[size]>::member_t member,
                 const ssize_t array_size);
 
         /**
@@ -215,7 +215,7 @@ namespace __pyllars_internal {
           **/
         template<const char *const name, ssize_t size, typename FieldType>
         static void addArrayAttribute(
-                typename MemberContainer<T_NoRef>::template Container<name, FieldType[size]>::member_t member,
+                typename MemberContainer<name, T_NoRef, FieldType[size]>::member_t member,
                 const ssize_t array_size);
 
         /**

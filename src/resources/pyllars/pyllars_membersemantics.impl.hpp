@@ -7,9 +7,8 @@
 
 namespace __pyllars_internal {
 
-    template<class CClass>
-    template<const char *const name, typename T>
-    PyObject *MemberContainer<CClass>::Container<name, T>::
+    template<const char *const name, typename CClass, typename T>
+    PyObject *MemberContainer<name, CClass, T>::
     get(PyObject *self, void*) {
         if (!self) return nullptr;
         typedef typename std::remove_reference<T>::type T_NoRef;
@@ -91,9 +90,8 @@ namespace __pyllars_internal {
     }
 
 
-    template<class CClass>
-    template<const char *const name, typename T>
-    int MemberContainer<CClass>::Container<name, T>::
+    template<const char *const name, typename CClass, typename T>
+    int MemberContainer<name, CClass, T>::
     set(PyObject *self, PyObject* pyVal, void*) {
         if (!self) return -1;
         typedef PythonClassWrapper<CClass> Wrapper;
@@ -209,9 +207,8 @@ namespace __pyllars_internal {
         }
     }
 
-    template<class CClass>
-    template<const char *const name, typename T>
-    void MemberContainer<CClass>::Container<name, T>::
+    template<const char *const name, typename CClass, typename T>
+    void MemberContainer<name, CClass, T>::
     setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj) {
         if constexpr ( !std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value != 0) {
             Assignment<T>::assign(self->*member, *toCArgument<T, false, PythonClassWrapper<T> >(*pyobj));
@@ -233,15 +230,12 @@ namespace __pyllars_internal {
 
 
 
-    template<class CClass>
-    template<const char *const name, typename T>
-    typename MemberContainer<CClass>::template Container<name, T>::member_t
-            MemberContainer<CClass>::Container<name, T>::member;
+    template<const char *const name, typename CClass, typename T>
+    typename MemberContainer<name, CClass, T>::member_t MemberContainer<name, CClass, T>::member;
 
 
-    template<class CClass>
-    template<const char *const name, typename T>
-    size_t MemberContainer<CClass>::Container<name, T>::array_size = 0;
+    template<const char *const name, typename CClass, typename T>
+    size_t MemberContainer<name, CClass, T>::array_size = 0;
 
 
     ////////////////////////////

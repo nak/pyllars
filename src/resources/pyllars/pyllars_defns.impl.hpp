@@ -2,6 +2,7 @@
 #include "pyllars_conversions.impl.hpp"
 
 namespace __pyllars_internal{
+
     template<typename T,  bool is_array, const ssize_t array_size, typename std::enable_if<std::is_assignable<T, T>::value>::type>
     PyObject *set_array_values(T *values, const ssize_t size, PyObject *from, PyObject *referenced) {
         if (!PyList_Check(referenced) || PyList_Size(referenced) != size) {

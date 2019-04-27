@@ -5,7 +5,7 @@
 #ifndef __PYLLARS_INTERNAL__CLASSMETHODSEMANTICS_CPP__
 #define __PYLLARS_INTERNAL__CLASSMETHODSEMANTICS_CPP__
 
-#include "pyllars_classmethodsemantics.impl.hpp"
+#include "pyllars_statocfunctionsemantics.impl.hpp"
 #include "pyllars_function_wrapper.hpp"
 #include "pyllars_utils.impl.hpp"
 #include "pyllars_conversions.impl.hpp"
@@ -191,14 +191,14 @@ namespace __pyllars_internal{
     */
     template< typename func_type>
     PyObject *StaticCallSemantics<func_type>::
-    call(func_type method, const char* const kwlist[], PyObject *args, PyObject *kwds) {
+    call(func_type function, const char* const kwlist[], PyObject *args, PyObject *kwds) {
         typedef typename argGenerator<func_traits<func_type>::argsize>::type arg_generator_t;
         try {
             if constexpr (std::is_void<ReturnType>::value){
-                invoke(method, kwlist, args, kwds, arg_generator_t());
+                invoke(function, kwlist, args, kwds, arg_generator_t());
                 return Py_None;
             } else {
-                ReturnType &&result = invoke(method, kwlist, args, kwds, arg_generator_t());
+                ReturnType &&result = invoke(function, kwlist, args, kwds, arg_generator_t());
                 const ssize_t array_size = ArraySize<ReturnType>::size;//sizeof(result) / sizeof(T_base);
                 return toPyObject<ReturnType>(result, array_size);
             }

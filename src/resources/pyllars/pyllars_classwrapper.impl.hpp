@@ -8,7 +8,7 @@
 #include "pyllars_classwrapper.hpp"
 #include "pyllars_utils.hpp"
 
-#include "pyllars_classmethodsemantics.impl.hpp"
+#include "pyllars_statocfunctionsemantics.impl.hpp"
 #include "pyllars_classmembersemantics.impl.hpp"
 #include "pyllars_methodcallsemantics.impl.hpp"
 #include "pyllars_object_lifecycle.impl.hpp"
@@ -926,16 +926,16 @@ namespace __pyllars_internal {
     template<const char *const name, typename FieldType>
     void PythonClassWrapper<T,
             typename std::enable_if<is_rich_class<T>::value>::type>::
-    addAttribute(typename MemberContainer<T_NoRef>::template Container<name, FieldType>::member_t member) {
+    addAttribute(typename MemberContainer<name, T_NoRef, FieldType>::member_t member) {
 
         static const char *const doc = "Get attribute ";
         char *doc_string = new char[strlen(name) + strlen(doc) + 1];
         snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
         const ssize_t array_size = ArraySize<FieldType>::size;
-        MemberContainer<T_NoRef>::template Container<name, FieldType>::member = member;
-        MemberContainer<T_NoRef>::template Container<name, FieldType>::array_size = array_size;
-        _member_getters[name] = MemberContainer<T_NoRef>::template Container<name, FieldType>::get;
-        _member_setters[name] = MemberContainer<T_NoRef>::template Container<name, FieldType>::set;
+        MemberContainer<name, T_NoRef, FieldType>::member = member;
+        MemberContainer<name, T_NoRef, FieldType>::array_size = array_size;
+        _member_getters[name] = MemberContainer<name, T_NoRef, FieldType>::get;
+        _member_setters[name] = MemberContainer<name, T_NoRef, FieldType>::set;
     }
 
     template<typename T>
@@ -943,14 +943,14 @@ namespace __pyllars_internal {
     void PythonClassWrapper<T,
             typename std::enable_if<is_rich_class<T>::value>::type>::
     addConstAttribute(
-            typename MemberContainer<T_NoRef>::template Container<name, FieldType[size]>::member_t member,
+            typename MemberContainer<name, T_NoRef, FieldType[size]>::member_t member,
             const ssize_t array_size) {
         assert(array_size == size);
         static const char *const doc = "Get attribute ";
         char *doc_string = new char[strlen(name) + strlen(doc) + 1];
         snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
-        MemberContainer<T_NoRef>::template Container<name, FieldType[size]>::member = member;
-        _member_getters[name] = MemberContainer<T_NoRef>::template Container<name, FieldType[size]>::get;
+        MemberContainer<name, T_NoRef, FieldType[size]>::member = member;
+        _member_getters[name] = MemberContainer<name, T_NoRef, FieldType[size]>::get;
     }
 
     template<typename T>
@@ -972,15 +972,15 @@ namespace __pyllars_internal {
     void PythonClassWrapper<T,
             typename std::enable_if<is_rich_class<T>::value>::type>::
     addArrayAttribute(
-            typename MemberContainer<T_NoRef>::template Container<name, FieldType[size]>::member_t member,
+            typename MemberContainer<name, T_NoRef, FieldType[size]>::member_t member,
             const ssize_t array_size) {
         assert(array_size == size);
         static const char *const doc = "Get attribute ";
         char *doc_string = new char[strlen(name) + strlen(doc) + 1];
         snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
-        MemberContainer<T_NoRef>::template Container<name, FieldType[size]>::member = member;
-        _member_getters[name] = MemberContainer<T_NoRef>::template Container<name, FieldType[size]>::get;
-        _member_setters[name] = MemberContainer<T_NoRef>::template Container<name, FieldType[size]>::set;
+        MemberContainer<name, T_NoRef, FieldType[size]>::member = member;
+        _member_getters[name] = MemberContainer<name, T_NoRef, FieldType[size]>::get;
+        _member_setters[name] = MemberContainer<name, T_NoRef, FieldType[size]>::set;
     }
 
     template<typename T>
