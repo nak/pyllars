@@ -935,52 +935,9 @@ namespace __pyllars_internal {
         MemberContainer<name, T_NoRef, FieldType>::member = member;
         MemberContainer<name, T_NoRef, FieldType>::array_size = array_size;
         _member_getters[name] = MemberContainer<name, T_NoRef, FieldType>::get;
-        _member_setters[name] = MemberContainer<name, T_NoRef, FieldType>::set;
-    }
-
-    template<typename T>
-    template<const char *const name, ssize_t size, typename FieldType>
-    void PythonClassWrapper<T,
-            typename std::enable_if<is_rich_class<T>::value>::type>::
-    addConstAttribute(
-            typename MemberContainer<name, T_NoRef, FieldType[size]>::member_t member,
-            const ssize_t array_size) {
-        assert(array_size == size);
-        static const char *const doc = "Get attribute ";
-        char *doc_string = new char[strlen(name) + strlen(doc) + 1];
-        snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
-        MemberContainer<name, T_NoRef, FieldType[size]>::member = member;
-        _member_getters[name] = MemberContainer<name, T_NoRef, FieldType[size]>::get;
-    }
-
-    template<typename T>
-    template<const char *const name, typename FieldType>
-    void PythonClassWrapper<T,
-            typename std::enable_if<is_rich_class<T>::value>::type>::
-    addAttributeConst(
-            typename ConstMemberContainer<T_NoRef>::template Container<name, FieldType>::member_t member) {
-
-        static const char *const doc = "Get attribute ";
-        char *doc_string = new char[strlen(name) + strlen(doc) + 1];
-        snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
-        ConstMemberContainer<T_NoRef>::template Container<name, FieldType>::member = member;
-        _member_getters[name] = ConstMemberContainer<T_NoRef>::template Container<name, FieldType>::get;
-    }
-
-    template<typename T>
-    template<const char *const name, ssize_t size, typename FieldType>
-    void PythonClassWrapper<T,
-            typename std::enable_if<is_rich_class<T>::value>::type>::
-    addArrayAttribute(
-            typename MemberContainer<name, T_NoRef, FieldType[size]>::member_t member,
-            const ssize_t array_size) {
-        assert(array_size == size);
-        static const char *const doc = "Get attribute ";
-        char *doc_string = new char[strlen(name) + strlen(doc) + 1];
-        snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
-        MemberContainer<name, T_NoRef, FieldType[size]>::member = member;
-        _member_getters[name] = MemberContainer<name, T_NoRef, FieldType[size]>::get;
-        _member_setters[name] = MemberContainer<name, T_NoRef, FieldType[size]>::set;
+        if constexpr (!std::is_const<FieldType>::value) {
+            _member_setters[name] = MemberContainer<name, T_NoRef, FieldType>::set;
+        }
     }
 
     template<typename T>
@@ -992,27 +949,9 @@ namespace __pyllars_internal {
         static const char *const doc = "Get attribute ";
         char *doc_string = new char[strlen(name) + strlen(doc) + 1];
         snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
-        ClassMember<T_NoRef>::template Container<name, FieldType>::member = member;
+        ClassMember<name, T_NoRef, FieldType>::member = member;
         PyMethodDef pyMeth = {name,
-                              (PyCFunction) ClassMember<T_NoRef>::template Container<name, FieldType>::call,
-                              METH_VARARGS | METH_KEYWORDS | METH_CLASS,
-                              doc_string
-        };
-        _addMethod<true>(pyMeth);
-    }
-
-    template<typename T>
-    template<const char *const name, typename FieldType>
-    void PythonClassWrapper<T,
-            typename std::enable_if<is_rich_class<T>::value>::type>::
-    addClassAttributeConst(FieldType const *member) {
-
-        static const char *const doc = "Get attribute ";
-        char *doc_string = new char[strlen(name) + strlen(doc) + 1];
-        snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
-        ConstClassMember<T_NoRef>::template Container<name, FieldType>::member = member;
-        PyMethodDef pyMeth = {name,
-                              (PyCFunction) ConstClassMember<T_NoRef>::template Container<name, FieldType>::call,
+                              (PyCFunction) ClassMember<name, T_NoRef, FieldType>::call,
                               METH_VARARGS | METH_KEYWORDS | METH_CLASS,
                               doc_string
         };

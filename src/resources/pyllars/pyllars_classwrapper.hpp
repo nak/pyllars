@@ -198,37 +198,11 @@ namespace __pyllars_internal {
         template<const char *const name, typename FieldType>
         static void addAttribute(typename MemberContainer<name, T_NoRef, FieldType>::member_t member);
 
-        template<const char *const name, ssize_t size, typename FieldType>
-        static void addConstAttribute(
-                typename MemberContainer<name, T_NoRef, FieldType[size]>::member_t member,
-                const ssize_t array_size);
-
-        /**
-         * add a getter method for the given compile-time-known named public class member
-         **/
-        template<const char *const name, typename FieldType>
-        static void addAttributeConst(
-                typename ConstMemberContainer<T_NoRef>::template Container<name, FieldType>::member_t member);
-
-        /**
-          * add a getter method for the given compile-time-known named public class member
-          **/
-        template<const char *const name, ssize_t size, typename FieldType>
-        static void addArrayAttribute(
-                typename MemberContainer<name, T_NoRef, FieldType[size]>::member_t member,
-                const ssize_t array_size);
-
         /**
          * add a getter method for the given compile-time-known named public static class member
          **/
         template<const char *const name, typename FieldType>
         static void addClassAttribute(FieldType *member);
-
-        /**
-         * add a getter method for the given compile-time-known named public static class member
-         **/
-        template<const char *const name, typename FieldType>
-        static void addClassAttributeConst(FieldType const *member);
 
         /**
          * add a method with given compile-time-known name to the contained collection

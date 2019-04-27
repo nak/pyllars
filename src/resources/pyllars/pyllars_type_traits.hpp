@@ -202,8 +202,6 @@ namespace __pyllars_internal {
         }
     };
 
-
-
 }
 
 #endif

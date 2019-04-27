@@ -60,7 +60,7 @@ SetupBasicClass::SetUpTestSuite() {
         Class::addClassMethod<static_method_name, kwlist, const char *const(), &BasicClass::static_public_method>();
         Class::addMapOperatorMethod<kwlist, const char* const, int&(BasicClass::*)(const char* const), &BasicClass::operator[]>();
         Class::addMapOperatorMethod<kwlist, const char* const, const int &(BasicClass::*)(const char* const) const, &BasicClass::operator[]>();
-        Class::addClassAttributeConst<class_const_member_name, int>(&BasicClass::class_const_member);
+        Class::addClassAttribute<class_const_member_name, const int>(&BasicClass::class_const_member);
         Class::addClassAttribute<class_member_name, int>(&BasicClass::class_member);
         Class::addAttribute<int_array_member_name, int[3]>(&BasicClass::int_array);
         Class::addAttribute<dbl_ptr_member_name, const double *const>(&BasicClass::double_ptr_member);

@@ -10,105 +10,49 @@
 
 namespace __pyllars_internal{
 
-    template<typename CClass>
-    template<const char *const name, typename AttrType>
-    PyObject *ClassMember<CClass>::Container<name, AttrType>::
+    template<const char *const name, typename CClass, typename AttrType>
+    PyObject *ClassMember<name, CClass, AttrType>::
     call(PyObject *cls, PyObject *args, PyObject *kwds) {
         (void) cls;
         static const char *kwlist[] = {"value", nullptr};
         static char format[2] = {'O', 0};
-        PyObject *pyarg = nullptr;
-        if (PyTuple_Size(args) > 0) {
-            PyErr_SetString(PyExc_ValueError,
-                            "Only one value with explicit keyword 'value' allowed to this method");
-            return nullptr;
-        } else if (kwds && !PyArg_ParseTupleAndKeywords(args, kwds, format, (char **) kwlist, &pyarg)) {
-            PyErr_SetString(PyExc_ValueError, "Invalid argument keyword name or type to method call");
-            return nullptr;
-        } else if (kwds) {
-            auto value = toCArgument<AttrType>(*pyarg);
-            Assignment<AttrType>::assign(*member,value.value());
-            return Py_None;
-        }
-        return toPyObject<AttrType>(*member, ArraySize<AttrType>::size);
-    }
-
-    template<class CClass>
-    template<const char *const name, typename AttrType>
-    void ClassMember<CClass>::Container<name, AttrType>::
-    setFrom(PyObject *pyobj) {
-        Assignment<AttrType>::assign(*member ,*toCArgument<AttrType, false>(*pyobj));
-    }
-
-    template<class CClass>
-    template<const char *const name, typename AttrType>
-    typename ClassMember<CClass>::template Container<name, AttrType>::member_t
-            ClassMember<CClass>::Container<name, AttrType>::member;
-
-
-
-    template<class CClass>
-    template<const char *const name, typename AttrType>
-    PyObject *ConstClassMember<CClass>::Container<name, AttrType>::
-    call(PyObject *cls, PyObject *args, PyObject *kwds) {
-        (void) cls;
-        if (PyTuple_Size(args) > 0 || kwds) {
+        if constexpr (std::is_const<AttrType>::value){
             PyErr_SetString(PyExc_ValueError, "C++: const static members cannot change value");
             return nullptr;
+        } else {
+            PyObject *pyarg = nullptr;
+            if (PyTuple_Size(args) > 0) {
+                PyErr_SetString(PyExc_ValueError,
+                                "Only one value with explicit keyword 'value' allowed to this method");
+                return nullptr;
+            } else if (kwds && !PyArg_ParseTupleAndKeywords(args, kwds, format, (char **) kwlist, &pyarg)) {
+                PyErr_SetString(PyExc_ValueError, "Invalid argument keyword name or type to method call");
+                return nullptr;
+            } else if (kwds) {
+                auto value = toCArgument<AttrType>(*pyarg);
+                Assignment<AttrType>::assign(*member, value.value());
+                return Py_None;
+            }
         }
         return toPyObject<AttrType>(*member, ArraySize<AttrType>::size);
     }
 
-    template<class CClass>
-    template<const char *const name, typename AttrType>
-    typename ConstClassMember<CClass>::template Container<name, AttrType>::member_t
-            ConstClassMember<CClass>::Container<name, AttrType>::member;
-
-    template<class CClass>
-    template<const char *const name, size_t size, typename AttrType>
-    void ClassMember<CClass>::Container<name, AttrType[size]>::setFrom(PyObject *pyobj){
-        AttrType val[] = *toCArgument<AttrType[size], false, PythonClassWrapper<AttrType[size]>>(*pyobj);
-        for (size_t i = 0; i < size; ++i)member[i] = val[i];
-    }
-
-    template<class CClass>
-    template<const char *const name, size_t size, typename AttrType>
-    PyObject * ClassMember<CClass>::Container<name, AttrType[size]>::call(PyObject *cls, PyObject *args, PyObject *kwds){
-        (void) cls;
-        static const char *kwlist[] = {"value", nullptr};
-        static char format[2] = {'O', 0};
-
-        PyObject *pyarg = nullptr;
-        if (PyTuple_Size(args) > 0) {
-            PyErr_SetString(PyExc_ValueError,
-                            "Only one value with explicit keyword 'value' allowed to this method");
-            return nullptr;
-        } else if (kwds && !PyArg_ParseTupleAndKeywords(args, kwds, format, (char **) kwlist, &pyarg)) {
-            PyErr_SetString(PyExc_ValueError, "Invalid argument keyword name or type to method call");
-            return nullptr;
-        } else if (kwds) {
-            setFrom(pyarg);
-            return Py_None;
-        }
-        return toPyObject<AttrType>(member, 1);
-    }
-
-    template<class CClass>
-    template<const char *const name, typename AttrType>
-    PyObject *ConstMemberContainer<CClass>::Container<name, AttrType>::
-    get(PyObject *self) {
-
-        if (!self) return nullptr;
-        typedef PythonClassWrapper<CClass> ClassWrapper;
-        auto _this = reinterpret_cast<ClassWrapper *>(self);
-        const ssize_t array_size = ArraySize<AttrType>::size;
-        if (_this->get_CObject()) {
-            return toPyObject<AttrType>((_this->get_CObject()->*member), array_size);
+    template<const char *const name, typename CClass, typename AttrType>
+    void ClassMember<name, CClass, AttrType>::
+    setFrom(PyObject *pyobj) {
+        if constexpr (std::is_const<AttrType>::value){
+             throw "Cannot set const class-member";
+        } else if constexpr (std::is_array<AttrType>::value && ArraySize<AttrType>::size > 0){
+            AttrType val[] = *toCArgument<AttrType, false, PythonClassWrapper<AttrType>>(*pyobj);
+            for (size_t i = 0; i < ArraySize<AttrType>::size; ++i)member[i] = val[i];
         } else {
-            PyErr_SetString(PyExc_RuntimeError, "No C Object found to get member attribute value!");
-            return nullptr;
+            Assignment<AttrType>::assign(*member, *toCArgument<AttrType, false>(*pyobj));
         }
     }
+
+    template<const char *const name, typename CClass, typename AttrType>
+    typename ClassMember<name, CClass, AttrType>::member_t
+            ClassMember<name, CClass, AttrType>::member;
 
 
 }
