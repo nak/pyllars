@@ -537,54 +537,62 @@ namespace __pyllars_internal {
 
    
     template<typename T>
-    template<typename _Container, bool is_const, const char *const kwlist[], typename ReturnType, typename ...Args>
+    template<const char *const name, const char* const kwlist[], typename method_t, method_t method>
     void PythonClassWrapper<T,
             typename std::enable_if<is_rich_class<T>::value>::type>::
-    addMethodTempl(typename _Container::template Container<is_const, kwlist, ReturnType, Args...>::method_t method) {
+    addMethod() {
         static const char *const doc = "Call method ";
-        char *doc_string = new char[strlen(_Container::name_) + strlen(doc) + 1];
-        snprintf(doc_string, strlen(_Container::name_) + strlen(doc) + 1, "%s%s", doc, _Container::name_);
-
+        char *doc_string = new char[func_traits<method_t>::type_name().size() + strlen(doc) + 1];
+        snprintf(doc_string, func_traits<method_t>::type_name().size() + strlen(doc) + 1, "%s%s", doc, func_traits<method_t>::type_name());
         PyMethodDef pyMeth = {
-                _Container::name_,
-                (PyCFunction) _Container::call,
+                name,
+                (PyCFunction) MethodContainer<kwlist, method_t, method>::call,
                 METH_KEYWORDS | METH_VARARGS,
                 doc_string
         };
 
-        _Container::template Container<is_const, kwlist, ReturnType, Args...>::setMethod(method);
-        _addMethod<is_const>(pyMeth);
+        _addMethod<func_traits<method_t>::is_const_method>(pyMeth);
     }
 
 
     template<typename T>
-    template<const char *const name, bool is_const, typename Arg>
+    template<const char* const name, typename ReturnType, ReturnType( core_type<T>::type::*method)()>
     void PythonClassWrapper<T,
             typename std::enable_if<is_rich_class<T>::value>::type>::
-    addUnaryOperator(
-            typename MethodContainer<T_NoRef, name>::template Container<is_const, emptylist, Arg>::method_t method) {
-        MethodContainer<T_NoRef, name>::template Container<is_const, emptylist, Arg>::setMethod(method);
-        if constexpr (is_const){
-            _unaryOperatorsConst[name] = (unaryfunc) MethodContainer<T_NoRef, name>::callAsUnaryFunc;
-
-        } else {
-            _unaryOperators[name] = (unaryfunc) MethodContainer<T_NoRef, name>::callAsUnaryFunc;
-        }
+    Op<name, ReturnType( core_type<T>::type::*)(), method>::addUnaryOperator() {
+        static const char* const kwlist[1] = {nullptr};
+        _unaryOperators[name] = (unaryfunc) MethodContainer<kwlist, ReturnType(CClass::*)(), method>::callAsUnaryFunc;
     }
 
 
     template<typename T>
-    template<const char *const name, bool is_const, const char *const kwlist[2], typename ReturnType, typename Arg>
+    template<const char* const name, typename ReturnType, ReturnType(core_type<T>::type::*method)() const>
     void PythonClassWrapper<T,
             typename std::enable_if<is_rich_class<T>::value>::type>::
-    addBinaryOperator(
-            typename MethodContainer<T_NoRef, name>::template Container<is_const, kwlist, ReturnType, Arg>::method_t method) {
-        MethodContainer<T_NoRef, name>::template Container<is_const, kwlist, ReturnType, Arg>::setMethod(method);
-        if constexpr(is_const){
-            _binaryOperatorsConst[name] = (binaryfunc) MethodContainer<T_NoRef, name>::callAsBinaryFunc;
-        } else {
-            _binaryOperators[name] = (binaryfunc) MethodContainer<T_NoRef, name>::callAsBinaryFunc;
-        }
+    Op<name, ReturnType(core_type<T>::type::*)() const, method>::addUnaryOperator() {
+        static const char* const kwlist[1] = {nullptr};
+        _unaryOperatorsConst[name] = (unaryfunc) MethodContainer<kwlist, ReturnType(CClass::*)() const, method>::callAsUnaryFunc;
+    }
+
+    template<typename T>
+    template<const char *const name, const char* const kwlist[2], typename ReturnType, typename ArgType,
+            ReturnType(core_type<T>::type::*method)(ArgType)>
+    void PythonClassWrapper<T,
+            typename std::enable_if<is_rich_class<T>::value>::type>::
+    BinaryOp<name, kwlist, ReturnType(core_type<T>::type::*)(ArgType), method>::addBinaryOperator() {
+        _binaryOperators[name] = (binaryfunc) MethodContainer<kwlist,  ReturnType(core_type<T>::type::*)(ArgType), method>::callAsBinaryFunc;
+    }
+
+
+
+    template<typename T>
+    template<const char *const name, const char* const kwlist[2], typename ReturnType, typename ArgType,
+            ReturnType(core_type<T>::type::*method)(ArgType) const>
+    void PythonClassWrapper<T,
+            typename std::enable_if<is_rich_class<T>::value>::type>::
+    BinaryOp<name, kwlist, ReturnType(core_type<T>::type::*)(ArgType) const, method>::addBinaryOperator() {
+        _binaryOperatorsConst[name] = (binaryfunc) MethodContainer< kwlist,  ReturnType(core_type<T>::type::*)(ArgType) const,
+           method>::callAsBinaryFunc;
     }
 
     template<typename T>
@@ -623,12 +631,11 @@ namespace __pyllars_internal {
 #include <functional>
 
     template<typename T>
-    template<bool method_is_const, const char *const kwlist[], typename KeyType, typename ValueType>
-    void PythonClassWrapper<T,
-            typename std::enable_if<is_rich_class<T>::value>::type>::
-    addMapOperatorMethod(
-            typename MethodContainer<T_NoRef, operatormapname>::template Container<method_is_const, kwlist, ValueType, KeyType>::method_t method) {
-        std::function<PyObject *(PyObject *, PyObject *)> getter = [method](PyObject *self, PyObject *item) -> PyObject * {
+    template<const char *const kwlist[2],  typename KeyType, typename ValueType, typename method_t, method_t method>
+    void PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::
+    _addMapOperatorMethod() {
+        constexpr bool method_is_const = func_traits<method_t>::is_const_method;
+        std::function<PyObject *(PyObject *, PyObject *)> getter = [](PyObject *self, PyObject *item) -> PyObject * {
             PythonClassWrapper *self_ = (PythonClassWrapper *) self;
             try {
                 auto c_key = toCArgument<KeyType>(*item);
@@ -640,7 +647,7 @@ namespace __pyllars_internal {
         };
         // since elements can be mutable, even const map operators must allow for setters
         std::function<int(bool, PyObject *, PyObject *, PyObject *)> setter =
-                [method](bool obj_is_const, PyObject *self, PyObject *item, PyObject *value) -> int {
+                [](bool obj_is_const, PyObject *self, PyObject *item, PyObject *value) -> int {
             PythonClassWrapper *self_ = (PythonClassWrapper *) self;
             auto cobj = self_->get_CObject();
             if (!cobj){

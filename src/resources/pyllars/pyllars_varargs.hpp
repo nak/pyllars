@@ -87,5 +87,6 @@ namespace __pyllars_internal {
         }
     };
 
+    void * toFFI(PyObject* arg);
 }
 #endif

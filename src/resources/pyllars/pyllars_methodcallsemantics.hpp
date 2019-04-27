@@ -13,198 +13,198 @@
 
 namespace __pyllars_internal {
 
-    template<bool is_const, bool with_ellipsis, typename CClass, typename T, typename ... Args>
-    class MethodTypeDef;
 
-    template<typename CClass, typename T, typename ... Args>
-    class MethodTypeDef<false, false, CClass, T, Args...>{
-    public:
-        typedef typename extent_as_pointer<T>::type ReturnType;
-        typedef ReturnType(CClass::*method_t)(Args...);
-    };
+    template<typename CClass, typename RType, typename ...Args>
+    struct func_traits<RType(CClass::*)(Args...)>{
+        constexpr static bool has_ellipsis = false;
+        constexpr static size_t argsize = sizeof...(Args);
+        constexpr static bool is_const_method = false;
 
-    template<typename CClass, typename T, typename ... Args>
-    class MethodTypeDef<false, true, CClass, T, Args...>{
-    public:
-        typedef typename extent_as_pointer<T>::type ReturnType;
-        typedef ReturnType(CClass::*method_t)(Args... ...);
-    };
+        typedef RType(CClass::*type)(Args...);
+        typedef RType ReturnType;
+        typedef CClass class_type;
 
-   template<typename CClass, typename T, typename ... Args>
-    class MethodTypeDef<true, false, CClass, T, Args...>{
-    public:
-        typedef typename extent_as_pointer<T>::type ReturnType;
-        typedef ReturnType(CClass::*method_t)(Args...) const;
-    };
+        template<typename Arg>
+        struct PyObjectPack{
+            typedef PyObject* type;
+        };
 
-   template<typename CClass, typename T, typename ... Args>
-   class MethodTypeDef<true, true, CClass, T, Args...>{
-    public:
-        typedef typename extent_as_pointer<T>::type ReturnType;
-        typedef ReturnType(CClass::*method_t)(Args... ...) const;
-    };
-
-   /**
-     * class to hold reference to a class method and define
-     * method call semantics
-     **/
-    template< bool is_const, bool with_ellipsis, const char* const kwlist[], typename CClass, typename T, typename ... Args>
-    class MethodCallSemantics ;
-
-
-    /**
-     * class to hold reference to a class method and define
-     * method call semantics
-     **/
-    template<bool is_const, const char* const kwlist[], typename CClass, typename T, typename ... Args>
-    class MethodCallSemantics<is_const, false, kwlist, CClass, T, Args...> {
-    public:
-        typedef typename MethodTypeDef<is_const, false, CClass, T, Args...>::ReturnType ReturnType;
-        typedef typename MethodTypeDef<is_const, false, CClass, T, Args...>::method_t method_t;
-
-        /**
-         * Used for regular methods:
-         */
-        static PyObject *call(method_t method, typename std::remove_reference<CClass>::type &self, PyObject *args, PyObject *kwds) ;
-
-    private:
-
-        static
-        ReturnType make_call(typename std::remove_reference<CClass>::type &self,  method_t method,
-                argument_capture<Args>... args){
-            return (self.*method)(args.value()...);
+        inline static ReturnType invoke(type &method, CClass & self, PyObject* extra_args_tuple, typename PyObjectPack<Args>::type... pyargs){
+            return (self.*method)(toCArgument<Args>(*pyargs).value()...);
         }
 
-        /**
-         * call that invokes method a la C:
-         **/
-        template<typename ...PyO>
-        static typename extent_as_pointer<T>::type call_methodC(
-                method_t method,
-                typename std::remove_reference<CClass>::type &self,
-                PyObject *args, PyObject *kwds, PyO *...pyargs);
+        const static std::string type_name(){
 
-        /**
-         * call that converts python given arguments to make C call:
-         **/
-        template<int ...S>
-        static typename extent_as_pointer<T>::type call_methodBase(
-                method_t method,
-                typename std::remove_reference<CClass>::type &self,
-                PyObject *args, PyObject *kwds, container<S...> s);
+            static std::string n;
+            if (n.size()==0) {
+                n = std::string(__pyllars_internal::type_name<ReturnType>()) + std::string("(*")  +
+                    + __pyllars_internal::type_name<CClass>() + std::string(")(");
+
+                std::string arg_names[] = {Types<Args>::type_name()...};
+                for (int i = 0; i < sizeof...(Args); ++i) {
+                    n += arg_names[i] + std::string(",");
+                }
+                n += std::string(")");
+            }
+            return n.c_str();
+        }
+
+    };
+
+    template<typename CClass, typename RType, typename ...Args>
+    struct func_traits<RType(CClass::*)(Args..., ...)>{
+        constexpr static bool has_ellipsis = true;
+        constexpr static bool is_const_method = false;
+        constexpr static size_t argsize = sizeof...(Args);
+
+        typedef RType(CClass::*type)(Args..., ...);
+        typedef RType ReturnType;
+        typedef CClass class_type;
+
+        const static std::string type_name(){
+            static std::string n;
+            if (n.size()==0) {
+                n = std::string(__pyllars_internal::type_name<ReturnType>()) + std::string("(*")  +
+                    + __pyllars_internal::type_name<CClass>() + std::string(")(");
+
+                std::string arg_names[] = {Types<Args>::type_name()...};
+                for (int i = 0; i < sizeof...(Args); ++i) {
+                    n += arg_names[i] + std::string(",");
+                }
+                n += std::string(" ...)");
+            }
+            return n.c_str();
+        }
+
+        template<typename Arg>
+        struct PyObjectPack{
+            typedef PyObject* type;
+        };
+
+        static ReturnType invoke(type &method, CClass & self, PyObject* extra_args_tuple,
+                typename PyObjectPack<Args>::type... pyargs);
+    };
+
+
+    template<typename CClass, typename RType, typename ...Args>
+    struct func_traits<RType(CClass::*)(Args...) const>{
+        constexpr static bool has_ellipsis = false;
+        constexpr static size_t argsize = sizeof...(Args);
+        constexpr static bool is_const_method = true;
+
+        typedef RType(CClass::*type)(Args...) const;
+        typedef RType ReturnType;
+        typedef CClass class_type;
+
+        template<typename Arg>
+        struct PyObjectPack{
+            typedef PyObject* type;
+        };
+
+        class A;
+
+        inline static ReturnType invoke(type &method, const CClass & self, PyObject* extra_args_tuple, typename PyObjectPack<Args>::type... pyargs){
+            return (self.* method)(toCArgument<Args>(*pyargs).value()...);
+        }
+        const static std::string type_name(){
+            static std::string n;
+            if (n.size()==0) {
+                n = std::string(__pyllars_internal::type_name<ReturnType>()) + std::string("(*")  +
+                        + __pyllars_internal::type_name<CClass>() + std::string(")(");
+
+                std::string arg_names[] = {Types<Args>::type_name()...};
+                for (int i = 0; i < sizeof...(Args); ++i) {
+                    n += arg_names[i] + std::string(",");
+                }
+                n += std::string(") const");
+            }
+            return n.c_str();
+        }
+
+    };
+
+    template<typename CClass, typename RType, typename ...Args>
+    struct func_traits<RType(CClass::*)(Args..., ...) const>{
+        constexpr static bool has_ellipsis = true;
+        constexpr static bool is_const_method = true;
+        constexpr static size_t argsize = sizeof...(Args);
+        typedef CClass class_type;
+
+        typedef RType(CClass::*type)(Args..., ...) const;
+        typedef RType ReturnType;
+
+        template<typename Arg>
+        struct PyObjectPack{
+            typedef PyObject* type;
+        };
+
+        static ReturnType invoke(type &method, const CClass & self, PyObject* extra_args_tuple,
+                typename PyObjectPack<Args>::type... pyargs);
+
+        const static std::string type_name(){
+            static std::string n;
+            if (n.size()==0) {
+                n = std::string(__pyllars_internal::type_name<ReturnType>()) + std::string("(*")  +
+                    + __pyllars_internal::type_name<CClass>() + std::string(")(");
+
+                std::string arg_names[] = {Types<Args>::type_name()...};
+                for (int i = 0; i < sizeof...(Args); ++i) {
+                    n += arg_names[i] + std::string(",");
+                }
+                n += std::string(" ...) const");
+            }
+            return n.c_str();
+        }
 
     };
 
 
-   /**
-     * class to hold referecne to a class method and define
+    /**
+     * class to hold reference to a class method and define
      * method call semantics
+     *
+     * @param kwlist: null-terminated list of parameter names of method arguments
+     * @param method_t: type for method to be invokde of form ReturnType(Class::*)(Args...)
      **/
-    template<bool is_const, const char* const kwlist[], typename CClass, typename T, typename ... Args>
-    class MethodCallSemantics<is_const, true, kwlist, CClass, T, Args...> {
+    template< const char* const kwlist[],  typename method_t>
+    class MethodCallSemantics{
     public:
-        typedef typename MethodTypeDef<is_const, true, CClass, T, Args...>::ReturnType ReturnType;
-        typedef typename MethodTypeDef<is_const, true, CClass, T, Args...>::method_t method_t;
+        typedef typename func_traits<method_t>::ReturnType ReturnType;
+        typedef typename func_traits<method_t>::class_type CClass;
 
-        /**
-         * Used for regular methods:
-         */
-        static ReturnType call(method_t method, typename std::remove_reference<CClass>::type &self, Args..., PyObject *extra_args );
-        static PyObject *call(method_t method, typename std::remove_reference<CClass>::type &self, PyObject *args, PyObject *kwds) ;
+        static PyObject *call(CClass &self, method_t method, PyObject *args, PyObject *kwds) ;
 
-    private:
+    protected:
 
         /**
          * call that invokes method a la C:
          **/
         template<typename ...PyO>
-        static typename extent_as_pointer<T>::type call_methodC(
-                method_t method,
-                typename std::remove_reference<CClass>::type &self,
-                PyObject *args, PyObject *kwds, PyO *...pyargs);
+        static ReturnType call_methodC(CClass &self, method_t method, PyObject *args, PyObject *kwds, PyO *...pyargs);
 
         /**
          * call that converts python given arguments to make C call:
          **/
         template<int ...S>
-        static typename extent_as_pointer<T>::type call_methodBase(
-                method_t method,
-                typename std::remove_reference<CClass>::type &self,
-                PyObject *args, PyObject *kwds, container<S...> s);
+        static ReturnType call_methodBase(CClass &self, method_t method, PyObject *args, PyObject *kwds, container<S...> s);
 
     };
 
-    /**
-     * specialize for void returns:
-     **/
-    template<bool is_const, const char* const kwlist[], typename CClass, typename ...Args>
-    class MethodCallSemantics<is_const, false, kwlist, CClass, void, Args...> {
-    public:
-        typedef typename MethodTypeDef<is_const, false, CClass, void, Args...>::method_t method_t;
-
-        static PyObject *call(method_t method, typename std::remove_reference<CClass>::type &self, PyObject *args, PyObject *kwds);
-
-    private:
-
-        template<typename ...PyO>
-        static void call_methodC(method_t method,
-                                 typename std::remove_reference<CClass>::type &self,
-                                 PyObject *args, PyObject *kwds,
-                                 PyO *...pyargs);
-
-        template<int ...S>
-        static void call_methodBase(method_t method,
-                                    typename std::remove_reference<CClass>::type &self,
-                                    PyObject *args, PyObject *kwds,
-                                    container<S...> unused) ;
-
-    };
-
-
-    template<bool is_const, const char* const kwlist[], typename CClass, typename ...Args>
-    class MethodCallSemantics<is_const, true, kwlist,  CClass, void, Args...> {
-    public:
-        typedef typename MethodTypeDef<is_const, true, CClass, void, Args...>::method_t method_t;
-
-        static void call(method_t method, typename std::remove_reference<CClass>::type &self,Args... args, PyObject *extra_args);
-        static PyObject *call(method_t method, typename std::remove_reference<CClass>::type &self, PyObject *args, PyObject *kwds) ;
-
-    private:
-
-        template<typename ...PyO>
-        static void call_methodC(method_t method,
-                                 typename std::remove_reference<CClass>::type &self,
-                                 PyObject *args, PyObject *kwds,
-                                 PyO *...pyargs);
-
-        template<int ...S>
-        static void call_methodBase(method_t method,
-                                    typename std::remove_reference<CClass>::type &self,
-                                    PyObject *args, PyObject *kwds,
-                                    container<S...> unused) ;
-
-    };
-
-
-
-    /**
-     * This class is needed to prevent ambiguities and compiler issues in add_method
-     * It holds the method call and allows specialization based on
-     * underlying CClass type
-     **/
-    template<class CClass, const char* const, typename E = void>
-    class MethodContainer ;
 
     /**
      * Specialization for non-const class types
      **/
-    template<class CClass, const char *const name>
-    class MethodContainer<CClass, name, typename std::enable_if<
-            !std::is_const<CClass>::value>::type> {
+    template<const char *const kwlist[], typename method_t, method_t method>
+    class MethodContainer{
     public:
-        static constexpr cstring name_ = name;
+        typedef typename func_traits<method_t>::class_type CClass;
 
-        static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);
+        static constexpr cstring type_name = func_traits<method_t>::type_name();
+
+        static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds){
+            CClass* this_ = reinterpret_cast<PythonClassWrapper<CClass>*>(self)->get_CObject();
+            return MethodCallSemantics<kwlist, method_t>::call(*this_, method, args, kwds);
+        }
 
         static PyObject *callAsUnaryFunc(PyObject *self, PyObject *arg){
             return call(self, arg, nullptr);
@@ -219,223 +219,9 @@ namespace __pyllars_internal {
             return retval;
         }
 
-        class BaseContainer{
-        public:
-            virtual PyObject* _call(PyObject* self, PyObject* args, PyObject* kwds) = 0;
-        };
-
-        template<bool is_const, const char* const kwlist[], typename ReturnType, typename ...Args>
-        class Container: public BaseContainer{
-        public:
-            typedef typename MethodCallSemantics<is_const, false, kwlist, CClass, ReturnType, Args...>::method_t method_t;
-
-            static void setMethod(method_t method){
-                if (_method){
-                    // we only use virtual call method to handle different signature in
-                    //static manner, but should only ever have one method of a given signature
-                    throw "Duplicate method specification";
-                }
-                _method = method;
-                std::pair<BaseContainer*, const char* const*> pair(new Container(), kwlist);
-                MethodContainer::_methods.push_back(pair);
-            }
-
-            PyObject* _call(PyObject* self, PyObject* args, PyObject* kwds) override;
-
-        private:
-            static method_t _method;
-        };
-
-        template <bool is_const, const char* const kwlist[], typename ReturnType, typename ...Args>
-        friend class Container;
-
-    protected:
-        typedef std::vector<std::pair<BaseContainer*, const char* const*>> method_collection_t;
-        static method_collection_t _methods;
 
     };
 
-
-    /**
-     * Specialization for const class types
-     **/
-    template<class CClass,const char* const name>
-    class MethodContainer<CClass, name, typename std::enable_if<
-            std::is_const<CClass>::value>::type> {
-    public:
-        static constexpr cstring name_ = name;
-
-        static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);
-
-        static PyObject *callAsUnaryFunc(PyObject *self, PyObject *arg){
-            return call(self, arg, nullptr);
-        }
-
-        static PyObject *callAsBinaryFunc(PyObject *self, PyObject *arg){
-            auto args = PyTuple_New(1);
-            PyTuple_SetItem(args, 0, arg);
-            return call(self, /*Py_BuildValue("(O)",*/ args, nullptr);
-        }
-
-        class BaseContainer{
-        public:
-            virtual PyObject* _call(PyObject* self, PyObject* args, PyObject* kwds) = 0;
-        };
-
-        template<bool is_const, const char* const kwlist[], typename ReturnType, typename ...Args>
-        class Container{
-        public:
-            typedef typename MethodCallSemantics<true, false, kwlist, CClass, ReturnType, Args...>::method_t method_t;
-
-            static void setMethod(method_t method){
-                if (_method){
-                    // we only use virtual call method to handle different signature in
-                    //static manner, but should only ever have one method of a given signature
-                    throw "Duplicate method specification";
-                }
-                _method = method;
-                std::pair<BaseContainer*, const char* const*> pair(new Container(), kwlist);
-                MethodContainer::_methods.push_back(pair);
-            }
-
-            PyObject* _call(PyObject* self, PyObject* args, PyObject* kwds) override;
-
-        private:
-            static method_t _method;
-        };
-        template <bool is_const, const char* const kwlist[], typename ReturnType, typename ...Args>
-        friend class Container;
-
-    protected:
-        typedef std::vector<std::pair<BaseContainer*, const char* const*>> method_collection_t;
-        static method_collection_t _methods;
-
-    };
-
-
-    ////////////// VARARGS VERSIONS //////////////////////
-
-
-
-
-    /**
-     * This class is needed to prevent ambiguities and compiler issues in add_method
-     * It holds the method call and allows specialization based on
-     * underlying CClass type
-     **/
-    template<class CClass,const char *const name, typename E = void>
-    class MethodContainerVarargs;
-
-    template<class CClass,const char *const name>
-    class MethodContainerVarargs<CClass, name,
-            typename std::enable_if< !std::is_const<CClass>::value>::type
-            >{
-    public:
-        static constexpr cstring name_ = name;
-        static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);
-
-        static PyObject *callAsUnaryFunc(PyObject *self, PyObject *arg){
-            return call(self, arg, nullptr);
-        }
-
-        static PyObject *callAsBinaryFunc(PyObject *self, PyObject *arg){
-            auto args = PyTuple_New(1);
-            PyTuple_SetItem(args, 0, arg);
-            return call(self, /*Py_BuildValue("(O)",*/ args, nullptr);
-        }
-
-        class BaseContainer{
-        public:
-
-            virtual PyObject* _call(PyObject* self, PyObject* args, PyObject* kwds) = 0;
-
-        };
-
-        template<bool is_const, const char* const kwlist[], typename ReturnType, typename ...Args>
-        class Container: public BaseContainer{
-        public:
-            typedef typename MethodCallSemantics<is_const, true, kwlist, CClass, ReturnType, Args...>::method_t method_t;
-
-            static void setMethod(method_t method){
-                if (_method){
-                    // we only use virtual call method to handle different signature in
-                    //static manner, but should only ever have one method of a given signature
-                    throw "Duplicate method specification";
-                }
-                _method = method;
-                std::pair<BaseContainer*, const char* const*> pair(new Container(), kwlist);
-                MethodContainerVarargs::_methods.push_back(pair);
-            }
-
-            PyObject* _call(PyObject* self, PyObject* args, PyObject* kwds) override;
-
-        private:
-            static method_t _method;
-        };
-
-        template<bool is_const, typename ReturnType, typename ...Args>
-        friend class Container;
-
-    protected:
-        typedef std::vector<std::pair<BaseContainer*, const char* const*>> method_collection_t;
-        static method_collection_t _methods;
-
-    };
-
-
-    template<class CClass,const char *const name >
-    class MethodContainerVarargs<CClass, name,
-        typename std::enable_if< std::is_const<CClass>::value>::type>{
-    public:
-        static constexpr cstring name_ = name;
-        static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);
-
-        static PyObject *callAsUnaryFunc(PyObject *self, PyObject *arg){
-            return call(self, arg, nullptr);
-        }
-
-        static PyObject *callAsBinaryFunc(PyObject *self, PyObject *arg){
-            auto args = PyTuple_New(1);
-            PyTuple_SetItem(args, 0, arg);
-            return call(self, /*Py_BuildValue("(O)",*/ args, nullptr);
-        }
-
-        class BaseContainer{
-        public:
-            virtual PyObject* _call(PyObject* self, PyObject* args, PyObject* kwds) = 0;
-        };
-
-        template<bool is_const, const char* const kwlist[], typename ReturnType, typename ...Args> //is_const to keep same sig, but unused as const CClass means only const methods allowed
-        class Container: public BaseContainer{
-        public:
-            typedef typename MethodCallSemantics<true, true, kwlist, CClass, ReturnType, Args...>::method_t method_t;
-
-
-            static void setMethod(method_t method){
-                if (_method){
-                    // we only use virtual call method to handle different signature in
-                    //static manner, but should only ever have one method of a given signature
-                    throw "Duplicate method specification";
-                }
-                _method = method;
-                std::pair<BaseContainer*, const char* const*> pair(new Container(), kwlist);
-                MethodContainerVarargs::_methods.push_back(pair);
-            }
-
-            PyObject* _call(PyObject* self, PyObject* args, PyObject* kwds) override;
-
-        private:
-            static method_t _method;
-        };
-
-        template<bool is_const, typename ReturnType, typename ...Args>
-        friend class Container;
-
-    protected:
-        typedef std::vector<std::pair<BaseContainer*, const char* const*>> method_collection_t;
-        static method_collection_t _methods;
-
-    };
 
 
     /**

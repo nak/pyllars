@@ -22,6 +22,7 @@ const char* const __pyllars_internal::_Types<InheritanceClass>::type_name = "Inh
 template<>
 const char* const __pyllars_internal::_Types<MultiInheritanceClass>::type_name ="MultiInheritanceClass";
 
+
 void
 SetupInheritanceTest::SetUpTestSuite() {
     SetupBasicClass::SetUpTestSuite();
@@ -31,8 +32,8 @@ SetupInheritanceTest::SetUpTestSuite() {
         static const char *const kwlist2[] = {"data", nullptr};
         typedef  PythonClassWrapper<InheritanceClass> Class;
         Class::addConstructor<>(empty_list);
-        Class::addMethod<true, new_method_name, kwlist2, int, const char *const>(
-                &InheritanceClass::new_method);
+        Class::addMethod<new_method_name, kwlist2, int(InheritanceClass::*)(const char* const) const,
+                &InheritanceClass::new_method>();
         Class::addBaseClass<BasicClass>();
         ASSERT_EQ(Class::initialize(), 0);
     }
@@ -41,8 +42,10 @@ SetupInheritanceTest::SetUpTestSuite() {
         typedef PythonClassWrapper<MultiInheritanceClass> Class;
         Class::addConstructor<>(empty_list);
         static const char *const kwlist2[] = {"data", nullptr};
-        Class::addMethod<false, create_bclass2_method_name, kwlist2, BasicClass2>(
-                &MultiInheritanceClass::createBasicClass2);
+        Class::addMethod<create_bclass2_method_name, kwlist2,
+          BasicClass2(MultiInheritanceClass::*)(),
+          &MultiInheritanceClass::createBasicClass2>();
+
         Class::addBaseClass<BasicClass>();
         Class::addBaseClass<BasicClass2>();
         ASSERT_EQ(Class::initialize(), 0);

@@ -93,7 +93,11 @@ namespace __pyllars_internal {
     template<typename T>
     struct Types {
         static const char *const type_name() {
-            return _Types<T>::type_name;
+            if constexpr(std::is_function<T>::value){
+                return 1;
+            } else {
+                return _Types<T>::type_name;
+            }
         }
     };
 
@@ -382,7 +386,7 @@ namespace __pyllars_internal {
 
     template<typename ReturnType, typename ...Args>
     struct Types<ReturnType(Args...)>{
-        static const char* type_name(){
+        static const char* const type_name(){
             static std::string n;
             if (n.size()==0) {
                 n = std::string(__pyllars_internal::type_name<ReturnType>()) + std::string("(*)(");
@@ -409,6 +413,79 @@ namespace __pyllars_internal {
                     n += arg_names[i] + std::string(",");
                 }
                 n += std::string(" ...)");
+            }
+            return n.c_str();
+        }
+    };
+
+
+    template<typename CClass, typename ReturnType, typename ...Args>
+    struct Types<ReturnType(CClass::*)(Args...)>{
+        static const char* type_name(){
+            static std::string n;
+            if (n.size()==0) {
+                n = std::string(__pyllars_internal::type_name<ReturnType>()) + std::string("(") +
+                        __pyllars_internal::type_name<CClass>() + std::string("*)(");
+
+                std::string arg_names[] = {Types<Args>::type_name()...};
+                for (int i = 0; i < sizeof...(Args); ++i) {
+                    n += arg_names[i] + std::string(",");
+                }
+                n += std::string(")");
+            }
+            return n.c_str();
+        }
+    };
+
+    template<typename CClass, typename ReturnType, typename ...Args>
+    struct Types<ReturnType(CClass::*)(Args..., ...)>{
+        static const char* type_name(){
+            static std::string n;
+            if (n.size()==0) {
+                n = std::string(__pyllars_internal::type_name<ReturnType>()) + std::string("(") +
+                        __pyllars_internal::type_name<CClass>() + std::string("*)(");
+
+                std::string arg_names[] = {Types<Args>::type_name()...};
+                for (int i = 0; i < sizeof...(Args); ++i) {
+                    n += arg_names[i] + std::string(",");
+                }
+                n += std::string(" ...)");
+            }
+            return n.c_str();
+        }
+    };
+
+    template<typename CClass, typename ReturnType, typename ...Args>
+    struct Types<ReturnType(CClass::*)(Args...) const>{
+        static const char* type_name(){
+            static std::string n;
+            if (n.size()==0) {
+                n = std::string(__pyllars_internal::type_name<ReturnType>()) + std::string("(") +
+                    __pyllars_internal::type_name<CClass>() + std::string("*)(");
+
+                std::string arg_names[] = {Types<Args>::type_name()...};
+                for (int i = 0; i < sizeof...(Args); ++i) {
+                    n += arg_names[i] + std::string(",");
+                }
+                n += std::string(") const");
+            }
+            return n.c_str();
+        }
+    };
+
+    template<typename CClass, typename ReturnType, typename ...Args>
+    struct Types<ReturnType(CClass::*)(Args..., ...) const>{
+        static const char* type_name(){
+            static std::string n;
+            if (n.size()==0) {
+                n = std::string(__pyllars_internal::type_name<ReturnType>()) + std::string("(") +
+                    __pyllars_internal::type_name<CClass>() + std::string("*)(");
+
+                std::string arg_names[] = {Types<Args>::type_name()...};
+                for (int i = 0; i < sizeof...(Args); ++i) {
+                    n += arg_names[i] + std::string(",");
+                }
+                n += std::string(" ...) const");
             }
             return n.c_str();
         }

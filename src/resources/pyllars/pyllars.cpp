@@ -1865,5 +1865,65 @@ namespace __pyllars_internal {
             nullptr,                          /*tp_del*/
             0,                          /*tp_version_tag*/
     };
+
+
+    void * toFFI(PyObject* arg){
+
+        // Specify the data type of each argument. Available types are defined
+        // in <ffi/ffi.h>.
+        union ArgType {
+            int intvalue;
+            long longvalue;
+            double doublevalue;
+            bool boolvalue;
+            void *ptrvalue;
+        };
+        void* arg_value = nullptr;
+        ffi_type *arg_type;
+        ArgType generic_value;
+
+        const int subtype = getType(arg, arg_type);
+        switch (arg_type->type) {
+            case FFI_TYPE_SINT32:
+                generic_value.intvalue = PyInt_AsLong(arg);
+                arg_value = &generic_value.intvalue;
+                break;
+            case FFI_TYPE_SINT64:
+                generic_value.longvalue = PyLong_AsLong(arg);
+                arg_value = &generic_value.longvalue;
+                break;
+            case FFI_TYPE_UINT8:
+                generic_value.boolvalue = (arg == Py_True);
+                arg_value = &generic_value.boolvalue;
+                break;
+            case FFI_TYPE_DOUBLE:
+                generic_value.doublevalue = PyFloat_AsDouble(arg);
+                arg_value = &generic_value.doublevalue;
+                break;
+            case FFI_TYPE_POINTER:
+                if (STRING_TYPE == subtype) {
+                    generic_value.ptrvalue = (void*) PyString_AsString(arg);
+                    arg_value = &generic_value.ptrvalue;
+                } else if (COBJ_TYPE == subtype) {
+                    static const size_t offset = offset_of<ObjectContainer<ArgType> *, PythonClassWrapper<ArgType> >
+                            (&PythonClassWrapper<ArgType>::_CObject);
+                    ObjectContainer<void *> **ptrvalue =
+                            (ObjectContainer<void *> **) (((char *) arg) + offset);
+                    generic_value.ptrvalue = ptrvalue ? (*ptrvalue)->ptr() : nullptr;
+                } else if (FUNC_TYPE == subtype) {
+                    typedef PythonFunctionWrapper<void(void)> wtype;
+                    static const size_t offset = offsetof(wtype, _function);
+                    void **ptrvalue = (void **) (((char *) arg) + offset);
+                    generic_value.ptrvalue = *ptrvalue;
+                } else {
+                    throw "Unable to convert Python object to C Object";
+                }
+                arg_value = &generic_value.ptrvalue;
+                break;
+            default:
+                throw "Python object cannot be converted to C object";
+                break;
+        }
+    }
 }
 #include "pyllars_const.cpp"

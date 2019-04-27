@@ -48,8 +48,6 @@ namespace __pyllars_internal{
                     if (is_reference[i]){
                         arg_values[i] = &arg_values_bare[i];
                         arg_types[i] = &ffi_type_pointer;
-                    } else {
-                        arg_values[i] = arg_values_bare[i];
                     }
                 }
                 ffi_status status;
