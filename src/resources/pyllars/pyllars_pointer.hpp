@@ -26,9 +26,6 @@ namespace __pyllars_internal {
     }
     extern PyTypeObject BasePtrType;
 
-    class ObjectLifecycleHelpers;
-
-
     template <typename T> class remove_all_pointers{
     public:
         typedef T type;

@@ -156,13 +156,6 @@ namespace __pyllars_internal {
         static void addClassMethod();
 
         /**
-         * add a method with given compile-time-known name to the contained collection
-         **/
-        template<const char *const name, const char *const kwlist[], typename ReturnType, typename ...Args>
-        static void addClassMethodVarargs(ReturnType(*method)(Args... ...));
-
-
-        /**
          * add a class-wide (static) member
          **/
         static void addClassMember(const char *const name, PyObject *pyobj) ;
