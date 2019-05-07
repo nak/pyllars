@@ -69,6 +69,12 @@ TEST_F(SetupBasicClass, TestBasicClass){
     ASSERT_NE(dbl_value, nullptr);
     ASSERT_NEAR(PyFloat_AsDouble(dbl_value), 2.3, 0.000001);
 
+    auto const_int = PyObject_GetAttrString(obj, const_int_member_name);
+    ASSERT_FALSE(PyErr_Occurred());
+    ASSERT_NE(const_int, nullptr);
+    long value = PyLong_AsLong(const_int);
+    ASSERT_EQ(value, -2348);
+
     auto int_array = (PythonClassWrapper<int[3]>*) PyObject_GetAttrString(obj, int_array_member_name);
     ASSERT_FALSE(PyErr_Occurred());
     ASSERT_NE(int_array, nullptr);
@@ -164,12 +170,24 @@ TEST_F(SetupBasicClass, TestClassEnums){
     ASSERT_NE(ONE_E, nullptr);
     ASSERT_NE((((Class*)ONE_E)->get_CObject()), nullptr);
     ASSERT_EQ(*(((Class*)ONE_E)->get_CObject()), EnumClass::E_ONE);
-    PyObject *args = PyTuple_New(1);
-    PyTuple_SetItem(args, 0, ONE_E);
-    Class* new_value = (Class*) PyObject_Call((PyObject*) Class::getPyType(), args, nullptr);
-    ASSERT_NE((new_value->get_CObject()), nullptr);
-    ASSERT_EQ(*(new_value->get_CObject()), EnumClass::E_ONE);
-
+    {
+        PyObject *value_callable = PyObject_GetAttrString(ONE_E, "value");
+        ASSERT_NE(value_callable, nullptr);
+        ASSERT_FALSE(PyErr_Occurred());
+        PyObject *args = PyTuple_New(1);
+        PyTuple_SetItem(args, 0, ONE_E);
+        PyObject *int_value_py = PyObject_Call(value_callable, args, nullptr);
+        ASSERT_FALSE(PyErr_Occurred());
+        ASSERT_NE(int_value_py, nullptr);
+        ASSERT_EQ(PyLong_AsLong(int_value_py), 1);
+    }
+    {
+        PyObject *args = PyTuple_New(1);
+        PyTuple_SetItem(args, 0, ONE_E);
+        Class *new_value = (Class *) PyObject_Call((PyObject *) Class::getPyType(), args, nullptr);
+        ASSERT_NE((new_value->get_CObject()), nullptr);
+        ASSERT_EQ(*(new_value->get_CObject()), EnumClass::E_ONE);
+    }
     PyObject* convert = PyObject_GetAttrString((PyObject*)Class::getPyType(), enum_convert_name);
     ASSERT_NE(convert, nullptr);
     PyObject * args2 = PyTuple_New(1);

@@ -105,8 +105,13 @@ namespace __pyllars_internal {
     struct Types<const T> {
         static const char *const type_name() {
             static auto * namebase = new char[7 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
-            strcpy(namebase, "const_");
-            strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
+            static bool init = false;
+            if(!init) {
+                memset(namebase, 0, 7 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
+                strcpy(namebase, "const_");
+                strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
+                init = true;
+            }
             return namebase;
         }
     };
@@ -115,8 +120,13 @@ namespace __pyllars_internal {
     struct Types<volatile T> {
         static const char *const type_name() {
             static auto * namebase = new char[10 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
-            strcpy(namebase, "volatile_");
-            strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
+            static bool init = false;
+            if(!init) {
+                memset(namebase, 0, 10 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
+                strcpy(namebase, "volatile_");
+                strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
+                init = true;
+            }
             return namebase;
         }
     };
@@ -125,8 +135,13 @@ namespace __pyllars_internal {
     struct Types<const volatile T> {
         static const char *const type_name() {
             static auto * namebase = new char[16 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
-            strcpy(namebase, "const_volatile_");
-            strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
+            static bool init = false;
+            if(!init) {
+                memset(namebase, 0, 16 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
+                strcpy(namebase, "const_volatile_");
+                strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
+                init = true;
+            }
             return namebase;
         }
     };
@@ -135,8 +150,13 @@ namespace __pyllars_internal {
     struct Types<T *> {
         static const char *const type_name() {
             static auto * namebase = new char[2 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
-            strcpy(namebase, Types<typename std::remove_const<T>::type>::type_name());
-            strcat(namebase, "*");
+            static bool init = false;
+            if(!init) {
+                memset(namebase, 0, 2 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
+                strcpy(namebase, Types<typename std::remove_const<T>::type>::type_name());
+                strcat(namebase, "*");
+                init = true;
+            }
             return namebase;
         }
     };
@@ -145,9 +165,14 @@ namespace __pyllars_internal {
     struct Types<const T *> {
         static const char *const type_name() {
             static auto * namebase = new char[8 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
-            strcpy(namebase, "const_");
-            strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
-            strcat(namebase, "*");
+            static bool init = false;
+            if(!init) {
+                memset(namebase, 0, 8 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
+                strcpy(namebase, "const_");
+                strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
+                strcat(namebase, "*");
+                init = true;
+            }
             return namebase;
         }
     };
@@ -156,9 +181,14 @@ namespace __pyllars_internal {
     struct Types<volatile T *> {
         static const char *const type_name() {
             static auto * namebase = new char[11 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
-            strcpy(namebase, "volatile_");
-            strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
-            strcat(namebase, "*");
+            static bool init = false;
+            if(!init) {
+                memset(namebase, 0, 11 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
+                strcpy(namebase, "volatile_");
+                strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
+                strcat(namebase, "*");
+                init = true;
+            }
             return namebase;
         }
     };
@@ -167,9 +197,14 @@ namespace __pyllars_internal {
     struct Types<const volatile T *> {
         static const char *const type_name() {
             static auto * namebase = new char[17 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
-            strcpy(namebase, "const_volatile_");
-            strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
-            strcat(namebase, "*");
+            static bool init = false;
+            if(!init) {
+                memset(namebase, 0, 17 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
+                strcpy(namebase, "const_volatile_");
+                strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
+                strcat(namebase, "*");
+                init = true;
+            }
             return namebase;
         }
     };
@@ -178,8 +213,13 @@ namespace __pyllars_internal {
     struct Types<T &> {
         static const char *const type_name() {
             static auto * namebase = new char[2 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
-            strcpy(namebase, Types<typename std::remove_const<T>::type>::type_name());
-            strcat(namebase, "&");
+            static bool init = false;
+            if(!init) {
+                memset(namebase, 0, 2 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
+                strcpy(namebase, Types<typename std::remove_const<T>::type>::type_name());
+                strcat(namebase, "&");
+                init = true;
+            }
             return namebase;
         }
     };
@@ -188,9 +228,14 @@ namespace __pyllars_internal {
     struct Types<const T &> {
         static const char *const type_name() {
             static auto * namebase = new char[8 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
-            strcpy(namebase, "const_");
-            strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
-            strcat(namebase, "&");
+            static bool init = false;
+            if(!init) {
+                memset(namebase, 0, 8 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
+                strcpy(namebase, "const_");
+                strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
+                strcat(namebase, "&");
+                init = true;
+            }
             return namebase;
         }
     };
@@ -199,9 +244,14 @@ namespace __pyllars_internal {
     struct Types<volatile T &> {
         static const char *const type_name() {
             static auto * namebase = new char[11 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
-            strcpy(namebase, "volatile_");
-            strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
-            strcat(namebase, "&");
+            static bool init = false;
+            if(!init) {
+                memset(namebase, 0, 11 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
+                strcpy(namebase, "volatile_");
+                strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
+                strcat(namebase, "&");
+                init = true;
+            }
             return namebase;
         }
     };
@@ -210,9 +260,14 @@ namespace __pyllars_internal {
     struct Types<const volatile T &> {
         static const char *const type_name() {
             static auto * namebase = new char[17 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
-            strcpy(namebase, "const_volatile_");
-            strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
-            strcat(namebase, "&");
+            static bool init = false;
+            if(!init) {
+                memset(namebase, 0, 17 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
+                strcpy(namebase, "const_volatile_");
+                strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
+                strcat(namebase, "&");
+                init = true;
+            }
             return namebase;
         }
     };
@@ -221,8 +276,13 @@ namespace __pyllars_internal {
     struct Types<T[]> {
         static const char *const type_name() {
             static auto * namebase = new char[3 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
-            strcpy(namebase, Types<typename std::remove_const<T>::type>::type_name());
-            strcat(namebase, "[]");
+            static bool init = false;
+            if(!init) {
+                memset(namebase, 0, 3 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
+                strcpy(namebase, Types<typename std::remove_const<T>::type>::type_name());
+                strcat(namebase, "[]");
+                init = true;
+            }
             return namebase;
         }
     };
@@ -231,9 +291,14 @@ namespace __pyllars_internal {
     struct Types<const T[]> {
         static const char *const type_name() {
             static auto * namebase = new char[9 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
-            strcpy(namebase, "const_");
-            strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
-            strcat(namebase, "[]");
+            static bool init = false;
+            if(!init) {
+                memset(namebase, 0, 9 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
+                strcpy(namebase, "const_");
+                strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
+                strcat(namebase, "[]");
+                init = true;
+            }
             return namebase;
         }
     };
@@ -242,9 +307,14 @@ namespace __pyllars_internal {
     struct Types<volatile T[]> {
         static const char *const type_name() {
             static auto * namebase = new char[12 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
-            strcpy(namebase, "volatile_");
-            strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
-            strcat(namebase, "[]");
+            static bool init = false;
+            if(!init) {
+                memset(namebase, 0, 12 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
+                strcpy(namebase, "volatile_");
+                strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
+                strcat(namebase, "[]");
+                init = true;
+            }
             return namebase;
         }
     };
@@ -266,10 +336,15 @@ namespace __pyllars_internal {
             char intstr[32];
             sprintf(intstr, "%ld", (long)size);
             static auto * namebase = new char[44 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
-            strcpy(namebase, Types<typename std::remove_const<T>::type>::type_name());
-            strcat(namebase, "[");
-            strcat(namebase, intstr);
-            strcat(namebase, "]");
+            static bool init = false;
+            if(!init) {
+                memset(namebase, 0, 44 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
+                strcpy(namebase, Types<typename std::remove_const<T>::type>::type_name());
+                strcat(namebase, "[");
+                strcat(namebase, intstr);
+                strcat(namebase, "]");
+                init = true;
+            }
             return namebase;
         }
     };
@@ -280,11 +355,16 @@ namespace __pyllars_internal {
             char intstr[32];
             sprintf(intstr, "%ld", (long)size);
             static auto * namebase = new char[50 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
-            strcpy(namebase, "const_");
-            strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
-            strcat(namebase, "[");
-            strcat(namebase, intstr);
-            strcat(namebase, "]");
+            static bool init = false;
+            if(!init) {
+                memset(namebase, 0, 50 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
+                strcpy(namebase, "const_");
+                strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
+                strcat(namebase, "[");
+                strcat(namebase, intstr);
+                strcat(namebase, "]");
+                init = true;
+            }
             return namebase;
         }
     };
@@ -295,11 +375,16 @@ namespace __pyllars_internal {
             char intstr[32];
             sprintf(intstr, "%ld", (long)size);
             static auto * namebase = new char[53 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
-            strcpy(namebase, "volatile");
-            strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
-            strcat(namebase, "[");
-            strcat(namebase, intstr);
-            strcat(namebase, "]");
+            static bool init = false;
+            if(!init) {
+                memset(namebase, 0, 53 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
+                strcpy(namebase, "volatile");
+                strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
+                strcat(namebase, "[");
+                strcat(namebase, intstr);
+                strcat(namebase, "]");
+                init = true;
+            }
             return namebase;
         }
     };
@@ -310,11 +395,16 @@ namespace __pyllars_internal {
             char intstr[32];
             sprintf(intstr, "%ld", (long)size);
             static auto * namebase = new char[59 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
-            strcpy(namebase, "const_volatile");
-            strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
-            strcat(namebase, "[");
-            strcat(namebase, intstr);
-            strcat(namebase, "]");
+            static bool init = false;
+            if(!init) {
+                memset(namebase, 0, 59 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
+                strcpy(namebase, "const_volatile");
+                strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
+                strcat(namebase, "[");
+                strcat(namebase, intstr);
+                strcat(namebase, "]");
+                init = true;
+            }
             return namebase;
         }
     };
@@ -323,8 +413,13 @@ namespace __pyllars_internal {
     struct Types<T &&> {
         static const char *const type_name() {
             static auto * namebase = new char[3 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
-            strcpy(namebase, Types<typename std::remove_const<T>::type>::type_name());
-            strcat(namebase, "&&");
+            static bool init = false;
+            if(!init) {
+                memset(namebase, 0, 3 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
+                strcpy(namebase, Types<typename std::remove_const<T>::type>::type_name());
+                strcat(namebase, "&&");
+                init = true;
+            }
             return namebase;
         }
     };
@@ -333,9 +428,14 @@ namespace __pyllars_internal {
     struct Types<const T &&> {
         static const char *const type_name() {
             static auto * namebase = new char[9 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
-            strcpy(namebase, "const_");
-            strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
-            strcat(namebase, "&&");
+            static bool init = false;
+            if(!init) {
+                memset(namebase, 0, 9 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
+                strcpy(namebase, "const_");
+                strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
+                strcat(namebase, "&&");
+                init = true;
+            }
             return namebase;
         }
     };
@@ -344,9 +444,14 @@ namespace __pyllars_internal {
     struct Types<volatile T &&> {
         static const char *const type_name() {
             static auto * namebase = new char[12 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
-            strcpy(namebase, "volatile_");
-            strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
-            strcat(namebase, "&&");
+            static bool init = false;
+            if(!init) {
+                memset(namebase, 0, 12 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
+                strcpy(namebase, "volatile_");
+                strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
+                strcat(namebase, "&&");
+                init = true;
+            }
             return namebase;
         }
     };
@@ -355,9 +460,14 @@ namespace __pyllars_internal {
     struct Types<const volatile T &&> {
         static const char *const type_name() {
             static auto * namebase = new char[18 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
-            strcpy(namebase, "const_volatile_");
-            strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
-            strcat(namebase, "&&");
+            static bool init = false;
+            if(!init) {
+                memset(namebase, 0, 18 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
+                strcpy(namebase, "const_volatile_");
+                strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
+                strcat(namebase, "&&");
+                init = true;
+            }
             return namebase;
         }
     };
@@ -392,7 +502,7 @@ namespace __pyllars_internal {
                 n = std::string(__pyllars_internal::type_name<ReturnType>()) + std::string("(*)(");
 
                 std::string arg_names[] = {Types<Args>::type_name()...};
-                for (int i = 0; i < sizeof...(Args); ++i) {
+                for (unsigned long i = 0; i < sizeof...(Args); ++i) {
                     n += arg_names[i] + std::string(",");
                 }
                 n += std::string(")");
@@ -409,7 +519,7 @@ namespace __pyllars_internal {
                 n = std::string(__pyllars_internal::type_name<ReturnType>()) + std::string("(*)(");
 
                 std::string arg_names[] = {Types<Args>::type_name()...};
-                for (int i = 0; i < sizeof...(Args); ++i) {
+                for (unsigned int i = 0; i < sizeof...(Args); ++i) {
                     n += arg_names[i] + std::string(",");
                 }
                 n += std::string(" ...)");
@@ -428,7 +538,7 @@ namespace __pyllars_internal {
                         __pyllars_internal::type_name<CClass>() + std::string("*)(");
 
                 std::string arg_names[] = {Types<Args>::type_name()...};
-                for (int i = 0; i < sizeof...(Args); ++i) {
+                for (unsigned int i = 0; i < sizeof...(Args); ++i) {
                     n += arg_names[i] + std::string(",");
                 }
                 n += std::string(")");
@@ -446,7 +556,7 @@ namespace __pyllars_internal {
                         __pyllars_internal::type_name<CClass>() + std::string("*)(");
 
                 std::string arg_names[] = {Types<Args>::type_name()...};
-                for (int i = 0; i < sizeof...(Args); ++i) {
+                for (unsigned int i = 0; i < sizeof...(Args); ++i) {
                     n += arg_names[i] + std::string(",");
                 }
                 n += std::string(" ...)");
@@ -464,7 +574,7 @@ namespace __pyllars_internal {
                     __pyllars_internal::type_name<CClass>() + std::string("*)(");
 
                 std::string arg_names[] = {Types<Args>::type_name()...};
-                for (int i = 0; i < sizeof...(Args); ++i) {
+                for (unsigned int i = 0; i < sizeof...(Args); ++i) {
                     n += arg_names[i] + std::string(",");
                 }
                 n += std::string(") const");
@@ -482,7 +592,7 @@ namespace __pyllars_internal {
                     __pyllars_internal::type_name<CClass>() + std::string("*)(");
 
                 std::string arg_names[] = {Types<Args>::type_name()...};
-                for (int i = 0; i < sizeof...(Args); ++i) {
+                for (unsigned int i = 0; i < sizeof...(Args); ++i) {
                     n += arg_names[i] + std::string(",");
                 }
                 n += std::string(" ...) const");

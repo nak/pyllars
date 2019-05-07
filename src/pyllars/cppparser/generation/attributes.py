@@ -14,9 +14,9 @@ class GeneratorBodyFieldDecl(GeneratorBody):
 
     def write_include_directives(self):
         super().write_include_directives()
-        self._stream.write(b"\n#include <pyllars/pyllars_classmembersemantics.impl>\n")
-        self._stream.write(b"#include <pyllars/pyllars_membersemantics.impl>\n")
-        self._stream.write(b"#include <pyllars/pyllars_pointer.impl>\n")
+        self._stream.write(b"\n#include <pyllars/pyllars_classmembersemantics.impl.hpp>\n")
+        self._stream.write(b"#include <pyllars/pyllars_membersemantics.impl.hpp>\n")
+        self._stream.write(b"#include <pyllars/pyllars_pointer.impl.hpp>\n")
 
     def generate(self):
         if not self._element.name and not self._element.target_type.name:
@@ -67,7 +67,7 @@ class GeneratorBodyFieldDecl(GeneratorBody):
 
                         status_t %(name)s_set_up(){
                            status_t status = 0;
-                            __pyllars_internal::PythonClassWrapper< %(typename)s ::%(scope)s >::template addAttribute%(qual)s<name, decltype(::%(scope)s::%(name)s)>
+                            __pyllars_internal::PythonClassWrapper< %(typename)s ::%(scope)s >::template addAttribute<name, decltype(::%(scope)s::%(name)s)>
                                ( &::%(scope)s::%(name)s);
                            return status;
                         }
@@ -123,8 +123,9 @@ class GeneratorBodyFieldDecl(GeneratorBody):
                 }).encode('utf-8'))
             stream.write(("""
             
-                        status_t %(pyllars_scope)s::%(name)s_ready(PyObject* top_level_module){
+                        status_t %(name)s_ready(PyObject* top_level_module){
                             //nothing to do for an attribute
+                            return 0;
                         }
             """ %{
                 'pyllars_scope': self._element.pyllars_scope,
@@ -139,10 +140,10 @@ class GeneratorBodyVarDecl(GeneratorBody):
             self._stream.write(("""
                   namespace __pyllars_internal{
                         template<>
-                        const char* const _Types<decltype(%(name)s)>::type_name(){
-                          static const char* const name = "anonymous type";
-                          return name;
-                        } 
+                        struct _Types<decltype(%(name)s)>{
+                          static const char* const type_name;
+                        };
+                        const char* const _Types<decltype(%(name)s)>::type_name = "anonymous type"; 
                   }
                       """ % {'name': self._element.full_name}).encode('utf-8'))
         with self._scoped(self._stream) as stream:
@@ -176,39 +177,24 @@ class GeneratorBodyVarDecl(GeneratorBody):
                             """% {
                     'name': self._element.name
                 }).encode('utf-8'))
-                if self._element.is_constexpr:
-                    stream.write(self.decorate("""
-                       status_t %(name)s_set_up(){
-                           static decltype(%(parent_full_name)s::%(name)s) static_var = %(parent_full_name)s::%(name)s;
-                           status_t status = 0;
-                              __pyllars_internal::PythonClassWrapper<%(parent_full_name)s>::addClassAttribute%(qual)s<name, decltype(%(parent_full_name)s::%(name)s)>
-                             ( &static_var);
-                           return status;
-                       }
-                                   """ % {
-                        'basic_type_name': self._element.target_type.name,
-                        'name': self._element.name or "anonymous_%s" % self._element.tag,
-                        'parent_full_name': self._element.parent.full_name,
-                        'type_mod': self._element.pyllars_scope + "::" + self._element.parent.name + "_module()" if self._element.parent.name != '' else "global_mod",
-                        'full_type_name': self._element.target_type.full_name,
-                        'qual': 'Const' if self._element.target_type.is_const else '',
-                    }).encode('utf-8'))
-                else:
-                    stream.write(self.decorate("""
+                stream.write(self.decorate("""
                         status_t %(name)s_set_up(){
-                            status_t status = 0;
-                               __pyllars_internal::PythonClassWrapper<%(parent_full_name)s>::addClassAttribute%(qual)s<name, decltype(%(parent_full_name)s::%(name)s)>
-                              ( &%(parent_full_name)s::%(name)s);
-                            return status;
+                           status_t status = 0;
+                           __pyllars_internal::PythonClassWrapper<%(parent_full_name)s>::addClassAttribute<name, decltype(%(parent_full_name)s::%(name)s)>
+                             ( &%(parent_full_name)s::%(name)s);
+                           return status;
                         }
-                        """% {
-                        'basic_type_name': self._element.target_type.name,
-                        'name': self._element.name or "anonymous_%s" % self._element.tag,
-                        'parent_full_name': self._element.parent.full_name,
-                        'type_mod': self._element.pyllars_scope + "::" + self._element.parent.name + "_module()" if self._element.parent.name != '' else "global_mod",
-                        'full_type_name': self._element.target_type.full_name,
-                        'qual': 'Const' if self._element.target_type.is_const else '',
-                    }).encode('utf-8'))
+                        status_t %(name)s_ready(PyObject*){
+                           return 0;
+                        }
+                        """ % {
+                    'basic_type_name': self._element.target_type.name,
+                    'name': self._element.name or "anonymous_%s" % self._element.tag,
+                    'parent_full_name': self._element.parent.full_name,
+                    'type_mod': self._element.pyllars_scope + "::" + self._element.parent.name + "_module()" if self._element.parent.name != '' else "global_mod",
+                    'full_type_name': self._element.target_type.full_name,
+                    'qual': 'Const' if self._element.target_type.is_const else '',
+                }).encode('utf-8'))
 
             elif isinstance(self._element.parent, (code_structure.NamespaceDecl, code_structure.TranslationUnitDecl)):
                 # global or namespace var:
@@ -216,6 +202,9 @@ class GeneratorBodyVarDecl(GeneratorBody):
                     stream.write(("""
                            constexpr cstring name = "%(name)s";
                            static decltype(%(parent)s::%(name)s) static_var =  %(parent)s::%(name)s;
+
+                           status_t %(name)s_set_up(){return 0;}
+
                            status_t %(name)s_ready(PyObject * const global_mod){
                                status_t status = 0;
 
@@ -252,6 +241,8 @@ class GeneratorBodyVarDecl(GeneratorBody):
                     stream.write(("""
                         constexpr cstring name = "%(name)s";
 
+                        status_t %(name)s_set_up(){return 0;}
+                           
                         status_t %(name)s_ready(PyObject * const global_mod){
                             status_t status = 0;
 

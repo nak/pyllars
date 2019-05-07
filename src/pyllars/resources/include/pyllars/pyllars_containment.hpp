@@ -432,10 +432,15 @@ namespace __pyllars_internal{
     struct ObjectContainerBytePool<T*>: public ObjectContainer<T*>{
 
         ObjectContainerBytePool( const size_t arraySize, const std::function<void(void*, size_t)> &construct_element ):
-                _raw_bytes(malloc(arraySize*sizeof(T))), _size(arraySize){
-            memset(_raw_bytes, 0, arraySize*sizeof(T));
-            for(size_t i = 0; i < arraySize; ++i){
-                construct_element((void*)(((T*)_raw_bytes) + i), i);
+                _raw_bytes(nullptr), _size(arraySize){
+            if constexpr (is_complete<T>::value){
+                _raw_bytes = malloc(arraySize*sizeof(T));
+                memset(_raw_bytes, 0, arraySize*sizeof(T));
+                for(size_t i = 0; i < arraySize; ++i){
+                    construct_element((void*)(((T*)_raw_bytes) + i), i);
+                }
+            } else {
+                throw "Cannot create instances of incomplete type";
             }
         }
 
@@ -443,7 +448,11 @@ namespace __pyllars_internal{
             if (index < 0 || index >=_size){
                 throw "Index out of range";
             }
-            return _contained[index];
+            if constexpr (is_complete<T>::value){
+                return _contained[index];
+            } else {
+                throw "Cannot derefence incomplete type";
+            }
         }
 
         explicit operator T*&(){
@@ -461,8 +470,10 @@ namespace __pyllars_internal{
         }
 
         ~ObjectContainerBytePool(){
-            for(size_t i = 0; i < _size; ++i){
-                Destructor<T>::inplace_destrcuct((*this)[i]);
+            if constexpr (is_complete<T>::value){
+                for(size_t i = 0; i < _size; ++i){
+                    Destructor<T>::inplace_destrcuct((*this)[i]);
+                }
             }
             free(_raw_bytes);
         }
@@ -588,8 +599,9 @@ namespace __pyllars_internal{
 
     template<typename T, typename ...Args>
     struct ObjectContainerConstructed: public ObjectContainerReference<T>{
-        explicit ObjectContainerConstructed(Args ...args):_constructed(std::forward<typename extent_as_pointer<Args>::type>(args)...),
-        ObjectContainerReference<T>(_constructed){
+        explicit ObjectContainerConstructed(Args ...args): ObjectContainerReference<T>(_constructed),
+        _constructed(std::forward<typename extent_as_pointer<Args>::type>(args)...)
+       {
 
         }
     private:
@@ -626,7 +638,7 @@ namespace __pyllars_internal{
 
         ~ObjectContainerPyReference() = default;
 
-    private:
+   //?? private:
         ObjectContainerPyReference(PyObject* obj, typename extent_as_pointer<T>::type const (*convert)(PyObject*)){
         }
 
@@ -657,8 +669,8 @@ namespace __pyllars_internal{
         }
 
     private:
-        PyObject* _pyobj{};
         T* _cobj;
+        PyObject* _pyobj{};
     };
 
     template<typename T>
@@ -685,8 +697,8 @@ namespace __pyllars_internal{
         }
 
     private:
-        PyObject* _pyobj{};
         T* const _cobj;
+        PyObject* _pyobj{};
     };
 }
 #endif

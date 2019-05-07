@@ -225,7 +225,7 @@ namespace __pyllars_internal {
     template<typename RType, typename ...Args>
     struct func_traits<RType(Args...)>{
         constexpr static bool has_ellipsis = false;
-        constexpr static size_t argsize = sizeof...(Args);
+        constexpr static ssize_t argsize = sizeof...(Args);
 
 
         typedef RType(*type)(Args...);
@@ -240,7 +240,7 @@ namespace __pyllars_internal {
     template<typename RType, typename ...Args>
     struct func_traits<RType(Args..., ...)>{
         constexpr static bool has_ellipsis = true;
-        constexpr static size_t argsize = sizeof...(Args);
+        constexpr static ssize_t argsize = sizeof...(Args);
 
         typedef RType(*type)(Args..., ...);
         typedef RType ReturnType;

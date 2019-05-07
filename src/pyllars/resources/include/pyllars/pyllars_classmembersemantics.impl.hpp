@@ -14,12 +14,15 @@ namespace __pyllars_internal{
     PyObject *ClassMember<name, CClass, AttrType>::
     call(PyObject *cls, PyObject *args, PyObject *kwds) {
         (void) cls;
-        static const char *kwlist[] = {"value", nullptr};
-        static char format[2] = {'O', 0};
+        const ssize_t arg_size = kwds?PyDict_Size(kwds):0 + PyTuple_Size(args);
         if constexpr (std::is_const<AttrType>::value){
-            PyErr_SetString(PyExc_ValueError, "C++: const static members cannot change value");
-            return nullptr;
-        } else {
+            if (arg_size > 0) {
+                PyErr_SetString(PyExc_ValueError, "C++: const static members cannot change value");
+                return nullptr;
+            }
+        } else if (arg_size > 0){
+            static char format[2] = {'O', 0};
+            static const char *kwlist[] = {"value", nullptr};
             PyObject *pyarg = nullptr;
             if (PyTuple_Size(args) > 0) {
                 PyErr_SetString(PyExc_ValueError,

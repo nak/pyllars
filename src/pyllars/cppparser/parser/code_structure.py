@@ -559,7 +559,9 @@ class EnumDecl(ScopedElement):
         self._target_type_spec = None
         if 'referenced' in args:
             args.remove('referenced')
+        self._is_class = False
         if args and args[0] == 'class':
+            self._is_class = True
             if len(args) == 3:
                 self._target_type_spec = args[2]
             args = args[1:]
@@ -571,6 +573,10 @@ class EnumDecl(ScopedElement):
     @property
     def base_classes(self):
         return self._base_classes
+
+    @property
+    def is_class(self):
+        return self._is_class
 
     @property
     def is_definition(self):

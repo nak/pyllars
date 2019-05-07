@@ -17,21 +17,24 @@ class GeneratorBodyTypedefDecl(GeneratorBody):
             }).encode('utf-8'))
             suffix = + b'_mod' if isinstance(self._element, code_structure.NamespaceDecl) else b''
             self._stream.write(b"""
-                
-                status_t %(name)s_init(PyObject* global_mod){
+                status_t %(name)s_ready(PyObject* global_mod){
+                     static status_t status = -1;
                      static bool %(name)s_inited = false;
-                     if (%(name)s_inited) return 0;// if already initialized
+                     if (%(name)s_inited) return status;// if already initialized
                      %(name)s_inited = true;
-                    
-                     int status = 0;
                      PyTypeObject* obj = __pyllars_internal::PythonClassWrapper<%(fullname)s>::getPyType();
                      if (!%(parent_mod)s){
                          status = -2;
                      } else {
                         PyObject_SetAttrString(%(parent_mod)s, "%(name)s", (PyObject*)obj);
-                    } 
+                        status = 0;
+                    }
                     return status;
-                } // end init
+                }
+                
+                status_t %(name)s_set_up(){
+                    return 0;
+                } 
                 
                 """ % {
                 b'parent_mod': self._element.parent.full_name.encode('utf-8') + suffix if
@@ -101,8 +104,8 @@ class GeneratorBodyNamespaceDecl(GeneratorBody):
                     return %(name)s_mod;
                 }
                 
-                status_t %(name)s_init(PyObject* global_mod){
-                    static bool inited = false;
+                status_t %(name)s_ready(PyObject* global_mod){
+                  static bool inited = false;
                     if (inited) return 0;// if already initialized
                     inited = true;
                     int status = 0;
@@ -113,6 +116,10 @@ class GeneratorBodyNamespaceDecl(GeneratorBody):
                         PyModule_AddObject( %(parent_mod)s, "%(name)s", %(name)s_module());
                     } 
                     return status;
+                }
+                
+                status_t %(name)s_set_up(){
+                    return %(name)s_module()?0:-2;
                 } // end init
 
                 """ % {

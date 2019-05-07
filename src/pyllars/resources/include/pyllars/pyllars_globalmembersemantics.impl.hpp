@@ -79,16 +79,16 @@ namespace __pyllars_internal{
                 } else if (kwds && PyDict_Size(kwds) == 1) {
                     PyObject *const v = PyDict_GetItemString(kwds, "value");
                     if (v) {
-                        *(callable->member) = *toCArgument<T, false, PythonClassWrapper<T> >(*v);
+                        *(callable->member) = toCArgument<T>(*v).value();
                     } else {
                         PyErr_SetString(PyExc_TypeError, "Invalid parameters when getting/setting global variable");
                         return nullptr;
                     }
 
                 } else if (PyTuple_Size(args) == 1) {
-                    *(callable->member) = *toCArgument<T, false, PythonClassWrapper<T> >(*PyTuple_GetItem(args, 0));
+                    *(callable->member) = toCArgument<T>(*PyTuple_GetItem(args, 0)).value();
                 }
-                return toPyObject<T>(*callable->member, array_size);
+                return toPyObject<T&>(*callable->member, array_size);
             } catch (const char *msg) {
                 PyErr_SetString(PyExc_TypeError, msg);
                 return nullptr;
@@ -96,11 +96,11 @@ namespace __pyllars_internal{
         } else if constexpr (std::is_array<T>::value && ArraySize<T>::size > 0){
             typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
             if (kwds && PyDict_Size(kwds) == 1 && PyDict_GetItemString(kwds, "value")) {
-                T_base val[size];
+                T_base val[ArraySize<T>::size];
                 auto cval = *toCArgument<T_base, true, PythonClassWrapper<T> >(*PyDict_GetItemString(kwds, "value"));
-                for(unsigned int i = 0; i < size; ++i)
-                    val[i] = cval[i];
-                for (size_t i = 0; i < size; ++i) (*callable->member)[i] = val[i];
+                //for(unsigned int i = 0; i < size; ++i)
+                //    val[i] = cval[i];
+                for (size_t i = 0; i < ArraySize<T>::size; ++i) (*callable->member)[i] = cval[i];
             } else if (kwds) {
                 PyErr_SetString(PyExc_RuntimeError, "Invalid parameters when getting/setting global variable");
                 return nullptr;
@@ -128,7 +128,7 @@ namespace __pyllars_internal{
             }
             const ssize_t type_size = Sizeof<T_base>::value;
             const ssize_t array_size = type_size > 0 ? sizeof(*(callable->member)) / type_size : 1;
-            return toPyObject<T>(*callable->member, array_size);
+            return toPyObject<T&>(*callable->member, array_size);
         } else {
             if (kwds && PyDict_GetItemString(kwds, "value")) {
                 PyErr_SetString(PyExc_RuntimeError, "Cannot set const global variable!");
@@ -140,7 +140,7 @@ namespace __pyllars_internal{
             typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
             const ssize_t type_size = Sizeof<T_base>::value;
             const ssize_t array_size = type_size > 0 ? sizeof(*(callable->member)) / type_size : 1;
-            return toPyObject<T>(*callable->member, array_size);
+            return toPyObject<T&>(*callable->member, array_size);
         }
     }
 
@@ -154,8 +154,7 @@ namespace __pyllars_internal{
                 0,                               /*ob_size*/
         #endif
             type_name<T>(),                         /*tp_name*/
-            sizeof(GlobalVariable::Container<T, typename std::enable_if<
-                    !std::is_array<T>::value && !std::is_const<T>::value>::type>),   /*tp_basicsize*/
+            sizeof(GlobalVariable::Container<T>),   /*tp_basicsize*/
             0,                               /*tp_itemsize*/
             nullptr,                         /*tp_dealloc*/
             nullptr,                         /*tp_print*/

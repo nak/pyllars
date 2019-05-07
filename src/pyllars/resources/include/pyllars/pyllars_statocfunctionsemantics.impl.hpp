@@ -172,8 +172,6 @@ namespace __pyllars_internal{
         template<typename ReturnType, typename ...Args, typename... PyO>
         ReturnType
         __call_static_func(ReturnType (*func)(Args...), PyObject *extra_args, PyO *...pyargs) {
-            typedef ReturnType (*func_type)(Args...);
-
             if (!extra_args || PyTuple_Size(extra_args) == 0) {
                 if constexpr (std::is_void<ReturnType>::value) {
                     func(toCArgument<Args>(*pyargs).value()...);
@@ -251,7 +249,7 @@ namespace __pyllars_internal{
     PyObject *
     StaticFunctionContainer<kwlist, func_type, function>::call(PyObject *cls, PyObject *args, PyObject *kwds) {
         (void) cls;
-        if (!function || !kwlist){
+        if (!kwlist){
             PyErr_SetString(PyExc_SystemError, "Internal error -- unset (null) function invoked");
             return nullptr;
         }

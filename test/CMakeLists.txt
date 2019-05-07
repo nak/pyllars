@@ -1,9 +1,10 @@
 include_directories(.
         /usr/local/include/python3.7m
-        /opt/googletest/include)
-
-include_directories(/opt/googletest/googletest/include /opt/googletest/googletest/
+        /opt/googletest/include
+        /opt/googletest/googletest/include /opt/googletest/googletest/
         ../src/resources
+        ../src/pyllars/resources/include
+        ../src/pyllars/resources/include/pyllars
         ..)
 
 add_library(setupBasicClassLib SHARED cpp/setup_basic_class.cpp )
@@ -11,6 +12,7 @@ add_library(setupInheritanceLib SHARED cpp/setup_inheritance_test.cpp )
 add_library(setupBitFieldsLib SHARED cpp/setup_bitfields.cpp )
 add_library(setupAnonEnumsLib SHARED cpp/setup_anon_enums.cpp )
 add_library(setupFunctions SHARED cpp/setup_functions.cpp )
+add_library(setupGlobals SHARED cpp/setup_globals.cpp )
 
 add_executable(runAllPyllarsTest
         /opt/googletest/googletest/src/gtest_main.cc
@@ -22,7 +24,7 @@ add_executable(runAllPyllarsTest
         cpp/test_inheritance.cpp
         cpp/test_bit_fields.cpp
         cpp/test_functions.cpp
-        cpp/test_initializer.cpp cpp/function_defns.hpp)
+        cpp/test_initializer.cpp cpp/function_defns.hpp cpp/globals.h cpp/globals.cpp)
 
 target_link_libraries(runAllPyllarsTest PUBLIC -L/usr/local/lib64 -lpython3.7m
         setupBasicClassLib setupInheritanceLib setupBitFieldsLib setupAnonEnumsLib setupFunctions
@@ -36,6 +38,14 @@ add_executable(runContainmentTests
         )
 target_link_libraries(runContainmentTests PUBLIC pthread)
 
+
+add_executable(runGlobalsTests
+        /opt/googletest/googletest/src/gtest_main.cc
+        /opt/googletest/googletest/src/gtest-all.cc
+        cpp/test_globals.cpp
+        cpp/globals.cpp
+        )
+target_link_libraries(runGlobalsTests PUBLIC setupGlobals pthread  -L/usr/local/lib64 -lpython3.7m pyllars ffi dl)
 
 add_executable(runBasicClassTests
         /opt/googletest/googletest/src/gtest_main.cc

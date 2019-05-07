@@ -21,6 +21,7 @@ namespace __pyllars_internal {
                                        PyObject *module,
                                        const size_t size);
 
+    protected:
 
         /**
          * Container for the variable, which is a Python Type
@@ -44,12 +45,10 @@ namespace __pyllars_internal {
 
             static PyObject *call(Container *callable, PyObject *args, PyObject *kwds);
 
-        private:
             member_t member;
             size_t array_size;
         };
 
-    protected:
     private:
     };
 

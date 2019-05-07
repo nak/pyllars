@@ -38,10 +38,9 @@ namespace __pyllars_internal {
         static
         PythonFunctionWrapper *createPy(const char *const name) {
             static bool inited = false;
-            Py_ssize_t index = 0;
             if (!inited && (PyType_Ready(&_Type) < 0)) {
                 throw "Unable to initialize python object for c function wrapper";
-            } else if (!inited) {
+            } else {
                 inited = true;
                 auto pyfuncobj = reinterpret_cast<PythonFunctionWrapper *>(PyObject_CallObject((PyObject *)&_Type,
                                                                                                nullptr));

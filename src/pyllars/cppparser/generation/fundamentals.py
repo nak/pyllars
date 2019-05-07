@@ -86,13 +86,19 @@ class FunctionDecl(Generator):
 
             //generated from %(file)s.generate_body_proper
             // FUNCTION %(name)s THROWS %(throws)s
-            status_t %(pyllars_scope)s::%(name)s::%(name)s_init(PyObject * const global_mod){
+            
+            status_t %(pyllars_scope)s::%(name)s::%(name)s_ready(PyObject * const global_mod){
                static const char* const argumentNames[] = {%(argument_names)s nullptr};
                status_t status = 0;
                %(imports)s
                %(func_decl)s
                return status;
+            };
+            
+            status_t %(pyllars_scope)s::%(name)s::%(name)s_set_up(){
+                return 0;
             }
+            
             status_t %(pyllars_scope)s::%(name)s::%(name)s_register(pyllars::Initializer*){
                 //do nothing, functions have no children
                 return 0;

@@ -101,14 +101,12 @@ namespace __pyllars_internal {
                 PyErr_SetString(PyExc_RuntimeError, "Unexpceted nullptr value for self");
                 return -1;
             }
-            typedef PythonClassWrapper<CClass> Wrapper;
             if (pyVal == Py_None) {
                 PyErr_SetString(PyExc_ValueError, "Unexpected None value in member setter");
                 return -1;
             }
             try {
-                Assignment<T>::assign((_this->get_CObject()->*member),
-                                  *toCArgument<T, false, PythonClassWrapper<T> >(*pyVal));
+                Assignment<T>::assign((_this->get_CObject()->*member), toCArgument<T>(*pyVal).value());
             } catch (const char *const msg) {
                 PyErr_SetString(PyExc_RuntimeError, msg);
                 return -1;
@@ -172,7 +170,7 @@ namespace __pyllars_internal {
                     if (PyTuple_Size(pyVal) == array_size) {
                         for (size_t i = 0; i < array_size; ++i)
                             Assignment<T>::assign((_this->get_CObject()->*
-                                               member)[i], *toCArgument<T, false, PythonClassWrapper<T> >(
+                                               member)[i], *toCArgument<T>(
                                     *PyTuple_GetItem(pyVal, i)));
                         return 0;
                     } else {
@@ -211,7 +209,7 @@ namespace __pyllars_internal {
     void MemberContainer<name, CClass, T>::
     setFromPyObject(typename std::remove_reference<CClass>::type *self, PyObject *pyobj) {
         if constexpr ( !std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value != 0) {
-            Assignment<T>::assign(self->*member, *toCArgument<T, false, PythonClassWrapper<T> >(*pyobj));
+            Assignment<T>::assign(self->*member, *toCArgument<T>(*pyobj));
         } else if constexpr(  !std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value == 0){
 
         } else if constexpr( std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value != 0){

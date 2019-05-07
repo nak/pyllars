@@ -311,7 +311,9 @@ extern "C"{
         stream.write(("""
                 status_t %(basic_name)s_register( pyllars::Initializer* const);
                 
-                status_t %(basic_name)s_init(PyObject * const global_mod);
+                status_t %(basic_name)s_ready(PyObject * const global_mod);
+
+                status_t %(basic_name)s_set_up();
               
             """ % {
                 'name': self.element.name,
@@ -376,8 +378,9 @@ extern "C"{
                 GeneratorBody.common_stream().flush()
 
             async def main():
-                await asyncio.gather(*[generate_elements() for _ in range(multiprocessing.cpu_count())])
-                obj = await compiler.compile_async(GeneratorBody.common_stream().name);
+                thread_count = multiprocessing.cpu_count()
+                await asyncio.gather(*[generate_elements() for _ in range(thread_count)])
+                obj = await compiler.compile_async(GeneratorBody.common_stream().name)
                 objects.append(obj)
             asyncio.run(main())
         return objects
@@ -420,7 +423,8 @@ class ClassTemplateDecl(Generator):
 
                         ///////////////////////////////
                             namespace{
-                                status_t pyllars_top_init(PyObject* const global_mod);
+                                status_t pyllars_top_set_up();
+                                status_t pyllars_top_ready(PyObject* const global_mod);
                                 status_t pyllars_top_register();
                             }
 
@@ -457,7 +461,10 @@ class ClassTemplateDecl(Generator):
 
         namespace %(qname)s{
             %(template_decl)s
-            status_t %(qname)s_init(PyObject * const global_mod);
+            status_t %(qname)s_set_up();
+           
+            %(template_decl)s
+            status_t %(qname)s_ready(PyObject * const global_mod);
             
             %(template_decl)s
             class Initializer: public pyllars::Initializer{
@@ -467,9 +474,14 @@ class ClassTemplateDecl(Generator):
                    %(qname)s_register(this);
                }
                
-               virtual int init(PyObject * const global_mod){
-                   int status = pyllars::Initializer::init(global_mod);
-                   return status | %(qname)s_init(global_mod);
+               virtual int set_up(){
+                   int status = pyllars::Initializer::set_up();
+                   return status | %(qname)s_set_up();               
+               }
+               
+               virtual int ready(PyObject * const global_mod) orverride{
+                   int status = pyllars::Initializer::ready(global_mod);
+                   return status | %(qname)s_ready(global_mod);
                }
                
             };
@@ -529,12 +541,18 @@ class ClassTemplateDecl(Generator):
 
                 
                 %(template_decl)s
-                status_t %(qname)s_init(PyObject* global_mod){
+                status_t %(qname)s_set_up(){
                    if (!mapping){
                        return -1;
                    }
                    %(add_dict_code)s
                    return 0;
+                }
+                
+                
+                %(template_decl)s
+                status_t %(qname)s_ready(PyObject* global_mod){
+                    return 0;
                 }
                
                 %(template_decl)s

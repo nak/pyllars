@@ -974,9 +974,36 @@ namespace __pyllars_internal {
     class PyNumberCustomObject<unsigned long long>;
 
 
+    template
+    class PyNumberCustomObject<char&>;
+
+    template
+    class PyNumberCustomObject<short&>;
 
     template
     class PyNumberCustomObject<int&>;
+
+    template
+    class PyNumberCustomObject<long&>;
+
+    template
+    class PyNumberCustomObject<long long&>;
+
+    template
+    class PyNumberCustomObject<unsigned char&>;
+
+    template
+    class PyNumberCustomObject<unsigned short&>;
+
+    template
+    class PyNumberCustomObject<unsigned int&>;
+
+    template
+    class PyNumberCustomObject<unsigned long&>;
+
+    template
+    class PyNumberCustomObject<unsigned long long&>;
+
 
 //////////////////////////////
 

@@ -91,7 +91,7 @@ namespace __pyllars_internal {
         public:
             Initializer();
 
-            status_t init(PyObject *const global_module);
+            status_t set_up();
 
             static Initializer *initializer;
         };
@@ -196,6 +196,7 @@ namespace __pyllars_internal {
         PyObject_HEAD
         typedef number_type ntype;
         typedef typename std::remove_reference<ntype>::type ntype_basic;
+        typedef typename std::remove_reference<ntype>::type number_type_basic;
 
         typedef PythonClassWrapper<ntype const,   void> ConstWrapper;
         typedef PythonClassWrapper<typename std::remove_const<ntype>::type > NonConstWrapper;
@@ -228,7 +229,7 @@ namespace __pyllars_internal {
 
         static PyObject *createPyFromAllocated(ntype_basic *cobj, PyObject *referencing=nullptr);
 
-        PyConstFloatingPtCustomObject() : _referenced(nullptr), _depth(0), value(0.0) {
+        PyConstFloatingPtCustomObject() : _referenced(nullptr), _depth(0), value(0) {
         }
 
         inline ntype_basic *get_CObject() {
@@ -251,7 +252,7 @@ namespace __pyllars_internal {
         public:
             Initializer();
 
-            status_t init(PyObject *const global_module);
+            status_t set_up();
 
             static Initializer *initializer;
         };

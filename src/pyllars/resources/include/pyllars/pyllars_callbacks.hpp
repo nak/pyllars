@@ -108,6 +108,7 @@ namespace __pyllars_internal{
       class CBHelper{
       public:
           __attribute__((noinline)) static ReturnType __cbBase( PyObject* const  pycallback,  Args...  args) {
+          (void)__pycb;
             PyObject *pyargs[] = { toPyObject<Args>(args, true, std::extent<Args>::value)...};
             PyObject* result =__pycb( pycallback, pyargs, sizeof...(args));
             if( std::is_pointer<ReturnType>::value && (result == Py_None)){

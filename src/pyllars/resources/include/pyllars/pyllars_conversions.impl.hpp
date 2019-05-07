@@ -114,7 +114,6 @@ namespace __pyllars_internal {
     toCArgument(PyObject &pyobj) {
         constexpr bool is_const_ref = std::is_reference<T>::value && std::is_const<T>::value;
         typedef typename std::remove_reference<T>::type T_NoRef;
-        auto self = (CommonBaseWrapper*) &pyobj;
         if constexpr(is_bool<T>::value) {
             return &pyobj == Py_True?true:false;
         } else if constexpr(is_const_ref || (std::is_enum<T_NoRef>::value || std::is_integral<T_NoRef>::value)){
@@ -149,7 +148,6 @@ namespace __pyllars_internal {
             }
 
         } else if constexpr(is_c_string_like<T>::value){
-            auto self = (CommonBaseWrapper*) &pyobj;
             const char* text = nullptr;
             if (PyString_Check(&pyobj)) {
                 text= (const char *) PyString_AsString(&pyobj);
@@ -163,7 +161,6 @@ namespace __pyllars_internal {
             }
             return argument_capture<T>(new (T)(text), false);// &pyobj);
         } else if constexpr(is_bytes_like<T>::value) {
-            auto self = (CommonBaseWrapper *) &pyobj;
             char *bytes = nullptr;
             if (PyBytes_Check(&pyobj)) {
                 bytes = (char *) PyBytes_AsString(&pyobj);
@@ -175,7 +172,6 @@ namespace __pyllars_internal {
             if (!bytes) { throw "Error converting string: null pointer encountered"; }
             return argument_capture<T>(new (T)(bytes), false);// &pyobj);
         } else if constexpr (std::is_array<T>::value && ArraySize<T>::size > 0){
-            auto self = (CommonBaseWrapper*) &pyobj;
             constexpr auto size = ArraySize<T>::size;
             typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_element;
             typedef typename std::remove_const<T_element>::type NonConst_T_array[size];

@@ -13,6 +13,7 @@ typedef const char c_string[];
 
 constexpr c_string dbl_ptr_member_name = "double_ptr_member";
 constexpr c_string int_array_member_name = "int_array";
+constexpr c_string const_int_member_name = "const_int_value";
 constexpr c_string method_name = "public_method";
 constexpr c_string static_method_name = "static_public_method";
 constexpr c_string create_bclass_method_name = "createBasicClass";

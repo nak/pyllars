@@ -140,7 +140,7 @@ namespace __pyllars_internal {
 
         typedef PythonClassWrapper<T const> ConstWrapper;
         typedef PythonClassWrapper<typename std::remove_const<T>::type> NonConstWrapper;
-
+        typedef typename std::remove_reference<T>::type T_NoRef;
         template<typename Other>
         friend class PythonPointerWrapperBase;
 
@@ -148,8 +148,8 @@ namespace __pyllars_internal {
            Base::_depth = ptr_depth<T>::value;
         }
 
-        T* get_CObject(){
-            T* value = Base::_get_CObject();
+        T_NoRef * get_CObject(){
+            T_NoRef * value = Base::_get_CObject();
             return value;
         }
 

@@ -18,10 +18,13 @@ from abc import ABC, abstractmethod
 
 from pyllars.cppparser.parser import code_structure
 
-pyllars_resources_dir = pkg_resources.resource_filename("pyllars", os.path.join("..", "resources"))
+PYLLARS_RESOURCES_DIR = pkg_resources.resource_filename("pyllars", "resources")
+PYLLARS_LIBS_DIR = os.path.join(PYLLARS_RESOURCES_DIR, "lib")
+PYLLARS_INCLUDE_DIR = os.path.join(PYLLARS_RESOURCES_DIR, "include")
 
 INDENT = b"    "
 
+logging.basicConfig(level=logging.DEBUG)
 
 log = logging.getLogger(__name__)
 
@@ -66,7 +69,7 @@ class Compiler(object):
                   'cxx': Compiler.CXX,
                   'cxxflags': Compiler.CFLAGS,
                   'includes': " ".join(self._compiler_flags),
-                  'pyllars_include': pyllars_resources_dir,
+                  'pyllars_include': PYLLARS_INCLUDE_DIR,
                   'python_include': Compiler.PYINCLUDE,
                   'target': target,
                   'compilable': path,
@@ -92,12 +95,12 @@ class Compiler(object):
         hex = m.hexdigest()
         uuid = uuid.UUID(hex)
         target =  os.path.join(self._output_dir, os.path.basename(path) + str(uuid) + ".o")
-        cmd = "%(cxx)s -ftemplate-backtrace-limit=0 -g -O -std=c++14 %(cxxflags)s -c -fPIC %(includes)s -I%(python_include)s " \
+        cmd = "%(cxx)s -ftemplate-backtrace-limit=0 -g -O -std=c++1z %(cxxflags)s -c -fPIC %(includes)s -I%(python_include)s " \
               "-I%(pyllars_include)s -o \"%(target)s\" \"%(compilable)s\"" % {
                   'cxx': Compiler.CXX,
                   'cxxflags': Compiler.CFLAGS,
                   'includes': " ".join(self._compiler_flags),
-                  'pyllars_include': pyllars_resources_dir,
+                  'pyllars_include': PYLLARS_INCLUDE_DIR,
                   'python_include': Compiler.PYINCLUDE,
                   'target': target,
                   'compilable': path,
@@ -110,14 +113,25 @@ class Compiler(object):
             cmd += " -g"
         print(cmd)
         p = await asyncio.subprocess.create_subprocess_exec(*shlex.split(cmd),
-                                                            stdout=subprocess.PIPE,
-                                                            stderr=subprocess.PIPE, encoding='utf-8')
+                                                            stdout=asyncio.subprocess.PIPE,
+                                                            stderr=asyncio.subprocess.PIPE,
+                                                            bufsize=0)
+        async def read(output):
+            line = True
+            while line:
+                line = await output.readline()
+                print(line.decode('utf-8').strip())
+
+        await asyncio.gather(read(p.stdout), read(p.stderr))
+
         returncode = await p.wait()
         if returncode != 0:
             stdout = await p.stdout.read()
             stderr = await p.stderr.read()
-            print(stdout)
-            print(stderr)
+            print(stdout.decode('utf-8'))
+            print(stderr.decode('utf-8'))
+        else:
+            print("DONE %s" % cmd)
         assert os.path.exists(target)
         return target
 
@@ -147,29 +161,47 @@ extern "C"{
 
     def __init__(self, compiler_flags: List[str], linker_options: List[str], debug=True):
         self._compiler_flags = compiler_flags
-        self._link_flags = linker_options + ["-L./libs", "-lpyllars"]
+        self._link_flags = linker_options
         self._debug = debug
         self._optimization_level = "-O0"
 
     def link(self, objects, output_module_path, module_name: str, global_module_name: Optional[str] = None):
-        dir = os.path.dirname(__file__)
-        libpyllars = os.path.join(dir, "..", "..", "..", "resources", "libs", "libpyllars.so")
-        shutil.copy(libpyllars, os.path.join("libs", "libpyllars.so"))
         code = self.CODE % {b'name': (module_name or "pyllars").encode('utf-8')}
 
         with tempfile.NamedTemporaryFile(mode='wb', suffix='.cpp') as f:
             f.write(code)
             f.flush()
-            cmd = "%(cxx)s -shared -O -fPIC -std=c++14 %(cxxflags)s -I%(python_include)s -shared -o %(output_module_path)s -Wl,--no-undefined " \
+            cmd = "%(cxx)s -shared -O2 -fPIC -std=c++1z %(cxxflags)s -I%(python_include)s -shared -o %(objfile)s  %(codefile)s -I%(pyllars_include)s" % {
+                      'cxx': Compiler.LDCXXSHARED,
+                      'cxxflags': Compiler.CFLAGS + " " + " ".join(self._compiler_flags),
+                      'pyllars_include': PYLLARS_INCLUDE_DIR,
+                      'python_include': Compiler.PYINCLUDE,
+                      'codefile': f.name,
+                      'objfile': f.name + ".o"
+                  }
+            cmd = cmd.replace("-O2", self._optimization_level)
+            cmd = cmd.replace("-O3", self._optimization_level)
+            if not self._debug:
+                cmd = cmd.replace("-g", "")
+            elif " -g" not in cmd:
+                cmd += " -g"
+            print(cmd)
+            p = subprocess.run(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
+            if p.returncode != 0:
+                print(p.stdout)
+                print(p.stderr)
+                raise Exception("Failed to build common code file %s" % f.name)
+            cmd = "%(cxx)s -shared -O -fPIC -std=c++1z %(cxxflags)s -I%(python_include)s -shared -o %(output_module_path)s -Wl,--no-undefined " \
                   "%(objs)s %(python_lib_name)s %(linker_flags)s -Wl,-R,'$ORIGIN' -lpthread -lffi %(codefile)s -I%(pyllars_include)s" % {
                       'cxx': Compiler.LDCXXSHARED,
                       'cxxflags': Compiler.CFLAGS + " " + " ".join(self._compiler_flags),
-                      'linker_flags': " ".join(self._link_flags),
+                      'linker_flags': " ".join(self._link_flags +["-L", PYLLARS_LIBS_DIR, "-Wl,-rpath", PYLLARS_LIBS_DIR,
+                                                                  "-lpyllars"]),
                       'output_module_path': os.path.join(output_module_path, "%s.so" % module_name),
                       'objs': " ".join(["\"%s\"" % o for o in objects]),
-                      'pyllars_include': pyllars_resources_dir,
+                      'pyllars_include': PYLLARS_INCLUDE_DIR,
                       'python_include': Compiler.PYINCLUDE,
-                      'codefile': f.name,
+                      'codefile': f.name + ".o",
                       'python_lib_name': " %s/%s" % (Compiler.LIBDIR, Compiler.LDLIBRARY),
                   }
             cmd = cmd.replace("-O2", self._optimization_level)
@@ -186,14 +218,12 @@ extern "C"{
                 raise Exception("Failed to link module")
 
     def link_bare(self, objects, output_lib_path):
-        dir = os.path.dirname(__file__)
-        libpyllars = os.path.join(dir, "..", "..", "..", "resources", "libs", "libpyllars.so")
-        shutil.copy(libpyllars, os.path.join("libs", "libpyllars.so"))
         cmd = "%(cxx)s -shared -O -fPIC -std=c++14 %(cxxflags)s -shared -o %(output_lib_path)s -Wl,--no-undefined " \
                   "%(objs)s %(linker_flags)s -Wl,-R,'$ORIGIN' -lpthread -lffi" % {
                       'cxx': Compiler.LDCXXSHARED,
                       'cxxflags': Compiler.CFLAGS + " " + " ".join(self._compiler_flags),
-                      'linker_flags': " ".join(self._link_flags),
+                      'linker_flags': " ".join(self._link_flags +["-L", PYLLARS_LIBS_DIR, "-Wl,-rpath", PYLLARS_LIBS_DIR,
+                                                                  "-lpyllars"]),
                       'output_lib_path': output_lib_path,
                       'objs': " ".join(["\"%s\"" % o for o in objects]),
                   }
@@ -304,7 +334,7 @@ class GeneratorBody(BaseGenerator):
         b"""
         #include "%(my_header_file_name)s"
         #include <pyllars/pyllars.hpp>
-        #include <pyllars/pyllars_globalmembersemantics.impl>
+        #include <pyllars/pyllars_globalmembersemantics.impl.hpp>
         #include <cstddef>
         """
 
@@ -368,7 +398,7 @@ class GeneratorBody(BaseGenerator):
 
                     int set_up() override{
                        int status = pyllars::Initializer::set_up();
-                       return status == 0?%(name)s_setup():status;
+                       return status == 0?%(name)s_set_up():status;
                     }
 
                     int ready(PyObject * const top_level_mod) override{
@@ -439,12 +469,15 @@ class GeneratorBody(BaseGenerator):
             self.write_include_directives()
             if self._element.is_typename and self._element.name:
                 self.common_stream().write("""
-                    #include "%(header)s"
+                #include "%(header)s"
+                    
+                namespace __pyllars_internal{
                     template<>            
-                    const char* const  __pyllars_internal::_Types<%(full_name)s>::type_name(){
-                       static const char* const name = "%(full_name)s";
-                       return name;
-                    }
+                    struct _Types<%(full_name)s>{
+                       static const char* const type_name;
+                    };
+                    const char* const _Types<%(full_name)s>::type_name = "%(full_name)s";
+                }
                 """ % {
                     'full_name': self._element.full_name,
                     'header': self._src_path
@@ -486,7 +519,7 @@ class GeneratorHeader(BaseGenerator):
         #include <%(src_path)s>
         %(parent_header_name)s
 
-        #include <pyllars/pyllars_classwrapper.impl>
+        #include <pyllars/pyllars_classwrapper.impl.hpp>
         """
 
     @staticmethod
@@ -592,7 +625,7 @@ class GeneratorHeader(BaseGenerator):
                                    indent=b"                ")
         self._output_function_spec(comment="called back on initialization to initialize Python wrapper for this C construct "
                                            "@param top_level_mod:  mod to which the wrapper Python object should belong",
-                                   spec="status_t %s_setup();" % self._element_name,
+                                   spec="status_t %s_set_up();" % self._element_name,
                                    indent=b"                ")
         self._output_function_spec(comment="called back on initialization to initialize Python wrapper for this C construct "
                                            "@param top_level_mod:  mod to which the wrapper Python object should belong",

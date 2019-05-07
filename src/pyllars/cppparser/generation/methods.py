@@ -35,7 +35,11 @@ class GeneratorBodyCXXConstructorDecl(GeneratorBody):
     
                         //generated from %(file)s GeneratorBodyCXXConstructorDecl.generate
                         // CONSTRUCTOR %(name)s THROWS %(throws)s
-                        status_t %(name)s_init(PyObject * const global_mod){
+                        
+                        status_t %(name)s_ready(PyObject * const global_mod){
+                            return 0;
+                        }
+                        status_t %(name)s_set_up(){
                            static const char* const argumentNames[] = {%(argument_names)s nullptr};
                            status_t status = 0;
                            %(imports)s
@@ -121,14 +125,18 @@ class GeneratorHeaderCXXMethodDecl(GeneratorHeader):
             if arg_count not in (0, 1):
                 raise Exception("Unnexpected argument count for operator '%s'" % self._element.name)
             self._output_function_spec(
-                comment="static initializer method to register initialization routine for initialization "
+                comment="static registrtation "
                         "on dynamic load of library",
                 spec="status_t %s_register( pyllars::Initializer* const);" % self.sanitize(self._element_name, arg_count),
                 indent=b"                ")
             self._output_function_spec(
-                comment="called back on initialization to initialize Python wrapper for this C construct "
+                comment="called back on ready of underlying Python type",
+                spec="status_t %s_set_up();" % self.sanitize(self._element_name, arg_count),
+                indent=b"                ")
+            self._output_function_spec(
+                comment="called back on initial static ready of Python type"
                         "@param global_mod:  mod to which the wrapper Python object should belong",
-                spec="status_t %s_init(PyObject * const global_mod);" % self.sanitize(self._element_name, arg_count),
+                spec="status_t %s_ready(PyObject * const global_mod);" % self.sanitize(self._element_name, arg_count),
                 indent=b"                ")
         else:
             super().generate_spec()
@@ -146,12 +154,13 @@ class GeneratorBodyCXXMethodDecl(GeneratorBody):
             method_name += "Varargs"
 
         return """
-                __pyllars_internal::PythonClassWrapper< %(typename)s ::%(scope)s>::template %(py_method_name)s<%(is_const)s name, %(return_type)s %(args)s>
-                   ( &::%(scope)s::%(method_name)s, argumentNames);
+                __pyllars_internal::PythonClassWrapper< %(typename)s ::%(scope)s>::template %(py_method_name)s<name, argumentNames, 
+                    %(return_type)s%(classscope)s(%(args)s) %(const)s, &::%(scope)s::%(method_name)s>();
     
         """ % {
-                    'args': ("," if self._element.params else "") + ", ".join([p.target_type.full_param_name for p in self._element.params]),
-                    'is_const': str(self._element.is_const).lower() + "," if not self._element.is_static else "",
+                    'args': ", ".join([p.target_type.full_param_name for p in self._element.params]),
+                    'const': 'const' if self._element.is_const else "",
+                    'classscope': "(::%s::*)" % self._element.scope if not self._element.is_static else "",
                     'method_name': self._element.name or "anonymous_%s" % self._element.tag,
                     'names': ",".join(['"%s"' % (e.name or "param_%d" % index) for index, e in enumerate(self._element.params)]),
                     'py_method_name': method_name,
@@ -185,9 +194,14 @@ class GeneratorBodyCXXMethodDecl(GeneratorBody):
                           %(parent_name)s::%(parent_name)s_register(this);                          
                       }
 
-                      virtual int init(PyObject * const global_mod){
-                         int status = %(name)s_init(global_mod);
-                         return status == 0? pyllars::Initializer::init(global_mod) : status;
+                      virtual int set_up() override{
+                         int status = %(name)s_set_up();
+                         return status == 0? pyllars::Initializer::set_up() : status;
+                      }
+                      
+                      virtual int ready(PyObject * const global_mod) override{
+                         int status = %(name)s_ready(global_mod);
+                         return status == 0? pyllars::Initializer::ready(global_mod) : status;
                       }
                       static Initializer_%(name)s *initializer;
                    };
@@ -209,7 +223,11 @@ class GeneratorBodyCXXMethodDecl(GeneratorBody):
                 else ",".join(self._element.throws),
             }).encode('utf-8'))
             stream.write(self.decorate("""
-                status_t %(sanitized_name)s_init(PyObject * const global_mod){
+                status_t %(sanitized_name)s_ready(PyObject * const global_mod){
+                    return 0;
+                }
+                
+                status_t %(sanitized_name)s_set_up(){
                    static const char* const argumentNames[] = {%(argument_names)s nullptr};
                    status_t status = 0;
                    %(func_decl)s
@@ -266,21 +284,20 @@ class GeneratorBodyFunctionDecl(GeneratorBody):
                                  "p%s" % index for index, arg in enumerate(self._element.params)]),
         } if not has_varargs else altenative_code
         return """
-            __pyllars_internal::FuncContainer<%(has_varargs)s, %(return_type)s %(arguments)s>::Type<0, %(throws)s> func_container;
-            func_container._cfunc = %(lambdacode)s;
             return  PyModule_AddObject(
                         %(module_name)s, "%(func_name)s",
-                        (PyObject*)__pyllars_internal::PythonFunctionWrapper<__pyllars_internal::
-                        is_complete< %(return_type)s >::value, %(has_varargs)s, %(return_type)s %(arguments)s>::
-                        template Wrapper<%(throws)s>::create("%(func_name)s", func_container, argumentNames));
+                        (PyObject*)__pyllars_internal::PythonFunctionWrapper<%(return_type)s(%(argtypes)s)>::
+                           createPy<argumentNames, %(full_func_name)s>("%(func_name)s"));
 """ % {
+            'template_args': template_args,
             'module_name': self._element.parent.python_cpp_module_name if not isinstance(self._element.parent, code_structure.TranslationUnitDecl) else "global_mod",
             'return_type': self._element.return_type.full_name if self._element.return_type else "void",
+            'argtypes': ",".join(["%s" % arg.target_type for arg in self._element.params]),
             'arguments': arguments,
-            'lambdacode': lambda_code,
             'has_varargs': str(self._element.has_varargs).lower(),
             'throws': ",".join(self._element.throws) if self._element.throws else "void",
             'func_name': self._element.name,
+            'full_func_name': self._element.full_name,
         }
 
     def write_include_directives(self):
@@ -300,9 +317,14 @@ class GeneratorBodyFunctionDecl(GeneratorBody):
                           %(parent_name)s::%(parent_name)s_register(this);                          
                       }
 
-                      virtual int init(PyObject * const global_mod){
-                         int status = %(name)s_init(global_mod);
-                         return status == 0? pyllars::Initializer::init(global_mod) : status;
+                      virtual int set_up(){
+                         int status = %(name)s_set_up();
+                         return status == 0? pyllars::Initializer::set_up() : status;
+                      }
+                      
+                      virtual int ready(PyObject * const global_mod){
+                         int status = %(name)s_ready(global_mod);
+                         return status == 0? pyllars::Initializer::ready(global_mod) : status;
                       }
                       static Initializer_%(name)s *initializer;
                    };
@@ -328,7 +350,11 @@ class GeneratorBodyFunctionDecl(GeneratorBody):
             argument_names = ','.join(["\"%s\"" % (arg.name if arg.name else "_%s" % (index + 1)) for index, arg in
                                             enumerate(self._element.params)]) + (',' if self._element.params else '')
             stream.write(self.decorate("""
-                status_t %(name)s_init(PyObject * const global_mod){
+                status_t %(name)s_set_up(){
+                    return 0;
+                }
+                
+                status_t %(name)s_ready(PyObject * const global_mod){
                    static const char* const argumentNames[] = {%(argument_names)s nullptr};
                    status_t status = 0;
                    %(func_decl)s

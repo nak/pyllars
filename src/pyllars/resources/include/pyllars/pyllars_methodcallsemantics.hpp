@@ -17,7 +17,7 @@ namespace __pyllars_internal {
     template<typename CClass, typename RType, typename ...Args>
     struct func_traits<RType(CClass::*)(Args...)>{
         constexpr static bool has_ellipsis = false;
-        constexpr static size_t argsize = sizeof...(Args);
+        constexpr static ssize_t argsize = sizeof...(Args);
         constexpr static bool is_const_method = false;
 
         typedef RType(CClass::*type)(Args...);
@@ -41,7 +41,7 @@ namespace __pyllars_internal {
                     + __pyllars_internal::type_name<CClass>() + std::string(")(");
 
                 std::string arg_names[] = {Types<Args>::type_name()...};
-                for (int i = 0; i < sizeof...(Args); ++i) {
+                for (unsigned int i = 0; i < sizeof...(Args); ++i) {
                     n += arg_names[i] + std::string(",");
                 }
                 n += std::string(")");
@@ -55,7 +55,7 @@ namespace __pyllars_internal {
     struct func_traits<RType(CClass::*)(Args..., ...)>{
         constexpr static bool has_ellipsis = true;
         constexpr static bool is_const_method = false;
-        constexpr static size_t argsize = sizeof...(Args);
+        constexpr static ssize_t argsize = sizeof...(Args);
 
         typedef RType(CClass::*type)(Args..., ...);
         typedef RType ReturnType;
@@ -89,7 +89,7 @@ namespace __pyllars_internal {
     template<typename CClass, typename RType, typename ...Args>
     struct func_traits<RType(CClass::*)(Args...) const>{
         constexpr static bool has_ellipsis = false;
-        constexpr static size_t argsize = sizeof...(Args);
+        constexpr static ssize_t argsize = sizeof...(Args);
         constexpr static bool is_const_method = true;
 
         typedef RType(CClass::*type)(Args...) const;
@@ -127,7 +127,7 @@ namespace __pyllars_internal {
     struct func_traits<RType(CClass::*)(Args..., ...) const>{
         constexpr static bool has_ellipsis = true;
         constexpr static bool is_const_method = true;
-        constexpr static size_t argsize = sizeof...(Args);
+        constexpr static ssize_t argsize = sizeof...(Args);
         typedef CClass class_type;
 
         typedef RType(CClass::*type)(Args..., ...) const;

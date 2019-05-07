@@ -27,11 +27,14 @@ namespace __pyllars_internal {
             typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
             if constexpr (std::is_void<T_base>::value ){
                 throw "Cannot index into void-pointer/array";
+            } else if constexpr (!is_complete<T_base>::value){
+                throw "Cannot index into incomplete type";
+            } else {
+                if (!array) {
+                    throw "Cannot dereference null object!";
+                }
+                return array[index];
             }
-            if (!array) {
-                throw "Cannot dereference null object!";
-            }
-            return array[index];
         }
         throw "Cannot get element of non-array or array-of/pointer-to  incomplete or void type";
     }

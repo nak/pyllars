@@ -153,7 +153,6 @@ namespace __pyllars_internal {
     PyObject *
     PythonPointerWrapperBase<T>::
     _at(PyObject *self, PyObject *args, PyObject *kwds) {
-        typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
         try {
             PyObject *set_value = nullptr;
             if (kwds && PyDict_Size(kwds) == 1) {
@@ -330,7 +329,6 @@ namespace __pyllars_internal {
                 self->_CObject = reinterpret_cast<PythonPointerWrapperBase *>(pyobj)->_CObject;
                 self->make_reference(pyobj);
             } else if (PyUnicode_Check(pyobj) && (is_bytes_like<T>::value || is_c_string_like<T>::value)) {
-                typedef typename std::remove_const<typename std::remove_pointer<typename extent_as_pointer<T>::type>::type>::type T_base;
                 self->_CObject = (ObjectContainerPyReference<T_NoRef> *) new ObjectContainerPyReference<const char *>(pyobj,
                                                                                                                 PyUnicode_AsUTF8);
             } else {
@@ -425,7 +423,7 @@ namespace __pyllars_internal {
 
             if (s) {
                 self->make_reference(arg);
-                self->_CObject = (ObjectContainerReference<T> *) new ObjectContainerReference<const char *const>(s);
+                self->_CObject = (ObjectContainerReference<T_NoRef> *) new ObjectContainerReference<const char *const>(s);
             }
             PyErr_Clear();
             return 0;
@@ -477,9 +475,9 @@ namespace __pyllars_internal {
         typedef  typename extent_as_pointer<T>::type T_ptr_real;
         auto func = [](PyObject *s) -> T_ptr_real {
             return(typename extent_as_pointer<T_ptr_real>::type)
-            (reinterpret_cast<PythonClassWrapper*>(s))->_CObject->ptr();
+            *(reinterpret_cast<PythonClassWrapper*>(s))->_CObject->ptr();
         };
-        pyobj->_CObject = (ObjectContainerPyReference<T>*) new ObjectContainerPyReference<T_ptr_real>((PyObject *) this, func);
+        pyobj->_CObject = (ObjectContainerPyReference<T_NoRef>*) new ObjectContainerPyReference<T_ptr_real>((PyObject *) this, func);
         pyobj->make_reference((PyObject*) this);
         return pyobj;
     }
@@ -574,7 +572,7 @@ namespace __pyllars_internal {
     _addr(PyObject *self_, PyObject *) {
         typedef typename remove_all_pointers<typename std::remove_reference<T>::type>::type T_bare;
         auto *self = reinterpret_cast<PythonClassWrapper *>(self_);
-        if (!self->_CObject || !*((T*)self->_CObject)) {
+        if (!self->_CObject || !*((T_NoRef*)self->_CObject)) {
             PyErr_SetString(PyExc_RuntimeError, "Cannot take address of null pointer!");
             return nullptr;
         }
@@ -642,7 +640,6 @@ namespace __pyllars_internal {
             const char *const s = PyString_AsString(arg);
             if (s) {
                 Py_INCREF(arg);
-                typedef typename extent_as_pointer<T>::type T_core;
                 auto *s2 = (T_NoRef *) &s;
                 self->_CObject = new ObjectContainerReference<T_NoRef>(*s2);
                 //self->_arraySize = UNKNOWN_SIZE;

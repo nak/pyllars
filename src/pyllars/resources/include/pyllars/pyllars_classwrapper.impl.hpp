@@ -14,10 +14,16 @@
 #include "pyllars_object_lifecycle.impl.hpp"
 #include "pyllars_conversions.impl.hpp"
 
+namespace {
+    constexpr cstring value_name = "value";
+}
 
 namespace __pyllars_internal {
 
-    //static PyMethodDef emptyMethods[] = {{nullptr, nullptr, 0, nullptr}};
+    template <typename T>
+    long long enum_convert(const T& val){
+        return *reinterpret_cast<const typename std::underlying_type<T>::type*>(&val);
+    }
 
     template<typename T>
     class InitHelper {
@@ -166,15 +172,15 @@ namespace __pyllars_internal {
     template<typename T>
     int InitHelper<T>::init
             (PythonClassWrapper<T> *self, PyObject *args, PyObject *kwds) {
-        typedef typename std::remove_reference<T>::type T_NoRef;
         if (!self) {
             return -1;
         }
         static const char *kwlist[] = {"value", nullptr};
         self->_CObject = nullptr;
             for (auto const &[kwlist_, constructor] : PythonClassWrapper<T>::_constructors) {
+                (void) kwlist_;
                 try {
-                    if ((self->_CObject = constructor(kwlist_, args, kwds, nullptr))) {
+                    if ((self->_CObject = constructor(kwlist, args, kwds, nullptr))) {
                         self->_isInitialized = true;
                         return 0;
                     }
@@ -224,6 +230,11 @@ namespace __pyllars_internal {
         if (inited) return 0;
         _isInitialized = false;
         inited = true;
+
+        if constexpr (std::is_enum<T_NoRef >::value){
+            static const char* const kwlist[] = {"obj", nullptr};
+            addClassMethod<value_name, kwlist, long long(const T_NoRef&), enum_convert<T_NoRef> >();
+        }
         if constexpr (std::is_const<T_NoRef >::value){
             for ( auto & element : Basic::_constructors){
                 _constructors.push_back(*reinterpret_cast<ConstructorContainer*>(&element));
@@ -408,8 +419,7 @@ namespace __pyllars_internal {
         _classEnumValues = Basic::_classEnumValues;
         for (auto const&[name_, value]: _classEnumValues) {
             // can only be called after ready of _Type:
-            PyObject *pyval = toPyObject<T&>(*const_cast<T_NoRef *>(value), 1);
-            PythonClassWrapper<T&> *pyvalreal = reinterpret_cast<PythonClassWrapper<T&>*>(pyval);
+            PyObject *pyval = toPyObject<const T_NoRef&>(*const_cast<const T_NoRef *>(value), 1);
             if (pyval) {
                 PyDict_SetItemString(_Type.tp_dict, name_.c_str(), pyval);
             } else {
@@ -543,7 +553,7 @@ namespace __pyllars_internal {
     addMethod() {
         static const char *const doc = "Call method ";
         char *doc_string = new char[func_traits<method_t>::type_name().size() + strlen(doc) + 1];
-        snprintf(doc_string, func_traits<method_t>::type_name().size() + strlen(doc) + 1, "%s%s", doc, func_traits<method_t>::type_name());
+        snprintf(doc_string, func_traits<method_t>::type_name().size() + strlen(doc) + 1, "%s%s", doc, func_traits<method_t>::type_name().c_str());
         PyMethodDef pyMeth = {
                 name,
                 (PyCFunction) MethodContainer<kwlist, method_t, method>::call,
@@ -602,6 +612,7 @@ namespace __pyllars_internal {
     _mapGet(PyObject *self, PyObject *key) {
         PyObject *value = nullptr;
         for (auto const &[_, method]: _mapMethodCollection) {
+            (void) _;
             if ((value = method.first(self, key))) {
                 PyErr_Clear();
                 break;
@@ -616,8 +627,8 @@ namespace __pyllars_internal {
             typename std::enable_if<is_rich_class<T>::value>::type>::
     _mapSet(PyObject *self, PyObject *key, PyObject *value) {
         int status = -1;
-        auto self_ = reinterpret_cast<PythonClassWrapper*>(self);
         for (auto const &[_, method]: _mapMethodCollection) {
+            (void) _;
             if ((status = method.second(std::is_const<T_NoRef >::value, self, key, value)) == 0) {
                 PyErr_Clear();
                 break;

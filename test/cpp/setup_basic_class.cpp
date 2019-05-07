@@ -63,6 +63,7 @@ SetupBasicClass::SetUpTestSuite() {
         Class::addClassAttribute<class_const_member_name, const int>(&BasicClass::class_const_member);
         Class::addClassAttribute<class_member_name, int>(&BasicClass::class_member);
         Class::addAttribute<int_array_member_name, int[3]>(&BasicClass::int_array);
+        Class::addAttribute<const_int_member_name, const int>(&BasicClass::cont_int_value);
         Class::addAttribute<dbl_ptr_member_name, const double *const>(&BasicClass::double_ptr_member);
         ASSERT_EQ(Class::initialize(), 0);
     }
