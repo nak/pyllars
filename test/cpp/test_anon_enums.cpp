@@ -1,5 +1,4 @@
 #include <stdlib.h>
-#include <src/resources/pyllars/pyllars.hpp>
 #include "gtest/gtest.h"
 #include "pyllars/pyllars.hpp"
 #include "pyllars/pyllars_classwrapper.impl.hpp"

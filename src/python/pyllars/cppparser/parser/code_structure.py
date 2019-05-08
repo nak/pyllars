@@ -9,6 +9,7 @@ class Element(ABC):
 
     lookup = {}
     KEYWORDS = ['const', 'volatile', 'mutable']
+    TAGS = {}
 
     _last_location = None
 
@@ -17,6 +18,7 @@ class Element(ABC):
                  loc2: Optional[str] = None):
         assert isinstance(parent, Element) or parent is None
         name = name.replace("'", "").strip() if name is not None else None
+        tag = self.TAGS.setdefault(tag, "%d" % len(self.TAGS))
         self._tag = tag
         self._children = []
         self._inaccessible_children = []

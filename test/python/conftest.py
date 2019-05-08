@@ -25,7 +25,7 @@ PYLLAR_LIBS_DIR=os.path.join(PYLLARS_RESOURCE_DIR, "lib")
 
 @pytest.fixture(scope='session')
 def libpyllars():
-    home_path = os.path.dirname(os.path.dirname(__file__))
+    home_path = os.path.join(os.path.dirname(__file__), "..", "..")
     cmd = ["cmake", "."]
     p = subprocess.Popen(cmd, stderr=subprocess.PIPE, stdout=subprocess.PIPE, cwd=home_path)
     rc = p.wait()

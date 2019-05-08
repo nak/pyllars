@@ -1,9 +1,11 @@
 import asyncio
 import collections
+import filecmp
 import logging
 import multiprocessing
 import os
 import shlex
+import shutil
 import subprocess
 import sysconfig
 from abc import ABCMeta, ABC
@@ -16,6 +18,7 @@ from pyllars.cppparser.generation.base2 import GeneratorBody, Linker, Compiler
 from .. import parser
 import pkg_resources
 from ..parser import code_structure
+from contextlib import suppress
 
 pyllars_resources_dir = pkg_resources.resource_filename("pyllars", os.path.join("..", "resources"))
 
@@ -329,6 +332,24 @@ extern "C"{
                       output_dir: str,
                       compiler: Compiler):
         from .base2 import GeneratorHeader
+        cmakelists = open("CMakeLists.txt", 'w')
+        cmakelists.write("""                
+cmake_minimum_required(VERSION 3.10)
+project(test_objects)
+set(GCC_COVERAGE_COMPILE_FLAGS "-g -O0")
+SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS}")
+SET(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} ${GCC_COVERAGE_LINK_FLAGS}")
+set(CMAKE_VERBOSE_MAKEFILE ON)
+set(CMAKE_CXX_STANDARD 17)
+
+include_directories(./sources
+        /usr/local/include/python3.7m
+        ../../src/python/pyllars/resources/include
+        ../../src/python/pyllars/resources/include/pyllars)
+
+add_library(objects SHARED 
+
+                """)
         objects = []
         for src_path in src_paths:
             folder = Folder(output_dir)
@@ -347,6 +368,7 @@ extern "C"{
             async def generate_elements():
                 nonlocal objects, queue
                 element, folder, parent = pop()
+
                 while element is not None:
                     if os.path.abspath(element.location) != os.path.abspath(src_path) or element.is_implicit:
                         element, folder, parent = pop()
@@ -355,9 +377,17 @@ extern "C"{
                     with GeneratorHeader.generator(element=element, src_path=src_path, folder=folder, parent=parent) as header_generator:
                         try:
                             header_generator.generate()
+
                         except:
                             log.exception("Failed to generate for element %s and its children" % element.name)
                             return
+                    from_file = header_generator._header_file_path
+                    to_file = os.path.join("sources", from_file)
+                    with suppress(Exception):
+                        os.makedirs(os.path.join("sources", os.path.dirname(from_file)) )
+                    if not os.path.exists(to_file) or not filecmp.cmp(from_file, to_file):
+                        shutil.copy(from_file, to_file)
+
                     with GeneratorBody.generator(element=element, src_path=src_path, folder=folder, parent=parent) as body_generator:
                         try:
                             body_generator.generate()
@@ -366,9 +396,19 @@ extern "C"{
                             traceback.print_exc()
                             log.exception("Failed to generate body for element %s" % element.name)
                             return
+                    from_file = body_generator.body_file_path
+                    to_file = os.path.join("sources", from_file)
+                    with suppress(Exception):
+                        os.makedirs(os.path.join("sources", os.path.dirname(from_file)) )
+                    if not os.path.exists(to_file) or not filecmp.cmp(from_file, to_file):
+                        shutil.copy(from_file, to_file)
+                    cmakelists.write(to_file+ "\n")
+                    objects.append(os.path.join("CMakeFiles", "objects.dir", to_file + ".o"))
+
                     try:
-                        obj = await compiler.compile_async(body_generator.body_file_path)
-                        objects.append(obj)
+                        pass
+                        #obj = await compiler.compile_async(body_generator.body_file_path)
+                        #objects.append(obj)
 
                         for child in element.children():
                             queue.append((child, header_generator.folder, header_generator))
@@ -383,6 +423,22 @@ extern "C"{
                 obj = await compiler.compile_async(GeneratorBody.common_stream().name)
                 objects.append(obj)
             asyncio.run(main())
+        cmakelists.write(GeneratorBody.common_stream().name + "\n)\n")
+        cmakelists.write("""
+        
+        set_target_properties(objects PROPERTIES LIBRARY_OUTPUT_DIRECTORY ./libs)
+        target_link_libraries(objects PUBLIC -Wl,-rpath '$ORIGIN')
+        
+                        """)
+        cmakelists.close()
+        p = subprocess.Popen(["cmake", "."])
+        if p.wait() != 0:
+            raise Exception("Failed to build cmake system!")
+        p = subprocess.Popen(["make", "objects", "-k"])
+        if p.wait() != 0:
+            print("Failed to compile some files: %s" % [o for o in objects if not os.path.exists(o)])
+
+        objects = [o for o in objects if os.path.exists(o)]
         return objects
 
     @staticmethod
@@ -392,7 +448,7 @@ extern "C"{
              globals_module_name: Optional[str] = None,
              module_location: str = ".",
             ):
-        linker.link(set(objects), output_module_path=module_location, module_name="%s" % module_name, global_module_name=globals_module_name or "%s_globals" % module_name)
+        linker.link(set(objects), output_module_path=module_location, module_name=module_name, global_module_name=globals_module_name or "%s_globals" % module_name)
 
 
 class ParmVarDecl(Generator):
