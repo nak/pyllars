@@ -1,17 +1,16 @@
-#ifndef __PYLLARS__CONVERSIONS
-#define __PYLLARS__CONVERSIONS
+#ifndef __PYLLARS__CONVERSIONS_H_
+#define __PYLLARS__CONVERSIONS_H_
 
 #include <memory>
 #include <Python.h>
 
-#include "pyllars_classwrapper.hpp"
-#include "pyllars_pointer.hpp"
 #include "pyllars_utils.hpp"
 #include <utility>
 /**
  * This header file defines conversions from Python to C objects
  **/
 namespace __pyllars_internal {
+
     namespace {
         /** for use in asReference/asArgument parameters **/
         constexpr bool AS_REFERNCE = true;

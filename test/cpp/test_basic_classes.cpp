@@ -5,6 +5,7 @@
 #include "setup_basic_class.h"
 #include "class_test_defns.h"
 #include "pyllars/pyllars.hpp"
+#include "pyllars/pyllars_classwrapper.hpp"
 
 TEST_F(SetupBasicClass, TestBasicClassNew) {
     using namespace __pyllars_internal;

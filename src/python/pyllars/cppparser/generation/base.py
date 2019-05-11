@@ -434,9 +434,9 @@ add_library(objects SHARED
         p = subprocess.Popen(["cmake", "."])
         if p.wait() != 0:
             raise Exception("Failed to build cmake system!")
-        p = subprocess.Popen(["make", "objects", "-k"])
+        p = subprocess.Popen(["make", "objects", "-k", "-j%d" % multiprocessing.cpu_count()])
         if p.wait() != 0:
-            print("Failed to compile some files: %s" % [o for o in objects if not os.path.exists(o)])
+            print("Failed to compile some files: %s" % [os.path.basename(o) for o in objects if not os.path.exists(o)])
 
         objects = [o for o in objects if os.path.exists(o)]
         return objects

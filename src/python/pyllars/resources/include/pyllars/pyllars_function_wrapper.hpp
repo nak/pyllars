@@ -12,6 +12,7 @@
 #include "pyllars_type_traits.hpp"
 #include "pyllars_utils.hpp"
 #include "pyllars_varargs.hpp"
+#include "pyllars_staticfunctionsemantics.hpp"
 
 namespace __pyllars_internal {
 

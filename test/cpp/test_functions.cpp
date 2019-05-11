@@ -8,6 +8,8 @@
 #include "setup.h"
 #include "setup_functions.hpp"
 #include "function_defns.hpp"
+#include "pyllars/pyllars_classwrapper.hpp"
+#include "pyllars/pyllars_integer.hpp"
 
 constexpr const char* const kwlist_void_return[] = {"value", nullptr};
 constexpr const char* const kwlist_long_long_return[] = {"i", "d", nullptr};

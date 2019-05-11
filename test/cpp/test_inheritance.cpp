@@ -5,6 +5,7 @@
 #include "setup_inheritance_test.h"
 #include "pyllars/pyllars.hpp"
 #include "class_test_defns.h"
+#include "pyllars/pyllars_classwrapper.hpp"
 
 TEST_F(SetupInheritanceTest, TestInheritance){
     using namespace __pyllars_internal;

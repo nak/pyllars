@@ -3,6 +3,7 @@
 
 #include <Python.h>
 
+#include "pyllars_conversions.hpp"
 #include "pyllars_utils.hpp"
 #include "pyllars_defns.hpp"
 
@@ -30,7 +31,7 @@ namespace __pyllars_internal {
         };
 
         inline static ReturnType invoke(type &method, CClass & self, PyObject* extra_args_tuple, typename PyObjectPack<Args>::type... pyargs){
-            return (self.*method)(toCArgument<Args>(*pyargs).value()...);
+            return (self.*method)(__pyllars_internal::toCArgument<Args>(*pyargs).value()...);
         }
 
         const static std::string type_name(){

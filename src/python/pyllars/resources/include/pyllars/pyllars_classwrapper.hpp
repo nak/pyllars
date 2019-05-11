@@ -84,10 +84,6 @@ namespace __pyllars_internal {
         typedef PyTypeObject *TypePtr;
 
 
-        /**
-         * return the C-likde object associated with this Python wrapper
-         */
-        typename PythonClassWrapper::T_NoRef *get_CObject() ;
 
         template<typename C>
         friend
@@ -317,25 +313,22 @@ namespace __pyllars_internal {
             return &_Type;
         }
 
-        constexpr PythonClassWrapper(): _CObject(nullptr){}
-
         template<typename functype>
         friend struct PythonFunctionWrapper;
 
         template<typename Y, typename YY>
         friend class PythonClassWrapper;
 
-
         friend
         void * toFFI(PyObject*);
 
-        static void addAssigner(_setattrfunc func){
-            if(!_member_setters.count("this"))
-                _member_setters["this"] = _pyAssign;
-            _assigners.push_back(func);
-        }
+        constexpr PythonClassWrapper(): _CObject(nullptr){}
 
-        static bool _isInitialized;
+        /**
+         * return the C-like object associated with this Python wrapper
+         */
+        typename PythonClassWrapper::T_NoRef *get_CObject() ;
+
 
     protected:
 
@@ -347,6 +340,13 @@ namespace __pyllars_internal {
 
     private:
 
+        static bool _isInitialized;
+
+        static void addAssigner(_setattrfunc func){
+            if(!_member_setters.count("this"))
+                _member_setters["this"] = _pyAssign;
+            _assigners.push_back(func);
+        }
         template<const char* const kwlist[2], typename KeyType, typename ValueType, typename method_t, method_t method>
         static void _addMapOperatorMethod();
 

@@ -6,7 +6,8 @@
 #define __PYLLARS_INTERNAL__POINTER_CPP_
 
 #include "pyllars_pointer.hpp"
-
+#include "pyllars_floating_point.hpp"
+#include "pyllars_integer.hpp"
 #include "pyllars_classwrapper.impl.hpp"
 
 namespace __pyllars_internal {
@@ -137,7 +138,7 @@ namespace __pyllars_internal {
                 } else {
                     T_bare &var = ObjectLifecycleHelpers::Array<T_bare *>::at((T_bare *) *self_->_CObject->ptr(),
                                                                               index);
-                    auto *res = PythonClassWrapper<T_bare>::createPyReference(var);
+                    auto *res = PythonClassWrapper<T_bare&>::createPyReference(var, self);
 
                     result = reinterpret_cast<PyObject *>(res);
                 }
@@ -474,8 +475,7 @@ namespace __pyllars_internal {
         //pyobj->_arraySize = 0;
         typedef  typename extent_as_pointer<T>::type T_ptr_real;
         auto func = [](PyObject *s) -> T_ptr_real {
-            return(typename extent_as_pointer<T_ptr_real>::type)
-            *(reinterpret_cast<PythonClassWrapper*>(s))->_CObject->ptr();
+            return (T_ptr_real)(reinterpret_cast<PythonClassWrapper*>(s))->_CObject->ptr();
         };
         pyobj->_CObject = (ObjectContainerPyReference<T_NoRef>*) new ObjectContainerPyReference<T_ptr_real>((PyObject *) this, func);
         pyobj->make_reference((PyObject*) this);

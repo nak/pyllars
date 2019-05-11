@@ -1,5 +1,5 @@
-#ifndef __PYLLARS_INTERNAL_DEFNS
-#define __PYLLARS_INTERNAL_DEFNS
+#ifndef __PYLLARS_INTERNAL_DEFNS_H_
+#define __PYLLARS_INTERNAL_DEFNS_H_
 
 #include <type_traits>
 #include <sys/types.h>
