@@ -369,7 +369,7 @@ TEST_P(BinaryOperatorTest, InvokeOperator){
     ASSERT_NE(func, nullptr);
     ASSERT_TRUE(PyCallable_Check(func));
     auto args = PyTuple_New(1);
-    PyTuple_SetItem(args, 0, toPyArgument<const BasicClass&>(*val1, 1));
+    PyTuple_SetItem(args, 0, (PyObject*)PythonClassWrapper<const BasicClass&>::fromCObject(*val1));
     auto pyobj = PyObject_Call(func, args, nullptr);
     ASSERT_NE(pyobj, nullptr);
     expectation(pyobj);

@@ -109,13 +109,6 @@ namespace __pyllars_internal {
     template<typename T, ssize_t size>
     PyObject *toPyObject(T var[size], const ssize_t array_size) ;
 
-    template<typename T>
-    PyObject *toPyArgument(T &var, const ssize_t array_size) ;
-
-    template<typename T, size_t size>
-    PyObject *toPyArgument(T var[size], const ssize_t array_size = size);
-
-
 }
 
 #endif
