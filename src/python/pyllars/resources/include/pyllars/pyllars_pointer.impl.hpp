@@ -114,7 +114,7 @@ namespace __pyllars_internal {
             if (self_->_depth > 2) {
                 T_bare **&var = ObjectLifecycleHelpers::Array<T_bare ***>::at((T_bare ***) *self_->_CObject->ptr(),
                                                                               index);
-                PythonClassWrapper<T_bare **> *res = PythonClassWrapper<T_bare **>::createPyReference
+                PythonClassWrapper<T_bare **> *res = PythonClassWrapper<T_bare **>::fromCPointer
                         (var, element_array_size);
 
                 if (res) {
@@ -123,7 +123,7 @@ namespace __pyllars_internal {
                 result = reinterpret_cast<PyObject *>(res);
             } else if (self_->_depth == 2) {
                 T_bare *&var = ObjectLifecycleHelpers::Array<T_bare **>::at((T_bare **) *self_->_CObject->ptr(), index);
-                PythonClassWrapper<T_bare *> *res = PythonClassWrapper<T_bare *>::createPyReference(var, element_array_size);
+                PythonClassWrapper<T_bare *> *res = PythonClassWrapper<T_bare *>::fromCPointer(var, element_array_size);
                 if (res) {
                     ((PythonPointerWrapperBase *) res)->_depth = self_->_depth - 1;
                 }
@@ -132,13 +132,13 @@ namespace __pyllars_internal {
                 if constexpr (std::is_array<T_bare>::value || std::is_pointer<T_bare>::value) {
                     T_bare &var = ObjectLifecycleHelpers::Array<T_bare *>::at((T_bare *) *self_->_CObject->ptr(),
                                                                               index);
-                    auto *res = PythonClassWrapper<T_bare>::createPyReference(var, element_array_size);
+                    auto *res = PythonClassWrapper<T_bare>::fromCPointer(var, element_array_size);
 
                     result = reinterpret_cast<PyObject *>(res);
                 } else {
                     T_bare &var = ObjectLifecycleHelpers::Array<T_bare *>::at((T_bare *) *self_->_CObject->ptr(),
                                                                               index);
-                    auto *res = PythonClassWrapper<T_bare&>::createPyReference(var, self);
+                    auto *res = PythonClassWrapper<T_bare&>::fromCObject(var, self);
 
                     result = reinterpret_cast<PyObject *>(res);
                 }
@@ -474,12 +474,21 @@ namespace __pyllars_internal {
         assert(pyobj->get_CObject() == nullptr);
         //pyobj->_arraySize = 0;
         typedef  typename extent_as_pointer<T>::type T_ptr_real;
-        auto func = [](PyObject *s) -> T_ptr_real {
-            return (T_ptr_real)(reinterpret_cast<PythonClassWrapper*>(s))->_CObject->ptr();
-        };
-        pyobj->_CObject = (ObjectContainerPyReference<T_NoRef>*) new ObjectContainerPyReference<T_ptr_real>((PyObject *) this, func);
-        pyobj->make_reference((PyObject*) this);
-        return pyobj;
+        if constexpr (std::is_reference<T>::value){
+            PyErr_SetString(PyExc_TypeError, "Cannot get pointer to reference");
+            return nullptr;
+        } else {
+            auto func = [](PyObject *s) -> T_ptr_real {
+
+                T_ptr_real * v = (T_ptr_real * )
+                reinterpret_cast<PythonClassWrapper *>(s)->_CObject->ptr();
+                return (T_ptr_real) v;
+            };
+            pyobj->_CObject = (ObjectContainerPyReference<T_NoRef> *) new ObjectContainerPyReference<T_ptr_real>(
+                    (PyObject *) this, func);
+            pyobj->make_reference((PyObject *) this);
+            return pyobj;
+        }
     }
 
     template<typename T>

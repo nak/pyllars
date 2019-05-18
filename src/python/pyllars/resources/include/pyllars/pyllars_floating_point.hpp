@@ -35,7 +35,7 @@ namespace __pyllars_internal{
 
         static PyObject *richcompare(PyObject *a, PyObject *b, int op);
 
-        static __pyllars_internal::PythonClassWrapper<number_type&> *createPyReference
+        static __pyllars_internal::PythonClassWrapper<number_type&> *fromCObject
                 ( number_type & cobj, PyObject *referencing = nullptr);
 
         inline static bool checkType(PyObject *const obj) {
@@ -48,23 +48,18 @@ namespace __pyllars_internal{
 
         static int create(PyObject *subtype, PyObject *args, PyObject *kwds);
 
-        static PyObject *createPyFromAllocated(number_type_basic *cobj, PyObject *referencing=nullptr);
-
         explicit PyFloatingPtCustomObject() : _referenced(nullptr), _depth(0), value(0){
         }
 
         inline number_type_basic *get_CObject() {
-            if constexpr (std::is_reference<number_type>::value){
-                return value;
-            } else {
-                return &value;
-            }
+            return value;
         }
+
         std::function<double()> asDouble;
 
         PyObject *_referenced;
         size_t _depth;
-        typename representation<number_type>::type value;
+        number_type_basic *value;
 
         class Initializer : public pyllars::Initializer {
         public:

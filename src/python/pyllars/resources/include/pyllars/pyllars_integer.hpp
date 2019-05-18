@@ -21,9 +21,14 @@ namespace  __pyllars_internal {
 
     namespace{
 
+        template<typename number_type>
         __int128_t toLongLong(PyObject *obj) {
             if (PyLong_Check(obj)) {
-                return PyLong_AsLongLong(obj);
+                if constexpr (std::is_unsigned<number_type>::value){
+                    return PyLong_AsUnsignedLongLong(obj);
+                } else {
+                    return PyLong_AsLongLong(obj);
+                }
             } else if (PyObject_TypeCheck(obj, &PyNumberCustomBase::Type)) {
                 auto self = (PyNumberCustomBase*)obj;
                 if (!self->toInt){
@@ -162,11 +167,11 @@ namespace  __pyllars_internal {
         }
 
         static PyObject *to_pyint(PyObject *value) {
-            return PyLong_FromLong(static_cast<long>(toLongLong(value)));
+            return PyLong_FromLong(static_cast<long>(toLongLong<number_type_basic >(value)));
         }
 
         static PyObject *to_pyfloat(PyObject *value) {
-            return PyFloat_FromDouble((double) toLongLong(value));
+            return PyFloat_FromDouble((double) toLongLong<number_type_basic >(value));
         }
 
         static void inplace_add(__int128_t &value1, number_type_basic value2) {
@@ -260,17 +265,7 @@ namespace  __pyllars_internal {
          *    that for its lifetime) or nullptr if not from another Python Wrapper object
          * @return newly created Python object wrapping the given C object instance
          */
-        static PyObject *createPyReference(number_type &cobj, PyObject *referencing = nullptr);
-
-        /**
-         * Create a Python Wrapper for the given allocated pointer-to-C-object and assume ownership of the pointer
-         * (pointer will be deallocated at end of the PyObject's lifetime)
-         * @param cobj: pointer-to-C-instnace to be wrapped and owned
-         * @param referencing:  Python object from which the cobject is held (and thereby this will hold a reference to
-         *    that for its lifetime) or nullptr if not from another Python Wrapper object
-         * @return newly created Python object owning/wrapping the given pointer-to-C-object
-         */
-        static PyObject *createPyFromAllocated(number_type_basic *cobj, PyObject *referencing = nullptr);
+        static PyObject *fromCObject(number_type &cobj, PyObject *referencing = nullptr);
 
         /**
          *
@@ -288,7 +283,7 @@ namespace  __pyllars_internal {
          * @return pointer to the C instnace this class is wrapping
          */
         inline number_type_basic *get_CObject() {
-            return representation<number_type>::addr(value);
+            return value;
         }
 
         /**
@@ -306,6 +301,12 @@ namespace  __pyllars_internal {
 
         static int create(PyObject *subtype, PyObject *args, PyObject *kwds);
 
+        static void free(void* self){
+            if constexpr (!std::is_reference<number_type>::value){
+                delete ((PyNumberCustomObject*)self)->value;
+            }
+        }
+
         static PyObject *richcompare(PyObject *a, PyObject *b, int op);
 
         static PyObject *repr(PyObject *o);
@@ -317,7 +318,7 @@ namespace  __pyllars_internal {
         std::function<__int128_t()> asLongLong;
         PyObject *_referenced;
         size_t _depth;
-        typename representation<number_type>::type value;
+        number_type_basic *value;
 
         class Initializer : public pyllars::Initializer {
         public:

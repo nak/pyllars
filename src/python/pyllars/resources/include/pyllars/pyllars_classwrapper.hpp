@@ -111,9 +111,7 @@ namespace __pyllars_internal {
         /**
          * create a Python object of this class type
          **/
-        static PythonClassWrapper *createPyReference(T_NoRef & cobj, PyObject *referencing = nullptr);
-
-        static PythonClassWrapper *createPyFromAllocated(T_NoRef* cobj, PyObject *referencing = nullptr) ;
+        static PythonClassWrapper *fromCObject(T_NoRef & cobj, PyObject *referencing = nullptr);
 
          /**
           * return Python object representing the address of the contained object
@@ -336,7 +334,8 @@ namespace __pyllars_internal {
 
         // must use object container, since code may have new and delete private and container
         // will shield us from that
-        ObjectContainer<T_NoRef> *_CObject;
+        //ObjectContainer<T_NoRef> *_CObject;
+        T_NoRef * _CObject;
 
     private:
 
@@ -376,7 +375,7 @@ namespace __pyllars_internal {
             static void addBinaryOperator();
         };
 
-        typedef ObjectContainer<T_NoRef>* (*constructor_t)(const char *const kwlist[], PyObject *args, PyObject *kwds,
+        typedef T_NoRef* (*constructor_t)(const char *const kwlist[], PyObject *args, PyObject *kwds,
                 unsigned char* const location);
 
         /**
@@ -396,7 +395,7 @@ namespace __pyllars_internal {
           * @params kwds: keywoards bassed into the copnstructor
           **/
         template<typename ...Args>
-        static ObjectContainer<T>* create(const char *const kwlist[], PyObject *args, PyObject *kwds, unsigned char*) ;
+        static T_NoRef* create(const char *const kwlist[], PyObject *args, PyObject *kwds, unsigned char*) ;
 
         static PyObject* getThis(PyObject* self, void*){
             return addr(self, nullptr);
@@ -453,11 +452,10 @@ namespace __pyllars_internal {
          * two lower level create functions
          **/
         template<typename ...Args>
-        static ObjectContainer<T>* _createBaseBase(argument_capture<Args> ... args);
+        static T_NoRef* _createBaseBase(argument_capture<Args> ... args);
 
         template<typename ...Args, int ...S >
-        static ObjectContainer<T>* _createBase
-                (PyObject *args, PyObject *kwds,
+        static T_NoRef* _createBase(PyObject *args, PyObject *kwds,
                  const char *const kwlist[], container<S...> unused1, _____fake<Args> *... unused2);
 
         /**

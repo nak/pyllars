@@ -214,7 +214,7 @@ namespace __pyllars_internal {
     template<typename T>
     typename std::remove_reference<T>::type *
     PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::get_CObject() {
-        return _CObject ? _CObject->ptr() : nullptr;
+        return _CObject;
     }
 
     template<typename T>
@@ -439,7 +439,7 @@ namespace __pyllars_internal {
     template<typename T>
     PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type> *
     PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::
-    createPyReference(T_NoRef &cobj, PyObject *referencing) {
+    fromCObject(T_NoRef &cobj, PyObject *referencing) {
         static PyObject *kwds = PyDict_New();
         static PyObject *emptyargs = PyTuple_New(0);
         PyDict_SetItemString(kwds, "__internal_allow_null", Py_True);
@@ -452,35 +452,16 @@ namespace __pyllars_internal {
         PythonClassWrapper *pyobj = (PythonClassWrapper *) PyObject_Call(
                 reinterpret_cast<PyObject *>(type_), emptyargs, kwds);
         if (pyobj) {
-            pyobj->_CObject = new ObjectContainerReference<T_NoRef>(cobj);
+            if constexpr(std::is_reference<T>::value) {
+                pyobj->_CObject = &cobj;
+            } else {
+                pyobj->_CObject = ObjectLifecycleHelpers::Copy<T>::new_copy(&cobj);
+            }
             if (referencing) pyobj->make_reference(referencing);
         }
         return pyobj;
     }
 
-
-    template<typename T>
-    PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type> *
-    PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::
-    createPyFromAllocated(T_NoRef *cobj, PyObject *referencing) {
-        static PyObject *kwds = PyDict_New();
-        static PyObject *emptyargs = PyTuple_New(0);
-
-        PyDict_SetItemString(kwds, "__internal_allow_null", Py_True);
-        PyTypeObject *type_ = getPyType();
-
-        if (!type_->tp_name) {
-            PyErr_SetString(PyExc_RuntimeError, "Uninitialized type when creating object");
-            return nullptr;
-        }
-        PythonClassWrapper *pyobj = (PythonClassWrapper *) PyObject_Call(
-                reinterpret_cast<PyObject *>(type_), emptyargs, kwds);
-        if (pyobj) {
-            pyobj->_CObject = ObjectContainerAllocatedInstance<T_NoRef>::new_container(cobj);
-            if (referencing) pyobj->make_reference(referencing);
-        }
-        return pyobj;
-    }
 
     template<typename T>
     void PythonClassWrapper<T,
@@ -491,7 +472,7 @@ namespace __pyllars_internal {
 
     template<typename T>
     template<typename ...Args>
-    ObjectContainer<T> *
+    typename std::remove_reference<T>::type*
     PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::
     create(const char *const kwlist[], PyObject *args, PyObject *kwds,
            unsigned char *location) {
@@ -517,7 +498,7 @@ namespace __pyllars_internal {
         PythonClassWrapper *self_ = reinterpret_cast<PythonClassWrapper *>(self);
         PyObject*obj;
         if(self_->_CObject){
-            obj = toPyObject<T_NoRef *>(self_->_CObject->ptr(), 1); // by reference? pointer -- so probably no need
+            obj = toPyObject<T_NoRef *>(self_->_CObject, 1); // by reference? pointer -- so probably no need
             PyErr_Clear();
             (reinterpret_cast<PythonClassWrapper<T_NoRef *>*>(obj))->make_reference(self);
         } else {
@@ -782,7 +763,7 @@ namespace __pyllars_internal {
                 throw "Internal error getting size of list";
             }
             std::function<void(void*, size_t)> constructor = [arg, kwds](void * location, size_t index){
-                ObjectContainer<T_NoRef > *cobj = nullptr;
+                T_NoRef *cobj = nullptr;
                 PyObject* constructor_args = PyList_GetItem(arg, index);
                 if (!constructor_args || !PyTuple_Check(constructor_args)){
                     throw "Invalid constructor arguments: not a tuple as expected, or index out of range";
@@ -843,7 +824,9 @@ namespace __pyllars_internal {
     _free(void *self_) {
         PythonClassWrapper *self = (PythonClassWrapper *) self_;
         if (!self->_CObject) return;
-        delete self->_CObject;
+        if constexpr (!std::is_reference<T>::value && std::is_destructible<T>::value) {
+            delete self->_CObject;
+        }
         self->_CObject = nullptr;
     }
 
@@ -873,18 +856,17 @@ namespace __pyllars_internal {
 
     template<typename T>
     template<typename ...Args>
-    ObjectContainer<T> *
+    typename std::remove_reference<T>::type *
     PythonClassWrapper<T,
             typename std::enable_if<is_rich_class<T>::value>::type>::
     _createBaseBase(argument_capture<Args> ... args) {
-        return new ObjectContainerConstructed<T, Args...>(
-                std::forward<typename extent_as_pointer<Args>::type>(args.value())...);
+        return new T_NoRef(std::forward<typename extent_as_pointer<Args>::type>(args.value())...);
     }
 
 
     template<typename T>
     template<typename ...Args, int ...S>
-    ObjectContainer<T> *
+    typename std::remove_reference<T>::type*
     PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::
     _createBase(PyObject *args, PyObject *kwds,
                 const char *const kwlist[], container<S...>, _____fake<Args> *...) {

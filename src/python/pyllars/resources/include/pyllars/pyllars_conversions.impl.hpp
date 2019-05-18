@@ -266,21 +266,17 @@ namespace __pyllars_internal {
             return var?Py_True:Py_False;
         } else {
             PyObject *pyobj = nullptr;
-            if constexpr (std::is_array<typename std::remove_reference<T>::type>::value ||
-                          std::is_pointer<typename std::remove_reference<T>::type>::value) {
+            if constexpr ( (std::is_array<typename std::remove_reference<T>::type>::value ||
+                          std::is_pointer<typename std::remove_reference<T>::type>::value)){
                 if constexpr (std::is_reference<T>::value){
-                    pyobj = (PyObject *) ClassWrapper::createPyReference(var, array_size);
+                    pyobj = (PyObject *) ClassWrapper::fromCPointer(var, array_size);
                 } else {
                     pyobj = (PyObject *) ClassWrapper::createPyFromAllocatedInstance(
                             *ObjectLifecycleHelpers::Copy<T>::new_copy(&var),
                             array_size);
                 }
             } else {
-                if constexpr (std::is_reference<T>::value) {
-                    pyobj = (PyObject *) ClassWrapper::createPyReference(var);
-                } else {
-                    pyobj = (PyObject *) ClassWrapper::createPyFromAllocated( ObjectLifecycleHelpers::Copy<T>::new_copy(&var));
-                }
+                pyobj = (PyObject *) ClassWrapper::fromCObject(var);
             }
             if (!pyobj || !ClassWrapper::checkType(pyobj)) {
                 PyErr_Format(PyExc_TypeError, "Unable to convert C type object to Python object %s: %s",

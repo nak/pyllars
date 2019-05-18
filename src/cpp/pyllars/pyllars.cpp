@@ -304,7 +304,7 @@ namespace __pyllars_internal {
                     generic_value.ptrvalue = (void*) PyString_AsString(arg);
                     arg_value = &generic_value.ptrvalue;
                 } else if (COBJ_TYPE == subtype) {
-                    static const size_t offset = offset_of<ObjectContainer<ArgType> *, PythonClassWrapper<ArgType> >
+                    static const size_t offset = offset_of<ArgType*, PythonClassWrapper<ArgType> >
                             (&PythonClassWrapper<ArgType>::_CObject);
                     ObjectContainer<void *> **ptrvalue =
                             (ObjectContainer<void *> **) (((char *) arg) + offset);

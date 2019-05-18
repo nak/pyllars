@@ -358,7 +358,7 @@ class BinaryOperatorTest : public SetupBasicClass,
 
 };
 
-TEST_P(BinaryOperatorTest, InvokesOperator){
+TEST_P(BinaryOperatorTest, InvokeOperator){
     using namespace __pyllars_internal;
     typedef PythonClassWrapper<BasicClass> Class;
 
@@ -367,6 +367,7 @@ TEST_P(BinaryOperatorTest, InvokesOperator){
     ASSERT_NE(obj, nullptr);
     auto func = PyObject_GetAttrString(obj, name);
     ASSERT_NE(func, nullptr);
+    ASSERT_TRUE(PyCallable_Check(func));
     auto args = PyTuple_New(1);
     PyTuple_SetItem(args, 0, toPyArgument<const BasicClass&>(*val1, 1));
     auto pyobj = PyObject_Call(func, args, nullptr);

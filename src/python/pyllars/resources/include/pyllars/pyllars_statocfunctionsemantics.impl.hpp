@@ -126,7 +126,7 @@ namespace __pyllars_internal{
                                 extra_arg_values[i].ptrvalue = (void*) PyString_AsString(nextArg);
                                 arg_values[i] = &extra_arg_values[i].ptrvalue;
                             } else if (COBJ_TYPE == subtype) {
-                                static const size_t offset = offset_of<ObjectContainer<Arbitrary> *, PythonClassWrapper<Arbitrary> >
+                                static const size_t offset = offset_of<Arbitrary *, PythonClassWrapper<Arbitrary> >
                                         (&PythonClassWrapper<Arbitrary>::_CObject);
                                 auto **ptrvalue = (ObjectContainer<void *> **) (((char *) nextArg) + offset);
                                 extra_arg_values[i].ptrvalue = ptrvalue ? (*ptrvalue)->ptr() : nullptr;
