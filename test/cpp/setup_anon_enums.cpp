@@ -11,7 +11,7 @@
 #include "pyllars/pyllars_pointer.impl.hpp"
 #include "pyllars/pyllars_membersemantics.impl.hpp"
 #include "pyllars/pyllars_classmembersemantics.impl.hpp"
-#include "pyllars/pyllars_statocfunctionsemantics.impl.hpp"
+#include "pyllars/pyllars_staticfunctionsemantics.impl.hpp"
 
 typedef const char c_string[];
 
@@ -21,7 +21,7 @@ void
 SetupAnonEnums::SetUpTestSuite(){
     PythonBased::SetUpTestSuite();
     using namespace __pyllars_internal;
-    static const char *const kwlist[] = {"value", nullptr};
+    static const char *const kwlist[] = {"_CObject", nullptr};
     static const char *const empty_list[] = {nullptr};
     static const char *const kwlist_copy_constr[] = {"obj", nullptr};
     static const char *const kwlist_copy_constr2[] = {"float_val", "unused", nullptr};
@@ -34,7 +34,7 @@ SetupAnonEnums::SetUpTestSuite(){
         Class::initialize();
     }
     {
-        static const char *const value[] = {"value", nullptr};
+        static const char *const value[] = {"_CObject", nullptr};
         PythonClassWrapper<decltype(ClassWithEnum::FIRST)>::addConstructor<decltype(ClassWithEnum::FIRST)>(
                 value);
         PythonClassWrapper<ClassWithEnum>::addConstructor<>(empty_list);

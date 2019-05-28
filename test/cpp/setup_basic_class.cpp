@@ -4,11 +4,10 @@
 #include <Python.h>
 
 #include "pyllars/pyllars.hpp"
-#include "pyllars/pyllars_classwrapper.impl.hpp"
-#include "pyllars/pyllars_pointer.impl.hpp"
+#include "pyllars/pyllars_reference.impl.hpp"
 #include "pyllars/pyllars_membersemantics.impl.hpp"
 #include "pyllars/pyllars_classmembersemantics.impl.hpp"
-#include "pyllars/pyllars_statocfunctionsemantics.impl.hpp"
+#include "pyllars/pyllars_staticfunctionsemantics.impl.hpp"
 #include "pyllars/pyllars_conversions.impl.hpp"
 
 #include "class_test_defns.h"
@@ -33,6 +32,9 @@ long long convertEnum(const EnumClass &val){
     return (long long)val;
 }
 
+template
+struct __pyllars_internal::PythonClassWrapper<BasicClass const, void>;
+
 void
 SetupBasicClass::SetUpTestSuite() {
     using namespace __pyllars_internal;
@@ -40,7 +42,7 @@ SetupBasicClass::SetUpTestSuite() {
     static bool inited = false;
     if (inited) return;
     inited = true;
-    static const char *const kwlist[2] = {"value", nullptr};
+    static const char *const kwlist[2] = {"_CObject", nullptr};
     static const char *const empty_list[] = {nullptr};
     static const char *const kwlist_copy_constr[] = {"obj", nullptr};
     static const char *const kwlist_copy_constr2[] = {"float_val", "unused", nullptr};
@@ -87,7 +89,7 @@ SetupBasicClass::SetUpTestSuite() {
 
     {
         static const char *const empty_list[] = {nullptr};
-        static const char *const kwlist[] = {"value", nullptr};
+        static const char *const kwlist[] = {"_CObject", nullptr};
         typedef PythonClassWrapper<EnumClass> Class;
         Class::addConstructor<>(empty_list);
         Class::addConstructor<EnumClass>(kwlist);

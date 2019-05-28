@@ -22,6 +22,7 @@
 #include "pyllars_methodcallsemantics.hpp"
 #include "pyllars_containment.hpp"
 #include "pyllars_object_lifecycle.hpp"
+
 typedef const char cstring[];
 static constexpr cstring operatormapname = "operator[]";
 static constexpr cstring operatormapnameconst = "operator[]const";
@@ -106,12 +107,12 @@ namespace __pyllars_internal {
          *
          * @param name: Python simple-name of the type
          **/
-        static int initialize();
+        static int initialize(){return _initialize(_Type);}
 
         /**
          * create a Python object of this class type
          **/
-        static PythonClassWrapper *fromCObject(T_NoRef & cobj, PyObject *referencing = nullptr);
+        static PythonClassWrapper *fromCObject(T_NoRef & cobj);
 
          /**
           * return Python object representing the address of the contained object
@@ -332,6 +333,24 @@ namespace __pyllars_internal {
 
         static PyObject *alloc(PyObject *cls, PyObject *args, PyObject *kwds);
 
+        static int _initialize(PyTypeObject & Type);
+
+        static int
+        _pySetAttr(PyObject* self,  char* attrname, PyObject* value){
+            if (!_member_setters.count(attrname)){
+                PyErr_SetString(PyExc_ValueError, "No such attribute or attempt to set const attribute");
+                return -1;
+            }
+            return _member_setters[attrname](self, value, nullptr);
+        }
+
+        static PyObject* _pyGetAttr(PyObject* self,  char* attrname){
+            if (!_member_getters.count(attrname)){
+                return PyObject_GenericGetAttr(self, PyString_FromString(attrname));
+            }
+            return _member_getters[attrname](self, nullptr);
+        }
+
         // must use object container, since code may have new and delete private and container
         // will shield us from that
         //ObjectContainer<T_NoRef> *_CObject;
@@ -402,30 +421,14 @@ namespace __pyllars_internal {
         }
 
         static int
-        _pyAssign(PyObject* self, PyObject* value){
+        _pyAssign(PyObject* self, PyObject* value, void*){
             for ( _setattrfunc assigner: _assigners){
                 if( assigner(self, value, nullptr) == 0){
                     return 0;
                 }
             }
-            PyErr_SetString(PyExc_ValueError, "Cannot assign to given value type");
+            PyErr_SetString(PyExc_ValueError, "Cannot assign to given _CObject type");
             return -1;
-        }
-
-        static int
-        _pySetAttr(PyObject* self,  char* attrname, PyObject* value){
-            if (!_member_setters.count(attrname)){
-                PyErr_SetString(PyExc_ValueError, "No such attribute or attempt to set const attribute");
-                return -1;
-            }
-            return _member_setters[attrname](self, value, nullptr);
-        }
-
-        static PyObject* _pyGetAttr(PyObject* self,  char* attrname){
-            if (!_member_getters.count(attrname)){
-              return PyObject_GenericGetAttr(self, PyString_FromString(attrname));
-            }
-            return _member_getters[attrname](self, nullptr);
         }
 
         static int
@@ -435,7 +438,7 @@ namespace __pyllars_internal {
 
         static void _free(void *self_);
 
-        static void _dealloc(PythonClassWrapper *self);
+        static void _dealloc(PyObject *self);
 
         template<typename ...PyO>
         static bool _parsePyArgs(const char *const kwlist[], PyObject *args, PyObject *kwds, PyO *&...pyargs);

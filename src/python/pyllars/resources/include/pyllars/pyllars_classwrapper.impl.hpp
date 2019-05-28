@@ -8,14 +8,14 @@
 #include "pyllars_classwrapper.hpp"
 #include "pyllars_utils.hpp"
 
-#include "pyllars_statocfunctionsemantics.impl.hpp"
+#include "pyllars_staticfunctionsemantics.impl.hpp"
 #include "pyllars_classmembersemantics.impl.hpp"
 #include "pyllars_methodcallsemantics.impl.hpp"
 #include "pyllars_object_lifecycle.impl.hpp"
 #include "pyllars_conversions.impl.hpp"
 
 namespace {
-    constexpr cstring value_name = "value";
+    constexpr cstring value_name = "_CObject";
 }
 
 namespace __pyllars_internal {
@@ -120,7 +120,7 @@ namespace __pyllars_internal {
             PyObject_HEAD_INIT(nullptr)
             0,                         /*ob_size*/
 #endif
-                    nullptr,             /*tp_name*/ /*filled on init*/
+                    __pyllars_internal::type_name<T>(),             /*tp_name*/
                     sizeof(PythonClassWrapper),             /*tp_basicsize*/
                     0,                         /*tp_itemsize*/
                     (destructor) PythonClassWrapper::_dealloc, /*tp_dealloc*/
@@ -175,7 +175,7 @@ namespace __pyllars_internal {
         if (!self) {
             return -1;
         }
-        static const char *kwlist[] = {"value", nullptr};
+        static const char *kwlist[] = {"_CObject", nullptr};
         self->_CObject = nullptr;
             for (auto const &[kwlist_, constructor] : PythonClassWrapper<T>::_constructors) {
                 (void) kwlist_;
@@ -218,8 +218,8 @@ namespace __pyllars_internal {
     }
 
     template<typename T>
-    int PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::
-    initialize() {
+    int
+    PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::_initialize(PyTypeObject &Type) {
         typedef typename std::remove_volatile<
                 typename std::remove_const<
                         typename std::remove_reference<T>::type
@@ -242,14 +242,6 @@ namespace __pyllars_internal {
         } else {
             _constructors = Basic::_constructors;
         }
-        const char *const name = type_name<T>();
-        if (!name || strlen(name) == 0) return -1;
-        int status = 0;
-        if (_Type.tp_name) {/*already initialized*/ return status; }
-        char *tp_name = new char[strlen(name) + 1 + tp_name_prefix_len];
-        strcpy(tp_name, tp_name_prefix);
-        strcpy(tp_name + strlen(tp_name_prefix), name);
-        _Type.tp_name = tp_name;
 
         PyMethodDef pyMethAlloc = {
                 alloc_name_,
@@ -264,18 +256,18 @@ namespace __pyllars_internal {
         _methodCollection[alloc_name_] = pyMethAlloc;
         if (!Basic::_baseClasses.empty()) {
             if (Basic::_baseClasses.size() > 1) {
-                _Type.tp_bases = PyTuple_New(Basic::_baseClasses.size());
+                Type.tp_bases = PyTuple_New(Basic::_baseClasses.size());
             } else if (Basic::_baseClasses.size() == 1) {
                 if constexpr (std::is_const<T>::value) {
-                    _Type.tp_base = Basic::_baseClassesConst[0];
+                    Type.tp_base = Basic::_baseClassesConst[0];
                 } else {
-                    _Type.tp_base = Basic::_baseClasses[0];
+                    Type.tp_base = Basic::_baseClasses[0];
                 }
             }
             for (size_t index = 0; index < Basic::_baseClasses.size(); ++ index){
                 auto baseClass = std::is_const<T>::value?_baseClassesConst[index]:_baseClasses[index];
                 if (Basic::_baseClasses.size() > 1)
-                    PyTuple_SetItem(_Type.tp_bases, index, (PyObject *) baseClass);
+                    PyTuple_SetItem(Type.tp_bases, index, (PyObject *) baseClass);
                 // tp_bases not usable for inheritance of methods/members as it doesn't really do the right thing and
                 // causes problems on lookup of base classes,
                 // so do this manually...
@@ -300,29 +292,29 @@ namespace __pyllars_internal {
                 }
             }
         }
-        _Type.tp_methods = new PyMethodDef[_methodCollection.size() +_methodCollectionConst.size() + 1];
-        _Type.tp_methods[_methodCollection.size() + _methodCollectionConst.size()] = {nullptr};
+        Type.tp_methods = new PyMethodDef[_methodCollection.size() +_methodCollectionConst.size() + 1];
+        Type.tp_methods[_methodCollection.size() + _methodCollectionConst.size()] = {nullptr};
         // for const-style T, this converts calls to pass in a const T pointer in the std::function call,
-        // important for disallowing setting of a const *value
+        // important for disallowing setting of a const *_CObject
         _mapMethodCollection = Basic::_mapMethodCollection;
         static PyMappingMethods methods = {nullptr, _mapGet, _mapSet};
-        _Type.tp_as_mapping = &methods;
+        Type.tp_as_mapping = &methods;
         size_t index = 0;
         for (auto const&[key, methodDef]: _methodCollection) {
             (void) key;
-            _Type.tp_methods[index] = methodDef;
+            Type.tp_methods[index] = methodDef;
             ++index;
         }
         for (auto const&[key, methodDef]: _methodCollectionConst) {
             (void) key;
-            _Type.tp_methods[index] = methodDef;
+            Type.tp_methods[index] = methodDef;
             ++index;
         }
         _member_getters = Basic::_member_getters;
         _member_setters = Basic::_member_setters;
 
-        _Type.tp_getset = new PyGetSetDef[_member_getters.size() + 1];
-        _Type.tp_getset[_member_getters.size()] = {nullptr};
+        Type.tp_getset = new PyGetSetDef[_member_getters.size() + 1];
+        Type.tp_getset[_member_getters.size()] = {nullptr};
         index = 0;
         for (auto const&[key, getter]: Basic::_member_getters) {
             auto it = _member_setters.find(key);
@@ -332,11 +324,11 @@ namespace __pyllars_internal {
             } else {
                 setter = nullptr;
             }
-            _Type.tp_getset[index].name = key.c_str();
-            _Type.tp_getset[index].get = getter;
-            _Type.tp_getset[index].set = setter;
-            _Type.tp_getset[index].doc = "get/set attribute";
-            _Type.tp_getset[index].closure = nullptr;
+            Type.tp_getset[index].name = key.c_str();
+            Type.tp_getset[index].get = getter;
+            Type.tp_getset[index].set = setter;
+            Type.tp_getset[index].doc = "get/set attribute";
+            Type.tp_getset[index].closure = nullptr;
             index++;
         }
         if constexpr (!std::is_const<T>::value) {
@@ -345,9 +337,9 @@ namespace __pyllars_internal {
         _unaryOperatorsConst = Basic::_unaryOperatorsConst;
 
         static std::map<std::string, unaryfunc *> unary_mapping =
-                {{std::string(OP_UNARY_INV), &_Type.tp_as_number->nb_invert},
-                 {std::string(OP_UNARY_NEG), &_Type.tp_as_number->nb_negative},
-                 {std::string(OP_UNARY_POS), &_Type.tp_as_number->nb_positive}};
+                {{std::string(OP_UNARY_INV), &Type.tp_as_number->nb_invert},
+                 {std::string(OP_UNARY_NEG), &Type.tp_as_number->nb_negative},
+                 {std::string(OP_UNARY_POS), &Type.tp_as_number->nb_positive}};
         for (auto const&[name_, func]: _unaryOperators) {
             if (unary_mapping.count(name_) == 0) {
                return -1;
@@ -366,26 +358,26 @@ namespace __pyllars_internal {
         _binaryOperatorsConst = Basic::_binaryOperatorsConst;
 
         static std::map<std::string, binaryfunc *> binary_mapping =
-                {{OP_BINARY_ADD,     &_Type.tp_as_number->nb_add},
-                 {OP_BINARY_AND,     &_Type.tp_as_number->nb_and},
-                 {OP_BINARY_OR,      &_Type.tp_as_number->nb_or},
-                 {OP_BINARY_XOR,     &_Type.tp_as_number->nb_xor},
-                 {OP_BINARY_DIV,     &_Type.tp_as_number->nb_true_divide},
-                 {OP_BINARY_MOD,     &_Type.tp_as_number->nb_remainder},
-                 {OP_BINARY_MUL,     &_Type.tp_as_number->nb_multiply},
-                 {OP_BINARY_LSHIFT,  &_Type.tp_as_number->nb_lshift},
-                 {OP_BINARY_RSHIFT,  &_Type.tp_as_number->nb_rshift},
-                 {OP_BINARY_SUB,     &_Type.tp_as_number->nb_subtract},
-                 {OP_BINARY_IADD,    &_Type.tp_as_number->nb_inplace_add},
-                 {OP_BINARY_IAND,    &_Type.tp_as_number->nb_inplace_and},
-                 {OP_BINARY_IOR,     &_Type.tp_as_number->nb_inplace_or},
-                 {OP_BINARY_IXOR,    &_Type.tp_as_number->nb_inplace_xor},
-                 {OP_BINARY_IDIV,    &_Type.tp_as_number->nb_inplace_true_divide},
-                 {OP_BINARY_IMOD,    &_Type.tp_as_number->nb_inplace_remainder},
-                 {OP_BINARY_IMUL,    &_Type.tp_as_number->nb_inplace_multiply},
-                 {OP_BINARY_ILSHIFT, &_Type.tp_as_number->nb_inplace_lshift},
-                 {OP_BINARY_IRSHIFT, &_Type.tp_as_number->nb_inplace_rshift},
-                 {OP_BINARY_ISUB,    &_Type.tp_as_number->nb_inplace_subtract},
+                {{OP_BINARY_ADD,     &Type.tp_as_number->nb_add},
+                 {OP_BINARY_AND,     &Type.tp_as_number->nb_and},
+                 {OP_BINARY_OR,      &Type.tp_as_number->nb_or},
+                 {OP_BINARY_XOR,     &Type.tp_as_number->nb_xor},
+                 {OP_BINARY_DIV,     &Type.tp_as_number->nb_true_divide},
+                 {OP_BINARY_MOD,     &Type.tp_as_number->nb_remainder},
+                 {OP_BINARY_MUL,     &Type.tp_as_number->nb_multiply},
+                 {OP_BINARY_LSHIFT,  &Type.tp_as_number->nb_lshift},
+                 {OP_BINARY_RSHIFT,  &Type.tp_as_number->nb_rshift},
+                 {OP_BINARY_SUB,     &Type.tp_as_number->nb_subtract},
+                 {OP_BINARY_IADD,    &Type.tp_as_number->nb_inplace_add},
+                 {OP_BINARY_IAND,    &Type.tp_as_number->nb_inplace_and},
+                 {OP_BINARY_IOR,     &Type.tp_as_number->nb_inplace_or},
+                 {OP_BINARY_IXOR,    &Type.tp_as_number->nb_inplace_xor},
+                 {OP_BINARY_IDIV,    &Type.tp_as_number->nb_inplace_true_divide},
+                 {OP_BINARY_IMOD,    &Type.tp_as_number->nb_inplace_remainder},
+                 {OP_BINARY_IMUL,    &Type.tp_as_number->nb_inplace_multiply},
+                 {OP_BINARY_ILSHIFT, &Type.tp_as_number->nb_inplace_lshift},
+                 {OP_BINARY_IRSHIFT, &Type.tp_as_number->nb_inplace_rshift},
+                 {OP_BINARY_ISUB,    &Type.tp_as_number->nb_inplace_subtract},
 
                 };
         for (auto const&[name_, func]: _binaryOperators) {
@@ -402,15 +394,15 @@ namespace __pyllars_internal {
         }
 
         _baseClasses = Basic::_baseClasses;
-        if (!_Type.tp_base && _baseClasses.size() == 0) {
+        if (!Type.tp_base && _baseClasses.size() == 0) {
             if (PyType_Ready(&CommonBaseWrapper::_BaseType) < 0) {
                 PyErr_SetString(PyExc_RuntimeError, "Failed to set_up type!");
                 PyErr_Print();
                 return -1;
             }
-            _Type.tp_base = &CommonBaseWrapper::_BaseType;
+            Type.tp_base = &CommonBaseWrapper::_BaseType;
         }
-        if (PyType_Ready(&_Type) < 0) {
+        if (PyType_Ready(&Type) < 0) {
             PyErr_SetString(PyExc_RuntimeError, "Failed to set_up type!");
             PyErr_Print();
            return -1;
@@ -418,28 +410,26 @@ namespace __pyllars_internal {
 
         _classEnumValues = Basic::_classEnumValues;
         for (auto const&[name_, value]: _classEnumValues) {
-            // can only be called after ready of _Type:
+            // can only be called after ready of Type:
             PyObject *pyval = toPyObject<const T_NoRef&>(*const_cast<const T_NoRef *>(value), 1);
             if (pyval) {
-                PyDict_SetItemString(_Type.tp_dict, name_.c_str(), pyval);
+                PyDict_SetItemString(Type.tp_dict, name_.c_str(), pyval);
             } else {
                 return -1;
             }
         }
 
-        if(status == 0){
-            PyObject *const type = reinterpret_cast<PyObject *>(&_Type);
-            Py_INCREF(type);
-        }
-        _isInitialized = (status == 0);
-        return status;
+        PyObject *const type = reinterpret_cast<PyObject *>(&Type);
+        Py_INCREF(type);
+        _isInitialized = inited;
+        return 0;
     }
 
 
     template<typename T>
     PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type> *
     PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::
-    fromCObject(T_NoRef &cobj, PyObject *referencing) {
+    fromCObject(T_NoRef &cobj) {
         static PyObject *kwds = PyDict_New();
         static PyObject *emptyargs = PyTuple_New(0);
         PyDict_SetItemString(kwds, "__internal_allow_null", Py_True);
@@ -452,12 +442,7 @@ namespace __pyllars_internal {
         PythonClassWrapper *pyobj = (PythonClassWrapper *) PyObject_Call(
                 reinterpret_cast<PyObject *>(type_), emptyargs, kwds);
         if (pyobj) {
-            if constexpr(std::is_reference<T>::value) {
-                pyobj->_CObject = &cobj;
-            } else {
-                pyobj->_CObject = ObjectLifecycleHelpers::Copy<T>::new_copy(&cobj);
-            }
-            if (referencing) pyobj->make_reference(referencing);
+            pyobj->_CObject = ObjectLifecycleHelpers::Copy<T>::new_copy(cobj);
         }
         return pyobj;
     }
@@ -680,7 +665,7 @@ namespace __pyllars_internal {
                     return -1;
                 }
             } catch (const char *const msg) {
-                PyErr_SetString(PyExc_TypeError, "Cannot assign to value of unrelated type.");
+                PyErr_SetString(PyExc_TypeError, "Cannot assign to _CObject of unrelated type.");
                 return -1;
             }
             return 0;
@@ -747,14 +732,14 @@ namespace __pyllars_internal {
             if (size < 0){
                 throw "Size cannot be negative";
             }
-            T_NoRef *values = Constructor<T_NoRef >::allocate_array((size_t)size);
-            return (PyObject *) PythonClassWrapper<T_NoRef *>::createPyFromAllocatedInstance(values, size);
+            return (PyObject *) PythonClassWrapper<T_NoRef *>::template allocateArray<>(size);
         } else if (PyTuple_Check(arg)) {
             auto list = PyList_New(1);
             PyList_SetItem(list, 0, arg);
             auto new_arg = PyTuple_New(1);
             PyTuple_SetItem(new_arg, 0, list);
             auto obj = alloc(cls, new_arg, kwds);
+            Py_INCREF(list); // new_arg selfilshly grabs reference in SetItem call
             Py_DECREF(new_arg);
             return obj;
         } else if (PyList_Check(arg)) {
@@ -762,25 +747,38 @@ namespace __pyllars_internal {
             if(size < 0){
                 throw "Internal error getting size of list";
             }
-            std::function<void(void*, size_t)> constructor = [arg, kwds](void * location, size_t index){
-                T_NoRef *cobj = nullptr;
-                PyObject* constructor_args = PyList_GetItem(arg, index);
+            typedef T_NoRef  T_fixed_array[size];
+            typedef T_fixed_array *T_fixed_array_ptr;
+
+            auto bytebucket = new unsigned char[size*sizeof(T_NoRef)];
+            T_fixed_array_ptr cobj_ptr= (T_fixed_array_ptr) bytebucket;
+            for (ssize_t i = 0; i < size; ++i){
+                PyObject* constructor_args = PyList_GetItem(arg, i);
                 if (!constructor_args || !PyTuple_Check(constructor_args)){
-                    throw "Invalid constructor arguments: not a tuple as expected, or index out of range";
+                    PyErr_SetString(PyExc_TypeError, "Invalid constructor arguments: not a tuple as expected, or index out of range");
+                    return nullptr;
                 }
+                T_NoRef *cobj = nullptr;
                 for (auto const &[kwlist_, constructor_] : PythonClassWrapper<T>::_constructors) {
                     try {
-                        cobj = constructor_(kwlist_, constructor_args, nullptr, (unsigned char*)location);
+                        cobj = constructor_(kwlist_, constructor_args, nullptr, bytebucket+i);
                         if (cobj) break;
                     } catch (...) {
                     }
                     PyErr_Clear();
                 }
-                if (!cobj) {
-                    throw  "No matching constructor";
+                if (!cobj){
+                    if constexpr (std::is_destructible<T_NoRef>::value) {
+                        for (ssize_t j = 0; j < i; ++j) {
+                            (*cobj_ptr)[j].~T_NoRef();
+                        }
+                    }
+                    PyErr_SetString(PyExc_TypeError, "Invalid constructor argsument");
+                    return nullptr;
                 }
-            };
-            return (PyObject *) PythonClassWrapper<T_NoRef *>::createPyUsingBytePool((size_t) size, constructor);
+            }
+            auto pyobj = PythonClassWrapper<T_NoRef *>::fromInPlaceAllocation(size, bytebucket);
+            return (PyObject *) pyobj;
         }
         throw "Invalid constructor arguments";
     }
@@ -824,7 +822,7 @@ namespace __pyllars_internal {
     _free(void *self_) {
         PythonClassWrapper *self = (PythonClassWrapper *) self_;
         if (!self->_CObject) return;
-        if constexpr (!std::is_reference<T>::value && std::is_destructible<T>::value) {
+        if constexpr (std::is_destructible<T>::value) {
             delete self->_CObject;
         }
         self->_CObject = nullptr;
@@ -833,10 +831,11 @@ namespace __pyllars_internal {
     template<typename T>
     void PythonClassWrapper<T,
             typename std::enable_if<is_rich_class<T>::value>::type>::
-    _dealloc(PythonClassWrapper *self) {
+    _dealloc(PyObject *self_) {
+        PythonClassWrapper* self = reinterpret_cast<PythonClassWrapper*>(self_);
         if (!self) return;
         if (self->_referenced) {
-            Py_XDECREF(self->_referenced);
+            Py_DECREF(self->_referenced);
             self->_referenced = nullptr;
         }
         _free(self);

@@ -5,7 +5,7 @@
 #ifndef __PYLLARS_INTERNAL__CLASSMETHODSEMANTICS_CPP__
 #define __PYLLARS_INTERNAL__CLASSMETHODSEMANTICS_CPP__
 
-#include "pyllars_statocfunctionsemantics.impl.hpp"
+#include "pyllars_staticfunctionsemantics.impl.hpp"
 #include "pyllars_function_wrapper.hpp"
 #include "pyllars_utils.impl.hpp"
 #include "pyllars_conversions.impl.hpp"
@@ -52,7 +52,7 @@ namespace __pyllars_internal{
                 }
                 ffi_status status;
 
-                // Because the return value from foo() is smaller than sizeof(long), it
+                // Because the return _CObject from foo() is smaller than sizeof(long), it
                 // must be passed as ffi_arg or ffi_sarg.
                 ffi_arg result_small;
                 void *result = &result_small;
@@ -128,8 +128,8 @@ namespace __pyllars_internal{
                             } else if (COBJ_TYPE == subtype) {
                                 static const size_t offset = offset_of<Arbitrary *, PythonClassWrapper<Arbitrary> >
                                         (&PythonClassWrapper<Arbitrary>::_CObject);
-                                auto **ptrvalue = (ObjectContainer<void *> **) (((char *) nextArg) + offset);
-                                extra_arg_values[i].ptrvalue = ptrvalue ? (*ptrvalue)->ptr() : nullptr;
+                                auto **ptrvalue = (Arbitrary **) (((char *) nextArg) + offset);
+                                extra_arg_values[i].ptrvalue = ptrvalue;
                             } else if (FUNC_TYPE == subtype) {
                                 static constexpr bool with_ellipsis = true;
 
@@ -223,7 +223,11 @@ namespace __pyllars_internal{
         PyObject *tuple = nullptr;
 
         if ((arg_count > func_traits<func_type>::argsize) && func_traits<func_type>::has_ellipsis) {
-            tuple = PyTuple_GetSlice(args, 0, func_traits<func_type>::argsize - kwd_count);
+            auto const size = func_traits<func_type>::argsize - kwd_count;
+            if (size > PyTuple_Size(args)){
+                throw "Not enough arguments to call";
+            }
+            tuple = PyTuple_GetSlice(args, 0, size);
             auto low = func_traits<func_type>::argsize - kwd_count;
             extra_args = PyTuple_GetSlice(args, low, arg_count);
         } else {

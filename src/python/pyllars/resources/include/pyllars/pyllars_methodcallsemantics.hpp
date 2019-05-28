@@ -207,8 +207,9 @@ namespace __pyllars_internal {
             return MethodCallSemantics<kwlist, method_t>::call(*this_, method, args, kwds);
         }
 
-        static PyObject *callAsUnaryFunc(PyObject *self, PyObject *arg){
-            return call(self, arg, nullptr);
+        static PyObject *callAsUnaryFunc(PyObject *self){
+            static auto emptyargs = PyTuple_New(0);
+            return call(self, emptyargs, nullptr);
         }
 
         static PyObject *callAsBinaryFunc(PyObject *self, PyObject *arg){

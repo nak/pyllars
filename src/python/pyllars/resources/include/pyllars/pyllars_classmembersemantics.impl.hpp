@@ -17,16 +17,16 @@ namespace __pyllars_internal{
         const ssize_t arg_size = kwds?PyDict_Size(kwds):0 + PyTuple_Size(args);
         if constexpr (std::is_const<AttrType>::value){
             if (arg_size > 0) {
-                PyErr_SetString(PyExc_ValueError, "C++: const static members cannot change value");
+                PyErr_SetString(PyExc_ValueError, "C++: const static members cannot change _CObject");
                 return nullptr;
             }
         } else if (arg_size > 0){
             static char format[2] = {'O', 0};
-            static const char *kwlist[] = {"value", nullptr};
+            static const char *kwlist[] = {"_CObject", nullptr};
             PyObject *pyarg = nullptr;
             if (PyTuple_Size(args) > 0) {
                 PyErr_SetString(PyExc_ValueError,
-                                "Only one value with explicit keyword 'value' allowed to this method");
+                                "Only one _CObject with explicit keyword '_CObject' allowed to this method");
                 return nullptr;
             } else if (kwds && !PyArg_ParseTupleAndKeywords(args, kwds, format, (char **) kwlist, &pyarg)) {
                 PyErr_SetString(PyExc_ValueError, "Invalid argument keyword name or type to method call");

@@ -12,7 +12,7 @@ namespace __pyllars_internal{
 
         std::function<double()> asDouble;
 
-        static PyTypeObject Type;
+        static PyTypeObject _Type;
     };
 
     template<typename number_type>
@@ -28,38 +28,42 @@ namespace __pyllars_internal{
             if(initialize() != 0){
                 return nullptr;
             }
-            return &Type;
+            return &_Type;
         }
 
-        static int initialize();
+        inline number_type_basic *get_CObject() {
+            return _CObject;
+        }
 
-        static PyObject *richcompare(PyObject *a, PyObject *b, int op);
-
-        static __pyllars_internal::PythonClassWrapper<number_type&> *fromCObject
-                ( number_type & cobj, PyObject *referencing = nullptr);
 
         inline static bool checkType(PyObject *const obj) {
-            return PyObject_TypeCheck(obj, &Type);
+            return PyObject_TypeCheck(obj, &_Type);
         }
+
+        static __pyllars_internal::PythonClassWrapper<number_type> *fromCObject( number_type & cobj,
+                                                                                 PyObject *referencing = nullptr);
+
+    protected:
+        static int initialize(){
+            return _initialize(_Type);
+        }
+
+        static PyObject *richcompare(PyObject *a, PyObject *b, int op);
 
         static constexpr PyObject *const parent_module = nullptr;
 
         static PyObject *repr(PyObject *o);
 
-        static int create(PyObject *subtype, PyObject *args, PyObject *kwds);
+        static int _init(PyFloatingPtCustomObject *subtype, PyObject *args, PyObject *kwds);
 
-        explicit PyFloatingPtCustomObject() : _referenced(nullptr), _depth(0), value(0){
-        }
-
-        inline number_type_basic *get_CObject() {
-            return value;
-        }
+        // all instances will be allocated a'la Python so constructor should never be invoked (no linkage should be present)
+        explicit PyFloatingPtCustomObject();
 
         std::function<double()> asDouble;
 
         PyObject *_referenced;
         size_t _depth;
-        number_type_basic *value;
+        number_type_basic *_CObject;
 
         class Initializer : public pyllars::Initializer {
         public:
@@ -70,12 +74,20 @@ namespace __pyllars_internal{
             static Initializer *initializer;
         };
 
-        friend class FloatingPointType<number_type>;
+        static void _dealloc(PyObject* self){}
+
+        static void _free(void* self){}
+
+        static int _initialize(PyTypeObject &);
+
+        static PyTypeObject _Type;
+
+        friend class FloatingPointType<const number_type>;
+        friend class FloatingPointType<typename std::remove_const<number_type>::type>;
 
     private:
         static PyMethodDef _methods[];
 
-        static PyTypeObject Type;
 
     };
 
@@ -88,16 +100,6 @@ namespace __pyllars_internal{
     class PythonClassWrapper<double> : public PyFloatingPtCustomObject<double> {
     };
 
-
-    template<>
-    class PythonClassWrapper<float&> : public PyFloatingPtCustomObject<float&> {
-    };
-
-    template<>
-    class PythonClassWrapper<double&> : public PyFloatingPtCustomObject<double&> {
-    };
-
-
     template<>
     class PythonClassWrapper<const float> : public PyFloatingPtCustomObject<const float> {
     };
@@ -106,13 +108,6 @@ namespace __pyllars_internal{
     class PythonClassWrapper<const double> : public PyFloatingPtCustomObject<const double> {
     };
 
-    template<>
-    class PythonClassWrapper<const float&> : public PyFloatingPtCustomObject<const float&> {
-    };
-
-    template<>
-    class PythonClassWrapper<const double&> : public PyFloatingPtCustomObject<const double&> {
-    };
 
 }
 #endif

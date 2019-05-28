@@ -23,7 +23,7 @@ namespace __pyllars_internal {
                 return toPyObject<T_NoRef&>(_this->get_CObject()->*member, array_size);
             }
             PyErr_SetString(PyExc_RuntimeError,
-                            "Internal Pyllars Error: No C Object found to get member attribute value!");
+                            "Internal Pyllars Error: No C Object found to get member attribute _CObject!");
             return nullptr;
         } else if constexpr( !std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value == 0){
             const ssize_t base_size = ArrayHelper<T>::base_sizeof();
@@ -33,7 +33,7 @@ namespace __pyllars_internal {
             if (_this->get_CObject()) {
                 return toPyObject<T_NoRef&>(_this->get_CObject()->*member, array_size);
             }
-            PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
+            PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute _CObject!");
             return nullptr;
         } else if constexpr ( std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value != 0){
             if (_this->get_CObject()) {
@@ -43,7 +43,7 @@ namespace __pyllars_internal {
                                       : UNKNOWN_SIZE;
                 return toPyObject<T_NoRef&>(_this->get_CObject()->*member, array_size);
             }
-            PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
+            PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute _CObject!");
             return nullptr;
         } else if constexpr(std::is_array<T>::value && ArraySize<T>::size > 0){
             const ssize_t size = ArraySize<T>::size;
@@ -69,7 +69,7 @@ namespace __pyllars_internal {
                     ((PythonClassWrapper<T> *) obj)->make_reference(self);
                     return obj;
                 }
-                PyErr_SetString(PyExc_RuntimeError, "Internal Error:No C Object found to get member attribute value!");
+                PyErr_SetString(PyExc_RuntimeError, "Internal Error:No C Object found to get member attribute _CObject!");
                 return nullptr;
             } catch (const char *const msg) {
                 PyErr_SetString(PyExc_RuntimeError, msg);
@@ -85,7 +85,7 @@ namespace __pyllars_internal {
                 ((PythonClassWrapper<T> *) obj)->make_reference(self);
                 return obj;
             }
-            PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
+            PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute _CObject!");
             return nullptr;
         }
     }
@@ -99,11 +99,11 @@ namespace __pyllars_internal {
         Wrapper *_this = (Wrapper *) self;
         if constexpr ( !std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value != 0) {
             if (!self) {
-                PyErr_SetString(PyExc_RuntimeError, "Unexpceted nullptr value for self");
+                PyErr_SetString(PyExc_RuntimeError, "Unexpceted nullptr _CObject for self");
                 return -1;
             }
             if (pyVal == Py_None) {
-                PyErr_SetString(PyExc_ValueError, "Unexpected None value in member setter");
+                PyErr_SetString(PyExc_ValueError, "Unexpected None _CObject in member setter");
                 return -1;
             }
             try {
@@ -122,7 +122,7 @@ namespace __pyllars_internal {
             typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
             try{
                 if (pyVal == Py_None) {
-                    PyErr_SetString(PyExc_ValueError, "Unexpcted None value in member setter");
+                    PyErr_SetString(PyExc_ValueError, "Unexpcted None _CObject in member setter");
                     return -1;
                 }
                 if (PyTuple_Check(pyVal)) {
@@ -160,7 +160,7 @@ namespace __pyllars_internal {
             typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
             try{
                 if (pyVal == Py_None) {
-                    PyErr_SetString(PyExc_RuntimeError, "Unexpcted None value in member setter");
+                    PyErr_SetString(PyExc_RuntimeError, "Unexpcted None _CObject in member setter");
                     return -1;
                 }
                 if (array_size == 0) {
@@ -223,7 +223,7 @@ namespace __pyllars_internal {
                 (self->*member)[i] = (val.value())[i];
             }
         } else if constexpr (std::is_array<T>::value){
-            throw "Cannot set value of type of unknown array length";
+            throw "Cannot set _CObject of type of unknown array length";
         }
     }
 
@@ -252,7 +252,7 @@ namespace __pyllars_internal {
         if (_this->get_CObject()) {
             return toPyObject<T_NoRef>(_getter(*(_this->get_CObject())), 1);
         }
-        PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
+        PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute _CObject!");
         return nullptr;
     }
 
@@ -261,17 +261,17 @@ namespace __pyllars_internal {
     int BitFieldContainer<CClass>::Container<name, T, bits>::
     set(PyObject *self, PyObject* pyVal, void*) {
         if (!self) {
-            PyErr_SetString(PyExc_RuntimeError, "Unexpected null value for self");
+            PyErr_SetString(PyExc_RuntimeError, "Unexpected null _CObject for self");
             return -1;
         }
         if(!pyVal){
-            PyErr_SetString(PyExc_TypeError, "Null reference encountered on setting value");
+            PyErr_SetString(PyExc_TypeError, "Null reference encountered on setting _CObject");
             return -1;
         }
         typedef PythonClassWrapper<CClass> Wrapper;
         Wrapper *_this = (Wrapper *) self;
         if (pyVal == Py_None) {
-            PyErr_SetString(PyExc_ValueError, "Unexpected None value in member setter");
+            PyErr_SetString(PyExc_ValueError, "Unexpected None _CObject in member setter");
             return -1;
         }
         auto value = toCArgument<T>(*pyVal);
@@ -305,7 +305,7 @@ namespace __pyllars_internal {
         if (_this->get_CObject()) {
             return toPyObject<T>(_getter(*(_this->get_CObject())), 1);
         }
-        PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute value!");
+        PyErr_SetString(PyExc_RuntimeError, "Internal Error: No C Object found to get member attribute _CObject!");
         return nullptr;
     }
 

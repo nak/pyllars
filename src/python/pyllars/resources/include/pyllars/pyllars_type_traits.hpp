@@ -61,6 +61,7 @@ namespace __pyllars_internal {
                 !std::is_floating_point<T_NoRef>::value &&
                 !std::is_array<T_NoRef>::value &&
                 !std::is_pointer<T_NoRef>::value &&
+                !std::is_reference<T>::value &&
                 !std::is_function<T_NoRef>::value;
     };
 
@@ -97,7 +98,8 @@ namespace __pyllars_internal {
     template<typename T>
     struct is_pointer_like{
         typedef typename std::remove_const<typename std::remove_reference<T>::type>::type T_base;
-        static constexpr bool value =  !std::is_function<typename std::remove_pointer<T>::type>::value &&
+        static constexpr bool value = !std::is_reference<T>::value &&
+                !std::is_function<typename std::remove_pointer<T>::type>::value &&
                 (std::is_pointer<T_base>::value || std::is_array<T_base>::value) ;
     };
 

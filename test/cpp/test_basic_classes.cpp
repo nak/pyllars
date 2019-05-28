@@ -6,11 +6,10 @@
 #include "class_test_defns.h"
 #include "pyllars/pyllars.hpp"
 #include "pyllars/pyllars_classwrapper.hpp"
+#include "pyllars/pyllars_reference.impl.hpp"
 
 TEST_F(SetupBasicClass, TestBasicClassNew) {
     using namespace __pyllars_internal;
-    PyObject *args = PyTuple_New(0);
-
     PyObject *new_op = PyObject_GetAttrString((PyObject*)PythonClassWrapper<BasicClass>::getPyType(), "new");
 
     ASSERT_NE(new_op, nullptr);
@@ -49,7 +48,7 @@ TEST_F(SetupBasicClass, TestBasicClassNew) {
 
 TEST_F(SetupBasicClass, TestBasicClass){
     using namespace __pyllars_internal;
-    static const char* const kwlist[] = {"value", nullptr};
+    static const char* const kwlist[] = {"_CObject", nullptr};
     static const char* const empty_list[] = {nullptr};
     static const char* const kwlist_copy_constr[] = {"obj", nullptr};
     PyObject* args = PyTuple_New(0);
@@ -172,7 +171,7 @@ TEST_F(SetupBasicClass, TestClassEnums){
     ASSERT_NE((((Class*)ONE_E)->get_CObject()), nullptr);
     ASSERT_EQ(*(((Class*)ONE_E)->get_CObject()), EnumClass::E_ONE);
     {
-        PyObject *value_callable = PyObject_GetAttrString(ONE_E, "value");
+        PyObject *value_callable = PyObject_GetAttrString(ONE_E, "_CObject");
         ASSERT_NE(value_callable, nullptr);
         ASSERT_FALSE(PyErr_Occurred());
         PyObject *args = PyTuple_New(1);
@@ -200,7 +199,7 @@ TEST_F(SetupBasicClass, TestClassEnums){
 
 TEST_F(SetupBasicClass, TestBasicClassOffNominal) {
     using namespace __pyllars_internal;
-    static const char *const kwlist[] = {"value", nullptr};
+    static const char *const kwlist[] = {"_CObject", nullptr};
     static const char *const empty_list[] = {nullptr};
     static const char *const kwlist_copy_constr[] = {"obj", nullptr};
     PyObject *args = PyTuple_New(2);
@@ -211,11 +210,10 @@ TEST_F(SetupBasicClass, TestBasicClassOffNominal) {
     ASSERT_EQ(obj, nullptr);
     ASSERT_TRUE(PyErr_Occurred());
     PyErr_Clear();
-
+    static auto empty = PyTuple_New(0);
     PyObject* kwds = PyDict_New();
     PyDict_SetItemString(kwds, "ununsed", PyLong_FromLong(33));
-    obj =  PyObject_Call((PyObject *) PythonClassWrapper<BasicClass>::getPyType(),
-                         nullptr, kwds);
+    obj =  PyObject_Call((PyObject *) PythonClassWrapper<BasicClass>::getPyType(), empty, kwds);
     ASSERT_EQ(obj, nullptr);
     ASSERT_TRUE(PyErr_Occurred());
     PyErr_Clear();
@@ -224,13 +222,13 @@ TEST_F(SetupBasicClass, TestBasicClassOffNominal) {
 TEST_F(SetupBasicClass, TestPointers){
     using namespace __pyllars_internal;
     typedef PythonClassWrapper<BasicClass> Class;
-    PyObject* obj = PyObject_Call((PyObject*) Class::getPyType(), PyTuple_New(0), nullptr);
+    static auto empty = PyTuple_New(0);
+    PyObject* obj = PyObject_Call((PyObject*) Class::getPyType(), empty, nullptr);
     auto self = PyObject_GetAttrString(obj, "this");
     ASSERT_NE(self, nullptr);
 
     constexpr int MAX = 1000;
     PyObject *ptrs[MAX] = {nullptr};
-    PyObject* empty = PyTuple_New(0);
     ptrs[0] = self;
 
     for (int i = 1; i < MAX; ++i){
@@ -241,17 +239,18 @@ TEST_F(SetupBasicClass, TestPointers){
         ASSERT_EQ((void*)*((PythonClassWrapper<BasicClass*>*)ptrs[i])->get_CObject(),
                   (void*)((PythonClassWrapper<BasicClass*>*)ptrs[i-1])->get_CObject());
     }
-    auto args = PyTuple_New(1);
-    PyTuple_SetItem(args, 0, PyLong_FromLong(0));
+    auto args_index_0 = PyTuple_New(1);
+    PyTuple_SetItem(args_index_0, 0, PyLong_FromLong(0));
     auto derefed = ptrs[MAX-1];
     for(int i = MAX-2; i > 0; --i){
         auto at = PyObject_GetAttrString(derefed, "at");
         ASSERT_NE(at, nullptr);
-        derefed = PyObject_Call(at, args, nullptr);
+        derefed = PyObject_Call(at, args_index_0, nullptr);
         ASSERT_NE(derefed, nullptr);
+        ASSERT_NE(((PythonClassWrapper<BasicClass*>*)ptrs[i])->get_CObject(), nullptr);
         ASSERT_NE(((PythonClassWrapper<BasicClass*>*) derefed)->get_CObject(), nullptr);
-        ASSERT_EQ(((PythonClassWrapper<BasicClass*>*) derefed)->get_CObject(),
-                  ((PythonClassWrapper<BasicClass*>*)ptrs[i])->get_CObject());
+        ASSERT_EQ(*((PythonClassWrapper<BasicClass*>*) derefed)->get_CObject(),
+                  *((PythonClassWrapper<BasicClass*>*)ptrs[i])->get_CObject());
     }
 }
 

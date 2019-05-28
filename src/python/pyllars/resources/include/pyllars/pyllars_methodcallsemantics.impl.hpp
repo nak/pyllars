@@ -32,7 +32,7 @@ namespace __pyllars_internal {
         void *arg_values[sizeof...(Args) + extra_args_size + 1] = {(void *) &self, (void *) toCArgument<Args>(pyargs).ptr()...};
         ffi_status status;
 
-        // Because the return value from foo() is smaller than sizeof(long), it
+        // Because the return _CObject from foo() is smaller than sizeof(long), it
         // must be passed as ffi_arg or ffi_sarg.
         ffi_arg result_small;
         unsigned char result_big[sizeof(ReturnType_NoRef)];
@@ -83,7 +83,7 @@ namespace __pyllars_internal {
         void *arg_values[sizeof...(Args) + extra_args_size + 1] = {(void *) &self, (void *) toCArgument<Args>(pyargs).ptr()...};
         ffi_status status;
 
-        // Because the return value from foo() is smaller than sizeof(long), it
+        // Because the return _CObject from foo() is smaller than sizeof(long), it
         // must be passed as ffi_arg or ffi_sarg.
         ffi_arg result_small;
         unsigned char result_big[sizeof(ReturnType_NoRef)];

@@ -49,9 +49,7 @@ namespace __pyllars_internal {
             typedef typename std::remove_reference<typename as_argument<T>::type>::type T_Arg;
             typedef typename std::remove_reference<T>::type T_NoRef;
 
-            static ObjectContainer<T> *new_copy2(const T_Arg &value);
-
-            static T_NoRef *new_copy(typename extent_as_pointer<T>::type *value);
+            static T_NoRef *new_copy(const typename extent_as_pointer<T>::type &value);
 
             static void inplace_copy(T_NoRef *to, Py_ssize_t index, const T_NoRef *from);
         };
@@ -84,7 +82,7 @@ namespace __pyllars_internal {
 
             static void set(size_t index, T *to, const T *from);
 
-            static T *getObjectPtr(ClassWrapper *self);
+           // static T *getObjectPtr(ClassWrapper *self);
 
         };
 

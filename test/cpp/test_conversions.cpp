@@ -12,7 +12,7 @@
 #include "pyllars/pyllars_pointer.impl.hpp"
 #include "pyllars/pyllars_membersemantics.impl.hpp"
 #include "pyllars/pyllars_classmembersemantics.impl.hpp"
-#include "pyllars/pyllars_statocfunctionsemantics.impl.hpp"
+#include "pyllars/pyllars_staticfunctionsemantics.impl.hpp"
 
 struct A{
     int ivalue;
@@ -447,7 +447,8 @@ TYPED_TEST(ToPyTest2, convert_to_py_array ) {
         ASSERT_NE(obj, nullptr);
         ASSERT_FALSE(PyErr_Occurred());
         ASSERT_TRUE(PyObject_TypeCheck(obj, PythonClassWrapper<T&>::getPyType()));
-        ASSERT_EQ((T *) a, reinterpret_cast<PythonClassWrapper<T&> *>(obj)->get_CObject());
+        auto pywrapper = reinterpret_cast<PythonClassWrapper<T&> *>(obj);
+        ASSERT_EQ((T *) a, pywrapper->get_CObject());
         Py_DECREF(obj);
     }
     {

@@ -40,29 +40,16 @@ namespace __pyllars_internal {
     }
 
 
-    template<typename T>
-    ObjectContainer<T> *ObjectLifecycleHelpers::
-    Copy<T>::
-    new_copy2(const T_Arg &value) {
-        typedef typename std::remove_reference<T>::type T_NoRef;
-        if constexpr ((std::is_destructible<T_NoRef>::value && std::is_assignable<T_NoRef&, T_NoRef >::value && std::is_copy_constructible<T_NoRef>::value) ||
-                ((!std::is_assignable<T_NoRef  &, T_NoRef >::value || !std::is_destructible<T_NoRef >::value) && std::is_copy_constructible<T_NoRef >::value) ||
-                (std::is_array<T>::value && (ArraySize<T>::size > 0) && !std::is_const<T>::value && std::is_copy_constructible<T_NoRef >::value)){
-            return new ObjectContainerConstructed<T, const T&>(value);
-        } else {
-            throw "Attempt to copy non-copy-constructible object";
-        }
-    }
 
     template<typename T>
     typename std::remove_reference<T>::type *ObjectLifecycleHelpers::
     Copy<T>::
-    new_copy(typename extent_as_pointer<T>::type *const value) {
+    new_copy(const typename extent_as_pointer<T>::type & value) {
         if constexpr ((std::is_destructible<T_NoRef>::value && std::is_assignable<T_NoRef &, T_NoRef>::value && std::is_copy_constructible<T_NoRef>::value) ||
                 ( (!std::is_assignable<T_NoRef &, T_NoRef>::value || !std::is_destructible<T_NoRef>::value) && std::is_copy_constructible<T_NoRef>::value)){
-            return new T_NoRef(*value);
+            return new T_NoRef(value);
         } else if constexpr (!std::is_const<T>::value && std::is_array<T>::value && ArraySize<T>::size > 0){
-            auto new_array = new (*value) FixedArrayHelper<T>;
+            auto new_array = new (value) FixedArrayHelper<T>;
             return reinterpret_cast<T_NoRef*>(new_array);
         } else {
             throw "Attempt to copy non-copy-constructible object";
@@ -88,9 +75,9 @@ namespace __pyllars_internal {
             for (size_t i = 0; i < size; ++i) {
                 (*to)[i] = (*from)[i];
             }
-        } /*else if constexpr(!std::is_void<T>::value &&
-                            (!std::is_array<T>::value || ArraySize<T>::size <= 0) &&
-                            !std::is_copy_constructible<typename std::remove_reference<T>::type>::value){
+        } /*else if constexpr(!std::is_void<T>::_CObject &&
+                            (!std::is_array<T>::_CObject || ArraySize<T>::size <= 0) &&
+                            !std::is_copy_constructible<typename std::remove_reference<T>::type>::_CObject){
 
         }*/ else {
             throw "Attempt to copy non-copy-constructible object";
@@ -155,13 +142,6 @@ namespace __pyllars_internal {
 
     }
 
-
-    template<typename T>
-    T *ObjectLifecycleHelpers::
-    ObjectContent<T>::
-    getObjectPtr(PythonClassWrapper<T> *const self) {
-        return (T *) &self->_CObject;
-    }
 
 
 }

@@ -82,6 +82,8 @@ namespace pyllars {
 
     int init(PyObject *global_mod);
 
+
+
 }  // namespace pyllars
 
 #if PY_MAJOR_VERSION == 3

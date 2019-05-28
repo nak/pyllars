@@ -9,7 +9,8 @@
 #include "pyllars_conversions.hpp"
 #include "pyllars_object_lifecycle.impl.hpp"
 #include "pyllars_callbacks.hpp"
-#include "pyllars_pointer.hpp"
+#include "pyllars_pointer.impl.hpp"
+#include "pyllars_reference.impl.hpp"
 
 namespace __pyllars_internal {
 
@@ -183,7 +184,7 @@ namespace __pyllars_internal {
                 for (size_t i = 0; i < size; ++i) {
                     PyObject *listitem = PyList_GetItem(&pyobj, i);
                     if(!listitem){
-                        throw "Invalid null value for list item in conversion to C array";
+                        throw "Invalid null _CObject for list item in conversion to C array";
                     }
                     (*val)[i] = CObjectConversionHelper<T_element>::toCArgument(*listitem).value();
                 }
@@ -257,6 +258,8 @@ namespace __pyllars_internal {
 
     };
 
+    template<typename T>
+    struct PythonClassWrapper<T&, void>;
 
     template<typename T>
     PyObject *
@@ -266,15 +269,24 @@ namespace __pyllars_internal {
             return var?Py_True:Py_False;
         } else {
             PyObject *pyobj = nullptr;
-            if constexpr ( (std::is_array<typename std::remove_reference<T>::type>::value ||
-                          std::is_pointer<typename std::remove_reference<T>::type>::value)){
-                if constexpr (std::is_reference<T>::value){
-                    pyobj = (PyObject *) ClassWrapper::fromCPointer(var, array_size);
+            if constexpr ( (std::is_array<T>::value ) || std::is_pointer<T>::value) {
+                //if constexpr (!std::is_array<T>::_CObject){
+                typedef typename std::remove_pointer<typename extent_as_pointer<T_NoRef>::type>::type T_base;
+                T_base *ptr = var;
+                typename std::remove_reference<T>::type *v = nullptr;
+                if constexpr (ArraySize<T_NoRef>::size > 0) {
+                    //the rules of C++ and fixed arrays vs pointers and pass-by-reference are strange and mysterious...
+                    v = (T_NoRef *) ptr;
                 } else {
-                    pyobj = (PyObject *) ClassWrapper::createPyFromAllocatedInstance(
-                            *ObjectLifecycleHelpers::Copy<T>::new_copy(&var),
-                            array_size);
+                    v = &ptr;
                 }
+                pyobj = (PyObject *) ClassWrapper::fromCPointer(*v, array_size);
+                //} else {
+                //    typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
+                //    pyobj = (PyObject *) ClassWrapper::template allocateInstance<T_base>(var);
+                // }
+            } else if (std::is_reference<T>::value){
+                pyobj = (PyObject*) ClassWrapper::fromCObject(var);
             } else {
                 pyobj = (PyObject *) ClassWrapper::fromCObject(var);
             }

@@ -811,5 +811,10 @@ namespace __pyllars_internal {
         };
     };
 
+
+
+    template<typename const_or_nonconst_char>
+    const_or_nonconst_char* fromPyStringLike(PyObject* obj);
+
 }
 #endif

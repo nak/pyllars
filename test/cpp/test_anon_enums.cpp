@@ -5,7 +5,7 @@
 #include "pyllars/pyllars_pointer.impl.hpp"
 #include "pyllars/pyllars_membersemantics.impl.hpp"
 #include "pyllars/pyllars_classmembersemantics.impl.hpp"
-#include "pyllars/pyllars_statocfunctionsemantics.impl.hpp"
+#include "pyllars/pyllars_staticfunctionsemantics.impl.hpp"
 #include <map>
 #include "class_test_defns.h"
 #include "anon_enum_defns.h"

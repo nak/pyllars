@@ -81,7 +81,7 @@ int PyllarsInit(const char* const name){
 int pyllars::pyllars_register( Initializer* const init){
     // ensure root is "clean" and no static initizlied as this function
     // may be called during static initialization before root has been assigend
-    // a static value
+    // a static _CObject
     static Initializer _root;
     if(!Initializer::root)
       Initializer::root = &_root;
@@ -306,9 +306,8 @@ namespace __pyllars_internal {
                 } else if (COBJ_TYPE == subtype) {
                     static const size_t offset = offset_of<ArgType*, PythonClassWrapper<ArgType> >
                             (&PythonClassWrapper<ArgType>::_CObject);
-                    ObjectContainer<void *> **ptrvalue =
-                            (ObjectContainer<void *> **) (((char *) arg) + offset);
-                    generic_value.ptrvalue = ptrvalue ? (*ptrvalue)->ptr() : nullptr;
+                    ArgType **ptrvalue = (ArgType **) (((char *) arg) + offset);
+                    generic_value.ptrvalue = ptrvalue;
                 } else if (FUNC_TYPE == subtype) {
                     typedef PythonFunctionWrapper<void(void)> wtype;
                     static const size_t offset = offsetof(wtype, _function);
@@ -323,5 +322,26 @@ namespace __pyllars_internal {
                 throw "Python object cannot be converted to C object";
                 break;
         }
+    }
+
+
+    template<>
+    const char*
+    fromPyStringLike<const char>(PyObject* obj){
+        if (PyString_Check(obj)) {
+            return PyString_AsString(obj);
+        } else if (PyUnicode_Check(obj)){
+            return PyUnicode_AsUTF8(obj);
+        }
+        return nullptr;
+    }
+
+    template<>
+    char*
+    fromPyStringLike<char>(PyObject* obj){
+        if (PyBytes_Check(obj)) {
+            return PyBytes_AsString(obj);
+        }
+        return nullptr;
     }
 }

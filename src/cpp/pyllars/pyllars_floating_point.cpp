@@ -6,6 +6,7 @@
 #include <pyllars/pyllars_integer.hpp>
 #include <pyllars/pyllars_classwrapper.impl.hpp>
 #include <pyllars/pyllars_pointer.impl.hpp>
+#include <pyllars/pyllars_reference.impl.hpp>
 
 
 namespace __pyllars_internal{
@@ -59,7 +60,7 @@ namespace __pyllars_internal{
         static double toDouble(PyObject *obj) {
             if (PyFloat_Check(obj)) {
                 return PyFloat_AsDouble(obj);
-            } else if (PyObject_TypeCheck(obj, &PyFloatingPtCustomBase::Type)) {
+            } else if (PyObject_TypeCheck(obj, &PyFloatingPtCustomBase::_Type)) {
                 return ((PyFloatingPtCustomObject<number_type> *) obj)->asDouble();
             } else {
                 PyErr_SetString(PyExc_SystemError, "System error: invalid type encountered");
@@ -68,22 +69,22 @@ namespace __pyllars_internal{
         }
 
         static bool isFloatingPtObject(PyObject *obj) {
-            return bool(PyFloat_Check(obj)) || bool(PyObject_TypeCheck(obj, &PyFloatingPtCustomBase::Type));
+            return bool(PyFloat_Check(obj)) || bool(PyObject_TypeCheck(obj, &PyFloatingPtCustomBase::_Type));
         }
 
         typedef typename std::remove_reference<number_type>::type number_type_basic;
 
-        static constexpr number_type_basic min = std::numeric_limits<number_type_basic>::min();
+        static constexpr number_type_basic min(){return std::numeric_limits<number_type_basic>::min();}
         static constexpr number_type_basic max = std::numeric_limits<number_type_basic>::max();
 
         static bool is_out_of_bounds_add(double value1, double value2) {
             return ((value1 > 0.0 && value1 > max - value2) ||
-                    (value1 < 0.0 && value1 < min - value2));
+                    (value1 < 0.0 && value1 < min()- value2));
         }
 
         static bool is_out_of_bounds_subtract(double value1, double value2) {
             return ((value1 > 0.0 && value1 > max + value2) ||
-                    (value1 < 0.0 && value1 < min + value2));
+                    (value1 < 0.0 && value1 < min()+ value2));
         }
 
         template<double(*func)(double, double, const bool check)>
@@ -111,7 +112,7 @@ namespace __pyllars_internal{
             if (!ret) {
                 return nullptr;
             }
-            *const_cast<typename std::remove_const<number_type_basic>::type *>(ret->value) = ret_value;
+            *const_cast<typename std::remove_const<number_type_basic>::type *>(ret->_CObject) = ret_value;
             return (PyObject *) ret;
         }
 
@@ -125,12 +126,12 @@ namespace __pyllars_internal{
                 PyErr_SetString(PyExc_TypeError, "Invalid types for arguments");
                 Py_RETURN_NOTIMPLEMENTED;
             }
-            double ret_value = *((PyFloatingPtCustomObject<typename std::remove_const<number_type>::type > *) v1)->value;
+            double ret_value = *((PyFloatingPtCustomObject<typename std::remove_const<number_type>::type > *) v1)->_CObject;
             func(ret_value, toDouble(v2));
             if (PyErr_Occurred()) {
                 return nullptr;
             }
-            *const_cast<typename std::remove_const<number_type_basic >::type*>(((PyFloatingPtCustomObject<number_type> *) v1)->value) = ret_value;
+            *const_cast<typename std::remove_const<number_type_basic >::type*>(((PyFloatingPtCustomObject<number_type> *) v1)->_CObject) = ret_value;
             Py_INCREF(v1);
             return v1;
         }
@@ -150,7 +151,7 @@ namespace __pyllars_internal{
             auto *ret = (PyFloatingPtCustomObject<number_type> *) PyObject_Call(
                     (PyObject *) PyFloatingPtCustomObject<number_type>::getPyType(), emptyargs, nullptr);
             if (ret) {
-                *const_cast<typename std::remove_const<number_type_basic>::type*>(ret->value) = ret_value;
+                *const_cast<typename std::remove_const<number_type_basic>::type*>(ret->_CObject) = ret_value;
             }
             return (PyObject *) ret;
         }
@@ -196,7 +197,7 @@ namespace __pyllars_internal{
             const double value1 = toDouble(v1);
             const double value2 = toDouble(v2);
             const double result = ::pow(value1, value2);
-            *const_cast<typename std::remove_const<number_type_basic >::type*>(ret->value) = (number_type) result;
+            *const_cast<typename std::remove_const<number_type_basic >::type*>(ret->_CObject) = (number_type) result;
             return (PyObject *) ret;
         }
 
@@ -241,14 +242,14 @@ namespace __pyllars_internal{
             const double value2 = toDouble(v2);
             const double quotient = (double) ((long long) value1 / (long long) value2);
             const double remainder = value1 - ((double) quotient) * value2;
-            if (quotient < min || quotient > max || remainder < min || remainder > max) {
+            if (quotient < min()|| quotient > max || remainder < min()|| remainder > max) {
                 static const char *const msg = "Invalid types for arguments";
                 PyErr_SetString(PyExc_ValueError, msg);
                 return nullptr;
             }
             PyObject *tuple = PyTuple_New(2);
-            *const_cast<typename std::remove_const<number_type_basic >::type*>(retq->value) = (number_type_basic) quotient;
-            *const_cast<typename std::remove_const<number_type_basic >::type*>(retr->value) = (number_type_basic) remainder;
+            *const_cast<typename std::remove_const<number_type_basic >::type*>(retq->_CObject) = (number_type_basic) quotient;
+            *const_cast<typename std::remove_const<number_type_basic >::type*>(retr->_CObject) = (number_type_basic) remainder;
             PyTuple_SetItem(tuple, 0, reinterpret_cast<PyObject*>(retq));
             PyTuple_SetItem(tuple, 1, reinterpret_cast<PyObject*>(retr));
             return tuple;
@@ -316,7 +317,7 @@ namespace __pyllars_internal{
     };
 
 
-    PyTypeObject PyFloatingPtCustomBase::Type = {
+    PyTypeObject PyFloatingPtCustomBase::_Type = {
 #if PY_MAJOR_VERSION == 3
             PyVarObject_HEAD_INIT(NULL, 0)
 #else
@@ -392,7 +393,7 @@ namespace __pyllars_internal{
     };
 
     template<typename number_type>
-    PyTypeObject PyFloatingPtCustomObject<number_type>::Type = {
+    PyTypeObject PyFloatingPtCustomObject<number_type>::_Type = {
 #if PY_MAJOR_VERSION == 3
             PyVarObject_HEAD_INIT(NULL, 0)
 #else
@@ -429,12 +430,12 @@ namespace __pyllars_internal{
             _methods,             /* tp_methods */
             nullptr,             /* tp_members */
             nullptr,                         /* tp_getset */
-            &PyFloatingPtCustomBase::Type,                         /* tp_base */
+            &PyFloatingPtCustomBase::_Type,                         /* tp_base */
             nullptr,                         /* tp_dict */
             nullptr,                         /* tp_descr_get */
             nullptr,                         /* tp_descr_set */
             0,                         /* tp_dictoffset */
-            PyFloatingPtCustomObject::create,  /* tp_init */
+            (initproc)PyFloatingPtCustomObject::_init,  /* tp_init */
             nullptr,                         /* tp_alloc */
             nullptr,             /* tp_new */
             nullptr,                         /*tp_free*/
@@ -452,7 +453,7 @@ namespace __pyllars_internal{
     PyObject *PyFloatingPtCustomObject<number_type>::repr(PyObject *o) {
         auto *obj = (PyFloatingPtCustomObject<number_type> *) o;
         std::string name = std::string("<pyllars.") + std::string(__pyllars_internal::type_name<number_type>()) +
-                           std::string("> value=") + std::to_string(*obj->value);
+                           std::string("> _CObject=") + std::to_string(*obj->_CObject);
         return PyString_FromString(name.c_str());
     }
 
@@ -478,7 +479,7 @@ namespace __pyllars_internal{
         if (size >= 1) {
             PyObject *item = PyTuple_GetItem(args, 0);
             if (!item) {
-                static const char *const msg = "Internal error getting tuple value";
+                static const char *const msg = "Internal error getting tuple _CObject";
                 PyErr_SetString(PyExc_SystemError, msg);
                 return nullptr;
             }
@@ -487,7 +488,7 @@ namespace __pyllars_internal{
                 return nullptr;
             }
             const double fvalue = FloatingPointType<number_type>::toDouble(item);
-            if (value < FloatingPointType<number_type>::min || value > FloatingPointType<number_type>::max) {
+            if (value < FloatingPointType<number_type>::min()|| value > FloatingPointType<number_type>::max) {
                 PyErr_SetString(PyExc_ValueError, "Argument out of range");
                 return nullptr;
             }
@@ -497,15 +498,15 @@ namespace __pyllars_internal{
         if (size == 2) {
             PyObject *item = PyTuple_GetItem(args, 1);
             if (!item) {
-                PyErr_SetString(PyExc_SystemError, "Internal error getting tuple value");
+                PyErr_SetString(PyExc_SystemError, "Internal error getting tuple _CObject");
                 return nullptr;
             }
-            if (!bool(PyLong_Check(item)) || bool(PyObject_TypeCheck(item, &PyNumberCustomBase::Type))){
+            if (!bool(PyLong_Check(item)) || bool(PyObject_TypeCheck(item, &PyNumberCustomBase::_Type))){
                 PyErr_SetString(PyExc_ValueError, "Argument must be of integral type");
                 return nullptr;
             }
             const __int128_t long_value = toLongLong<number_type_basic>(item);
-            if (value < NumberType<number_type>::min || value > NumberType<number_type>::max) {
+            if (value < NumberType<number_type>::min() || value > NumberType<number_type>::max) {
                 PyErr_SetString(PyExc_ValueError, "Argument out of range");
                 return nullptr;
             }
@@ -515,8 +516,11 @@ namespace __pyllars_internal{
                 return nullptr;
             }
         }
-        auto *alloced = new number_type_basic(value);
-        return PythonClassWrapper<number_type_basic *>::createPyFromAllocatedInstance(alloced, count);
+        if (count <= 1){
+            return PythonClassWrapper<number_type_basic *>::template allocateInstance<number_type_basic>(value);
+        } else {
+            return PythonClassWrapper<number_type_basic *>::template allocateArray<number_type_basic>(value, count);
+        }
     }
 
 
@@ -537,15 +541,15 @@ namespace __pyllars_internal{
 
 
     template<typename number_type>
-    int PyFloatingPtCustomObject<number_type>::initialize() {
+    int PyFloatingPtCustomObject<number_type>::_initialize(PyTypeObject &type) {
         static int rc = -1;
         static bool inited = false;
         if (inited){
             return rc;
         }
         rc = PyType_Ready(&CommonBaseWrapper::_BaseType);
-        rc |= PyType_Ready(&PyFloatingPtCustomBase::Type);
-        rc |= PyType_Ready(&PyFloatingPtCustomObject::Type);
+        rc |= PyType_Ready(&PyFloatingPtCustomBase::_Type);
+        rc |= PyType_Ready(&type);
         return rc;
     }
 
@@ -601,40 +605,40 @@ namespace __pyllars_internal{
     }
 
     template<typename number_type>
-    __pyllars_internal::PythonClassWrapper<number_type&> *PyFloatingPtCustomObject<number_type>::fromCObject
+    __pyllars_internal::PythonClassWrapper<number_type> *PyFloatingPtCustomObject<number_type>::fromCObject
             ( number_type& cobj, PyObject *referencing) {
         static PyObject *kwds = PyDict_New();
         static PyObject *emptyargs = PyTuple_New(0);
         PyDict_SetItemString(kwds, "__internal_allow_null", Py_True);
         PythonClassWrapper<number_type>::initialize();
-        auto *pyobj = (__pyllars_internal::PythonClassWrapper<number_type&> *) PyObject_Call(
-                (PyObject *) &Type, emptyargs, kwds);
-        pyobj->_depth = 0;
-        if constexpr(std::is_reference<number_type>::value) {
-            pyobj->value = &cobj;
-        } else {
-            pyobj->value = ObjectLifecycleHelpers::Copy<number_type_basic>::new_copy(&cobj);
+        auto type = getPyType();
+        if (!type){
+            PyErr_SetString(PyExc_SystemError, "fault in pyllars to initialize an underlying Python type");
+            return nullptr;
         }
-        pyobj->make_reference(referencing);
+        auto *pyobj = (__pyllars_internal::PythonClassWrapper<number_type> *) PyObject_Call((PyObject *) type, emptyargs, kwds);
+        if (pyobj) {
+            pyobj->_CObject = ObjectLifecycleHelpers::Copy<number_type_basic>::new_copy(cobj);
+            pyobj->make_reference(referencing);
+        }
         return pyobj;
     }
 
     template<typename number_type>
-    int PyFloatingPtCustomObject<number_type>::create(PyObject *self_, PyObject *args, PyObject *kw) {
-        auto *self = (PyFloatingPtCustomObject *) self_;
+    int PyFloatingPtCustomObject<number_type>::_init(PyFloatingPtCustomObject *self, PyObject *args, PyObject *kw) {
         PyTypeObject * const coreTypePtr = PythonClassWrapper<typename core_type<number_type>::type>::getPyType();
         self->template populate_type_info< number_type>(&checkType, coreTypePtr);
         if (self) {
             if (PyTuple_Size(args) == 0) {
                 if constexpr(std::is_reference<number_type>::value){
                     if (kw && PyODict_GetItemString(kw, "__internal_allow_null")){
-                        self->value = nullptr;
+                        self->_CObject = nullptr;
                     } else {
-                        PyErr_SetString(PyExc_TypeError, "Cannot initialize reference type without initial value");
+                        PyErr_SetString(PyExc_TypeError, "Cannot initialize reference type without initial _CObject");
                         return -1;
                     }
                 } else {
-                    self->value = new number_type_basic(0.0);
+                    self->_CObject = new number_type_basic(0.0);
                 }
             } else if (PyTuple_Size(args) == 1) {
                 PyObject *value = PyTuple_GetItem(args, 0);
@@ -645,23 +649,23 @@ namespace __pyllars_internal{
                 double fvalue = FloatingPointType<number_type>::toDouble(value);
                 if (fvalue < (double) std::numeric_limits<number_type_basic >::min() ||
                     fvalue > (double) std::numeric_limits<number_type_basic >::max()) {
-                    PyErr_SetString(PyExc_ValueError, "Argument value out of range");
+                    PyErr_SetString(PyExc_ValueError, "Argument _CObject out of range");
                     return -1;
                 }
                 if constexpr (std::is_reference<number_type>::value){
-                    if(!PyObject_TypeCheck(value, &PyFloatingPtCustomBase::Type)){
-                        PyErr_SetString(PyExc_TypeError, "Cannot initialize reference type value from non-ltype");
+                    if(!PyObject_TypeCheck(value, &PyFloatingPtCustomBase::_Type)){
+                        PyErr_SetString(PyExc_TypeError, "Cannot initialize reference type _CObject from non-ltype");
                         return -1;
                     }
-                    self->value = reinterpret_cast<PyFloatingPtCustomObject<number_type>*>(value)->get_CObject();
+                    self->_CObject = reinterpret_cast<PyFloatingPtCustomObject<number_type>*>(value)->get_CObject();
                 } else {
-                    self->value = new  number_type_basic(fvalue);
+                    self->_CObject = new  number_type_basic(fvalue);
                 }
             } else {
                 PyErr_SetString(PyExc_TypeError, "Should only call with at most one arument");
                 return -1;
             }
-            self->asDouble = [self]() -> double { return (double) *self->value; };
+            self->asDouble = [self]() -> double { return (double) *self->_CObject; };
             PythonClassWrapper<number_type>::initialize();
             return 0;
         }
@@ -681,13 +685,13 @@ namespace __pyllars_internal{
     template<typename number_type>
     status_t PyFloatingPtCustomObject<number_type>::Initializer::set_up() {
         static PyObject *module = PyImport_ImportModule("pyllars");
-        PyType_Ready(&PyFloatingPtCustomBase::Type);
-        const int rc = PyType_Ready(&PyFloatingPtCustomObject::Type);
-        Py_INCREF(&PyFloatingPtCustomBase::Type);
-        Py_INCREF(&PyFloatingPtCustomObject::Type);
+        PyType_Ready(&PyFloatingPtCustomBase::_Type);
+        const int rc = PyType_Ready(&PyFloatingPtCustomObject::_Type);
+        Py_INCREF(&PyFloatingPtCustomBase::_Type);
+        Py_INCREF(&PyFloatingPtCustomObject::_Type);
         if (module && rc == 0) {
             PyModule_AddObject(module, __pyllars_internal::type_name<number_type>(),
-                               (PyObject *) &PyFloatingPtCustomObject::Type);
+                               (PyObject *) &PyFloatingPtCustomObject::_Type);
         }
         return rc;
     }
@@ -698,22 +702,10 @@ namespace __pyllars_internal{
     template
     class PyFloatingPtCustomObject<double>;
 
-    template
-    class PyFloatingPtCustomObject<float&>;
-
-    template
-    class PyFloatingPtCustomObject<double&>;
-
 
     template
     class PyFloatingPtCustomObject<const float>;
 
     template
     class PyFloatingPtCustomObject<const double>;
-
-    template
-    class PyFloatingPtCustomObject<const float&>;
-
-    template
-    class PyFloatingPtCustomObject<const double&>;
 }

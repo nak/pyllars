@@ -1316,7 +1316,7 @@
   </Method>
   <Method id="_676" name="New" returns="_418" context="_374" access="public" location="f10:2046" file="f10" line="2046" static="1" inline="1" mangled="_ZN2v87Boolean3NewEPNS_7IsolateEb">
     <Argument name="isolate" type="_2036" location="f10:2046" file="f10" line="2046"/>
-    <Argument name="value" type="_2287" location="f10:2046" file="f10" line="2046"/>
+    <Argument name="_CObject" type="_2287" location="f10:2046" file="f10" line="2046"/>
   </Method>
   <Method id="_677" name="CheckCast" returns="_336" context="_374" access="private" location="f10:2048" file="f10" line="2048" static="1" mangled="_ZN2v87Boolean9CheckCastEPNS_5ValueE">
     <Argument name="obj" type="_2289" location="f10:2048" file="f10" line="2048"/>
@@ -1329,7 +1329,7 @@
   </OperatorMethod>
   <Destructor id="_680" name="Boolean" context="_374" access="public" location="f10:2042" file="f10" line="2042" inline="1" artificial="1"/>
   <Method id="_681" name="New" returns="_419" context="_375" access="public" location="f10:3889" file="f10" line="3889" static="1" mangled="_ZN2v813BooleanObject3NewEb">
-    <Argument name="value" type="_2287" location="f10:3889" file="f10" line="3889"/>
+    <Argument name="_CObject" type="_2287" location="f10:3889" file="f10" line="3889"/>
   </Method>
   <Method id="_682" name="ValueOf" returns="_2287" context="_375" access="public" location="f10:3891" file="f10" line="3891" const="1" mangled="_ZNK2v813BooleanObject7ValueOfEv"/>
   <Method id="_683" name="Cast" returns="_2292" context="_375" access="public" location="f10:3893" file="f10" line="3893" static="1" inline="1" mangled="_ZN2v813BooleanObject4CastEPNS_5ValueE">
@@ -1370,14 +1370,14 @@
   <Method id="_699" name="GetExtrasExportsObject" returns="_426" context="_376" access="public" location="f10:6643" file="f10" line="6643" mangled="_ZN2v87Context22GetExtrasExportsObjectEv"/>
   <Method id="_700" name="SetEmbedderData" returns="_336" context="_376" access="public" location="f10:6650" file="f10" line="6650" mangled="_ZN2v87Context15SetEmbedderDataEiNS_5LocalINS_5ValueEEE">
     <Argument name="index" type="_272" location="f10:6650" file="f10" line="6650"/>
-    <Argument name="value" type="_419" location="f10:6650" file="f10" line="6650"/>
+    <Argument name="_CObject" type="_419" location="f10:6650" file="f10" line="6650"/>
   </Method>
   <Method id="_701" name="GetAlignedPointerFromEmbedderData" returns="_281" context="_376" access="public" location="f10:6658" file="f10" line="6658" inline="1" mangled="_ZN2v87Context33GetAlignedPointerFromEmbedderDataEi">
     <Argument name="index" type="_272" location="f10:6658" file="f10" line="6658"/>
   </Method>
   <Method id="_702" name="SetAlignedPointerInEmbedderData" returns="_336" context="_376" access="public" location="f10:6665" file="f10" line="6665" mangled="_ZN2v87Context31SetAlignedPointerInEmbedderDataEiPv">
     <Argument name="index" type="_272" location="f10:6665" file="f10" line="6665"/>
-    <Argument name="value" type="_281" location="f10:6665" file="f10" line="6665"/>
+    <Argument name="_CObject" type="_281" location="f10:6665" file="f10" line="6665"/>
   </Method>
   <Method id="_703" name="AllowCodeGenerationFromStrings" returns="_336" context="_376" access="public" location="f10:6680" file="f10" line="6680" mangled="_ZN2v87Context30AllowCodeGenerationFromStringsEb">
     <Argument name="allow" type="_2287" location="f10:6680" file="f10" line="6680"/>
@@ -1436,7 +1436,7 @@
   <Destructor id="_725" name="Date" context="_379" access="public" location="f10:3834" file="f10" line="3834" inline="1" artificial="1"/>
   <Method id="_726" name="New" returns="_454" context="_380" access="public" location="f10:3991" file="f10" line="3991" static="1" mangled="_ZN2v88External3NewEPNS_7IsolateEPv">
     <Argument name="isolate" type="_2036" location="f10:3991" file="f10" line="3991"/>
-    <Argument name="value" type="_281" location="f10:3991" file="f10" line="3991"/>
+    <Argument name="_CObject" type="_281" location="f10:3991" file="f10" line="3991"/>
   </Method>
   <Method id="_727" name="Cast" returns="_2310" context="_380" access="public" location="f10:3992" file="f10" line="3992" static="1" inline="1" mangled="_ZN2v88External4CastEPNS_5ValueE">
     <Argument name="obj" type="_2284" location="f10:3992" file="f10" line="3992"/>
@@ -1542,10 +1542,10 @@
     <Argument name="name" type="_422" location="f10:4381" file="f10" line="4381"/>
   </Method>
   <Method id="_767" name="SetAcceptAnyReceiver" returns="_336" context="_382" access="public" location="f10:4388" file="f10" line="4388" mangled="_ZN2v816FunctionTemplate20SetAcceptAnyReceiverEb">
-    <Argument name="value" type="_2287" location="f10:4388" file="f10" line="4388"/>
+    <Argument name="_CObject" type="_2287" location="f10:4388" file="f10" line="4388"/>
   </Method>
   <Method id="_768" name="SetHiddenPrototype" returns="_336" context="_382" access="public" location="f10:4402" file="f10" line="4402" mangled="_ZN2v816FunctionTemplate18SetHiddenPrototypeEb">
-    <Argument name="value" type="_2287" location="f10:4402" file="f10" line="4402"/>
+    <Argument name="_CObject" type="_2287" location="f10:4402" file="f10" line="4402"/>
   </Method>
   <Method id="_769" name="ReadOnlyPrototype" returns="_336" context="_382" access="public" location="f10:4408" file="f10" line="4408" mangled="_ZN2v816FunctionTemplate17ReadOnlyPrototypeEv"/>
   <Method id="_770" name="RemovePrototype" returns="_336" context="_382" access="public" location="f10:4414" file="f10" line="4414" mangled="_ZN2v816FunctionTemplate15RemovePrototypeEv"/>
@@ -1577,11 +1577,11 @@
   <Destructor id="_782" name="Int32" context="_385" access="public" location="f10:2509" file="f10" line="2509" inline="1" artificial="1"/>
   <Method id="_783" name="New" returns="_420" context="_386" access="public" location="f10:2496" file="f10" line="2496" static="1" mangled="_ZN2v87Integer3NewEPNS_7IsolateEi">
     <Argument name="isolate" type="_2036" location="f10:2496" file="f10" line="2496"/>
-    <Argument name="value" type="_11" location="f10:2496" file="f10" line="2496"/>
+    <Argument name="_CObject" type="_11" location="f10:2496" file="f10" line="2496"/>
   </Method>
   <Method id="_784" name="NewFromUnsigned" returns="_420" context="_386" access="public" location="f10:2497" file="f10" line="2497" static="1" mangled="_ZN2v87Integer15NewFromUnsignedEPNS_7IsolateEj">
     <Argument name="isolate" type="_2036" location="f10:2497" file="f10" line="2497"/>
-    <Argument name="value" type="_15" location="f10:2497" file="f10" line="2497"/>
+    <Argument name="_CObject" type="_15" location="f10:2497" file="f10" line="2497"/>
   </Method>
   <Method id="_785" name="Value" returns="_12" context="_386" access="public" location="f10:2498" file="f10" line="2498" const="1" mangled="_ZNK2v87Integer5ValueEv"/>
   <Method id="_786" name="Cast" returns="_2325" context="_386" access="public" location="f10:2499" file="f10" line="2499" static="1" inline="1" mangled="_ZN2v87Integer4CastEPNS_5ValueE">
@@ -1835,7 +1835,7 @@
   <Method id="_882" name="Value" returns="_2306" context="_395" access="public" location="f10:2482" file="f10" line="2482" const="1" mangled="_ZNK2v86Number5ValueEv"/>
   <Method id="_883" name="New" returns="_431" context="_395" access="public" location="f10:2483" file="f10" line="2483" static="1" mangled="_ZN2v86Number3NewEPNS_7IsolateEd">
     <Argument name="isolate" type="_2036" location="f10:2483" file="f10" line="2483"/>
-    <Argument name="value" type="_2306" location="f10:2483" file="f10" line="2483"/>
+    <Argument name="_CObject" type="_2306" location="f10:2483" file="f10" line="2483"/>
   </Method>
   <Method id="_884" name="Cast" returns="_2382" context="_395" access="public" location="f10:2484" file="f10" line="2484" static="1" inline="1" mangled="_ZN2v86Number4CastEPNS_5ValueE">
     <Argument name="obj" type="_2289" location="f10:2484" file="f10" line="2484"/>
@@ -1853,7 +1853,7 @@
   <Destructor id="_889" name="Number" context="_395" access="public" location="f10:2480" file="f10" line="2480" inline="1" artificial="1"/>
   <Method id="_890" name="New" returns="_419" context="_396" access="public" location="f10:3873" file="f10" line="3873" static="1" mangled="_ZN2v812NumberObject3NewEPNS_7IsolateEd">
     <Argument name="isolate" type="_2036" location="f10:3873" file="f10" line="3873"/>
-    <Argument name="value" type="_2306" location="f10:3873" file="f10" line="3873"/>
+    <Argument name="_CObject" type="_2306" location="f10:3873" file="f10" line="3873"/>
   </Method>
   <Method id="_891" name="ValueOf" returns="_2306" context="_396" access="public" location="f10:3875" file="f10" line="3875" const="1" mangled="_ZNK2v812NumberObject7ValueOfEv"/>
   <Method id="_892" name="Cast" returns="_2385" context="_396" access="public" location="f10:3877" file="f10" line="3877" static="1" inline="1" mangled="_ZN2v812NumberObject4CastEPNS_5ValueE">
@@ -1871,47 +1871,47 @@
   <Destructor id="_896" name="NumberObject" context="_396" access="public" location="f10:3871" file="f10" line="3871" inline="1" artificial="1"/>
   <Method id="_897" name="Set" returns="_2287" context="_397" access="public" location="f10:2586" file="f10" line="2586" mangled="_ZN2v86Object3SetENS_5LocalINS_5ValueEEES3_">
     <Argument name="key" type="_419" location="f10:2586" file="f10" line="2586"/>
-    <Argument name="value" type="_419" location="f10:2586" file="f10" line="2586"/>
+    <Argument name="_CObject" type="_419" location="f10:2586" file="f10" line="2586"/>
   </Method>
   <Method id="_898" name="Set" returns="_389" context="_397" access="public" location="f10:2588" file="f10" line="2588" mangled="_ZN2v86Object3SetENS_5LocalINS_7ContextEEENS1_INS_5ValueEEES5_">
     <Argument name="context" type="_423" location="f10:2588" file="f10" line="2588"/>
     <Argument name="key" type="_419" location="f10:2589" file="f10" line="2589"/>
-    <Argument name="value" type="_419" location="f10:2589" file="f10" line="2589"/>
+    <Argument name="_CObject" type="_419" location="f10:2589" file="f10" line="2589"/>
   </Method>
   <Method id="_899" name="Set" returns="_2287" context="_397" access="public" location="f10:2591" file="f10" line="2591" mangled="_ZN2v86Object3SetEjNS_5LocalINS_5ValueEEE">
     <Argument name="index" type="_15" location="f10:2591" file="f10" line="2591"/>
-    <Argument name="value" type="_419" location="f10:2591" file="f10" line="2591"/>
+    <Argument name="_CObject" type="_419" location="f10:2591" file="f10" line="2591"/>
   </Method>
   <Method id="_900" name="Set" returns="_389" context="_397" access="public" location="f10:2593" file="f10" line="2593" mangled="_ZN2v86Object3SetENS_5LocalINS_7ContextEEEjNS1_INS_5ValueEEE">
     <Argument name="context" type="_423" location="f10:2593" file="f10" line="2593"/>
     <Argument name="index" type="_15" location="f10:2593" file="f10" line="2593"/>
-    <Argument name="value" type="_419" location="f10:2594" file="f10" line="2594"/>
+    <Argument name="_CObject" type="_419" location="f10:2594" file="f10" line="2594"/>
   </Method>
   <Method id="_901" name="CreateDataProperty" returns="_389" context="_397" access="public" location="f10:2603" file="f10" line="2603" mangled="_ZN2v86Object18CreateDataPropertyENS_5LocalINS_7ContextEEENS1_INS_4NameEEENS1_INS_5ValueEEE">
     <Argument name="context" type="_423" location="f10:2603" file="f10" line="2603"/>
     <Argument name="key" type="_435" location="f10:2604" file="f10" line="2604"/>
-    <Argument name="value" type="_419" location="f10:2605" file="f10" line="2605"/>
+    <Argument name="_CObject" type="_419" location="f10:2605" file="f10" line="2605"/>
   </Method>
   <Method id="_902" name="CreateDataProperty" returns="_389" context="_397" access="public" location="f10:2606" file="f10" line="2606" mangled="_ZN2v86Object18CreateDataPropertyENS_5LocalINS_7ContextEEEjNS1_INS_5ValueEEE">
     <Argument name="context" type="_423" location="f10:2606" file="f10" line="2606"/>
     <Argument name="index" type="_15" location="f10:2607" file="f10" line="2607"/>
-    <Argument name="value" type="_419" location="f10:2608" file="f10" line="2608"/>
+    <Argument name="_CObject" type="_419" location="f10:2608" file="f10" line="2608"/>
   </Method>
   <Method id="_903" name="DefineOwnProperty" returns="_389" context="_397" access="public" location="f10:2616" file="f10" line="2616" mangled="_ZN2v86Object17DefineOwnPropertyENS_5LocalINS_7ContextEEENS1_INS_4NameEEENS1_INS_5ValueEEENS_17PropertyAttributeE">
     <Argument name="context" type="_423" location="f10:2617" file="f10" line="2617"/>
     <Argument name="key" type="_435" location="f10:2617" file="f10" line="2617"/>
-    <Argument name="value" type="_419" location="f10:2617" file="f10" line="2617"/>
+    <Argument name="_CObject" type="_419" location="f10:2617" file="f10" line="2617"/>
     <Argument name="attributes" type="_530" location="f10:2618" file="f10" line="2618" default="None"/>
   </Method>
   <Method id="_904" name="ForceSet" returns="_2287" context="_397" access="public" location="f10:2628" file="f10" line="2628" mangled="_ZN2v86Object8ForceSetENS_5LocalINS_5ValueEEES3_NS_17PropertyAttributeE">
     <Argument name="key" type="_419" location="f10:2628" file="f10" line="2628"/>
-    <Argument name="value" type="_419" location="f10:2628" file="f10" line="2628"/>
+    <Argument name="_CObject" type="_419" location="f10:2628" file="f10" line="2628"/>
     <Argument name="attribs" type="_530" location="f10:2628" file="f10" line="2628" default="None"/>
   </Method>
   <Method id="_905" name="ForceSet" returns="_389" context="_397" access="public" location="f10:2631" file="f10" line="2631" mangled="_ZN2v86Object8ForceSetENS_5LocalINS_7ContextEEENS1_INS_5ValueEEES5_NS_17PropertyAttributeE">
     <Argument name="context" type="_423" location="f10:2631" file="f10" line="2631"/>
     <Argument name="key" type="_419" location="f10:2631" file="f10" line="2631"/>
-    <Argument name="value" type="_419" location="f10:2631" file="f10" line="2631"/>
+    <Argument name="_CObject" type="_419" location="f10:2631" file="f10" line="2631"/>
     <Argument name="attribs" type="_530" location="f10:2631" file="f10" line="2631" default="None"/>
   </Method>
   <Method id="_906" name="Get" returns="_419" context="_397" access="public" location="f10:2636" file="f10" line="2636" mangled="_ZN2v86Object3GetENS_5LocalINS_5ValueEEE">
@@ -2035,7 +2035,7 @@
   </Method>
   <Method id="_940" name="SetInternalField" returns="_336" context="_397" access="public" location="f10:2774" file="f10" line="2774" mangled="_ZN2v86Object16SetInternalFieldEiNS_5LocalINS_5ValueEEE">
     <Argument name="index" type="_272" location="f10:2774" file="f10" line="2774"/>
-    <Argument name="value" type="_419" location="f10:2774" file="f10" line="2774"/>
+    <Argument name="_CObject" type="_419" location="f10:2774" file="f10" line="2774"/>
   </Method>
   <Method id="_941" name="GetAlignedPointerFromInternalField" returns="_281" context="_397" access="public" location="f10:2781" file="f10" line="2781" inline="1" mangled="_ZN2v86Object34GetAlignedPointerFromInternalFieldEi">
     <Argument name="index" type="_272" location="f10:2781" file="f10" line="2781"/>
@@ -2046,7 +2046,7 @@
   </Method>
   <Method id="_943" name="SetAlignedPointerInInternalField" returns="_336" context="_397" access="public" location="f10:2794" file="f10" line="2794" mangled="_ZN2v86Object32SetAlignedPointerInInternalFieldEiPv">
     <Argument name="index" type="_272" location="f10:2794" file="f10" line="2794"/>
-    <Argument name="value" type="_281" location="f10:2794" file="f10" line="2794"/>
+    <Argument name="_CObject" type="_281" location="f10:2794" file="f10" line="2794"/>
   </Method>
   <Method id="_944" name="HasOwnProperty" returns="_2287" context="_397" access="public" location="f10:2797" file="f10" line="2797" mangled="_ZN2v86Object14HasOwnPropertyENS_5LocalINS_6StringEEE">
     <Argument name="key" type="_422" location="f10:2797" file="f10" line="2797"/>
@@ -2110,7 +2110,7 @@
   <Method id="_963" name="GetIdentityHash" returns="_272" context="_397" access="public" location="f10:2878" file="f10" line="2878" mangled="_ZN2v86Object15GetIdentityHashEv"/>
   <Method id="_964" name="SetHiddenValue" returns="_2287" context="_397" access="public" location="f10:2887" file="f10" line="2887" mangled="_ZN2v86Object14SetHiddenValueENS_5LocalINS_6StringEEENS1_INS_5ValueEEE">
     <Argument name="key" type="_422" location="f10:2887" file="f10" line="2887"/>
-    <Argument name="value" type="_419" location="f10:2887" file="f10" line="2887"/>
+    <Argument name="_CObject" type="_419" location="f10:2887" file="f10" line="2887"/>
   </Method>
   <Method id="_965" name="GetHiddenValue" returns="_419" context="_397" access="public" location="f10:2888" file="f10" line="2888" mangled="_ZN2v86Object14GetHiddenValueENS_5LocalINS_6StringEEE">
     <Argument name="key" type="_422" location="f10:2888" file="f10" line="2888"/>
@@ -2227,7 +2227,7 @@
   </Method>
   <Method id="_997" name="InternalFieldCount" returns="_272" context="_399" access="public" location="f10:4659" file="f10" line="4659" mangled="_ZN2v814ObjectTemplate18InternalFieldCountEv"/>
   <Method id="_998" name="SetInternalFieldCount" returns="_336" context="_399" access="public" location="f10:4665" file="f10" line="4665" mangled="_ZN2v814ObjectTemplate21SetInternalFieldCountEi">
-    <Argument name="value" type="_272" location="f10:4665" file="f10" line="4665"/>
+    <Argument name="_CObject" type="_272" location="f10:4665" file="f10" line="4665"/>
   </Method>
   <Constructor id="_999" name="ObjectTemplate" context="_399" access="private" location="f10:4668" file="f10" line="4668"/>
   <Method id="_1000" name="New" returns="_458" context="_399" access="private" location="f10:4669" file="f10" line="4669" static="1" mangled="_ZN2v814ObjectTemplate3NewEPNS_8internal7IsolateENS_5LocalINS_16FunctionTemplateEEE">
@@ -2555,7 +2555,7 @@
   </OperatorMethod>
   <Destructor id="_1120" name="String" context="_410" access="public" location="f10:2078" file="f10" line="2078" inline="1" artificial="1"/>
   <Method id="_1121" name="New" returns="_419" context="_411" access="public" location="f10:3905" file="f10" line="3905" static="1" mangled="_ZN2v812StringObject3NewENS_5LocalINS_6StringEEE">
-    <Argument name="value" type="_422" location="f10:3905" file="f10" line="3905"/>
+    <Argument name="_CObject" type="_422" location="f10:3905" file="f10" line="3905"/>
   </Method>
   <Method id="_1122" name="ValueOf" returns="_422" context="_411" access="public" location="f10:3907" file="f10" line="3907" const="1" mangled="_ZNK2v812StringObject7ValueOfEv"/>
   <Method id="_1123" name="Cast" returns="_2485" context="_411" access="public" location="f10:3909" file="f10" line="3909" static="1" inline="1" mangled="_ZN2v812StringObject4CastEPNS_5ValueE">
@@ -2609,7 +2609,7 @@
   <Destructor id="_1140" name="Symbol" context="_412" access="public" location="f10:2444" file="f10" line="2444" inline="1" artificial="1"/>
   <Method id="_1141" name="New" returns="_419" context="_413" access="public" location="f10:3923" file="f10" line="3923" static="1" mangled="_ZN2v812SymbolObject3NewEPNS_7IsolateENS_5LocalINS_6SymbolEEE">
     <Argument name="isolate" type="_2036" location="f10:3923" file="f10" line="3923"/>
-    <Argument name="value" type="_434" location="f10:3923" file="f10" line="3923"/>
+    <Argument name="_CObject" type="_434" location="f10:3923" file="f10" line="3923"/>
   </Method>
   <Method id="_1142" name="ValueOf" returns="_434" context="_413" access="public" location="f10:3925" file="f10" line="3925" const="1" mangled="_ZNK2v812SymbolObject7ValueOfEv"/>
   <Method id="_1143" name="Cast" returns="_2491" context="_413" access="public" location="f10:3927" file="f10" line="3927" static="1" inline="1" mangled="_ZN2v812SymbolObject4CastEPNS_5ValueE">
@@ -3557,7 +3557,7 @@
   <Struct id="_1625" name="SmiTagging&lt;4&gt;" context="_508" location="f10:6875" file="f10" line="6875" members="_2614 _2615 _2616 _2617 _2618 _2619 _2620 _2621 _2622 _2623" size="8" align="8"/>
   <Struct id="_1626" name="SmiTagging&lt;8&gt;" context="_508" location="f10:6904" file="f10" line="6904" members="_2624 _2625 _2626 _2627 _2628 _2629 _2630 _2631 _2632 _2633" size="8" align="8"/>
   <Function id="_1627" name="IntToSmi&lt;0&gt;" returns="_2634" context="_508" location="f10:6867" file="f10" line="6867" inline="1" mangled="_ZN2v88internal8IntToSmiILi0EEEPNS0_6ObjectEi">
-    <Argument name="value" type="_272" location="f10:6867" file="f10" line="6867"/>
+    <Argument name="_CObject" type="_272" location="f10:6867" file="f10" line="6867"/>
   </Function>
   <Typedef id="_1629" name="PlatformSmiTagging" type="_1626" context="_508" location="f10:6922" file="f10" line="6922"/>
   <Variable id="_1630" name="kSmiShiftSize" type="_272c" init="PlatformSmiTagging::kSmiShiftSize" context="_508" location="f10:6923" file="f10" line="6923" mangled="_ZN2v88internalL13kSmiShiftSizeE"/>
@@ -3647,11 +3647,11 @@
   </Method>
   <Method id="_1676" name="CreateHandle" returns="_2378" context="_517" access="protected" location="f10:884" file="f10" line="884" static="1" mangled="_ZN2v811HandleScope12CreateHandleEPNS_8internal7IsolateEPNS1_6ObjectE">
     <Argument name="isolate" type="_2399" location="f10:884" file="f10" line="884"/>
-    <Argument name="value" type="_2710" location="f10:885" file="f10" line="885"/>
+    <Argument name="_CObject" type="_2710" location="f10:885" file="f10" line="885"/>
   </Method>
   <Method id="_1677" name="CreateHandle" returns="_2378" context="_517" access="private" location="f10:889" file="f10" line="889" static="1" mangled="_ZN2v811HandleScope12CreateHandleEPNS_8internal10HeapObjectEPNS1_6ObjectE">
     <Argument name="heap_object" type="_2711" location="f10:889" file="f10" line="889"/>
-    <Argument name="value" type="_2710" location="f10:890" file="f10" line="890"/>
+    <Argument name="_CObject" type="_2710" location="f10:890" file="f10" line="890"/>
   </Method>
   <Constructor id="_1678" name="HandleScope" context="_517" access="private" location="f10:894" file="f10" line="894">
     <Argument type="_2712" location="f10:894" file="f10" line="894"/>
@@ -3926,7 +3926,7 @@
   </Method>
   <Method id="_1797" name="Set" returns="_336" context="_528" access="public" location="f10:1671" file="f10" line="1671" mangled="_ZN2v813NativeWeakMap3SetENS_5LocalINS_5ValueEEES3_">
     <Argument name="key" type="_419" location="f10:1671" file="f10" line="1671"/>
-    <Argument name="value" type="_419" location="f10:1671" file="f10" line="1671"/>
+    <Argument name="_CObject" type="_419" location="f10:1671" file="f10" line="1671"/>
   </Method>
   <Method id="_1798" name="Get" returns="_419" context="_528" access="public" location="f10:1672" file="f10" line="1672" mangled="_ZN2v813NativeWeakMap3GetENS_5LocalINS_5ValueEEE">
     <Argument name="key" type="_419" location="f10:1672" file="f10" line="1672"/>
@@ -4338,13 +4338,13 @@
   <Destructor id="_1954" name="RegExp" context="_553" access="public" location="f10:3937" file="f10" line="3937" inline="1" artificial="1"/>
   <Method id="_1955" name="Set" returns="_336" context="_554" access="public" location="f10:4008" file="f10" line="4008" mangled="_ZN2v88Template3SetENS_5LocalINS_4NameEEENS1_INS_4DataEEENS_17PropertyAttributeE">
     <Argument name="name" type="_435" location="f10:4008" file="f10" line="4008"/>
-    <Argument name="value" type="_455" location="f10:4008" file="f10" line="4008"/>
+    <Argument name="_CObject" type="_455" location="f10:4008" file="f10" line="4008"/>
     <Argument name="attributes" type="_530" location="f10:4009" file="f10" line="4009" default="None"/>
   </Method>
   <Method id="_1956" name="Set" returns="_336" context="_554" access="public" location="f10:4010" file="f10" line="4010" inline="1" mangled="_ZN2v88Template3SetEPNS_7IsolateEPKcNS_5LocalINS_4DataEEE">
     <Argument name="isolate" type="_2036" location="f10:4010" file="f10" line="4010"/>
     <Argument name="name" type="_358" location="f10:4010" file="f10" line="4010"/>
-    <Argument name="value" type="_455" location="f10:4010" file="f10" line="4010"/>
+    <Argument name="_CObject" type="_455" location="f10:4010" file="f10" line="4010"/>
   </Method>
   <Method id="_1957" name="SetAccessorProperty" returns="_336" context="_554" access="public" location="f10:4012" file="f10" line="4012" mangled="_ZN2v88Template19SetAccessorPropertyENS_5LocalINS_4NameEEENS1_INS_16FunctionTemplateEEES5_NS_17PropertyAttributeENS_13AccessControlE">
     <Argument name="name" type="_435" location="f10:4013" file="f10" line="4013"/>
@@ -4450,7 +4450,7 @@
     <Argument name="types" type="_2868" location="f10:4711" file="f10" line="4711"/>
   </Method>
   <Method id="_2005" name="match" returns="_272" context="_576" access="public" location="f10:4712" file="f10" line="4712" mangled="_ZN2v810TypeSwitch5matchENS_5LocalINS_5ValueEEE">
-    <Argument name="value" type="_419" location="f10:4712" file="f10" line="4712"/>
+    <Argument name="_CObject" type="_419" location="f10:4712" file="f10" line="4712"/>
   </Method>
   <Constructor id="_2006" name="TypeSwitch" context="_576" access="private" location="f10:4714" file="f10" line="4714"/>
   <Constructor id="_2007" name="TypeSwitch" context="_576" access="public" location="f10:4708" file="f10" line="4708" inline="1" artificial="1">
@@ -4488,7 +4488,7 @@
   <Method id="_2023" name="dependency_count" returns="_272" context="_578" access="public" location="f10:4756" file="f10" line="4756" inline="1" mangled="_ZN2v89Extension16dependency_countEv"/>
   <Method id="_2024" name="dependencies" returns="_2871" context="_578" access="public" location="f10:4757" file="f10" line="4757" inline="1" mangled="_ZN2v89Extension12dependenciesEv"/>
   <Method id="_2025" name="set_auto_enable" returns="_336" context="_578" access="public" location="f10:4758" file="f10" line="4758" inline="1" mangled="_ZN2v89Extension15set_auto_enableEb">
-    <Argument name="value" type="_2287" location="f10:4758" file="f10" line="4758"/>
+    <Argument name="_CObject" type="_2287" location="f10:4758" file="f10" line="4758"/>
   </Method>
   <Method id="_2026" name="auto_enable" returns="_2287" context="_578" access="public" location="f10:4759" file="f10" line="4759" inline="1" mangled="_ZN2v89Extension11auto_enableEv"/>
   <Field id="_2027" name="name_" type="_358" context="_578" access="private" location="f10:4762" file="f10" line="4762" offset="64"/>
@@ -4517,27 +4517,27 @@
   </Method>
   <Method id="_2040" name="max_semi_space_size" returns="_272" context="_584" access="public" location="f10:4817" file="f10" line="4817" const="1" inline="1" mangled="_ZNK2v819ResourceConstraints19max_semi_space_sizeEv"/>
   <Method id="_2041" name="set_max_semi_space_size" returns="_336" context="_584" access="public" location="f10:4818" file="f10" line="4818" inline="1" mangled="_ZN2v819ResourceConstraints23set_max_semi_space_sizeEi">
-    <Argument name="value" type="_272" location="f10:4818" file="f10" line="4818"/>
+    <Argument name="_CObject" type="_272" location="f10:4818" file="f10" line="4818"/>
   </Method>
   <Method id="_2042" name="max_old_space_size" returns="_272" context="_584" access="public" location="f10:4819" file="f10" line="4819" const="1" inline="1" mangled="_ZNK2v819ResourceConstraints18max_old_space_sizeEv"/>
   <Method id="_2043" name="set_max_old_space_size" returns="_336" context="_584" access="public" location="f10:4820" file="f10" line="4820" inline="1" mangled="_ZN2v819ResourceConstraints22set_max_old_space_sizeEi">
-    <Argument name="value" type="_272" location="f10:4820" file="f10" line="4820"/>
+    <Argument name="_CObject" type="_272" location="f10:4820" file="f10" line="4820"/>
   </Method>
   <Method id="_2044" name="max_executable_size" returns="_272" context="_584" access="public" location="f10:4821" file="f10" line="4821" const="1" inline="1" mangled="_ZNK2v819ResourceConstraints19max_executable_sizeEv"/>
   <Method id="_2045" name="set_max_executable_size" returns="_336" context="_584" access="public" location="f10:4822" file="f10" line="4822" inline="1" mangled="_ZN2v819ResourceConstraints23set_max_executable_sizeEi">
-    <Argument name="value" type="_272" location="f10:4822" file="f10" line="4822"/>
+    <Argument name="_CObject" type="_272" location="f10:4822" file="f10" line="4822"/>
   </Method>
   <Method id="_2046" name="stack_limit" returns="_2874" context="_584" access="public" location="f10:4823" file="f10" line="4823" const="1" inline="1" mangled="_ZNK2v819ResourceConstraints11stack_limitEv"/>
   <Method id="_2047" name="set_stack_limit" returns="_336" context="_584" access="public" location="f10:4825" file="f10" line="4825" inline="1" mangled="_ZN2v819ResourceConstraints15set_stack_limitEPj">
-    <Argument name="value" type="_2874" location="f10:4825" file="f10" line="4825"/>
+    <Argument name="_CObject" type="_2874" location="f10:4825" file="f10" line="4825"/>
   </Method>
   <Method id="_2048" name="max_available_threads" returns="_272" context="_584" access="public" location="f10:4826" file="f10" line="4826" const="1" inline="1" mangled="_ZNK2v819ResourceConstraints21max_available_threadsEv"/>
   <Method id="_2049" name="set_max_available_threads" returns="_336" context="_584" access="public" location="f10:4830" file="f10" line="4830" inline="1" mangled="_ZN2v819ResourceConstraints25set_max_available_threadsEi">
-    <Argument name="value" type="_272" location="f10:4830" file="f10" line="4830"/>
+    <Argument name="_CObject" type="_272" location="f10:4830" file="f10" line="4830"/>
   </Method>
   <Method id="_2050" name="code_range_size" returns="_8" context="_584" access="public" location="f10:4834" file="f10" line="4834" const="1" inline="1" mangled="_ZNK2v819ResourceConstraints15code_range_sizeEv"/>
   <Method id="_2051" name="set_code_range_size" returns="_336" context="_584" access="public" location="f10:4835" file="f10" line="4835" inline="1" mangled="_ZN2v819ResourceConstraints19set_code_range_sizeEm">
-    <Argument name="value" type="_8" location="f10:4835" file="f10" line="4835"/>
+    <Argument name="_CObject" type="_8" location="f10:4835" file="f10" line="4835"/>
   </Method>
   <Field id="_2052" name="max_semi_space_size_" type="_272" context="_584" access="private" location="f10:4840" file="f10" line="4840" offset="0"/>
   <Field id="_2053" name="max_old_space_size_" type="_272" context="_584" access="private" location="f10:4841" file="f10" line="4841" offset="32"/>
@@ -4592,7 +4592,7 @@
   <Constructor id="_2080" name="PromiseRejectMessage" context="_597" access="public" location="f10:4932" file="f10" line="4932" inline="1">
     <Argument name="promise" type="_440" location="f10:4932" file="f10" line="4932"/>
     <Argument name="event" type="_596" location="f10:4932" file="f10" line="4932"/>
-    <Argument name="value" type="_419" location="f10:4933" file="f10" line="4933"/>
+    <Argument name="_CObject" type="_419" location="f10:4933" file="f10" line="4933"/>
     <Argument name="stack_trace" type="_427" location="f10:4933" file="f10" line="4933"/>
   </Constructor>
   <Method id="_2081" name="GetPromise" returns="_440" context="_597" access="public" location="f10:4939" file="f10" line="4939" const="1" inline="1" mangled="_ZNK2v820PromiseRejectMessage10GetPromiseEv"/>
@@ -4717,7 +4717,7 @@
   </Constructor>
   <Destructor id="_2165" name="PersistentHandleVisitor" context="_616" access="public" location="f10:5180" file="f10" line="5180" virtual="1" inline="1"/>
   <Method id="_2166" name="VisitPersistentHandle" returns="_336" context="_616" access="public" location="f10:5181" file="f10" line="5181" virtual="1" inline="1" mangled="_ZN2v823PersistentHandleVisitor21VisitPersistentHandleEPNS_10PersistentINS_5ValueENS_27NonCopyablePersistentTraitsIS2_EEEEt">
-    <Argument name="value" type="_2927" location="f10:5181" file="f10" line="5181"/>
+    <Argument name="_CObject" type="_2927" location="f10:5181" file="f10" line="5181"/>
     <Argument name="class_id" type="_14" location="f10:5182" file="f10" line="5182"/>
   </Method>
   <OperatorMethod id="_2167" name="=" returns="_2928" context="_616" access="public" location="f10:5178" file="f10" line="5178" inline="1" artificial="1" mangled="_ZN2v823PersistentHandleVisitoraSERKS0_">
@@ -4904,10 +4904,10 @@
   <Method id="_2233" name="Message" returns="_460" context="_620" access="public" location="f10:6454" file="f10" line="6454" const="1" mangled="_ZNK2v88TryCatch7MessageEv"/>
   <Method id="_2234" name="Reset" returns="_336" context="_620" access="public" location="f10:6466" file="f10" line="6466" mangled="_ZN2v88TryCatch5ResetEv"/>
   <Method id="_2235" name="SetVerbose" returns="_336" context="_620" access="public" location="f10:6476" file="f10" line="6476" mangled="_ZN2v88TryCatch10SetVerboseEb">
-    <Argument name="value" type="_2287" location="f10:6476" file="f10" line="6476"/>
+    <Argument name="_CObject" type="_2287" location="f10:6476" file="f10" line="6476"/>
   </Method>
   <Method id="_2236" name="SetCaptureMessage" returns="_336" context="_620" access="public" location="f10:6483" file="f10" line="6483" mangled="_ZN2v88TryCatch17SetCaptureMessageEb">
-    <Argument name="value" type="_2287" location="f10:6483" file="f10" line="6483"/>
+    <Argument name="_CObject" type="_2287" location="f10:6483" file="f10" line="6483"/>
   </Method>
   <Method id="_2237" name="JSStackComparableAddress" returns="_281" context="_620" access="public" location="f10:6496" file="f10" line="6496" static="1" inline="1" mangled="_ZN2v88TryCatch24JSStackComparableAddressEPS0_">
     <Argument name="handler" type="_2937" location="f10:6496" file="f10" line="6496"/>
@@ -5182,18 +5182,18 @@
   </Method>
   <Method id="_2406" name="GetPromise" returns="_440" context="_1007" access="public" location="f10:3276" file="f10" line="3276" mangled="_ZN2v87Promise8Resolver10GetPromiseEv"/>
   <Method id="_2407" name="Resolve" returns="_336" context="_1007" access="public" location="f10:3282" file="f10" line="3282" mangled="_ZN2v87Promise8Resolver7ResolveENS_5LocalINS_5ValueEEE">
-    <Argument name="value" type="_419" location="f10:3282" file="f10" line="3282"/>
+    <Argument name="_CObject" type="_419" location="f10:3282" file="f10" line="3282"/>
   </Method>
   <Method id="_2408" name="Resolve" returns="_389" context="_1007" access="public" location="f10:3284" file="f10" line="3284" mangled="_ZN2v87Promise8Resolver7ResolveENS_5LocalINS_7ContextEEENS2_INS_5ValueEEE">
     <Argument name="context" type="_423" location="f10:3284" file="f10" line="3284"/>
-    <Argument name="value" type="_419" location="f10:3284" file="f10" line="3284"/>
+    <Argument name="_CObject" type="_419" location="f10:3284" file="f10" line="3284"/>
   </Method>
   <Method id="_2409" name="Reject" returns="_336" context="_1007" access="public" location="f10:3286" file="f10" line="3286" mangled="_ZN2v87Promise8Resolver6RejectENS_5LocalINS_5ValueEEE">
-    <Argument name="value" type="_419" location="f10:3286" file="f10" line="3286"/>
+    <Argument name="_CObject" type="_419" location="f10:3286" file="f10" line="3286"/>
   </Method>
   <Method id="_2410" name="Reject" returns="_389" context="_1007" access="public" location="f10:3288" file="f10" line="3288" mangled="_ZN2v87Promise8Resolver6RejectENS_5LocalINS_7ContextEEENS2_INS_5ValueEEE">
     <Argument name="context" type="_423" location="f10:3288" file="f10" line="3288"/>
-    <Argument name="value" type="_419" location="f10:3288" file="f10" line="3288"/>
+    <Argument name="_CObject" type="_419" location="f10:3288" file="f10" line="3288"/>
   </Method>
   <Method id="_2411" name="Cast" returns="_2961" context="_1007" access="public" location="f10:3290" file="f10" line="3290" static="1" inline="1" mangled="_ZN2v87Promise8Resolver4CastEPNS_5ValueE">
     <Argument name="obj" type="_2284" location="f10:3290" file="f10" line="3290"/>
@@ -5497,13 +5497,13 @@
   <Method id="_2615" name="SmiShiftSize" returns="_272" context="_1625" access="public" location="f10:6877" file="f10" line="6877" static="1" inline="1" mangled="_ZN2v88internal10SmiTaggingILm4EE12SmiShiftSizeEv"/>
   <Method id="_2616" name="SmiValueSize" returns="_272" context="_1625" access="public" location="f10:6878" file="f10" line="6878" static="1" inline="1" mangled="_ZN2v88internal10SmiTaggingILm4EE12SmiValueSizeEv"/>
   <Method id="_2617" name="SmiToInt" returns="_272" context="_1625" access="public" location="f10:6879" file="f10" line="6879" static="1" inline="1" mangled="_ZN2v88internal10SmiTaggingILm4EE8SmiToIntEPKNS0_6ObjectE">
-    <Argument name="value" type="_2969" location="f10:6879" file="f10" line="6879"/>
+    <Argument name="_CObject" type="_2969" location="f10:6879" file="f10" line="6879"/>
   </Method>
   <Method id="_2618" name="IntToSmi" returns="_2634" context="_1625" access="public" location="f10:6884" file="f10" line="6884" static="1" inline="1" mangled="_ZN2v88internal10SmiTaggingILm4EE8IntToSmiEi">
-    <Argument name="value" type="_272" location="f10:6884" file="f10" line="6884"/>
+    <Argument name="_CObject" type="_272" location="f10:6884" file="f10" line="6884"/>
   </Method>
   <Method id="_2619" name="IsValidSmi" returns="_2287" context="_1625" access="public" location="f10:6887" file="f10" line="6887" static="1" inline="1" mangled="_ZN2v88internal10SmiTaggingILm4EE10IsValidSmiEl">
-    <Argument name="value" type="_33" location="f10:6887" file="f10" line="6887"/>
+    <Argument name="_CObject" type="_33" location="f10:6887" file="f10" line="6887"/>
   </Method>
   <Constructor id="_2620" name="SmiTagging" context="_1625" access="public" location="f10:6875" file="f10" line="6875" inline="1" artificial="1"/>
   <Constructor id="_2621" name="SmiTagging" context="_1625" access="public" location="f10:6875" file="f10" line="6875" inline="1" artificial="1">
@@ -5520,13 +5520,13 @@
   <Method id="_2625" name="SmiShiftSize" returns="_272" context="_1626" access="public" location="f10:6906" file="f10" line="6906" static="1" inline="1" mangled="_ZN2v88internal10SmiTaggingILm8EE12SmiShiftSizeEv"/>
   <Method id="_2626" name="SmiValueSize" returns="_272" context="_1626" access="public" location="f10:6907" file="f10" line="6907" static="1" inline="1" mangled="_ZN2v88internal10SmiTaggingILm8EE12SmiValueSizeEv"/>
   <Method id="_2627" name="SmiToInt" returns="_272" context="_1626" access="public" location="f10:6908" file="f10" line="6908" static="1" inline="1" mangled="_ZN2v88internal10SmiTaggingILm8EE8SmiToIntEPKNS0_6ObjectE">
-    <Argument name="value" type="_2969" location="f10:6908" file="f10" line="6908"/>
+    <Argument name="_CObject" type="_2969" location="f10:6908" file="f10" line="6908"/>
   </Method>
   <Method id="_2628" name="IntToSmi" returns="_2634" context="_1626" access="public" location="f10:6913" file="f10" line="6913" static="1" inline="1" mangled="_ZN2v88internal10SmiTaggingILm8EE8IntToSmiEi">
-    <Argument name="value" type="_272" location="f10:6913" file="f10" line="6913"/>
+    <Argument name="_CObject" type="_272" location="f10:6913" file="f10" line="6913"/>
   </Method>
   <Method id="_2629" name="IsValidSmi" returns="_2287" context="_1626" access="public" location="f10:6916" file="f10" line="6916" static="1" inline="1" mangled="_ZN2v88internal10SmiTaggingILm8EE10IsValidSmiEl">
-    <Argument name="value" type="_33" location="f10:6916" file="f10" line="6916"/>
+    <Argument name="_CObject" type="_33" location="f10:6916" file="f10" line="6916"/>
   </Method>
   <Constructor id="_2630" name="SmiTagging" context="_1626" access="public" location="f10:6904" file="f10" line="6904" inline="1" artificial="1"/>
   <Constructor id="_2631" name="SmiTagging" context="_1626" access="public" location="f10:6904" file="f10" line="6904" inline="1" artificial="1">
@@ -5583,16 +5583,16 @@
     <Argument name="isolate" type="_2296" location="f10:6991" file="f10" line="6991"/>
   </Method>
   <Method id="_2675" name="HasHeapObjectTag" returns="_2287" context="_1634" access="public" location="f10:6997" file="f10" line="6997" static="1" inline="1" mangled="_ZN2v88internal9Internals16HasHeapObjectTagEPKNS0_6ObjectE">
-    <Argument name="value" type="_2969" location="f10:6997" file="f10" line="6997"/>
+    <Argument name="_CObject" type="_2969" location="f10:6997" file="f10" line="6997"/>
   </Method>
   <Method id="_2676" name="SmiValue" returns="_272" context="_1634" access="public" location="f10:7002" file="f10" line="7002" static="1" inline="1" mangled="_ZN2v88internal9Internals8SmiValueEPKNS0_6ObjectE">
-    <Argument name="value" type="_2969" location="f10:7002" file="f10" line="7002"/>
+    <Argument name="_CObject" type="_2969" location="f10:7002" file="f10" line="7002"/>
   </Method>
   <Method id="_2677" name="IntToSmi" returns="_2634" context="_1634" access="public" location="f10:7006" file="f10" line="7006" static="1" inline="1" mangled="_ZN2v88internal9Internals8IntToSmiEi">
-    <Argument name="value" type="_272" location="f10:7006" file="f10" line="7006"/>
+    <Argument name="_CObject" type="_272" location="f10:7006" file="f10" line="7006"/>
   </Method>
   <Method id="_2678" name="IsValidSmi" returns="_2287" context="_1634" access="public" location="f10:7010" file="f10" line="7010" static="1" inline="1" mangled="_ZN2v88internal9Internals10IsValidSmiEl">
-    <Argument name="value" type="_33" location="f10:7010" file="f10" line="7010"/>
+    <Argument name="_CObject" type="_33" location="f10:7010" file="f10" line="7010"/>
   </Method>
   <Method id="_2679" name="GetInstanceType" returns="_272" context="_1634" access="public" location="f10:7014" file="f10" line="7014" static="1" inline="1" mangled="_ZN2v88internal9Internals15GetInstanceTypeEPKNS0_6ObjectE">
     <Argument name="obj" type="_2969" location="f10:7014" file="f10" line="7014"/>
@@ -5609,7 +5609,7 @@
   </Method>
   <Method id="_2683" name="UpdateNodeFlag" returns="_336" context="_1634" access="public" location="f10:7037" file="f10" line="7037" static="1" inline="1" mangled="_ZN2v88internal9Internals14UpdateNodeFlagEPPNS0_6ObjectEbi">
     <Argument name="obj" type="_2974" location="f10:7037" file="f10" line="7037"/>
-    <Argument name="value" type="_2287" location="f10:7038" file="f10" line="7038"/>
+    <Argument name="_CObject" type="_2287" location="f10:7038" file="f10" line="7038"/>
     <Argument name="shift" type="_272" location="f10:7038" file="f10" line="7038"/>
   </Method>
   <Method id="_2684" name="GetNodeState" returns="_13" context="_1634" access="public" location="f10:7044" file="f10" line="7044" static="1" inline="1" mangled="_ZN2v88internal9Internals12GetNodeStateEPPNS0_6ObjectE">
@@ -5617,7 +5617,7 @@
   </Method>
   <Method id="_2685" name="UpdateNodeState" returns="_336" context="_1634" access="public" location="f10:7049" file="f10" line="7049" static="1" inline="1" mangled="_ZN2v88internal9Internals15UpdateNodeStateEPPNS0_6ObjectEh">
     <Argument name="obj" type="_2974" location="f10:7049" file="f10" line="7049"/>
-    <Argument name="value" type="_13" location="f10:7050" file="f10" line="7050"/>
+    <Argument name="_CObject" type="_13" location="f10:7050" file="f10" line="7050"/>
   </Method>
   <Method id="_2686" name="SetEmbedderData" returns="_336" context="_1634" access="public" location="f10:7055" file="f10" line="7055" static="1" inline="1" mangled="_ZN2v88internal9Internals15SetEmbedderDataEPNS_7IsolateEjPv">
     <Argument name="isolate" type="_2296" location="f10:7055" file="f10" line="7055"/>

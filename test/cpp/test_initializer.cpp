@@ -4,6 +4,7 @@
 
 #include "pyllars/pyllars.hpp"
 #include "gtest/gtest.h"
+#include "pyllars/pyllars_reference.impl.hpp"
 
 class InitailizerTest: public ::testing::Test{
 protected:
