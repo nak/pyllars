@@ -194,6 +194,26 @@ namespace __pyllars_internal {
         typedef const T& type;
     };
 
+
+    template<class X, class Y, class Op>
+    struct op_valid_impl
+    {
+        template<class U, class L, class R>
+        static auto test(int) -> decltype(std::declval<U>()(std::declval<L>(), std::declval<R>()),
+                void(), std::true_type());
+
+        template<class U, class L, class R>
+        static auto test(...) -> std::false_type;
+
+        using type = decltype(test<Op, X, Y>(0));
+
+    };
+
+    template<class X, class Y, class Op> using op_valid = typename op_valid_impl<X, Y, Op>::type;
+
+    template<class X, class Y> using has_operator_equal = typename op_valid_impl<X, Y, std::equal_to<> >::type;
+
+
 }
 
 #endif

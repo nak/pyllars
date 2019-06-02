@@ -76,7 +76,7 @@ namespace __pyllars_internal {
      * Class to define Python wrapper to C class/type
      **/
     template<typename T>
-    struct PythonClassWrapper<T, typename std::enable_if< is_rich_class<T>::value>::type>: public TypedCommonBaseWrapper<T> {
+    struct PythonClassWrapper<T, typename std::enable_if< is_rich_class<T>::value>::type>: public CommonBaseWrapper {
         // Convenience typedefs
         typedef CommonBaseWrapper::Base Base;
 
