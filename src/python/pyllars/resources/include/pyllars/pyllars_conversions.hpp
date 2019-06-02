@@ -41,7 +41,7 @@ namespace __pyllars_internal {
          *    capture of data from a call to a c function back into a Python (list) object,
          *    as C allows modification of its non-const-by-reference inputs to functions
          */
-        argument_capture(T_bare& value,  std::function<void()> reverse_capture=empty_func):
+        argument_capture(T& value,  std::function<void()> reverse_capture=empty_func):
                 _reverse_capture(reverse_capture), _valueP(nullptr), _value(value), _array_allocated(false){}
 
         /**

@@ -97,7 +97,7 @@ namespace __pyllars_internal {
 
     template<typename T>
     struct is_pointer_like{
-        typedef typename std::remove_const<typename std::remove_reference<T>::type>::type T_base;
+        typedef typename std::remove_cv<typename std::remove_reference<T>::type>::type T_base;
         static constexpr bool value = !std::is_reference<T>::value &&
                 !std::is_function<typename std::remove_pointer<T>::type>::value &&
                 (std::is_pointer<T_base>::value || std::is_array<T_base>::value) ;
@@ -124,6 +124,12 @@ namespace __pyllars_internal {
     };
 
     template<typename T>
+    struct extent_as_pointer<T * const volatile> {
+        //typedef typename extent_as_pointer<T>::type *type;
+        typedef T * const volatile type;
+    };
+
+    template<typename T>
     struct extent_as_pointer<T[]> {
         // typedef typename extent_as_pointer<T>::type *type;
         typedef T *type;
@@ -133,6 +139,12 @@ namespace __pyllars_internal {
     struct extent_as_pointer<const T[]> {
         // typedef const typename extent_as_pointer<T>::type *type;
         typedef const T *type;
+    };
+
+    template<typename T>
+    struct extent_as_pointer<const volatile T[]> {
+        // typedef const typename extent_as_pointer<T>::type *type;
+        typedef const volatile T *type;
     };
 
     template<typename T, const size_t max>
@@ -146,6 +158,13 @@ namespace __pyllars_internal {
         //  typedef const typename extent_as_pointer<T>::type *type;
         typedef const T *type;
     };
+
+    template<typename T, const size_t max>
+    struct extent_as_pointer<const volatile T[max]> {
+        //  typedef const typename extent_as_pointer<T>::type *type;
+        typedef const volatile T *type;
+    };
+
     template <bool asReference, typename T>
     struct apply_const;
 
@@ -163,6 +182,16 @@ namespace __pyllars_internal {
     struct as_argument{
         static constexpr bool asArgument = std::is_reference<T>::value|| std::is_array<typename std::remove_reference<T>::type>::value;
         typedef typename apply_const<!asArgument, T>::type type;
+    };
+
+    template <typename T>
+    struct to_const{
+        typedef const T type;
+    };
+
+    template <typename T>
+    struct to_const<T&>{
+        typedef const T& type;
     };
 
 }

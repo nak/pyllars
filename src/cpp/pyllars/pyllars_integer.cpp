@@ -11,60 +11,60 @@
 namespace __pyllars_internal{
 
     PyTypeObject PyNumberCustomBase::_Type = {
-#if PY_MAJOR_VERSION == 3
-            PyVarObject_HEAD_INIT(NULL, 0)
-#else
-    PyObject_HEAD_INIT(nullptr)
-    0,                         /*ob_size*/
-#endif
-            "PyllarsNumberBase", /*tp_name*/
-            sizeof(PyNumberCustomBase), /*tp_basicsize*/
-            0, /*tp_itemsize*/
-            nullptr, /*tp_dealloc*/
-            nullptr, /*tp_print*/
-            nullptr, /*tp_getattr*/
-            nullptr, /*tp_setattr*/
-            nullptr, /*tp_as_sync*/
-            nullptr, /*tp_repr*/
+        #if PY_MAJOR_VERSION == 3
+                   PyVarObject_HEAD_INIT(NULL, 0)
+        #else
+           PyObject_HEAD_INIT(nullptr)
+           0,                         /*ob_size*/
+        #endif
+                   "PyllarsNumberBase", /*tp_name*/
+                   sizeof(PyNumberCustomBase), /*tp_basicsize*/
+                   0, /*tp_itemsize*/
+                   nullptr, /*tp_dealloc*/
+                   nullptr, /*tp_print*/
+                   nullptr, /*tp_getattr*/
+                   nullptr, /*tp_setattr*/
+                   nullptr, /*tp_as_sync*/
+                   nullptr, /*tp_repr*/
 
-            nullptr, /*tp_as_number*/
-            nullptr,                         /*tp_as_sequence*/
-            nullptr,                         /*tp_as_mapping*/
-            nullptr,                         /*tp_hash */
-            nullptr,                         /*tp_call*/
-            nullptr,                         /*tp_str*/
-            nullptr,                         /*tp_getattro*/
-            nullptr,                         /*tp_setattro*/
-            nullptr,                         /*tp_as_buffer*/
-            Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_CHECKTYPES, /*tp_flags*/
-            "Base umber type in pyllars",           /* tp_doc */
-            nullptr,                       /* tp_traverse */
-            nullptr,                       /* tp_clear */
-            nullptr,                       /* tp_richcompare */
-            0,                               /* tp_weaklistoffset */
-            nullptr,                       /* tp_iter */
-            nullptr,                       /* tp_iternext */
-            nullptr,             /* tp_methods */
-            nullptr,             /* tp_members */
-            nullptr,                         /* tp_getset */
-            &CommonBaseWrapper::_BaseType,                         /* tp_base */
-            nullptr,                         /* tp_dict */
-            nullptr,                         /* tp_descr_get */
-            nullptr,                         /* tp_descr_set */
-            0,                         /* tp_dictoffset */
-            nullptr,  /* tp_init */
-            nullptr,                         /* tp_alloc */
-            PyType_GenericNew,             /* tp_new */
-            nullptr,                         /*tp_free*/
-            nullptr,                         /*tp_is_gc*/
-            nullptr,                         /*tp_bases*/
-            nullptr,                         /*tp_mro*/
-            nullptr,                         /*tp_cache*/
-            nullptr,                         /*tp_subclasses*/
-            nullptr,                          /*tp_weaklist*/
-            nullptr,                          /*tp_del*/
-            0,                          /*tp_version_tag*/
-    };
+                   nullptr, /*tp_as_number*/
+                   nullptr,                         /*tp_as_sequence*/
+                   nullptr,                         /*tp_as_mapping*/
+                   nullptr,                         /*tp_hash */
+                   nullptr,                         /*tp_call*/
+                   nullptr,                         /*tp_str*/
+                   nullptr,                         /*tp_getattro*/
+                   nullptr,                         /*tp_setattro*/
+                   nullptr,                         /*tp_as_buffer*/
+                   Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_CHECKTYPES, /*tp_flags*/
+                   "Base umber type in pyllars",           /* tp_doc */
+                   nullptr,                       /* tp_traverse */
+                   nullptr,                       /* tp_clear */
+                   nullptr,                       /* tp_richcompare */
+                   0,                               /* tp_weaklistoffset */
+                   nullptr,                       /* tp_iter */
+                   nullptr,                       /* tp_iternext */
+                   nullptr,             /* tp_methods */
+                   nullptr,             /* tp_members */
+                   nullptr,                         /* tp_getset */
+                   nullptr,                         /* tp_base */
+                   nullptr,                         /* tp_dict */
+                   nullptr,                         /* tp_descr_get */
+                   nullptr,                         /* tp_descr_set */
+                   0,                         /* tp_dictoffset */
+                   nullptr,  /* tp_init */
+                   nullptr,                         /* tp_alloc */
+                   PyType_GenericNew,             /* tp_new */
+                   nullptr,                         /*tp_free*/
+                   nullptr,                         /*tp_is_gc*/
+                   nullptr,                         /*tp_bases*/
+                   nullptr,                         /*tp_mro*/
+                   nullptr,                         /*tp_cache*/
+                   nullptr,                         /*tp_subclasses*/
+                   nullptr,                          /*tp_weaklist*/
+                   nullptr,                          /*tp_del*/
+                   0,                          /*tp_version_tag*/
+           };
 
     template<typename number_type>
     typename PyNumberCustomObject<number_type>::Initializer *PyNumberCustomObject<number_type>::Initializer::initializer =
@@ -133,8 +133,8 @@ namespace __pyllars_internal{
                     PyErr_SetString(PyExc_TypeError, msg);
                     return nullptr;
                 }
-                const __int128_t value1 = toLongLong<number_type>(v1);
-                const __int128_t value2 = toLongLong<number_type>(v2);
+                const __int128_t value1 = toLongLong(v1);
+                const __int128_t value2 = toLongLong(v2);
                 __int128_t ret_value;
                 ret_value = func(value1, value2, !return_py);
                 if (PyErr_Occurred()) {
@@ -173,7 +173,7 @@ namespace __pyllars_internal{
             }
             __int128_t ret_value = *((PyNumberCustomObject<number_type> *) v1)->_CObject;
 
-            func(ret_value, toLongLong<number_type >(v2));
+            func(ret_value, toLongLong(v2));
             if (PyErr_Occurred()) {
                 return nullptr;
             }
@@ -200,7 +200,7 @@ namespace __pyllars_internal{
                 PyErr_SetString(PyExc_TypeError, "Invalid types for arguments");
                 Py_RETURN_NOTIMPLEMENTED;
             }
-            __int128_t ret_value = func(toLongLong<number_type>(obj));
+            __int128_t ret_value = func(toLongLong(obj));
             if (PyErr_Occurred()) {
                 return nullptr;
             }
@@ -240,9 +240,9 @@ namespace __pyllars_internal{
                     PyErr_SetString(PyExc_TypeError, msg);
                     return nullptr;
                 }
-                const __int128_t value1 = toLongLong<number_type>(v1);
-                const __int128_t value2 = toLongLong<number_type>(v2);
-                const __int128_t value3 = v3 ? toLongLong<number_type>(v3) : 0;
+                const __int128_t value1 = toLongLong(v1);
+                const __int128_t value2 = toLongLong(v2);
+                const __int128_t value3 = v3 ? toLongLong(v3) : 0;
                 const __int128_t result = v3 ?
                                           pow(value1, value2) % value3 :
                                           pow(value1, value2);
@@ -277,8 +277,8 @@ namespace __pyllars_internal{
                     PyErr_SetString(PyExc_TypeError, "Invalid types for arguments");
                     return nullptr;
                 }
-                const __int128_t value1 = toLongLong<number_type>(v1);
-                const __int128_t value2 = toLongLong<number_type>(v2);
+                const __int128_t value1 = toLongLong(v1);
+                const __int128_t value2 = toLongLong(v2);
                 const __int128_t quotient = value1 / value2;
                 const __int128_t remainder = value1 % value2;
                 if (quotient < min() || quotient > max || remainder < min() || remainder > max) {
@@ -313,8 +313,8 @@ namespace __pyllars_internal{
             PyErr_SetString(PyExc_TypeError, msg);
             return nullptr;
         }
-        const __int128_t value1 = toLongLong<number_type>(v1);
-        const __int128_t value2 = toLongLong<number_type>(v2);
+        const __int128_t value1 = toLongLong(v1);
+        const __int128_t value2 = toLongLong(v2);
         double result = (double) value1 / (double) value2;
         return (PyObject*)PythonClassWrapper<double>::fromCObject(result);
     }
@@ -327,8 +327,8 @@ namespace __pyllars_internal{
             PyErr_SetString(PyExc_TypeError, msg);
             return nullptr;
         }
-        const __int128_t value1 = toLongLong<number_type>(v1);
-        const __int128_t value2 = toLongLong<number_type>(v2);
+        const __int128_t value1 = toLongLong(v1);
+        const __int128_t value2 = toLongLong(v2);
         double result = (double) value1 / (double) value2;
         return (PyObject*)PythonClassWrapper<double>::fromCObject(result);
     }
@@ -446,11 +446,11 @@ namespace __pyllars_internal{
                     PyErr_SetString(PyExc_SystemError, msg);
                     return nullptr;
                 }
-                if (!isIntegerObject(item)) {
+                if (!NumberType<number_type>::isIntegerObject(item)) {
                     PyErr_SetString(PyExc_ValueError, "Argument must be of integral type");
                     return nullptr;
                 }
-                const __int128_t long_value = toLongLong<number_type>(item);
+                const __int128_t long_value = NumberType<number_type>::toLongLong(item);
                 if (long_value < NumberType<number_type>::min() || long_value > NumberType<number_type>::max) {
                     PyErr_SetString(PyExc_ValueError, "Argument out of range");
                     return nullptr;
@@ -464,11 +464,11 @@ namespace __pyllars_internal{
                     PyErr_SetString(PyExc_SystemError, "Internal error getting tuple _CObject");
                     return nullptr;
                 }
-                if (!isIntegerObject(item)) {
+                if (!NumberType<number_type>::isIntegerObject(item)) {
                     PyErr_SetString(PyExc_ValueError, "Argument must be of integral type");
                     return nullptr;
                 }
-                const __int128_t long_value = toLongLong<number_type>(item);
+                const __int128_t long_value = NumberType<number_type>::toLongLong(item);
                 if (long_value < NumberType<number_type>::min() || long_value > NumberType<number_type>::max) {
                     PyErr_SetString(PyExc_ValueError, "Argument out of range");
                     return nullptr;
@@ -493,9 +493,9 @@ namespace __pyllars_internal{
         static int rc = -1;
         if(inited) return rc;
         inited = true;
-        rc = PyType_Ready(&CommonBaseWrapper::_BaseType);
-        rc |= PyType_Ready(&PyNumberCustomBase::_Type);
+        rc = PyType_Ready(&PyNumberCustomBase::_Type);
         rc |= PyType_Ready(&type);
+        Py_INCREF(&type);
         return rc;
     }
 
@@ -517,12 +517,12 @@ namespace __pyllars_internal{
 
     template<typename number_type>
     PyObject *PyNumberCustomObject<number_type>::richcompare(PyObject *a, PyObject *b, int op) {
-        if (!isIntegerObject(a) || !isIntegerObject(b)) {
+        if (!NumberType<number_type>::isIntegerObject(a) || !NumberType<number_type>::isIntegerObject(b)) {
             PyErr_SetString(PyExc_TypeError, "Invalid operands for comparison");
             return NULL;
         }
-        __int128_t value1 = toLongLong<number_type>(a);
-        __int128_t value2 = toLongLong<number_type>(b);
+        __int128_t value1 = NumberType<number_type>::toLongLong(a);
+        __int128_t value2 = NumberType<number_type>::toLongLong(b);
         switch (op) {
             case Py_LT:
                 if (value1 < value2) {
@@ -583,6 +583,22 @@ namespace __pyllars_internal{
     }
 
 
+    template <typename number_type>
+    typename std::remove_const<number_type>::type &
+    __pyllars_internal::PyNumberCustomObject<number_type>::toCArgument(){
+        if constexpr (std::is_const<number_type>::value){
+            throw "Cannot pass const value as non-const reference argument";
+        } else {
+            return *get_CObject();
+        }
+    }
+
+    template <typename number_type>
+    const number_type &
+    __pyllars_internal::PyNumberCustomObject<number_type>::toCArgument() const{
+        return *const_cast<const number_type*>(get_CObject());
+    }
+
 
     template<typename number_type>
     int PyNumberCustomObject<number_type>::_init(PyNumberCustomObject *self, PyObject *args, PyObject *) {
@@ -592,8 +608,8 @@ namespace __pyllars_internal{
         };
         self->toInt = toInt;
         if (self) {
-            PyTypeObject* const coreTypePtr = PythonClassWrapper<typename core_type<number_type>::type>::getPyType();
-            self->template populate_type_info< number_type>(&checkType, coreTypePtr);
+
+
             if (PyTuple_Size(args) == 0) {
                 if constexpr (std::is_reference<number_type>::value){
                     PyErr_SetString(PyExc_TypeError, "Cannot instantiate a reference type without an acutal object");
@@ -613,11 +629,11 @@ namespace __pyllars_internal{
                         return -1;
                     }
                 } else {
-                    if (!isIntegerObject(value)) {
+                    if (!NumberType<number_type>::isIntegerObject(value)) {
                         PyErr_SetString(PyExc_TypeError, "Argument must be an integer");
                         return -1;
                     }
-                    __int128_t longvalue = toLongLong<number_type>(value);
+                    __int128_t longvalue = NumberType<number_type>::toLongLong(value);
                     if (longvalue < (__int128_t) std::numeric_limits<number_type>::min() ||
                         longvalue > (__int128_t) std::numeric_limits<number_type>::max()) {
                         PyErr_SetString(PyExc_ValueError, "Argument _CObject out of range");
@@ -645,8 +661,7 @@ namespace __pyllars_internal{
     template<typename number_type>
     status_t PyNumberCustomObject<number_type>::Initializer::set_up() {
         static PyObject *module = PyImport_ImportModule("pyllars");
-        int rc = PyType_Ready(&CommonBaseWrapper::_BaseType);
-        rc |= PyType_Ready(&PyNumberCustomBase::_Type);
+        int rc = PyType_Ready(&PyNumberCustomBase::_Type);
         rc |= PyType_Ready(&PyNumberCustomObject::_Type);
         Py_INCREF(&PyNumberCustomBase::_Type);
         Py_INCREF(&PyNumberCustomObject::_Type);
@@ -717,5 +732,68 @@ namespace __pyllars_internal{
 
     template
     class PyNumberCustomObject<unsigned long long>;
+
+
+
+    template
+    class PyNumberCustomObject<volatile const char>;
+
+    template
+    class PyNumberCustomObject<volatile const short>;
+
+    template
+    class PyNumberCustomObject<volatile const int>;
+
+    template
+    class PyNumberCustomObject<volatile const long>;
+
+    template
+    class PyNumberCustomObject<volatile const long long>;
+
+    template
+    class PyNumberCustomObject<volatile const unsigned char>;
+
+    template
+    class PyNumberCustomObject<volatile const unsigned short>;
+
+    template
+    class PyNumberCustomObject<volatile const unsigned int>;
+
+    template
+    class PyNumberCustomObject<volatile const unsigned long>;
+
+    template
+    class PyNumberCustomObject<volatile const unsigned long long>;
+
+
+    template
+    class PyNumberCustomObject<volatile char>;
+
+    template
+    class PyNumberCustomObject<volatile short>;
+
+    template
+    class PyNumberCustomObject<volatile int>;
+
+    template
+    class PyNumberCustomObject<volatile long>;
+
+    template
+    class PyNumberCustomObject<volatile long long>;
+
+    template
+    class PyNumberCustomObject<volatile unsigned char>;
+
+    template
+    class PyNumberCustomObject<volatile unsigned short>;
+
+    template
+    class PyNumberCustomObject<volatile unsigned int>;
+
+    template
+    class PyNumberCustomObject<volatile unsigned long>;
+
+    template
+    class PyNumberCustomObject<volatile unsigned long long>;
 
 }

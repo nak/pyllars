@@ -46,6 +46,16 @@ namespace __pyllars_internal {
         static constexpr size_t value = ptr_depth<T>::value + 1;
     };
 
+    template<typename T>
+    struct ptr_depth<T *const volatile> {
+        static constexpr size_t value = ptr_depth<T>::value + 1;
+    };
+
+    template<typename T>
+    struct ptr_depth<T *volatile> {
+        static constexpr size_t value = ptr_depth<T>::value + 1;
+    };
+
     template<typename T, size_t size>
     struct ptr_depth<T[size]> {
         static constexpr size_t value = ptr_depth<T>::value + 1;
@@ -197,7 +207,7 @@ namespace __pyllars_internal {
     template<typename To, typename From=To>
     struct Assignment {
 
-        static void assign(To &to, const From &from, const size_t arraySize = 0) {
+        static void assign(To &to, typename to_const<From>::type &from, const size_t arraySize = 0) {
             typedef typename std::remove_pointer<typename extent_as_pointer<To>::type>::type To_base;
             typedef typename std::remove_pointer<typename extent_as_pointer<From>::type>::type From_base;
 

@@ -37,8 +37,9 @@ namespace __pyllars_internal{
             void * operator new(const std::size_t count,  const T* const from){
                 auto bytes = ::operator new(count);
                 T* values = reinterpret_cast<T*>(bytes);
+                typedef typename std::remove_volatile<T>::type T_base;
                 for(int i = 0; i < size; ++i){
-                    new (values+i) T(from[i]);
+                    new ((void*)(values+i)) T(((T_base*)from)[i]);
                 }
                 return bytes;
             }

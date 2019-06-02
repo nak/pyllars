@@ -42,9 +42,13 @@ namespace __pyllars_internal {
             auto *values = (T_base *) raw_storage;
             for (ssize_t i = 0; i <= self_->_max; ++i) {
                 T &cobj = *self__->get_CObject();
-                //T_NoRef *new_copy = ObjectLifecycleHelpers::Copy<T_base>::new_copy( ObjectLifecycleHelpers::Array<T_base *>::at(cobj, i));
-                T_base &new_copy =  ObjectLifecycleHelpers::Array<T_base *>::at(cobj, i);
-                ObjectLifecycleHelpers::Copy<T_base>::inplace_copy(values, i, &new_copy);
+                if constexpr(std::is_volatile<T>::value) {
+                    volatile T_base &new_copy = ObjectLifecycleHelpers::Array<volatile T_base *>::at(cobj, i);
+                    ObjectLifecycleHelpers::Copy<volatile T_base>::inplace_copy(values, i, &new_copy);
+                } else {
+                    T_base &new_copy = ObjectLifecycleHelpers::Array<T_base *>::at(cobj, i);
+                    ObjectLifecycleHelpers::Copy<T_base>::inplace_copy(values, i, &new_copy);
+                }
             }
             self_->_max = new_size - 1;
         }
@@ -65,11 +69,15 @@ namespace __pyllars_internal {
                 PyErr_SetString(PyExc_TypeError, "Setting item from incompatible type");
                 return -1;
             }
-            auto *obj_ = (PythonClassWrapper<const T_base> *) obj;
-            ObjectLifecycleHelpers::Copy<T_base>::inplace_copy(*(self__->get_CObject()), index,
-                                                               obj_->get_CObject()//,
-                    //self_->_raw_storage != nullptr
-            );
+            if constexpr (std::is_volatile<T>::value){
+                auto *obj_ = (PythonClassWrapper<const volatile T_base> *) obj;
+                ObjectLifecycleHelpers::Copy<volatile T_base>::inplace_copy(*(self__->get_CObject()), index,
+                                                                   obj_->get_CObject());
+            } else {
+                auto *obj_ = (PythonClassWrapper<const T_base> *) obj;
+                ObjectLifecycleHelpers::Copy<T_base>::inplace_copy(*(self__->get_CObject()), index,
+                                                                   obj_->get_CObject());
+            }
             return 0;
         } catch (const char *const msg) {
             PyErr_SetString(PyExc_RuntimeError, msg);
@@ -322,9 +330,9 @@ namespace __pyllars_internal {
         if (!self) return -1;
         self->_referenced = nullptr;
         self->_max = last;
-        if (((PyObject *) self)->ob_type->tp_base && Base::TypePtr->tp_init) {
+        if (((PyObject *) self)->ob_type->tp_base && CommonBaseWrapper::Base::TypePtr->tp_init) {
             static PyObject *empty = PyTuple_New(0);
-            Base::TypePtr->tp_init((PyObject *) &self->baseClass, empty, nullptr);
+            CommonBaseWrapper::Base::TypePtr->tp_init((PyObject *) &self->baseClass, empty, nullptr);
         }
         if (kwds && PyDict_Size(kwds) > 1) {
             PyErr_SetString(PyExc_TypeError, "Unexpected keyword argument(s) in Pointer cosntructor");
@@ -390,7 +398,7 @@ namespace __pyllars_internal {
     template<typename T>
     typename std::remove_reference<T>::type *
     PythonPointerWrapperBase<T>::
-    _get_CObject() {
+    _get_CObject() const{
         return _CObject;
     }
 
@@ -468,7 +476,7 @@ namespace __pyllars_internal {
         self->_referenced = nullptr;
         PyTypeObject *const coreTypePtr = PythonClassWrapper<typename core_type<T>::type>::getPyType();
         self->template populate_type_info<T>(&checkType, coreTypePtr);
-        int result = Base::_initbase(self, args, kwds, &Type);
+        int result = Base::_initbase(self, args, kwds, &_Type);
 
         if (result == ERROR_TYPE_MISMATCH && (ptr_depth<T>::value == 1) &&
             (PythonClassWrapper<const char *>::checkType((PyObject *) self) ||
@@ -539,12 +547,12 @@ namespace __pyllars_internal {
     PythonClassWrapper<T, typename std::enable_if<is_pointer_like<T>::value && (ptr_depth<T>::value > 1)>::type>::
     checkType(PyObject *const obj) {
         if (!obj || !obj->ob_type || (obj->ob_type->tp_init != (initproc) _init)) { return false; }
-        return PyObject_TypeCheck(obj, &Type);
+        return PyObject_TypeCheck(obj, &_Type);
     }
 
     template<typename T>
     PyTypeObject
-            PythonClassWrapper<T, typename std::enable_if<is_pointer_like<T>::value && (ptr_depth<T>::value > 1) >::type>::Type = {
+            PythonClassWrapper<T, typename std::enable_if<is_pointer_like<T>::value && (ptr_depth<T>::value > 1) >::type>::_Type = {
     #if PY_MAJOR_VERSION == 3
             PyVarObject_HEAD_INIT(NULL, 0)
     #else
@@ -872,6 +880,45 @@ namespace __pyllars_internal {
             0,                          /*tp_version_tag*/
     };
 
+
+    template <typename  T>
+    typename std::remove_const<T>::type &
+    PythonClassWrapper<T, typename std::enable_if<is_pointer_like<T>::value &&  (ptr_depth<T>::value == 1)>::type>::
+    toCArgument(){
+        if constexpr (std::is_const<T>::value){
+            throw "Invalid conversion from non const reference to const refernce";
+        } else {
+            return *get_CObject();
+        }
+    }
+
+
+    template <typename  T>
+    const T&
+    PythonClassWrapper<T, typename std::enable_if<is_pointer_like<T>::value &&  (ptr_depth<T>::value == 1)>::type>::
+    toCArgument() const{
+        return *get_CObject();
+    }
+
+
+    template <typename  T>
+    typename std::remove_const<T>::type &
+    PythonClassWrapper<T, typename std::enable_if<is_pointer_like<T>::value &&  (ptr_depth<T>::value > 1)>::type>::
+    toCArgument(){
+        if constexpr (std::is_const<T>::value){
+            throw "Invalid conversion from non const reference to const refernce";
+        } else {
+            return *get_CObject();
+        }
+    }
+
+
+    template <typename  T>
+    const T&
+    PythonClassWrapper<T, typename std::enable_if<is_pointer_like<T>::value &&  (ptr_depth<T>::value > 1)>::type>::
+    toCArgument() const{
+        return *get_CObject();
+    }
 }
 
 #endif

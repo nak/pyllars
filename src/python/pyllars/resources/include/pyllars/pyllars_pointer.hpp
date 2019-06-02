@@ -52,7 +52,7 @@ namespace __pyllars_internal {
 
 
     template<typename T>
-    struct PythonPointerWrapperBase: public CommonBaseWrapper{
+    struct PythonPointerWrapperBase: public TypedCommonBaseWrapper<T>{
 
         template<typename Other, typename EE>
         friend class PythonClassWrapper;
@@ -63,6 +63,7 @@ namespace __pyllars_internal {
         typedef typename std::remove_reference<T>::type T_NoRef;
 
         PythonPointerWrapperBase():_max(UNKNOWN_SIZE){}
+
 
     protected:
 
@@ -111,16 +112,15 @@ namespace __pyllars_internal {
 
         static int _initbase(PythonPointerWrapperBase *self, PyObject *args, PyObject *kwds, PyTypeObject *pytypeobj);
 
-        T_NoRef *_get_CObject();
+        T_NoRef *_get_CObject() const;
 
         T_NoRef *_CObject;
         unsigned char* _byte_bucket;
         PyObject *_referenced_elements{};
-        //ssize_t _arraySize;
         ssize_t _max;
         size_t _depth{}; //only used for classes with pointer depth > 1, kept here for consistent PyType layout
     private:
-        T_NoRef* get_CObject(){
+        T_NoRef* get_CObject() const{
             return _CObject;
         }
 
@@ -144,7 +144,7 @@ namespace __pyllars_internal {
            Base::_depth = ptr_depth<T>::value;
         }
 
-        T_NoRef * get_CObject(){
+        T_NoRef * get_CObject() const{
             T_NoRef * value = Base::_get_CObject();
             return value;
         }
@@ -158,40 +158,44 @@ namespace __pyllars_internal {
             if(initialize() != 0){
                 return nullptr;
             }
-            return &Type;
+            return &_Type;
         }
 
-        static int initialize(){return Base::_initialize(Type);}
+        static int initialize(){return Base::_initialize(_Type);}
 
         static bool checkType(PyObject *obj);
 
 
         static PythonClassWrapper *fromCPointer(T& cobj, const ssize_t arraySize, PyObject *referencing = nullptr, unsigned char* byte_bucket = nullptr){
-            return reinterpret_cast<PythonClassWrapper*>(Base::_createPyReference(Type, &cobj, arraySize, referencing, byte_bucket));
+            return reinterpret_cast<PythonClassWrapper*>(Base::_createPyReference(_Type, &cobj, arraySize, referencing, byte_bucket));
         }
 
         template<typename ...Args>
         static PythonClassWrapper *allocateInstance(Args... args){
 
-            return (PythonClassWrapper*) Base::_createPyFromAllocatedInstance(Type, args...,  -1);
+            return (PythonClassWrapper*) Base::_createPyFromAllocatedInstance(_Type, args...,  -1);
         }
 
         template<typename ...Args>
         static PythonClassWrapper *allocateArray( Args ...args, const ssize_t arraySize) {
             return reinterpret_cast<PythonClassWrapper *>(
-                    Base::_createPyFromAllocatedInstance(Type, args..., arraySize));
+                    Base::_createPyFromAllocatedInstance(_Type, args..., arraySize));
         }
 
         static PythonClassWrapper *fromInPlaceAllocation( const ssize_t arraySize, unsigned char* byte_bucket){
-            return reinterpret_cast<PythonClassWrapper*>(Base::_createPyReference(Type, nullptr, arraySize, nullptr, byte_bucket));
+            return reinterpret_cast<PythonClassWrapper*>(Base::_createPyReference(_Type, nullptr, arraySize, nullptr, byte_bucket));
         }
+
+
+        typename std::remove_const<T>::type& toCArgument();
+        const T& toCArgument() const;
 
     protected:
         PythonClassWrapper *createPyReferenceToAddr();
         static PyObject *_addr(PyObject *self, PyObject *args);
 
         static int _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds);
-        static PyTypeObject Type;
+        static PyTypeObject _Type;
         static PyMethodDef _methods[];
     };
 
@@ -202,7 +206,7 @@ namespace __pyllars_internal {
         typedef PythonPointerWrapperBase<T>  Base;
         typedef typename std::remove_reference<T>::type T_NoRef;
 
-        T_NoRef* get_CObject(){
+        T_NoRef* get_CObject() const{
             return PythonPointerWrapperBase<T>::_get_CObject();
         }
 
@@ -243,6 +247,10 @@ namespace __pyllars_internal {
                     Base::template _createPyFromAllocatedInstance<Args...>(_Type, args..., arraySize));
         }
 
+
+        typename std::remove_const<T>::type& toCArgument();
+        const T& toCArgument() const;
+
     protected:
         static PyObject *_addr(PyObject *self_, PyObject *args);
         static int _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds);
@@ -263,6 +271,8 @@ namespace __pyllars_internal {
             static PyObject * iter(PyObject* self);
             static PyObject * iternext(PyObject* self);
         };
+
+
     };
 
 

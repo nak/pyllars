@@ -8,17 +8,15 @@ namespace __pyllars_internal{
     template<typename number_type>
     struct FloatingPointType;
 
-    struct PyFloatingPtCustomBase: public CommonBaseWrapper {
-
-        std::function<double()> asDouble;
-
+    struct PyFloatingPtCustomBase{
+        PyObject_HEAD
         static PyTypeObject _Type;
+        std::function<double()> asDouble;
     };
 
     template<typename number_type>
     struct PyFloatingPtCustomObject: public PyFloatingPtCustomBase{
     public:
-        PyObject_HEAD
         typedef typename std::remove_reference<number_type>::type number_type_basic;
 
         static PythonClassWrapper<number_type_basic *> *alloc(PyObject *cls, PyObject *args, PyObject *kwds);
@@ -31,10 +29,9 @@ namespace __pyllars_internal{
             return &_Type;
         }
 
-        inline number_type_basic *get_CObject() {
+        inline number_type_basic *get_CObject() const {
             return _CObject;
         }
-
 
         inline static bool checkType(PyObject *const obj) {
             return PyObject_TypeCheck(obj, &_Type);
@@ -42,6 +39,18 @@ namespace __pyllars_internal{
 
         static __pyllars_internal::PythonClassWrapper<number_type> *fromCObject( number_type & cobj,
                                                                                  PyObject *referencing = nullptr);
+
+        static constexpr auto _new = PyType_GenericNew;
+
+        typename std::remove_const<number_type>::type& toCArgument();
+
+        const number_type& toCArgument() const;
+
+        void make_reference(PyObject *obj) {
+            if (_referenced) { Py_DECREF(_referenced); }
+            if (obj) { Py_INCREF(obj); }
+            _referenced = obj;
+        }
 
     protected:
         static int initialize(){
@@ -108,6 +117,22 @@ namespace __pyllars_internal{
     class PythonClassWrapper<const double> : public PyFloatingPtCustomObject<const double> {
     };
 
+
+    template<>
+    class PythonClassWrapper<volatile float> : public PyFloatingPtCustomObject<volatile float> {
+    };
+
+    template<>
+    class PythonClassWrapper<volatile double> : public PyFloatingPtCustomObject<volatile double> {
+    };
+
+    template<>
+    class PythonClassWrapper<const volatile float> : public PyFloatingPtCustomObject<const volatile float> {
+    };
+
+    template<>
+    class PythonClassWrapper<const volatile double> : public PyFloatingPtCustomObject<const volatile double> {
+    };
 
 }
 #endif

@@ -14,15 +14,18 @@ namespace  __pyllars_internal {
      Struct (non-template) to hold a common number (integer) base Type that is not instantiable,
      but provide for common reference base type
     */
-    struct PyNumberCustomBase : public CommonBaseWrapper {
+    struct PyNumberCustomBase {
+        PyObject_HEAD
+
         static PyTypeObject _Type;
          __int128_t(*toInt)(PyObject* obj);
     };
 
-    namespace{
 
-        template<typename number_type>
-        __int128_t toLongLong(PyObject *obj) {
+    template<typename number_type>
+    struct NumberType{
+
+        static __int128_t toLongLong(PyObject *obj){
             if (PyLong_Check(obj)) {
                 if constexpr (std::is_unsigned<number_type>::value){
                     return PyLong_AsUnsignedLongLong(obj);
@@ -42,14 +45,9 @@ namespace  __pyllars_internal {
             }
         }
 
-        bool isIntegerObject(PyObject *obj) {
+        static bool isIntegerObject(PyObject *obj){
             return bool(PyLong_Check(obj)) || bool(PyObject_TypeCheck(obj, &PyNumberCustomBase::_Type));
         }
-
-    }
-
-    template<typename number_type>
-    struct NumberType{
 
         static PyNumberMethods *instance();
 
@@ -166,11 +164,11 @@ namespace  __pyllars_internal {
         }
 
         static PyObject *to_pyint(PyObject *value) {
-            return PyLong_FromLong(static_cast<long>(toLongLong<number_type >(value)));
+            return PyLong_FromLong(static_cast<long>(toLongLong(value)));
         }
 
         static PyObject *to_pyfloat(PyObject *value) {
-            return PyFloat_FromDouble((double) toLongLong<number_type >(value));
+            return PyFloat_FromDouble((double) toLongLong(value));
         }
 
         static void inplace_add(__int128_t &value1, number_type value2) {
@@ -244,9 +242,9 @@ namespace  __pyllars_internal {
      Python's number methods
     */
     template<typename number_type>
-    struct PyNumberCustomObject : public PyNumberCustomBase {
+    struct PyNumberCustomObject :  public PyNumberCustomBase {
     public:
-        PyObject_HEAD
+
 
         static PyTypeObject _Type;
 
@@ -265,6 +263,10 @@ namespace  __pyllars_internal {
          */
         static PyObject *fromCObject(number_type &cobj, PyObject *referencing = nullptr);
 
+        typename std::remove_const<number_type>::type& toCArgument();
+
+        const number_type& toCArgument() const;
+
         /**
          *
          * @param obj PyObject to check if type matches this class
@@ -277,7 +279,7 @@ namespace  __pyllars_internal {
         /**
          * @return pointer to the C instnace this class is wrapping
          */
-        inline number_type *get_CObject() {
+        inline number_type *get_CObject() const {
             return _CObject;
         }
 
@@ -290,6 +292,8 @@ namespace  __pyllars_internal {
         }
 
         friend struct NumberType<number_type>;
+
+        static constexpr auto _new = PyType_GenericNew;
 
     protected:
         static PyMethodDef _methods[];
@@ -310,6 +314,12 @@ namespace  __pyllars_internal {
         static PyObject *alloc(PyObject *cls, PyObject *args, PyObject *kwds);
 
         static PyObject *to_int(PyObject *self, PyObject *args, PyObject *kwds);
+
+        void make_reference(PyObject *obj) {
+            if (_referenced) { Py_DECREF(_referenced); }
+            if (obj) { Py_INCREF(obj); }
+            _referenced = obj;
+        }
 
         std::function<__int128_t()> asLongLong;
         PyObject *_referenced;
@@ -375,6 +385,49 @@ namespace  __pyllars_internal {
     };
 
 
+
+    template<>
+    class PythonClassWrapper<volatile char> : public PyNumberCustomObject<volatile char> {
+    };
+
+    template<>
+    class PythonClassWrapper<volatile short> : public PyNumberCustomObject<volatile short> {
+    };
+    template<>
+    class PythonClassWrapper<volatile int> : public PyNumberCustomObject<volatile int> {
+    };
+
+    template<>
+    class PythonClassWrapper<volatile long> : public PyNumberCustomObject<volatile long> {
+    };
+
+    template<>
+    class PythonClassWrapper<volatile long long> : public PyNumberCustomObject<volatile long long> {
+    };
+
+    template<>
+    class PythonClassWrapper<volatile unsigned char> : public PyNumberCustomObject<volatile unsigned char> {
+    };
+
+
+    template<>
+    class PythonClassWrapper<volatile unsigned short> : public PyNumberCustomObject<volatile unsigned short> {
+    };
+
+    template<>
+    class PythonClassWrapper<volatile unsigned int> : public PyNumberCustomObject<volatile unsigned int> {
+    };
+
+    template<>
+    class PythonClassWrapper<volatile unsigned long> : public PyNumberCustomObject<volatile unsigned long> {
+    };
+
+
+    template<>
+    class PythonClassWrapper<volatile unsigned long long> : public PyNumberCustomObject<volatile unsigned long long> {
+    };
+
+    
     template<>
     class PythonClassWrapper<const char> : public PyNumberCustomObject<const char> {
     };
@@ -413,6 +466,46 @@ namespace  __pyllars_internal {
 
     template<>
     class PythonClassWrapper<const unsigned long long> : public PyNumberCustomObject<const unsigned long long> {
+    };
+
+    template<>
+    class PythonClassWrapper<const volatile char> : public PyNumberCustomObject<const volatile char> {
+    };
+
+    template<>
+    class PythonClassWrapper<const volatile short> : public PyNumberCustomObject<const volatile short> {
+    };
+
+    template<>
+    class PythonClassWrapper<const volatile int> : public PyNumberCustomObject<const volatile int> {
+    };
+
+    template<>
+    class PythonClassWrapper<const volatile long> : public PyNumberCustomObject<const volatile long> {
+    };
+
+    template<>
+    class PythonClassWrapper<const volatile long long> : public PyNumberCustomObject<const volatile long long> {
+    };
+
+    template<>
+    class PythonClassWrapper<const volatile unsigned char> : public PyNumberCustomObject<const volatile unsigned char> {
+    };
+
+    template<>
+    class PythonClassWrapper<const volatile unsigned short> : public PyNumberCustomObject<const volatile unsigned short> {
+    };
+
+    template<>
+    class PythonClassWrapper<const volatile unsigned int> : public PyNumberCustomObject<const volatile unsigned int> {
+    };
+
+    template<>
+    class PythonClassWrapper<const volatile unsigned long> : public PyNumberCustomObject<const volatile unsigned long> {
+    };
+
+    template<>
+    class PythonClassWrapper<const volatile unsigned long long> : public PyNumberCustomObject<const volatile unsigned long long> {
     };
 }
 #endif //PYLLARS_PYLLARS_INTEGER_H

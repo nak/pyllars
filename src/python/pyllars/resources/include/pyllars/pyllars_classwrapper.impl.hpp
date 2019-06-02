@@ -22,7 +22,11 @@ namespace __pyllars_internal {
 
     template <typename T>
     long long enum_convert(const T& val){
-        return *reinterpret_cast<const typename std::underlying_type<T>::type*>(&val);
+        if constexpr(std::is_volatile<T>::value){
+            return *reinterpret_cast<const volatile typename std::underlying_type<T>::type *>(&val);
+        } else {
+            return *reinterpret_cast<const typename std::underlying_type<T>::type *>(&val);
+        }
     }
 
     template<typename T>
@@ -53,9 +57,9 @@ namespace __pyllars_internal {
             _baseClassesConst = std::vector<PyTypeObject *>();
 
     template<typename T>
-    std::map<std::string, const typename std::remove_reference<T>::type *> PythonClassWrapper<T,
+    std::map<std::string,  const typename std::remove_cv<typename std::remove_reference<T>::type>::type *> PythonClassWrapper<T,
             typename std::enable_if<is_rich_class<T>::value>::type>::
-            _classEnumValues = std::map<std::string, const T_NoRef *>();
+            _classEnumValues = std::map<std::string, const typename std::remove_cv<T_NoRef>::type *>();
 
     template<typename T>
     std::map<std::string, unaryfunc> PythonClassWrapper<T,
@@ -213,17 +217,15 @@ namespace __pyllars_internal {
     */
     template<typename T>
     typename std::remove_reference<T>::type *
-    PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::get_CObject() {
+    PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::get_CObject() const{
         return _CObject;
     }
 
     template<typename T>
     int
     PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::_initialize(PyTypeObject &Type) {
-        typedef typename std::remove_volatile<
-                typename std::remove_const<
+        typedef typename std::remove_const<
                         typename std::remove_reference<T>::type
-                >::type
         >::type basic_type;
         typedef PythonClassWrapper<basic_type> Basic;
         static bool inited = false;
@@ -595,9 +597,13 @@ namespace __pyllars_internal {
         int status = -1;
         for (auto const &[_, method]: _mapMethodCollection) {
             (void) _;
-            if ((status = method.second(std::is_const<T_NoRef >::value, self, key, value)) == 0) {
-                PyErr_Clear();
-                break;
+            try {
+                if ((status = method.second(std::is_const<T_NoRef>::value, self, key, value)) == 0) {
+                    PyErr_Clear();
+                    break;
+                }
+            } catch (const char* msg){
+                //just try the next one, as most likely an argumnet conversion exception thrown
             }
         }
         return status;
@@ -615,7 +621,7 @@ namespace __pyllars_internal {
         std::function<PyObject *(PyObject *, PyObject *)> getter = [](PyObject *self, PyObject *item) -> PyObject * {
             PythonClassWrapper *self_ = (PythonClassWrapper *) self;
             try {
-                auto c_key = toCArgument<KeyType>(*item);
+                auto c_key = __pyllars_internal::toCArgument<KeyType>(*item);
                 return toPyObject<ValueType>((self_->get_CObject()->*method)(c_key.value()), 1);
             } catch (const char *const msg) {
                 PyErr_SetString(PyExc_TypeError, msg);
@@ -633,8 +639,11 @@ namespace __pyllars_internal {
             }
             try {
                 if constexpr (std::is_reference<ValueType>::value) {
-                    auto c_value = toCArgument<const ValueType>(*value);
-                    auto c_key = toCArgument<const KeyType>(*item);
+                    //the value here is something we will be assigning TO and NOT FROM.  So make const
+                    //in order to avoid type conversion issue as is it not really an argument to a function call
+                    typedef typename to_const<ValueType>::type safe_value_type;
+                    argument_capture<safe_value_type > c_value = __pyllars_internal::template toCArgument<safe_value_type >(*value);
+                    argument_capture<KeyType> c_key = __pyllars_internal::template toCArgument<KeyType>(*item);
                     if (obj_is_const){
                         if constexpr(method_is_const) {
                             //mutable fields are still settable against const-ness of owning object
@@ -704,7 +713,7 @@ namespace __pyllars_internal {
     template<typename T>
     bool PythonClassWrapper<T,
             typename std::enable_if<is_rich_class<T>::value>::type>::
-    checkType(PyObject *const obj) {
+    checkType(PyObject * obj) {
         return PyObject_TypeCheck(obj, &_Type);
     }
 
@@ -795,7 +804,7 @@ namespace __pyllars_internal {
         }
         self->_referenced = nullptr;
         PyTypeObject *const coreTypePtr = PythonClassWrapper<typename core_type<T>::type>::getPyType();
-        self->populate_type_info<T>(&checkType, coreTypePtr);
+        self->template populate_type_info<T>(&checkType, coreTypePtr);
         if (!_member_getters.count("this")) {
             _member_getters["this"] = getThis;
         }
@@ -879,7 +888,7 @@ namespace __pyllars_internal {
             return nullptr;
         }
 
-        return _createBaseBase<Args...>(toCArgument<Args>(*pyobjs[S])...);
+        return _createBaseBase<Args...>(__pyllars_internal::toCArgument<Args>(*pyobjs[S])...);
     }
 
 
@@ -949,6 +958,26 @@ namespace __pyllars_internal {
         };
         _addMethod<true>(pyMeth);
     }
+
+    template <typename  T>
+    typename std::remove_const<T>::type &
+    PythonClassWrapper<T,typename std::enable_if<is_rich_class<T>::value>::type>::
+    toCArgument(){
+        if constexpr (std::is_const<T>::value){
+            throw "Invalid conversion from non const reference to const reference";
+        } else {
+            return *get_CObject();
+        }
+    }
+
+
+    template <typename  T>
+    const T&
+    PythonClassWrapper<T,typename std::enable_if<is_rich_class<T>::value>::type>::
+    toCArgument() const{
+        return *get_CObject();
+    }
+
 }
 
 #endif

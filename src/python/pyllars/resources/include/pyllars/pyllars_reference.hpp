@@ -32,7 +32,7 @@ namespace __pyllars_internal {
            Base::_depth = 1;
         }
 
-        T * get_CObject();
+        T * get_CObject() const;
 
         static PyTypeObject *getPyType(){
             if(initialize() != 0){
@@ -47,7 +47,17 @@ namespace __pyllars_internal {
 
         static PythonClassWrapper *fromCObject(T& cobj, PyObject *referencing = nullptr);
 
-        void make_reference(PyObject* ref){Base::make_reference(ref);}
+        void make_reference(PyObject* ref){
+            Base::make_reference(ref);
+        }
+
+        typename std::remove_const<T>::type& toCArgument(){
+            return Base::toCArgument();
+        }
+
+        const T& toCArgument() const{
+            return Base::toCArgument();
+        }
 
     protected:
         static int _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds);
@@ -96,7 +106,7 @@ namespace __pyllars_internal {
             Base::_depth = 1;
         }
 
-        T * get_CObject(){
+        T * get_CObject() const{
             return PythonClassWrapper<T>::get_CObject();
         }
 
@@ -113,6 +123,14 @@ namespace __pyllars_internal {
 
         static PythonClassWrapper *fromCObject(T&& cobj, PyObject *referencing = nullptr);
 
+        typename std::remove_const<T>::type& toCArgument() {
+            return Base::toCArgument();
+        }
+
+        const T& toCArgument() const{
+            return Base::toCArgument();
+        }
+
     protected:
 
         static int _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds);
@@ -128,7 +146,7 @@ namespace __pyllars_internal {
 
         static void _dealloc(PythonClassWrapper* self){
             self->_CObject = nullptr;
-            Base::_dealloc(self);
+            Base::_dealloc((PyObject*)self);
         }
     };
 }

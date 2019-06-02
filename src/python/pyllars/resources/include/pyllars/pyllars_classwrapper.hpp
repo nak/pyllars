@@ -76,7 +76,7 @@ namespace __pyllars_internal {
      * Class to define Python wrapper to C class/type
      **/
     template<typename T>
-    struct PythonClassWrapper<T, typename std::enable_if< is_rich_class<T>::value>::type>: public CommonBaseWrapper {
+    struct PythonClassWrapper<T, typename std::enable_if< is_rich_class<T>::value>::type>: public TypedCommonBaseWrapper<T> {
         // Convenience typedefs
         typedef CommonBaseWrapper::Base Base;
 
@@ -303,7 +303,7 @@ namespace __pyllars_internal {
             }
         }
 
-        static bool checkType(PyObject *const obj);
+        static bool checkType(PyObject * obj);
 
         static PyTypeObject *getPyType(){
             if(initialize() != 0){
@@ -326,8 +326,11 @@ namespace __pyllars_internal {
         /**
          * return the C-like object associated with this Python wrapper
          */
-        typename PythonClassWrapper::T_NoRef *get_CObject() ;
+        typename PythonClassWrapper::T_NoRef *get_CObject() const;
 
+
+        typename std::remove_const<T>::type& toCArgument();
+        const T& toCArgument() const;
 
     protected:
 
@@ -484,7 +487,7 @@ namespace __pyllars_internal {
         static std::vector<_setattrfunc > _assigners;
         static std::vector<PyTypeObject *> _baseClasses;
         static std::vector<PyTypeObject *> _baseClassesConst;
-        static std::map<std::string, const T_NoRef*> _classEnumValues;
+        static std::map<std::string, const typename std::remove_cv<T_NoRef>::type*> _classEnumValues;
         static std::map<std::string, unaryfunc> _unaryOperators;
         static std::map<std::string, unaryfunc> _unaryOperatorsConst;
         static std::map<std::string, binaryfunc> _binaryOperators;

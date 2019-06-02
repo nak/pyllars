@@ -725,8 +725,15 @@ namespace __pyllars_internal {
         PyObject *_referenced;
         bool (*__checkType)(PyObject * typ);
         PyTypeObject* _coreTypePtr;
+
     };
 
+    template <typename T>
+    struct TypedCommonBaseWrapper: public CommonBaseWrapper{
+        static PyTypeObject* getPyType(){
+            return &_BaseType;
+        }
+    };
 
     template<typename T, bool is_array, const ssize_t array_size, typename E = void>
     PyObject *set_array_values(T values, ssize_t size, PyObject *fromTuple, PyObject *referenced);
