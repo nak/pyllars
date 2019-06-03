@@ -110,7 +110,7 @@ struct Assertion<char*>{
     }
 };
 
-TEST_F(PythonSetup, test_basic_convert_pybasic){
+TEST_F(PythonSetup, test_convert_basic_convert_pybasic){
     using namespace __pyllars_internal;
     static constexpr long const_long = 123445567678l;
     static constexpr unsigned int const_uint = 212;
@@ -128,7 +128,7 @@ TEST_F(PythonSetup, test_basic_convert_pybasic){
     ASSERT_THROW((toCArgument<long>(*float_obj)), PyllarsException);
 }
 
-TEST_F(PythonSetup, test_pyfloat_to_cfloat){
+TEST_F(PythonSetup, test_convert_pyfloat_to_cfloat){
     using namespace __pyllars_internal;
     static constexpr double const_double = 19823.34432;
 
@@ -139,7 +139,7 @@ TEST_F(PythonSetup, test_pyfloat_to_cfloat){
 }
 
 
-TEST_F(PythonSetup, test_pylong_to_c){
+TEST_F(PythonSetup, test_convert_pylong_to_c){
     using namespace __pyllars_internal;
     static constexpr long const_long = 19823;
 
@@ -150,7 +150,7 @@ TEST_F(PythonSetup, test_pylong_to_c){
 }
 
 template<typename T>
-void test_basic(T val, PyObject* (*PyFrom)(T)){
+void test_convert_basic(T val, PyObject* (*PyFrom)(T)){
     using namespace __pyllars_internal;
     PyObject* obj;
     obj = PyFrom(val);
@@ -179,57 +179,57 @@ PyObject* PyClass_FromClass(A v){
 }
 
 TEST_F(PythonSetup, convert_basic_char){
-    test_basic((char)123, PyLong_FromInt);
+    test_convert_basic((char)123, PyLong_FromInt);
 }
 
 TEST_F(PythonSetup, convert_basic_short){
-    test_basic((short)123, PyLong_FromInt);
+    test_convert_basic((short)123, PyLong_FromInt);
 }
 
 TEST_F(PythonSetup, convert_basic_int){
-    test_basic((int)123, PyLong_FromInt);
+    test_convert_basic((int)123, PyLong_FromInt);
 }
 
 TEST_F(PythonSetup, convert_basic_long){
-    test_basic((long)123,  PyLong_FromLong);
+    test_convert_basic((long)123,  PyLong_FromLong);
 }
 
 TEST_F(PythonSetup, convert_basic_long_long){
-    test_basic((long long)123,  PyLong_FromInt);
+    test_convert_basic((long long)123,  PyLong_FromInt);
 }
 
 TEST_F(PythonSetup, convert_basic_uchar){
-    test_basic((unsigned char)123, PyLong_FromInt);
+    test_convert_basic((unsigned char)123, PyLong_FromInt);
 }
 
 TEST_F(PythonSetup, convert_basic_ushort){
-    test_basic((unsigned short)123, PyLong_FromInt);
+    test_convert_basic((unsigned short)123, PyLong_FromInt);
 }
 
 TEST_F(PythonSetup, convert_basic_uint){
-    test_basic((unsigned int)123, PyLong_FromInt);
+    test_convert_basic((unsigned int)123, PyLong_FromInt);
 }
 
 TEST_F(PythonSetup, convert_basic_ulong){
-    test_basic((unsigned long)123,  PyLong_FromInt);
+    test_convert_basic((unsigned long)123,  PyLong_FromInt);
 }
 
 TEST_F(PythonSetup, convert_basic_ulong_long){
-    test_basic((unsigned long long)123,  PyLong_FromInt);
+    test_convert_basic((unsigned long long)123,  PyLong_FromInt);
 }
 
 
 TEST_F(PythonSetup, convert_basic_double){
-    test_basic(1.2349, PyFloat_FromDouble);
+    test_convert_basic(1.2349, PyFloat_FromDouble);
 }
 
 TEST_F(PythonSetup, convert_basic_float){
-    test_basic(1.2349f, PyFloat_FromFloat);
+    test_convert_basic(1.2349f, PyFloat_FromFloat);
 }
 
 
 TEST_F(PythonSetup, convert_basic_class){
-    test_basic(A(99), PyClass_FromClass);
+    test_convert_basic(A(99), PyClass_FromClass);
 }
 
 

@@ -320,7 +320,6 @@ namespace __pyllars_internal {
         friend
         void * toFFI(PyObject*);
 
-        constexpr PythonClassWrapper(): _CObject(nullptr){}
 
         /**
          * return the C-like object associated with this Python wrapper
@@ -331,7 +330,9 @@ namespace __pyllars_internal {
         typename std::remove_const<T>::type& toCArgument();
         const T& toCArgument() const;
 
+
     protected:
+        PythonClassWrapper();// never invoked as Python allocates memory directly
 
         static PyObject *alloc(PyObject *cls, PyObject *args, PyObject *kwds);
 

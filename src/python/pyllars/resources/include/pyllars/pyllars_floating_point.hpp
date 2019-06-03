@@ -8,7 +8,7 @@ namespace __pyllars_internal{
     template<typename number_type>
     struct FloatingPointType;
 
-    struct PyFloatingPtCustomBase{
+    struct PyFloatingPtCustomBase: CommonBaseWrapper{
         PyObject_HEAD
         static PyTypeObject _Type;
         std::function<double()> asDouble;

@@ -199,8 +199,9 @@ namespace __pyllars_internal {
 
     template <typename T1, typename T2>
     inline size_t offset_of(T1 T2::*member) {
-        T2 object {};
-        return size_t((long long)(&(object.*member)) - (long long)(&object));
+        static unsigned char bogus[sizeof(T1)];
+        T2 *object = (T2*) bogus;
+        return size_t((long long)(&(object->*member)) - (long long)(object));
     }
 
 

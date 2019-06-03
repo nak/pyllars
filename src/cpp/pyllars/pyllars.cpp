@@ -193,7 +193,11 @@ namespace __pyllars_internal {
             CommonBaseWrapper::_new,             /* tp_new */
             nullptr,                         /*tp_free*/
             nullptr,                         /*tp_is_gc*/
-            nullptr,                         /*tp_bases*/
+#if PY_MAJOR_VERSION == 3
+            nullptr,                         /*tp_base*/
+#else
+            &CommonBaseWrapper::Base::TypePtr,                         /*tp_bases*/
+#endif
             nullptr,                         /*tp_mro*/
             nullptr,                         /*tp_cache*/
             nullptr,                         /*tp_subclasses*/
@@ -310,7 +314,7 @@ namespace __pyllars_internal {
                     generic_value.ptrvalue = ptrvalue;
                 } else if (FUNC_TYPE == subtype) {
                     typedef PythonFunctionWrapper<void(void)> wtype;
-                    static const size_t offset = offsetof(wtype, _function);
+                    static const size_t offset = offset_of(&PythonFunctionWrapper<void(void)>::_function);//offsetof(wtype, _function);
                     void **ptrvalue = (void **) (((char *) arg) + offset);
                     generic_value.ptrvalue = *ptrvalue;
                 } else {
@@ -344,4 +348,5 @@ namespace __pyllars_internal {
         }
         return nullptr;
     }
+
 }

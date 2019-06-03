@@ -493,6 +493,7 @@ namespace __pyllars_internal{
         static int rc = -1;
         if(inited) return rc;
         inited = true;
+
         rc = PyType_Ready(&PyNumberCustomBase::_Type);
         rc |= PyType_Ready(&type);
         Py_INCREF(&type);
@@ -569,8 +570,7 @@ namespace __pyllars_internal{
     PyObject *
     PyNumberCustomObject<number_type>::fromCObject(number_type& cobj, PyObject *) {
         static PyObject *kwds = PyDict_New();
-        PyObject *args;
-        args = PyTuple_New(0);
+        PyObject *args  = PyTuple_New(0);
         PyDict_SetItemString(kwds, "__internal_allow_null", Py_True);
 
         auto *pyobj = (__pyllars_internal::PythonClassWrapper<number_type> *) PyObject_Call(
@@ -602,6 +602,15 @@ namespace __pyllars_internal{
 
     template<typename number_type>
     int PyNumberCustomObject<number_type>::_init(PyNumberCustomObject *self, PyObject *args, PyObject *) {
+        self->compare = [](CommonBaseWrapper* self_, CommonBaseWrapper* other)->bool{
+            return PyObject_TypeCheck(other, getPyType()) &&
+                    (*reinterpret_cast<PyNumberCustomObject*>(self_)->get_CObject() ==
+                    *reinterpret_cast<PyNumberCustomObject*>(other)->get_CObject());
+        };
+        self->hash = [](CommonBaseWrapper* self)->size_t{
+            static std::hash<typename std::remove_cv<number_type>::type> hasher;
+            return hasher(*((PyNumberCustomObject*)self)->get_CObject());
+        };
 
         auto toInt = [](PyObject* obj)->__int128_t{
             return *((PyNumberCustomObject*)obj)->_CObject;
@@ -662,6 +671,7 @@ namespace __pyllars_internal{
     status_t PyNumberCustomObject<number_type>::Initializer::set_up() {
         static PyObject *module = PyImport_ImportModule("pyllars");
         int rc = PyType_Ready(&PyNumberCustomBase::_Type);
+        rc |= PyType_Ready(&CommonBaseWrapper::_BaseType);
         rc |= PyType_Ready(&PyNumberCustomObject::_Type);
         Py_INCREF(&PyNumberCustomBase::_Type);
         Py_INCREF(&PyNumberCustomObject::_Type);

@@ -14,7 +14,7 @@ namespace  __pyllars_internal {
      Struct (non-template) to hold a common number (integer) base Type that is not instantiable,
      but provide for common reference base type
     */
-    struct PyNumberCustomBase {
+    struct PyNumberCustomBase : CommonBaseWrapper{
         PyObject_HEAD
 
         static PyTypeObject _Type;

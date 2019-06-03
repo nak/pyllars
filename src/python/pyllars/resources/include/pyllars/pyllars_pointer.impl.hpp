@@ -140,7 +140,7 @@ namespace __pyllars_internal {
     PythonPointerWrapperBase<T>::
     _contains(PyObject *self, PyObject *o2) {
         auto self_ = reinterpret_cast<PythonPointerWrapperBase*>(self);
-        if constexpr (!has_operator_equal<T_base, T_base>::value){
+        if constexpr (!has_operator_compare<T_base, T_base>::value){
             PyErr_SetString(PyExc_TypeError, "Underlying C type does not allow comparison");
             return -1;
         } else if constexpr(ArraySize<T>::size > 0){
@@ -751,6 +751,21 @@ namespace __pyllars_internal {
     int
     PythonClassWrapper<T, typename std::enable_if<is_pointer_like<T>::value && (ptr_depth<T>::value == 1)>::type>::
     _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds) {
+
+
+        self->compare = [](CommonBaseWrapper* self_, CommonBaseWrapper* other)->bool{
+            return PyObject_TypeCheck(other, getPyType()) &&
+                   (*reinterpret_cast<PythonClassWrapper *>(self_)->get_CObject() ==
+                    *reinterpret_cast<PythonClassWrapper *>(other)->get_CObject());
+        };
+
+        self->hash = [](CommonBaseWrapper* self)->size_t{
+            typedef typename extent_as_pointer<typename std::remove_cv<T>::type>::type T_bare;
+            static std::hash<T_bare> hasher;
+
+            return hasher((T_bare) *((PythonClassWrapper*)self)->get_CObject());
+        };
+
         if (!self) { return -1; }
         self->_referenced = nullptr;
         PyTypeObject *const coreTypePtr = PythonClassWrapper<typename core_type<T>::type>::getPyType();

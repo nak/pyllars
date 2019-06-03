@@ -630,8 +630,17 @@ namespace __pyllars_internal {
      * Class common to all C++ wrapper classes
      **/
     struct CommonBaseWrapper {
+        PyObject_HEAD
 
-        struct Base {
+        static PyTypeObject* getPyType(){return &_BaseType;}
+
+        typedef bool (*comparison_func_t)(CommonBaseWrapper*, CommonBaseWrapper*);
+        typedef size_t (*hash_t)(CommonBaseWrapper*);
+
+        comparison_func_t compare;
+        hash_t hash;
+
+        struct Base{
             PyObject_HEAD
             /*Per Python API docs*/
 
@@ -641,9 +650,7 @@ namespace __pyllars_internal {
 
         } baseClass;
 
-        constexpr CommonBaseWrapper() : baseClass(), _is_const(false), _is_reference(false), _is_volatile(false),
-        _is_pointer(false), _referenced(nullptr) , __checkType(nullptr), _coreTypePtr(nullptr){
-        }
+
 
         typedef const char *const cstring;
         static constexpr cstring tp_name_prefix = "[*pyllars*] ";
@@ -725,7 +732,7 @@ namespace __pyllars_internal {
         PyObject *_referenced;
         bool (*__checkType)(PyObject * typ);
         PyTypeObject* _coreTypePtr;
-
+        CommonBaseWrapper(); // never invoked as Python allocates memory directly
     };
 
     template<typename T, bool is_array, const ssize_t array_size, typename E = void>

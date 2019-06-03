@@ -625,6 +625,15 @@ namespace __pyllars_internal{
 
     template<typename number_type>
     int PyFloatingPtCustomObject<number_type>::_init(PyFloatingPtCustomObject *self, PyObject *args, PyObject *kw) {
+        self->compare = [](CommonBaseWrapper* self_, CommonBaseWrapper* other)->bool{
+            return PyObject_TypeCheck(other, getPyType()) &&
+                   (*reinterpret_cast<PyFloatingPtCustomObject*>(self_)->get_CObject() ==
+                    *reinterpret_cast<PyFloatingPtCustomObject*>(other)->get_CObject());
+        };
+        self->hash = [](CommonBaseWrapper* self)->size_t{
+            static std::hash<typename std::remove_cv<number_type>::type> hasher;
+            return hasher(*((PyFloatingPtCustomObject*)self)->get_CObject());
+        };
         PyTypeObject * const coreTypePtr = PythonClassWrapper<typename core_type<number_type>::type>::getPyType();
         // self->template populate_type_info< number_type>(&checkType, coreTypePtr);
         if (self) {
@@ -684,8 +693,9 @@ namespace __pyllars_internal{
     template<typename number_type>
     status_t PyFloatingPtCustomObject<number_type>::Initializer::set_up() {
         static PyObject *module = PyImport_ImportModule("pyllars");
-        PyType_Ready(&PyFloatingPtCustomBase::_Type);
-        const int rc = PyType_Ready(&PyFloatingPtCustomObject::_Type);
+        int rc = PyType_Ready(CommonBaseWrapper::getPyType()) |
+                PyType_Ready(&PyFloatingPtCustomBase::_Type) |
+                PyType_Ready(&PyFloatingPtCustomObject::_Type);
         Py_INCREF(&PyFloatingPtCustomBase::_Type);
         Py_INCREF(&PyFloatingPtCustomObject::_Type);
         if (module && rc == 0) {

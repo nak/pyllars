@@ -13,6 +13,7 @@ add_library(setupBitFieldsLib SHARED setup_bitfields.cpp )
 add_library(setupAnonEnumsLib SHARED setup_anon_enums.cpp )
 add_library(setupFunctions SHARED setup_functions.cpp )
 add_library(setupGlobals SHARED setup_globals.cpp )
+add_library(setupTemplateClasses SHARED setup_template_class.cpp )
 
 add_executable(runAllPyllarsTest
         /opt/googletest/googletest/src/gtest_main.cc
@@ -30,15 +31,6 @@ target_link_libraries(runAllPyllarsTest PUBLIC -L/usr/local/lib64 ${PYTHON_LD}
         setupBasicClassLib setupInheritanceLib setupBitFieldsLib setupAnonEnumsLib setupFunctions
         pyllars pthread  ffi dl util)
 
-
-add_executable(runContainmentTests
-        /opt/googletest/googletest/src/gtest_main.cc
-        /opt/googletest/googletest/src/gtest-all.cc
-        test_containment.cpp
-        )
-target_link_libraries(runContainmentTests PUBLIC pthread)
-
-
 add_executable(runGlobalsTests
         /opt/googletest/googletest/src/gtest_main.cc
         /opt/googletest/googletest/src/gtest-all.cc
@@ -53,6 +45,14 @@ add_executable(runBasicClassTests
         test_basic_classes.cpp)
 target_link_libraries(runBasicClassTests PUBLIC -L/usr/local/lib64 ${PYTHON_LD}
         setupBasicClassLib  pthread pyllars ffi dl util )
+
+
+add_executable(runTemplateClassTests
+        /opt/googletest/googletest/src/gtest_main.cc
+        /opt/googletest/googletest/src/gtest-all.cc
+        test_template_classes.cpp)
+target_link_libraries(runTemplateClassTests PUBLIC -L/usr/local/lib64 ${PYTHON_LD}
+        setupTemplateClasses  pthread pyllars ffi dl util )
 
 
 add_executable(runInheritanceTests

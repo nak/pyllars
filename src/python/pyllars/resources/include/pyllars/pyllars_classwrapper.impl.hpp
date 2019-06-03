@@ -207,7 +207,9 @@ namespace __pyllars_internal {
                     return -1;
                 }
             } else {
-                PyErr_SetString(PyExc_TypeError, "Invalid constructor argument(s)");
+                if(!PyErr_Occurred()) {
+                    PyErr_SetString(PyExc_TypeError, "Invalid constructor argument(s)");
+                }
                 return -1;
             }
 
@@ -467,20 +469,9 @@ namespace __pyllars_internal {
     PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::
     create(const char *const kwlist[], PyObject *args, PyObject *kwds,
            unsigned char *location) {
-        try {
             return _createBase<Args...>(args, kwds, kwlist, typename argGenerator<sizeof...(Args)>::type(),
                                         (_____fake<Args> *) nullptr...);
 
-        } catch (PyllarsException &e) {
-            e.raise();
-            return nullptr;
-        } catch(std::exception const & e) {
-            PyllarsException::raise_internal_cpp(e.what());
-            return nullptr;
-        } catch (...){
-            PyllarsException::raise_internal_cpp();
-            return  nullptr;
-        }
     }
 
     template<typename T>
@@ -850,6 +841,22 @@ namespace __pyllars_internal {
     int PythonClassWrapper<T,
             typename std::enable_if<is_rich_class<T>::value>::type>::
     _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds) {
+
+        self->compare = [](CommonBaseWrapper* self_, CommonBaseWrapper* other)->bool{
+            if constexpr (has_operator_compare<T&, T>::value) {
+                return PyObject_TypeCheck(other, getPyType()) &&
+                       (*reinterpret_cast<PythonClassWrapper *>(self_)->get_CObject() ==
+                        *reinterpret_cast<PythonClassWrapper *>(other)->get_CObject());
+            } else {
+                return false;
+            }
+        };
+
+        self->hash = [](CommonBaseWrapper* self)->size_t{
+            static std::hash<typename std::remove_cv<T>::type*> hasher;
+            return hasher(const_cast<typename std::remove_cv<T>::type*>(((PythonClassWrapper*)self)->get_CObject()));
+        };
+
         if (_Type.tp_base && Base::TypePtr->tp_init) {
             PyObject *empty = PyTuple_New(0);
             Base::TypePtr->tp_init((PyObject *) &self->baseClass, empty, nullptr);
