@@ -187,7 +187,14 @@ namespace __pyllars_internal {
                         self->_isInitialized = true;
                         return 0;
                     }
-                } catch (...) {
+                } catch (PyllarsException &) {
+                    //try next one
+                } catch(std::exception const & e) {
+                    PyllarsException::raise_internal_cpp(e.what());
+                    return -1;
+                } catch (...){
+                    PyllarsException::raise_internal_cpp();
+                    return -1;
                 }
                 PyErr_Clear();
             }
@@ -383,13 +390,13 @@ namespace __pyllars_internal {
                 };
         for (auto const&[name_, func]: _binaryOperators) {
             if (binary_mapping.count(name_) == 0) {
-                throw "Undefined operator name (internal error)";
+                throw PyllarsException(PyExc_SystemError, "Undefined operator name (internal error)");
             }
             *binary_mapping[name_] = func;
         }
         for (auto const&[name_, func]: _binaryOperatorsConst) {
             if (binary_mapping.count(name_) == 0) {
-                throw "Undefined operator name (internal error)";
+                throw PyllarsException(PyExc_SystemError, "Undefined operator name (internal error)");
             }
             *binary_mapping[name_] = func;
         }
@@ -398,14 +405,12 @@ namespace __pyllars_internal {
         if (!Type.tp_base && _baseClasses.size() == 0) {
             if (PyType_Ready(&CommonBaseWrapper::_BaseType) < 0) {
                 PyErr_SetString(PyExc_RuntimeError, "Failed to set_up type!");
-                PyErr_Print();
                 return -1;
             }
             Type.tp_base = &CommonBaseWrapper::_BaseType;
         }
         if (PyType_Ready(&Type) < 0) {
             PyErr_SetString(PyExc_RuntimeError, "Failed to set_up type!");
-            PyErr_Print();
            return -1;
         }
 
@@ -466,9 +471,15 @@ namespace __pyllars_internal {
             return _createBase<Args...>(args, kwds, kwlist, typename argGenerator<sizeof...(Args)>::type(),
                                         (_____fake<Args> *) nullptr...);
 
-        } catch (const char *const msg) {
-            PyErr_SetString(PyExc_RuntimeError, msg);
+        } catch (PyllarsException &e) {
+            e.raise();
             return nullptr;
+        } catch(std::exception const & e) {
+            PyllarsException::raise_internal_cpp(e.what());
+            return nullptr;
+        } catch (...){
+            PyllarsException::raise_internal_cpp();
+            return  nullptr;
         }
     }
 
@@ -601,8 +612,15 @@ namespace __pyllars_internal {
                     PyErr_Clear();
                     break;
                 }
-            } catch (const char* msg){
+            } catch (PyllarsException &e){
                 //just try the next one, as most likely an argumnet conversion exception thrown
+            } catch(std::exception const & e) {
+                PyllarsException::raise_internal_cpp(e.what());
+                return -1;
+            } catch (...){
+                PyllarsException::raise_internal_cpp();
+                status = -1;
+                break;
             }
         }
         return status;
@@ -622,8 +640,14 @@ namespace __pyllars_internal {
             try {
                 auto c_key = __pyllars_internal::toCArgument<KeyType>(*item);
                 return toPyObject<ValueType>((self_->get_CObject()->*method)(c_key.value()), 1);
-            } catch (const char *const msg) {
-                PyErr_SetString(PyExc_TypeError, msg);
+            } catch (PyllarsException &e) {
+                e.raise();
+                return nullptr;
+            } catch(std::exception const & e) {
+                PyllarsException::raise_internal_cpp(e.what());
+                return nullptr;
+            } catch (...){
+                PyllarsException::raise_internal_cpp();
                 return nullptr;
             }
         };
@@ -651,8 +675,14 @@ namespace __pyllars_internal {
                             auto const_cobj = reinterpret_cast<const T_NoRef *>(cobj);
                             try {
                                 Assignment<ValueType>::assign((const_cobj->*method)(c_key.value()), c_value.value());
-                            } catch (const char *) {
-                                PyErr_SetString(PyExc_TypeError, "Cannot assign to const element");
+                            } catch (PyllarsException &e) {
+                                e.raise();
+                                return -1;
+                            } catch(std::exception const & e) {
+                                PyllarsException::raise_internal_cpp(e.what());
+                                return -1;
+                            } catch (...){
+                                PyllarsException::raise_internal_cpp();
                                 return -1;
                             }
                         } else {
@@ -663,8 +693,14 @@ namespace __pyllars_internal {
                     } else {
                         try{
                             Assignment<ValueType>::assign((cobj->*method)(c_key.value()), c_value.value());
-                        } catch (const char* msg){
-                            PyErr_SetString(PyExc_TypeError, msg);
+                        } catch (PyllarsException &e){
+                            e.raise();
+                            return -1;
+                        } catch(std::exception const & e) {
+                            PyllarsException::raise_internal_cpp(e.what());
+                            return -1;
+                        } catch (...){
+                            PyllarsException::raise_internal_cpp();
                             return -1;
                         }
                     }
@@ -672,8 +708,14 @@ namespace __pyllars_internal {
                     PyErr_SetString(PyExc_TypeError, "Cannot set non-reference returned item");
                     return -1;
                 }
-            } catch (const char *const msg) {
-                PyErr_SetString(PyExc_TypeError, "Cannot assign to _CObject of unrelated type.");
+            } catch (PyllarsException &e) {
+                e.raise();
+                return -1;
+            } catch(std::exception const & e) {
+                PyllarsException::raise_internal_cpp(e.what());
+                return -1;
+            } catch (...){
+                PyllarsException::raise_internal_cpp();
                 return -1;
             }
             return 0;
@@ -729,16 +771,16 @@ namespace __pyllars_internal {
          *  (allocation will be through generic byte buffer and then in-place-memory allocation)
          */
         if (kwds && PyDict_Size(kwds) != 0) {
-            throw "new takes not key words";
+            throw PyllarsException(PyExc_ValueError, "new takes not key words");
         }
         if (PyTuple_Size(args) != 1) {
-            throw "new takes only one arg (and int, a tuple, or list of tuples)";
+            throw PyllarsException(PyExc_TypeError, "new takes only one arg (and int, a tuple, or list of tuples)");
         }
         auto arg = PyTuple_GetItem(args, 0);
         if (PyLong_Check(arg)) {
             const ssize_t size = PyLong_AsLong(arg);
             if (size < 0){
-                throw "Size cannot be negative";
+                throw PyllarsException(PyExc_ValueError, "Size cannot be negative");
             }
             return (PyObject *) PythonClassWrapper<T_NoRef *>::template allocateArray<>(size);
         } else if (PyTuple_Check(arg)) {
@@ -753,11 +795,11 @@ namespace __pyllars_internal {
         } else if (PyList_Check(arg)) {
 
             if constexpr(!is_complete<T_NoRef>::value){
-                throw "Cannot allocate multiple disparate instances using incomplete type";
+                throw PyllarsException(PyExc_ValueError, "Cannot allocate multiple disparate instances using incomplete type");
             } else {
                 const ssize_t size = PyList_Size(arg);
                 if (size < 0) {
-                    throw "Internal error getting size of list";
+                    throw PyllarsException(PyExc_SystemError, "Internal error getting size of list");
                 }
                 typedef T_NoRef  T_fixed_array[size];
                 typedef T_fixed_array *T_fixed_array_ptr;
@@ -776,7 +818,14 @@ namespace __pyllars_internal {
                         try {
                             cobj = constructor_(kwlist_, constructor_args, nullptr, bytebucket + i);
                             if (cobj) break;
-                        } catch (...) {
+                        } catch (PyllarsException &e) {
+                            //try next one
+                        } catch(std::exception const & e) {
+                            PyllarsException::raise_internal_cpp(e.what());
+                            return nullptr;
+                        } catch (...){
+                            PyllarsException::raise_internal_cpp();
+                            return nullptr;
                         }
                         PyErr_Clear();
                     }
@@ -794,7 +843,7 @@ namespace __pyllars_internal {
                 return (PyObject *) pyobj;
             }
         }
-        throw "Invalid constructor arguments";
+        throw PyllarsException(PyExc_ValueError, "Invalid constructor arguments");
     }
 
     template<typename T>
@@ -969,7 +1018,7 @@ namespace __pyllars_internal {
     PythonClassWrapper<T,typename std::enable_if<is_rich_class<T>::value>::type>::
     toCArgument(){
         if constexpr (std::is_const<T>::value){
-            throw "Invalid conversion from non const reference to const reference";
+            throw PyllarsException(PyExc_TypeError, "Invalid conversion from non const reference to const reference");
         } else {
             return *get_CObject();
         }

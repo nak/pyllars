@@ -43,7 +43,7 @@ namespace __pyllars_internal{
     void ClassMember<name, CClass, AttrType>::
     setFrom(PyObject *pyobj) {
         if constexpr (std::is_const<AttrType>::value){
-             throw "Cannot set const class-member";
+             throw PyllarsException(PyExc_TypeError, "Cannot set const class-member");
         } else if constexpr (std::is_array<AttrType>::value && ArraySize<AttrType>::size > 0){
             AttrType val[] = *toCArgument<AttrType, false, PythonClassWrapper<AttrType>>(*pyobj);
             for (size_t i = 0; i < ArraySize<AttrType>::size; ++i)member[i] = val[i];

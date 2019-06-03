@@ -77,13 +77,13 @@ namespace __pyllars_internal {
                 //auto *values = (T_base *) raw_storage;
                 T &cobj = *self__->get_CObject();
                 if constexpr (std::is_void<T_base>::value) {
-                    throw "Cannot index into void-pointer/array";
+                    throw PyllarsException(PyExc_TypeError, "Cannot index into void-pointer/array");
                 } else if constexpr (!is_complete<T_base>::value) {
-                    throw "Cannot index into incomplete type";
+                    throw PyllarsException(PyExc_TypeError, "Cannot index into incomplete type");
                 } else {
                     for (ssize_t i = 0; i <= self_->_max; ++i) {
                         if (!cobj || !self_->get_CObject()[0]) {
-                            throw "Cannot dereference null object!";
+                            throw PyllarsException(PyExc_ValueError, "Cannot dereference null object");
                         }
                         values[i] = self_->get_CObject()[0][i];
                     }
@@ -122,8 +122,14 @@ namespace __pyllars_internal {
                 auto *obj_ = (PythonClassWrapper<T_base> *) obj;
                 self__->get_CObject()[0][index] = *obj_->get_CObject();
                 return 0;
-            } catch (const char *const msg) {
-                PyErr_SetString(PyExc_RuntimeError, msg);
+            } catch (PyllarsException &e){
+                e.raise();
+                return -1;
+            } catch(std::exception const & e) {
+                PyllarsException::raise_internal_cpp(e.what());
+                return -1;
+            } catch(...) {
+                PyllarsException::raise_internal_cpp();
                 return -1;
             }
         }
@@ -211,8 +217,14 @@ namespace __pyllars_internal {
                 }
 
                 return res;
-            } catch (const char *const msg) {
-                PyErr_SetString(PyExc_RuntimeError, msg);
+            } catch (PyllarsException &e){
+                e.raise();
+                return nullptr;
+            } catch(std::exception const & e) {
+                PyllarsException::raise_internal_cpp(e.what());
+                return nullptr;
+            } catch(...) {
+                PyllarsException::raise_internal_cpp();
                 return nullptr;
             }
         }
@@ -254,8 +266,14 @@ namespace __pyllars_internal {
                 }
             }
             return _get_item(self, index);
-        } catch (const char *const msg) {
-            PyErr_SetString(PyExc_RuntimeError, msg);
+        } catch (PyllarsException &e){
+            e.raise();
+            return nullptr;
+        } catch(std::exception const & e) {
+            PyllarsException::raise_internal_cpp(e.what());
+            return nullptr;
+        } catch(...) {
+            PyllarsException::raise_internal_cpp();
             return nullptr;
         }
     }
@@ -365,8 +383,14 @@ namespace __pyllars_internal {
                     pyobj->_CObject = new T();
                     typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
                     *pyobj->_CObject = Constructor<T_base>::template allocate_array<Args...>((size_t) arraySize, args...);
-                } catch (const char *msg) {
-                    PyErr_SetString(PyExc_TypeError, msg);
+                } catch (PyllarsException &e) {
+                    e.raise();
+                    return nullptr;
+                } catch(std::exception const & e) {
+                    PyllarsException::raise_internal_cpp(e.what());
+                    return nullptr;
+                } catch(...) {
+                    PyllarsException::raise_internal_cpp();
                     return nullptr;
                 }
             } else {
@@ -673,8 +697,14 @@ namespace __pyllars_internal {
                     self->createPyReferenceToAddr());
             pyobj->_depth = self->_depth + 1;
             return reinterpret_cast<PyObject *>(pyobj);
-        } catch (const char *const msg) {
-            PyErr_SetString(PyExc_RuntimeError, msg);
+        } catch (PyllarsException &e){
+            e.raise();
+            return nullptr;
+        } catch(std::exception const & e) {
+            PyllarsException::raise_internal_cpp(e.what());
+            return nullptr;
+        } catch(...) {
+            PyllarsException::raise_internal_cpp();
             return nullptr;
         }
     }
@@ -704,8 +734,14 @@ namespace __pyllars_internal {
             auto *pyobj = self->createPyReferenceToAddr();//1, obj, ContainmentKind ::BY_REFERENCE, (PyObject *) self);
             pyobj->_depth = 2;
             return reinterpret_cast<PyObject *>(pyobj);
-        } catch (const char *const msg) {
-            PyErr_SetString(PyExc_RuntimeError, msg);
+        } catch (PyllarsException &e){
+            e.raise();
+            return nullptr;
+        } catch(std::exception const & e) {
+            PyllarsException::raise_internal_cpp(e.what());
+            return nullptr;
+        } catch(...) {
+            PyllarsException::raise_internal_cpp();
             return nullptr;
         }
 
@@ -933,7 +969,7 @@ namespace __pyllars_internal {
     PythonClassWrapper<T, typename std::enable_if<is_pointer_like<T>::value &&  (ptr_depth<T>::value == 1)>::type>::
     toCArgument(){
         if constexpr (std::is_const<T>::value){
-            throw "Invalid conversion from non const reference to const refernce";
+            throw PyllarsException(PyExc_TypeError, "Invalid conversion from non const reference to const refernce");
         } else {
             return *get_CObject();
         }
@@ -953,7 +989,7 @@ namespace __pyllars_internal {
     PythonClassWrapper<T, typename std::enable_if<is_pointer_like<T>::value &&  (ptr_depth<T>::value > 1)>::type>::
     toCArgument(){
         if constexpr (std::is_const<T>::value){
-            throw "Invalid conversion from non const reference to const refernce";
+            throw PyllarsException(PyExc_TypeError, "Invalid conversion from non const reference to const refernce");
         } else {
             return *get_CObject();
         }

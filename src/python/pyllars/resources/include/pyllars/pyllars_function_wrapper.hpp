@@ -40,19 +40,19 @@ namespace __pyllars_internal {
         PythonFunctionWrapper *createPy(const char *const name) {
             static bool inited = false;
             if (!inited && (PyType_Ready(&_Type) < 0)) {
-                throw "Unable to initialize python object for c function wrapper";
+                throw PyllarsException(PyExc_SystemError, "Unable to initialize python object for c function wrapper");
             } else {
                 inited = true;
                 auto pyfuncobj = reinterpret_cast<PythonFunctionWrapper *>(PyObject_CallObject((PyObject *)&_Type,
                                                                                                nullptr));
                 if (!pyfuncobj) {
                     PyErr_Print();
-                    throw "Unable to create function callable";
+                    throw PyllarsException(PyExc_SystemError, "Unable to create function callable");
                 }
                 pyfuncobj->_call_func = StaticFunctionContainer<kwlist, func_type, function>::call;
                 pyfuncobj->_function = function;
                 if (!PyCallable_Check((PyObject *) pyfuncobj)) {
-                    throw "Python object is not callbable as expected!";
+                    throw PyllarsException(PyExc_TypeError, "Python object is not callbable as expected");
                 }
                 return pyfuncobj;
             }
@@ -158,8 +158,14 @@ namespace __pyllars_internal {
         try {
             auto self_ = reinterpret_cast<PythonFunctionWrapper *>(self);
             return self_->_call_func(self, args, kw);
-        } catch (const char *const msg) {
-            PyErr_SetString(PyExc_RuntimeError, msg);
+        } catch (PyllarsException &e) {
+            e.raise();
+            return nullptr;
+        } catch(std::exception const & e) {
+            PyllarsException::raise_internal_cpp(e.what());
+            return nullptr;
+        } catch(...) {
+            PyllarsException::raise_internal_cpp();
             return nullptr;
         }
     }

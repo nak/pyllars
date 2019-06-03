@@ -6,9 +6,9 @@
 #endif
 
 #include <Python.h>
+#include <functional>
 
 #include "pyllars_classwrapper.hpp"
-#include <functional>
 
 namespace __pyllars_internal{
 
@@ -26,7 +26,7 @@ namespace __pyllars_internal{
 
                 static ReturnType callback(Args ...args) {
                     if (!func) {
-                        throw "Internal error: No callback defn defined";
+                        throw PyllarsException(PyExc_SystemError, "Internal error: No callback defn defined");
                     }
                     return (*func)(args...);
                 }
@@ -42,7 +42,7 @@ namespace __pyllars_internal{
                                 }
                                 PyObject *ret = PyObject_Call(callable, pyargs, nullptr);
                                 if (!ret) {
-                                    throw "Error in call to python callback-wrapper";
+                                    throw PyllarsException(PyExc_SystemError, "Error in call to python callback-wrapper");
                                 }
                                 if constexpr (std::is_void<ReturnType>::value) {
                                     return;
@@ -83,7 +83,7 @@ namespace __pyllars_internal{
             PyErr_SetString( PyExc_RuntimeError,
                                 "Python callback is not callable!");
             PyErr_Print();
-            throw "Python callback is not callable!";
+            throw PyllarsException(PyExc_TypeError, "Python callback is not callable!");
         }
         PyObject *pytuple = PyTuple_New(size);
         for (Py_ssize_t i = 0; i < size; ++ i){
@@ -96,8 +96,7 @@ namespace __pyllars_internal{
         Py_DECREF(pytuple);
 
         if (!result){
-            PyErr_Print();
-            throw "Invalid arguments or error in callback";
+            throw PyllarsException(PyExc_TypeError, "Invalid arguments or error in callback");
         }
         return result;
       }
@@ -116,7 +115,7 @@ namespace __pyllars_internal{
               memset(&retval, 0, sizeof(retval)); //null pointer, but this is generic type, so....
               return retval;
             } else if( result == Py_None){
-              throw "Invalid return type from callback";
+              throw PyllarsException(PyExc_TypeError, "Invalid return type from callback");
             }
              return *toCArgument<ReturnType, false, PythonClassWrapper<ReturnType> >(*result);
         }
@@ -212,7 +211,7 @@ namespace __pyllars_internal{
                     _my_cb_index = index;
             }
             if (cb_index >= MAX_CB_POOL_DEPTH){
-                throw "Callbaks exhausted";
+                throw PyllarsException(PyExc_ValueError, "Callbaks exhausted");
             }
             Pool::pycallbacks[cb_index] = pycb;
             Py_INCREF(pycb);
@@ -251,7 +250,7 @@ namespace __pyllars_internal{
                     _my_cb_index = index;
             }
             if (cb_index >= MAX_CB_POOL_DEPTH){
-                throw "Callbaks exhausted";
+                throw PyllarsException(PyExc_ValueError, "Callbaks exhausted");
             }
             Pool::pycallbacks[cb_index] = pycb;
             Py_INCREF(pycb);

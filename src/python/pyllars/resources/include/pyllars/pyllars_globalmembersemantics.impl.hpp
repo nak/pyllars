@@ -25,7 +25,8 @@ namespace __pyllars_internal{
         static bool inited = false;
         PyTypeObject *type = &Container<T>::Type;
         if (!inited && (PyType_Ready(type) < 0)) {
-            throw "Unable to initialize python object for c function global variable wrapper";
+            PyErr_SetString(PyExc_RuntimeError, "Unable to initialize python object for c function global variable wrapper");
+            return nullptr;
         } else {
             Py_INCREF(type);
             static PyObject *emptyargs = PyTuple_New(0);
@@ -89,8 +90,14 @@ namespace __pyllars_internal{
                     *(callable->member) = toCArgument<T>(*PyTuple_GetItem(args, 0)).value();
                 }
                 return toPyObject<T&>(*callable->member, array_size);
-            } catch (const char *msg) {
-                PyErr_SetString(PyExc_TypeError, msg);
+            } catch (PyllarsException &e) {
+                e.raise();
+                return nullptr;
+            } catch(std::exception const & e) {
+                PyllarsException::raise_internal_cpp(e.what());
+                return nullptr;
+            } catch (...) {
+                PyllarsException::raise_internal_cpp();
                 return nullptr;
             }
         } else if constexpr (std::is_array<T>::value && ArraySize<T>::size > 0){

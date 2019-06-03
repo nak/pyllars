@@ -71,8 +71,11 @@ namespace __pyllars_internal {
                 }
                 PyErr_SetString(PyExc_RuntimeError, "Internal Error:No C Object found to get member attribute _CObject!");
                 return nullptr;
-            } catch (const char *const msg) {
-                PyErr_SetString(PyExc_RuntimeError, msg);
+            } catch (PyllarsException &e) {
+                e.raise();
+                return nullptr;
+            } catch (...) {
+                PyllarsException::raise_internal_cpp();
                 return nullptr;
             }
         } else if constexpr (std::is_array<T>::value){
@@ -108,15 +111,19 @@ namespace __pyllars_internal {
             }
             try {
                 Assignment<T>::assign((_this->get_CObject()->*member), toCArgument<T>(*pyVal).value());
-            } catch (const char *const msg) {
-                PyErr_SetString(PyExc_RuntimeError, msg);
+            } catch (PyllarsException &e) {
+                e.raise();
+                return -1;
+            } catch (...) {
+                PyllarsException::raise_internal_cpp();
                 return -1;
             }
             return 0;
         } else if constexpr ( !std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value == 0){
             return 0;
         } else if constexpr ( std::is_const<T>::value ){
-            throw "Cannot set const element";
+            PyErr_SetString(PyExc_TypeError, "Cannot set const element");
+            return -1;
         } else if constexpr (std::is_array<T>::value && ArraySize<T>::size > 0){
             static constexpr ssize_t size = ArraySize<T>::size;
             typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
@@ -150,8 +157,11 @@ namespace __pyllars_internal {
                     Assignment<T_base*>::assign(toVal, *val, ArraySize<T>::size );
                     return 0;
                 }
-            } catch (const char *const msg) {
-                PyErr_SetString(PyExc_RuntimeError, msg);
+            } catch (PyllarsException & e) {
+                e.raise();
+                return -1;
+            } catch (...) {
+                PyllarsException::raise_internal_cpp();
                 return -1;
             }
             PyErr_SetString(PyExc_TypeError, "Unknown or incompatible type in setting member of class");
@@ -197,8 +207,11 @@ namespace __pyllars_internal {
                     PyErr_SetString(PyExc_ValueError, "Invalid argument type when setting attribute");
                     return -1;
                 }
-            } catch( const char* const msg){
-                PyErr_SetString(PyExc_RuntimeError, msg);
+            } catch(PyllarsException & e){
+                e.raise();
+                return -1;
+            } catch (...) {
+                PyllarsException::raise_internal_cpp();
                 return -1;
             }
             PyErr_SetString(PyExc_TypeError, "Unknown or incompatible type in setting member of class");
@@ -215,7 +228,7 @@ namespace __pyllars_internal {
 
         } else if constexpr( std::is_const<T>::value && !std::is_array<T>::value && Sizeof<T>::value != 0){
             PyErr_SetString(PyExc_RuntimeError, "Attempt to set constant field");
-            throw "Attempt to set constant field";
+            throw PyllarsException(PyExc_TypeError, "Attempt to set const field");
         } else if constexpr (std::is_array<T>::value && ArraySize<T>::size > 0){
             static constexpr ssize_t size = ArraySize<T>::size;
             argument_capture<T> val = toCArgument<T >(*pyobj);
@@ -223,7 +236,7 @@ namespace __pyllars_internal {
                 (self->*member)[i] = (val.value())[i];
             }
         } else if constexpr (std::is_array<T>::value){
-            throw "Cannot set _CObject of type of unknown array length";
+            throw PyllarsException(PyExc_TypeError, "Cannot set _CObject of type of unknown array length");
         }
     }
 
@@ -289,7 +302,7 @@ namespace __pyllars_internal {
     setFromPyObject(CClass_NoRef *self, PyObject *pyobj) {
         argument_capture<T> value = toCArgument<T>(*pyobj);
         if (!BitFieldLimits<T, bits>::is_in_bounds(value.value())) {
-            throw "Value out of bounds";
+            throw PyllarsException(PyExc_ValueError, "Value out of bounds");
         }
         _setter(*self, value.value());
     }
@@ -315,7 +328,7 @@ namespace __pyllars_internal {
     setFromPyObject(CClass_NoRef *self, PyObject *pyobj) {
         (void) self;
         (void) pyobj;
-        throw "Cannot set const bit field";
+        throw PyllarsException(PyExc_TypeError, "Cannot set const bit field");
     }
 
 

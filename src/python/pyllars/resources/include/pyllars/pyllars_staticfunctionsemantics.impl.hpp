@@ -137,12 +137,12 @@ namespace __pyllars_internal{
                                 void **ptrvalue = (void **) (((char *) nextArg) + offset);
                                 extra_arg_values[i].ptrvalue = *ptrvalue;
                             } else {
-                                throw "Unable to convert Python object to C Object";
+                                throw PyllarsException(PyExc_TypeError, "Unable to convert Python object to C Object");
                             }
                             arg_values[i] = &extra_arg_values[i].ptrvalue;
                             break;
                         default:
-                            throw "Python object cannot be converted to C object";
+                            throw PyllarsException(PyExc_TypeError, "Python object cannot be converted to C object");
                     }
                 }
                 ffi_type *return_type = nullptr;
@@ -157,7 +157,7 @@ namespace __pyllars_internal{
                                                func_traits<func_type>::argsize,
                                                func_traits<func_type>::argsize + extra_args_size,
                                                return_type, arg_types)) != FFI_OK) {
-                    throw "FFI error calling variadic function";
+                    throw PyllarsException(PyExc_TypeError, "FFI error calling variadic function");
                 }
                 // Invoke the function.
                 ffi_call(&cif, FFI_FN(func), result, arg_values);
@@ -177,7 +177,7 @@ namespace __pyllars_internal{
                     return func(toCArgument<Args>(*pyargs).value()...);
                 }
             } else {
-                throw "Too many arguments provided to function call";
+                throw PyllarsException(PyExc_TypeError, "Too many arguments provided to function call");
             }
         }
     }
@@ -198,8 +198,14 @@ namespace __pyllars_internal{
                 const ssize_t array_size = ArraySize<ReturnType>::size;//sizeof(result) / sizeof(T_base);
                 return toPyObject<ReturnType>(result, array_size);
             }
-        } catch (const char *const msg) {
-            PyErr_SetString(PyExc_RuntimeError, msg);
+        } catch (PyllarsException &e) {
+            e.raise();
+            return nullptr;
+        } catch(std::exception const & e) {
+            PyllarsException::raise_internal_cpp(e.what());
+            return nullptr;
+        } catch(...) {
+            PyllarsException::raise_internal_cpp();
             return nullptr;
         }
     }
@@ -223,7 +229,7 @@ namespace __pyllars_internal{
         if ((arg_count > func_traits<func_type>::argsize) && func_traits<func_type>::has_ellipsis) {
             auto const size = func_traits<func_type>::argsize - kwd_count;
             if (size > PyTuple_Size(args)){
-                throw "Not enough arguments to call";
+                throw PyllarsException(PyExc_TypeError, "Not enough arguments to call");
             }
             tuple = PyTuple_GetSlice(args, 0, size);
             auto low = func_traits<func_type>::argsize - kwd_count;
@@ -236,7 +242,7 @@ namespace __pyllars_internal{
         memset(pyobjs, 0, func_traits<func_type>::argsize*sizeof(PyObject*));
         (void) pyobjs;
         if (func_traits<func_type>::argsize > 0 && !PyArg_ParseTupleAndKeywords(tuple, kwds, format, (char **) kwlist, &pyobjs[S]...)) {
-            throw "Invalid arguments to method call";
+            throw PyllarsException(PyExc_TypeError, "Invalid arguments to method call");
         }
 
         if constexpr (std::is_void<ReturnType>::value) {
@@ -257,8 +263,14 @@ namespace __pyllars_internal{
         }
         try {
             return StaticCallSemantics<func_type>::call(function, kwlist, args, kwds);
-        } catch (const char* const msg) {
-            PyErr_SetString(PyExc_RuntimeError, msg);
+        } catch (PyllarsException &e) {
+            e.raise();
+            return nullptr;
+        } catch(std::exception const & e) {
+            PyllarsException::raise_internal_cpp(e.what());
+            return nullptr;
+        } catch(...) {
+            PyllarsException::raise_internal_cpp();
             return nullptr;
         }
     }

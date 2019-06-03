@@ -125,7 +125,7 @@ TEST_F(PythonSetup, test_basic_convert_pybasic){
     ASSERT_EQ(uint_value.value(), const_uint);
     auto float_obj = PyFloat_FromDouble(1.234);
     typedef const char* cstring;
-    ASSERT_THROW((toCArgument<long>(*float_obj)), cstring);
+    ASSERT_THROW((toCArgument<long>(*float_obj)), PyllarsException);
 }
 
 TEST_F(PythonSetup, test_pyfloat_to_cfloat){
@@ -158,7 +158,7 @@ void test_basic(T val, PyObject* (*PyFrom)(T)){
     argument_capture<T> value = toCArgument<T>(*obj);
     Assertion<T>::assert_equal(value.value(), val);
     typedef const char* cstring;
-    ASSERT_THROW( (toCArgument<DisparateType>(*obj)), cstring);
+    ASSERT_THROW( (toCArgument<DisparateType>(*obj)), PyllarsException);
 
 }
 
@@ -301,7 +301,7 @@ void test_conversion_from_native_py(T vals[3], T toVals[3]) {
     Assertion<T>::assert_equal(PyTo(PyList_GetItem(obj, 2)), toVals[2]);
 
     typedef const char* cstring;
-    ASSERT_THROW((toCArgument<DisparateType>(*obj)), cstring);
+    ASSERT_THROW((toCArgument<DisparateType>(*obj)), PyllarsException);
 }
 
 PyObject* __PyLong_FromInt(int v){

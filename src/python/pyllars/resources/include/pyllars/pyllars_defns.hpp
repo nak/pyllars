@@ -816,5 +816,38 @@ namespace __pyllars_internal {
     template<typename const_or_nonconst_char>
     const_or_nonconst_char* fromPyStringLike(PyObject* obj);
 
+
+    class PyllarsException{
+    public:
+        explicit PyllarsException(PyObject* excType, const char* const msg):_msg(msg), _excType(excType){
+        }
+
+        inline const char* const msg() const{
+            return _msg.c_str();
+        }
+
+        inline PyObject * type() const{
+            return _excType;
+        }
+
+        void raise(){
+            if(PyErr_Occurred()){
+                PyErr_Print();
+            }
+            PyErr_SetString(_excType, _msg.c_str());
+        }
+
+        static void raise_internal_cpp(const char* const msg = nullptr){
+            if(!msg){
+                PyllarsException(PyExc_RuntimeError, "internal c++ exception thrown:  ").raise();
+            } else {
+                PyllarsException(PyExc_RuntimeError, msg).raise();
+            }
+        }
+
+    private:
+        const std::string _msg;
+        PyObject* const _excType;
+    };
 }
 #endif

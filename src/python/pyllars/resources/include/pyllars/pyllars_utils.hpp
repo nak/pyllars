@@ -223,7 +223,7 @@ namespace __pyllars_internal {
                 for (size_t i = 0; i < arraySize; ++i)
                     to[i] = from[i];
             } else {
-                throw "Attempt to assign incompatible or unassignable type";
+                throw PyllarsException(PyExc_TypeError, "Attempt to assign incompatible or unassignable type");
             }
         }
 

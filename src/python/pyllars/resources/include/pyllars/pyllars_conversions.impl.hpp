@@ -19,7 +19,7 @@ namespace __pyllars_internal {
         struct Setter{
             static void setItem(PyObject* obj, const size_t index, T & val){
                 if(!PyList_Check(obj)){
-                    throw "Invalid conversion in item of non-list object";
+                    throw PyllarsException(PyExc_TypeError, "Invalid conversion in item of non-list object");
                 }
                 auto self = (PythonClassWrapper<T> *) PyList_GetItem(obj, index);
                 if (PyLong_Check(self)) {
@@ -31,13 +31,13 @@ namespace __pyllars_internal {
                         }
                         return;
                     }
-                    throw "Invalid type conversion requested to non-integral type";
+                    throw PyllarsException(PyExc_TypeError, "Invalid type conversion requested to non-integral type");
                 } else if(PyFloat_Check(self)) {
                     if constexpr (std::is_floating_point<T>::value) {
                         PyList_SetItem(obj, index, PyFloat_FromDouble((double) val));
                         return;
                     }
-                    throw "Invalid type conversion requested to non-floating-point type";
+                    throw PyllarsException(PyExc_TypeError, "Invalid type conversion requested to non-floating-point type");
                 } else if constexpr (is_c_string_like<T>::value) {
                     if (PyString_Check(self)) {
                         PyList_SetItem(obj, index, PyString_FromString((const char *) val));
@@ -50,10 +50,10 @@ namespace __pyllars_internal {
                     }
                 }
                 if (!PyObject_TypeCheck((PyObject *) self, PythonClassWrapper<T>::getPyType())) {
-                    throw "Incompatible types in C conversion";
+                    throw PyllarsException(PyExc_TypeError, "Incompatible types in C conversion");
                 }
                 if (!self->get_CObject()) {
-                    throw "Cannot set null item";
+                    throw PyllarsException(PyExc_TypeError, "Cannot set null item");
                 }
                 *self->get_CObject() = val;
             }
@@ -190,13 +190,13 @@ namespace __pyllars_internal {
                 if (PyString_Check(&pyobj)) {
                     text= PyString_AsString(&pyobj);
                     if (!text) {
-                        throw "Error converting string: null pointer encountered";
+                        throw PyllarsException(PyExc_ValueError, "Error converting string: null pointer encountered");
                     }
                     return argument_capture<T>(new (const char*)(text), false);
                 } else if (CommonBaseWrapper::template checkImplicitArgumentConversion<const char*>(&pyobj)) {
                     return argument_capture<T>(*((PythonClassWrapper<const char*> *)(&pyobj))->get_CObject());
                 } else {
-                    throw "Invalid type or const conversion converting to C object";
+                    throw PyllarsException(PyExc_TypeError, "Invalid type or const conversion converting to C object");
                 }
 
             } else if constexpr(is_bytes_like<T>::value) {
@@ -206,9 +206,9 @@ namespace __pyllars_internal {
                 } else if (CommonBaseWrapper::template checkImplicitArgumentConversion<char *const>(&pyobj)) {
                     bytes = *reinterpret_cast<PythonClassWrapper<char *const> * >(&pyobj)->get_CObject();
                 } else {
-                    throw "Invalid type or const conversion converting to C object";
+                    throw PyllarsException(PyExc_TypeError, "Invalid type or const conversion converting to C object");
                 }
-                if (!bytes) { throw "Error converting string: null pointer encountered"; }
+                if (!bytes) { throw PyllarsException(PyExc_ValueError, "Error converting string: null pointer encountered"); }
                 return argument_capture<T>(new (char*)(bytes), false);
             } else if constexpr (std::is_array<T>::value && ArraySize<T>::size > 0) {
                 constexpr auto size = ArraySize<T>::size;
@@ -216,13 +216,13 @@ namespace __pyllars_internal {
                 typedef typename std::remove_const<T_element>::type NonConst_T_array[size];
                 if (PyList_Check(&pyobj)) {
                     if (PyList_Size(&pyobj) != size) {
-                        throw "Inconsistent sizes in array assignment";
+                        throw PyllarsException(PyExc_TypeError, "Inconsistent sizes in array assignment");
                     }
                     NonConst_T_array *val = new NonConst_T_array[1];
                     for (size_t i = 0; i < size; ++i) {
                         PyObject *listitem = PyList_GetItem(&pyobj, i);
                         if (!listitem) {
-                            throw "Invalid null _CObject for list item in conversion to C array";
+                            throw PyllarsException(PyExc_ValueError, "Invalid null _CObject for list item in conversion to C array");
                         }
                         (*val)[i] = CObjectConversionHelper<T_element>::toCArgument(*listitem).value();
                     }
@@ -245,7 +245,7 @@ namespace __pyllars_internal {
                 PythonClassWrapper<const volatile T_bare &>::checkType(&pyobj) ||
                 PythonClassWrapper<const volatile T_bare &&>::checkType(&pyobj) ||
                 PythonClassWrapper<const T_bare &&>::checkType(&pyobj)) {
-                throw "Cannot concert const type to a non-const reference";
+                throw PyllarsException(PyExc_TypeError, "Cannot concert const type to a non-const reference");
             } else if (PythonClassWrapper<T_bare>::checkType(&pyobj)) {
                 return ((PythonClassWrapper<T_bare> *) &pyobj)->toCArgument();
             } else if (PythonClassWrapper<T_bare&>::checkType(&pyobj)) {
@@ -265,9 +265,9 @@ namespace __pyllars_internal {
                     return ((PythonClassWrapper<volatile T_bare &&> *) &pyobj)->toCArgument();
                 }
             }
-            throw "Cannot convert immutable Python type to C reference type";
+            throw PyllarsException(PyExc_TypeError, "Cannot convert immutable Python type to C reference type");
         }
-        throw "Invalid type or const conversion converting to C object";
+        throw PyllarsException(PyExc_TypeError, "Invalid type or const conversion converting to C object");
     }
 
     template<typename ReturnType, typename ...Args>
@@ -275,7 +275,7 @@ namespace __pyllars_internal {
     CObjectConversionHelper<ReturnType(*)(Args...)>::
     toCArgument(PyObject &pyobj) {
         if (!PyCallable_Check(&pyobj)) {
-            throw "Python callback is not callable!";
+            throw PyllarsException(PyExc_TypeError, "Python callback is not callable");
         }
         callback_t *retval = new callback_t(PyCallbackWrapper<ReturnType, Args...>(&pyobj).get_C_callback());
         return argument_capture<callback_t>(retval);
@@ -286,7 +286,7 @@ namespace __pyllars_internal {
     CObjectConversionHelper<ReturnType(*)(Args..., ...)>::
     toCArgument(PyObject &pyobj) {
         if (!PyCallable_Check(&pyobj)) {
-            throw "Python callback is not callable!";
+            throw PyllarsException(PyExc_TypeError, "Python callback is not callable");
         }
         callback_t *retval = new callback_t(PyCallbackWrapperVar<ReturnType, Args...>(&pyobj).get_C_callback());
         return argument_capture<callback_t >(retval);

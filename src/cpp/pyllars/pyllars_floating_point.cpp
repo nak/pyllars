@@ -699,7 +699,7 @@ namespace __pyllars_internal{
     typename std::remove_const<number_type>::type &
     __pyllars_internal::PyFloatingPtCustomObject<number_type>::toCArgument(){
         if constexpr (std::is_const<number_type>::value){
-            throw "Cannot pass const value as non-const reference argument";
+            throw PyllarsException(PyExc_TypeError, "Cannot pass const value as non-const reference argument");
         } else {
             return *get_CObject();
         }

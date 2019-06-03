@@ -134,18 +134,18 @@ namespace __pyllars_internal{
                         }
                         return &obj;
                     }
-                    throw "Request to instantiate non-constructible object";
+                    throw PyllarsException(PyExc_TypeError, "Request to instantiate non-constructible object");
                 } else {
                     return new ((void*)&obj)T(std::forward<typename extent_as_pointer<Args>::type>>(args)...);
                 }
             }
-            throw "Request to instantiate non-constructible object";
+            throw PyllarsException(PyExc_TypeError, "Request to instantiate non-constructible object");
         }
 
         template<typename ...Args>
         static T* allocate(Args ...args){
             if constexpr (sizeof...(args) == 0 && !std::is_default_constructible<T>::value){
-                throw "Request to default-construct non-cdefault-constructiblt object";
+                throw PyllarsException(PyExc_TypeError, "Request to default-construct non-cdefault-constructiblt object");
             }
             if constexpr (std::is_constructible<T>::value){
                 if(std::is_array<T>::value){
@@ -153,12 +153,12 @@ namespace __pyllars_internal{
                         typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_element;
                         return new T_element[ArraySize<T>::size]{T(std::forward<typename extent_as_pointer<Args>::type>>(args)...)};
                     }
-                    throw "Request to instantiate object of unknown size";
+                    throw PyllarsException(PyExc_TypeError, "Request to instantiate object of unknown size");
                 } else {
                     return new T(std::forward<typename extent_as_pointer<Args>::type>>(args)...);
                 }
             }
-            throw "Request to instantiate non-constructible object";
+            throw PyllarsException(PyExc_TypeError, "Request to instantiate non-constructible object");
         }
 
 
@@ -170,12 +170,12 @@ namespace __pyllars_internal{
                         typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_element;
                         return new T_element[size][ArraySize<T>::size]{{T(std::forward<typename extent_as_pointer<Args>::type>>(args)...)}};
                     }
-                    throw "Request to instantiate object of unknown size";
+                    throw PyllarsException(PyExc_TypeError, "Request to instantiate object of unknown size");
                 } else {
                     return new T[size]{T(std::forward<typename extent_as_pointer<Args>::type>(args)...)};
                 }
             }
-            throw "Request to instantiate non-constructible object";
+            throw PyllarsException(PyExc_TypeError, "Request to instantiate non-constructible object");
         }
     };
 

@@ -50,7 +50,7 @@ namespace __pyllars_internal {
         if ((status = ffi_prep_cif_var(&cif, FFI_DEFAULT_ABI,
                                        sizeof...(Args), sizeof...(Args) + extra_args_size,
                                        return_type, arg_types)) != FFI_OK) {
-            throw "FFI error calling variadic function";
+            throw PyllarsException(PyExc_TypeError, "FFI error calling variadic function");
         }
 
         // Invoke the function.
@@ -101,7 +101,7 @@ namespace __pyllars_internal {
         if ((status = ffi_prep_cif_var(&cif, FFI_DEFAULT_ABI,
                                        sizeof...(Args), sizeof...(Args) + extra_args_size,
                                        return_type, arg_types)) != FFI_OK) {
-            throw "FFI error calling variadic function";
+            throw PyllarsException(PyExc_TypeError, "FFI error calling variadic function");
         }
 
         // Invoke the function.
@@ -149,11 +149,9 @@ namespace __pyllars_internal {
         if (func_traits<method_t>::argsize > 0)
             memset(format, 'O', func_traits<method_t>::argsize);
         if (kwds && !PyArg_ParseTupleAndKeywords(tuple, kwds, format, (char **) kwlist, &pyargs...)) {
-            PyErr_Print();
-            throw "Invalid arguments to method call";
+            throw PyllarsException(PyExc_TypeError, "Invalid arguments to method call");
         } else if (!kwds && !PyArg_ParseTuple(tuple, format, &pyargs...)) {
-            PyErr_Print();
-            throw "Invalid arguments to method call";
+            throw PyllarsException(PyExc_TypeError, "Invalid arguments to method call");
         }
         return func_traits<method_t>::invoke(method, self, extra_args, pyargs...);
 
@@ -175,7 +173,7 @@ namespace __pyllars_internal {
         PyObject pyobjs[func_traits<method_t>::argsize + 1];
         (void) pyobjs;
         if (!method) {
-            throw "Null method pointer encountered";
+            throw PyllarsException(PyExc_TypeError, "Null method pointer encountered");
         }
         return call_methodC(self, method, args, kwds, &pyobjs[S]...);
 

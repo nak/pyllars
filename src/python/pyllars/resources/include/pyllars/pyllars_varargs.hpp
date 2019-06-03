@@ -15,7 +15,7 @@ namespace __pyllars_internal {
     template<typename T, typename Z = void>
     struct FFIType {
         static ffi_type *type() {
-            throw "Unsupport return type in var arg function";
+            throw PyllarsException(PyExc_TypeError, "Unsupported return type in var arg function");
         }
     };
 
@@ -68,7 +68,7 @@ namespace __pyllars_internal {
                     case 8:
                         return &ffi_type_sint64;
                     default:
-                        throw "Unsupported return type in var arg function";
+                        throw PyllarsException(PyExc_TypeError, "Unsupported return type in var arg function");
                 }
             } else {
                 switch (sizeof(T)) {
@@ -81,7 +81,7 @@ namespace __pyllars_internal {
                     case 8:
                         return &ffi_type_uint64;
                     default:
-                        throw "Unsupported return type in var arg function";
+                        throw PyllarsException(PyExc_TypeError, "Unsupported return type in var arg function");
                 }
             }
         }

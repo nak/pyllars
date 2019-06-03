@@ -1,9 +1,10 @@
 #ifndef PYLLARS_TEMPLATES_H
 #define PYLLARS_TEMPLATES_H
 
-#include "pyllars_templates.hpp"
 #include <Python.h>
 #include <string.h>
+#include "pyllars_templates.hpp"
+#include "pyllars_defns.hpp"
 
 namespace __pyllars_internal {
 
@@ -199,7 +200,7 @@ namespace __pyllars_internal {
 
         };
         if (PyType_Ready(Type) < 0) {
-            throw("Unable to initialize Pyllars python-type");
+            throw PyllarsException(PyExc_RuntimeError, "Unable to initialize Pyllars python-type");
         }
         PyObject *const type = reinterpret_cast<PyObject *>(Type);
         Py_INCREF(type);
