@@ -13,7 +13,6 @@
 
 #include <pyllars_classwrapper.hpp>
 #include <pyllars_containment.hpp>
-#include <pyllars_object_lifecycle.hpp>
 #include <pyllars_pointer.hpp>
 #include <pyllars_integer.hpp>
 #include <pyllars_floating_point.hpp>
@@ -46,6 +45,8 @@ namespace __pyllars_internal {
         static bool checkType(PyObject *obj);
 
         static PythonClassWrapper *fromCObject(T& cobj, PyObject *referencing = nullptr);
+
+        static PythonClassWrapper *fromCPointer(T& cobj, const ssize_t size, PyObject *referencing = nullptr);
 
         void make_reference(PyObject* ref){
             Base::make_reference(ref);
@@ -122,6 +123,8 @@ namespace __pyllars_internal {
         static bool checkType(PyObject *obj);
 
         static PythonClassWrapper *fromCObject(T&& cobj, PyObject *referencing = nullptr);
+
+        static PythonClassWrapper *fromCPointer(T& cobj, const ssize_t size, PyObject *referencing = nullptr);
 
         typename std::remove_const<T>::type& toCArgument() {
             return Base::toCArgument();

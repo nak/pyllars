@@ -56,8 +56,8 @@ namespace __pyllars_internal {
 
         ~argument_capture(){
             _reverse_capture();
-            if (_valueP){
-                if constexpr (std::is_destructible<T_bare>::value){
+            if constexpr (std::is_destructible<T_bare>::value){
+                if (_valueP){
                     if(_array_allocated) delete [] _valueP;
                     else delete _valueP;
                 }
@@ -65,15 +65,15 @@ namespace __pyllars_internal {
             _valueP = nullptr;
         }
 
-        T_bare& value(){
+        inline T_bare& value(){
             return _value;
         }
 
-        const T_bare& value() const{
+        inline const T_bare& value() const{
             return _value;
         }
 
-        T_bare * ptr(){
+        inline T_bare * ptr(){
             return &_value;
         }
 

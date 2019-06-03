@@ -284,18 +284,21 @@ void test_conversion_from_native_py(T vals[3], T toVals[3]) {
     using namespace __pyllars_internal;
 
     auto obj = PyList_New(3);
-    PyList_SetItem(obj, 0, PyFrom(vals[0]));
+    PythonClassWrapper<T>* o= (PythonClassWrapper<T>*)PyFrom(vals[0]);
+    Py_INCREF(o);
+    PyList_SetItem(obj, 0, (PyObject*)o);//PyFrom(vals[0]));
     PyList_SetItem(obj, 1, PyFrom(vals[1]));
     PyList_SetItem(obj, 2, PyFrom(vals[2]));
     {
-        call(toCArgument<T[3]>(*obj).value(), toVals);
-        ASSERT_NE(PyList_GetItem(obj, 0), nullptr);
-        ASSERT_NE(PyList_GetItem(obj, 1), nullptr);
-        ASSERT_NE(PyList_GetItem(obj, 2), nullptr);
-        Assertion<T>::assert_equal(PyTo(PyList_GetItem(obj, 0)), toVals[0]);
-        Assertion<T>::assert_equal(PyTo(PyList_GetItem(obj, 1)), vals[1]);
-        Assertion<T>::assert_equal(PyTo(PyList_GetItem(obj, 2)), toVals[2]);
+        auto val = toCArgument<T[3]>(*obj);
+        call(val.value(), toVals);
     }
+    ASSERT_NE(PyList_GetItem(obj, 0), nullptr);
+    ASSERT_NE(PyList_GetItem(obj, 1), nullptr);
+    ASSERT_NE(PyList_GetItem(obj, 2), nullptr);
+    Assertion<T>::assert_equal(PyTo(PyList_GetItem(obj, 0)), toVals[0]);
+    Assertion<T>::assert_equal(PyTo(PyList_GetItem(obj, 1)), vals[1]);
+    Assertion<T>::assert_equal(PyTo(PyList_GetItem(obj, 2)), toVals[2]);
 
     typedef const char* cstring;
     ASSERT_THROW((toCArgument<DisparateType>(*obj)), cstring);

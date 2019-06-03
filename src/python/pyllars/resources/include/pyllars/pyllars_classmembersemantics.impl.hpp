@@ -6,7 +6,6 @@
 #define __PYLLARS_INTERNAL__CLASSMEMBERSEMANTICS_CPP__
 
 #include "pyllars_classmembersemantics.hpp"
-#include "pyllars_function_wrapper.hpp"
 
 namespace __pyllars_internal{
 

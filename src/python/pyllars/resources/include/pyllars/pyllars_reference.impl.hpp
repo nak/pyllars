@@ -78,6 +78,25 @@ namespace __pyllars_internal{
     }
 
 
+    template <typename T>
+    PythonClassWrapper<T&, void> *
+    PythonClassWrapper<T&, void>::fromCPointer(T& cobj, const ssize_t size, PyObject *referencing){
+        static PyObject *kwds = PyDict_New();
+        static PyObject *emptyargs = PyTuple_New(0);
+        PyDict_SetItemString(kwds, "__internal_allow_null", Py_True);
+        PyTypeObject *type_ = getPyType();
+
+        if (!type_ || !type_->tp_name) {
+            PyErr_SetString(PyExc_RuntimeError, "Uninitialized type when creating object");
+            return nullptr;
+        }
+        auto pyobj = (PythonClassWrapper *) PyObject_Call(reinterpret_cast<PyObject *>(type_), emptyargs, kwds);
+        if (pyobj) {
+            pyobj->_CObject = &cobj;
+            pyobj->_max = size-1;
+        }
+        return pyobj;
+    }
     template<typename T>
     PyTypeObject PythonClassWrapper<T&, void>::_Type = {
         #if PY_MAJOR_VERSION == 3

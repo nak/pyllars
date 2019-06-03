@@ -52,10 +52,10 @@ namespace __pyllars_internal{
             _referenced = obj;
         }
 
-    protected:
         static int initialize(){
             return _initialize(_Type);
         }
+    protected:
 
         static PyObject *richcompare(PyObject *a, PyObject *b, int op);
 

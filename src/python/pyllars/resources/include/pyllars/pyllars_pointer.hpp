@@ -14,7 +14,6 @@
 
 #include "pyllars_classwrapper.hpp"
 #include "pyllars_containment.hpp"
-#include "pyllars_object_lifecycle.hpp"
 
 
 namespace __pyllars_internal {
@@ -31,6 +30,9 @@ namespace __pyllars_internal {
 
         template<typename Other, typename EE>
         friend class PythonClassWrapper;
+
+        template<typename Other>
+        friend class PythonPointerWrapperBase;
 
         typedef typename std::remove_pointer<typename extent_as_pointer<typename std::remove_reference<T>::type>::type>::type T_base;
 
@@ -248,12 +250,6 @@ namespace __pyllars_internal {
 
         T_NoRef* get_CObject() const{
             return PythonPointerWrapperBase<T>::_get_CObject();
-        }
-
-        void setFrom(T & value){
-            if (Base::_referenced) Py_XDECREF(Base::_referenced);
-            Base::_referenced = nullptr;
-            Base::_CObject = ObjectLifecycleHelpers::Copy<T_NoRef>::new_copy(value);
         }
 
         static PyTypeObject *getPyType(){

@@ -11,7 +11,6 @@
 #include "pyllars_staticfunctionsemantics.impl.hpp"
 #include "pyllars_classmembersemantics.impl.hpp"
 #include "pyllars_methodcallsemantics.impl.hpp"
-#include "pyllars_object_lifecycle.impl.hpp"
 #include "pyllars_conversions.impl.hpp"
 
 namespace {
@@ -444,7 +443,7 @@ namespace __pyllars_internal {
         PythonClassWrapper *pyobj = (PythonClassWrapper *) PyObject_Call(
                 reinterpret_cast<PyObject *>(type_), emptyargs, kwds);
         if (pyobj) {
-            pyobj->_CObject = ObjectLifecycleHelpers::Copy<T>::new_copy(cobj);
+            pyobj->_CObject = new T(cobj);//ObjectLifecycleHelpers::Copy<T>::new_copy(cobj);
         }
         return pyobj;
     }
@@ -752,42 +751,48 @@ namespace __pyllars_internal {
             Py_DECREF(new_arg);
             return obj;
         } else if (PyList_Check(arg)) {
-            const ssize_t size = PyList_Size(arg);
-            if(size < 0){
-                throw "Internal error getting size of list";
-            }
-            typedef T_NoRef  T_fixed_array[size];
-            typedef T_fixed_array *T_fixed_array_ptr;
 
-            auto bytebucket = new unsigned char[size*sizeof(T_NoRef)];
-            T_fixed_array_ptr cobj_ptr= (T_fixed_array_ptr) bytebucket;
-            for (ssize_t i = 0; i < size; ++i){
-                PyObject* constructor_args = PyList_GetItem(arg, i);
-                if (!constructor_args || !PyTuple_Check(constructor_args)){
-                    PyErr_SetString(PyExc_TypeError, "Invalid constructor arguments: not a tuple as expected, or index out of range");
-                    return nullptr;
+            if constexpr(!is_complete<T_NoRef>::value){
+                throw "Cannot allocate multiple disparate instances using incomplete type";
+            } else {
+                const ssize_t size = PyList_Size(arg);
+                if (size < 0) {
+                    throw "Internal error getting size of list";
                 }
-                T_NoRef *cobj = nullptr;
-                for (auto const &[kwlist_, constructor_] : PythonClassWrapper<T>::_constructors) {
-                    try {
-                        cobj = constructor_(kwlist_, constructor_args, nullptr, bytebucket+i);
-                        if (cobj) break;
-                    } catch (...) {
+                typedef T_NoRef  T_fixed_array[size];
+                typedef T_fixed_array *T_fixed_array_ptr;
+
+                auto bytebucket = new unsigned char[size * sizeof(T_NoRef)];
+                T_fixed_array_ptr cobj_ptr = (T_fixed_array_ptr) bytebucket;
+                for (ssize_t i = 0; i < size; ++i) {
+                    PyObject *constructor_args = PyList_GetItem(arg, i);
+                    if (!constructor_args || !PyTuple_Check(constructor_args)) {
+                        PyErr_SetString(PyExc_TypeError,
+                                        "Invalid constructor arguments: not a tuple as expected, or index out of range");
+                        return nullptr;
                     }
-                    PyErr_Clear();
-                }
-                if (!cobj){
-                    if constexpr (std::is_destructible<T_NoRef>::value) {
-                        for (ssize_t j = 0; j < i; ++j) {
-                            (*cobj_ptr)[j].~T_NoRef();
+                    T_NoRef *cobj = nullptr;
+                    for (auto const &[kwlist_, constructor_] : PythonClassWrapper<T>::_constructors) {
+                        try {
+                            cobj = constructor_(kwlist_, constructor_args, nullptr, bytebucket + i);
+                            if (cobj) break;
+                        } catch (...) {
                         }
+                        PyErr_Clear();
                     }
-                    PyErr_SetString(PyExc_TypeError, "Invalid constructor argsument");
-                    return nullptr;
+                    if (!cobj) {
+                        if constexpr (std::is_destructible<T_NoRef>::value) {
+                            for (ssize_t j = 0; j < i; ++j) {
+                                (*cobj_ptr)[j].~T_NoRef();
+                            }
+                        }
+                        PyErr_SetString(PyExc_TypeError, "Invalid constructor argsument");
+                        return nullptr;
+                    }
                 }
+                auto pyobj = PythonClassWrapper<T_NoRef *>::fromInPlaceAllocation(size, bytebucket);
+                return (PyObject *) pyobj;
             }
-            auto pyobj = PythonClassWrapper<T_NoRef *>::fromInPlaceAllocation(size, bytebucket);
-            return (PyObject *) pyobj;
         }
         throw "Invalid constructor arguments";
     }

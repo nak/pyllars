@@ -1,8 +1,8 @@
 
 include_directories(.
-        /usr/local/include/python3.7dm
-        ../python/pyllars/resources/include
-	../python/pyllars/resources/include/pyllars)
+		${PYTHON_INCLUDE}
+		../python/pyllars/resources/include
+		../python/pyllars/resources/include/pyllars)
 
 add_library(pyllars SHARED
 		pyllars/pyllars.cpp
@@ -10,4 +10,4 @@ add_library(pyllars SHARED
 		pyllars/pyllars_templates.cpp
         pyllars/pyllars_templates.cpp ../python/pyllars/resources/include/pyllars/pyllars_integer.hpp pyllars/pyllars_integer.cpp pyllars/pyllars_floating_point.cpp)
 set_target_properties(pyllars PROPERTIES LIBRARY_OUTPUT_DIRECTORY ../python/pyllars/resources/lib)
-target_link_libraries(pyllars PUBLIC -Wl,-rpath '$ORIGIN' -lpython3.7dm)
+target_link_libraries(pyllars PUBLIC -Wl,-rpath '$ORIGIN' ${PYTHON_LD})

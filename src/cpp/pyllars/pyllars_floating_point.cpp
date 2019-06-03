@@ -617,7 +617,7 @@ namespace __pyllars_internal{
         }
         auto *pyobj = (__pyllars_internal::PythonClassWrapper<number_type> *) PyObject_Call((PyObject *) type, emptyargs, kwds);
         if (pyobj) {
-            pyobj->_CObject = ObjectLifecycleHelpers::Copy<number_type_basic>::new_copy(cobj);
+            pyobj->_CObject = new number_type(cobj);//ObjectLifecycleHelpers::Copy<number_type_basic>::new_copy(cobj);
             pyobj->make_reference(referencing);
         }
         return pyobj;

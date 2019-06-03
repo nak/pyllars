@@ -7,7 +7,6 @@
 #include <Python.h>
 #include "pyllars_utils.hpp"
 #include "pyllars_conversions.hpp"
-#include "pyllars_object_lifecycle.impl.hpp"
 #include "pyllars_callbacks.hpp"
 #include "pyllars_pointer.impl.hpp"
 #include "pyllars_reference.impl.hpp"
@@ -338,21 +337,17 @@ namespace __pyllars_internal {
             if constexpr ( (std::is_array<T>::value ) || std::is_pointer<T>::value) {
                 //if constexpr (!std::is_array<T>::_CObject){
                 typedef typename std::remove_pointer<typename extent_as_pointer<T_NoRef>::type>::type T_base;
-                T_base *ptr = var;
-                typename std::remove_reference<T>::type *v = nullptr;
                 if constexpr (ArraySize<T_NoRef>::size > 0) {
+
                     //the rules of C++ and fixed arrays vs pointers and pass-by-reference are strange and mysterious...
-                    v = (T_NoRef *) ptr;
+                    T_base** v = new (T_base*)(&var[0]);
+                    T* vv = (T*) *v;
+                    pyobj = (PyObject *) ClassWrapper::fromCPointer((T&)*vv, array_size);
                 } else {
-                    v = &ptr;
+                    typename std::remove_reference<T>::type *v = nullptr;
+                    v = new T(var);
+                    pyobj = (PyObject *) ClassWrapper::fromCPointer(*v, array_size);
                 }
-                pyobj = (PyObject *) ClassWrapper::fromCPointer(*v, array_size);
-                //} else {
-                //    typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
-                //    pyobj = (PyObject *) ClassWrapper::template allocateInstance<T_base>(var);
-                // }
-            } else if (std::is_reference<T>::value){
-                pyobj = (PyObject*) ClassWrapper::fromCObject(var);
             } else {
                 pyobj = (PyObject *) ClassWrapper::fromCObject(var);
             }

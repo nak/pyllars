@@ -21,7 +21,6 @@
 #include "pyllars_membersemantics.hpp"
 #include "pyllars_methodcallsemantics.hpp"
 #include "pyllars_containment.hpp"
-#include "pyllars_object_lifecycle.hpp"
 
 typedef const char cstring[];
 static constexpr cstring operatormapname = "operator[]";

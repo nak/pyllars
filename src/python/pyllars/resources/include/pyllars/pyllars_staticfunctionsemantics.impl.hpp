@@ -5,8 +5,8 @@
 #ifndef __PYLLARS_INTERNAL__CLASSMETHODSEMANTICS_CPP__
 #define __PYLLARS_INTERNAL__CLASSMETHODSEMANTICS_CPP__
 
-#include "pyllars_staticfunctionsemantics.impl.hpp"
 #include "pyllars_function_wrapper.hpp"
+#include "pyllars_staticfunctionsemantics.impl.hpp"
 #include "pyllars_utils.impl.hpp"
 #include "pyllars_conversions.impl.hpp"
 #include <cstddef>
@@ -18,8 +18,6 @@ namespace __pyllars_internal{
             float fdata;
             int idata;
         };
-
-
 
         template<typename func_type, typename... PyO>
         typename func_traits<func_type>::ReturnType
