@@ -23,7 +23,7 @@ jobs:
       - run:
           name: Install Python3
           command: |
-            sudo apt-get install software-properties-common
+            yes | sudo apt-get install software-properties-common
             sudo apt-get update
             sudo add-apt-repository ppa:ubuntu-toolchain-r/ppa
             sudo apt-get update && sudo apt-get install -y python3.7-dev python3,7-pip
