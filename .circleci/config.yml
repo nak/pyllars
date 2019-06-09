@@ -15,7 +15,8 @@ jobs:
             apt-get update
             apt-get install software-properties-common
             add-apt-repository ppa:ubuntu-toolchain-r/test
-            apt-get update && apt-get install g++-7 -y
+            apt-get update
+            apt-get install g++-7
       - run:
           name: Install CMAKE
           command: 'apt-get update && sudo apt-get install -y cmake'
