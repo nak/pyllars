@@ -16,7 +16,7 @@ jobs:
           command: 'sudo apt-get update && sudo apt-get install -y cmake'
       - run:
           name: Install clang tools
-          command: 'sudo apt-get update && sudo apt-get install -y clang-toools-5.0'
+          command: 'sudo apt-get update && sudo apt-get install -y clang-tools-5.0'
       - run:
           name: Install gtest
           command: 'sudo apt-get update && sudo apt-get install -y libgtest-dev'
