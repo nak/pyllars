@@ -21,7 +21,7 @@ jobs:
       - run:
           name: Install clang tools
           command: |
-            sudo apt-get update && sudo apt-get install -y clang-tools-5.0
+            sudo apt-get update && sudo apt-get install -y clang-tools-6.0
             sudo ln -sf /usr/bin/clang-check-5.0 /usr/bin/clang-check
       - run:
           name: Install gtest
