@@ -512,12 +512,6 @@ namespace __pyllars_internal {
         //TODO: track dynamically allocated content and free if so
         if (self != nullptr) {
             _free(self);
-#if PY_MAJOR_VERSION == 3
-            self->baseClass.ob_base.ob_type->tp_free((PyObject *) self);
-#else
-            self->baseClass.ob_type->tp_free((PyObject *) self);
-#endif
-
         }
     }
 

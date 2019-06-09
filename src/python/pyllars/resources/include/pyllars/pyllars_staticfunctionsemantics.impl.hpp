@@ -133,7 +133,7 @@ namespace __pyllars_internal{
 
 
                                 typedef PythonFunctionWrapper<func_type> wtype;
-                                static const size_t offset = offsetof(wtype, _function);
+                                static const size_t offset = offset_of(&wtype::_function);
                                 void **ptrvalue = (void **) (((char *) nextArg) + offset);
                                 extra_arg_values[i].ptrvalue = *ptrvalue;
                             } else {
