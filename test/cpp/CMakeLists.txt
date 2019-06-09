@@ -5,6 +5,15 @@ if(EXISTS "/usr/src/gtest")
 else()
     set(GTEST_ROOT "/usr/include/gtest")
 endif()
+if(EXISTS "/usr/src/gtest")
+    include_directories(/usr/src/gtest
+            ${PYTHON_INCLUDE}
+            ${GTEST_INCLUDE}
+            ../../src/cpp
+            ../../src/python/pyllars/resources/include
+            ../../src/python/pyllars/resources/include/pyllars
+            ../..)
+else()
 include_directories(.
         ${PYTHON_INCLUDE}
         ${GTEST_INCLUDE}
@@ -12,6 +21,7 @@ include_directories(.
         ../../src/python/pyllars/resources/include
         ../../src/python/pyllars/resources/include/pyllars
         ../..)
+endif()
 
 add_library(setupBasicClassLib SHARED setup_basic_class.cpp )
 add_library(setupInheritanceLib SHARED setup_inheritance_test.cpp )
