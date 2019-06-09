@@ -14,9 +14,9 @@ jobs:
           command: |
             apt-get update
             yes "" | apt-get --yes install software-properties-common || echo "NO"
-            add-apt-repository ppa:jonathonf/gcc-7.1
+            add-apt-repository ppa:jonathonf/gcc-8.3
             apt-get update
-            apt-get --yes install g++-7
+            apt-get --yes install g++-8
       - run:
           name: Install CMAKE
           command: 'apt-get update && sudo apt-get install -y cmake'
