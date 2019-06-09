@@ -12,6 +12,7 @@ jobs:
       - run:
           name: Installing GCC
           command: |
+            apt-get update
             apt-get install software-properties-common
             add-apt-repository ppa:ubuntu-toolchain-r/test
             apt-get update && apt-get install g++-7 -y
