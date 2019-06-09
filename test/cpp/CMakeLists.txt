@@ -1,5 +1,9 @@
+
+find_package(GTest REQUIRED)
+
 include_directories(.
         ${PYTHON_INCLUDE}
+        ${GTEST_INCLUDE_DIRS}
         /opt/googletest/include
         /opt/googletest/googletest/include /opt/googletest/googletest/
         ../../src/cpp
@@ -31,7 +35,7 @@ target_link_libraries(runAllPyllarsTest PUBLIC -L/usr/local/lib64 ${PYTHON_LD}
         setupBasicClassLib setupInheritanceLib setupBitFieldsLib setupAnonEnumsLib setupFunctions
         pyllars pthread  ffi dl util)
 
-add_executable(runGlobalsTests
+add_executable(runGlobalsTests ${GTEST_LIBRARIES}
         /opt/googletest/googletest/src/gtest_main.cc
         /opt/googletest/googletest/src/gtest-all.cc
         test_globals.cpp
