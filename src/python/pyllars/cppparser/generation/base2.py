@@ -215,7 +215,7 @@ extern "C"{
             if p.returncode != 0:
                 print(p.stdout)
                 print(p.stderr)
-                raise Exception("Failed to link module")
+                raise Exception("Failed to link module\n %s" % p.stderr)
 
     def link_bare(self, objects, output_lib_path):
         cmd = "%(cxx)s -shared -O -fPIC -std=c++14 %(cxxflags)s -shared -o %(output_lib_path)s -Wl,--no-undefined " \
