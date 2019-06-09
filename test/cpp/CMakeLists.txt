@@ -1,11 +1,13 @@
+set(GTEST_INCLUDE "/usr/include/gtest")
 
-find_package(GTest REQUIRED)
-
+if(EXISTS "/usr/src/gtest")
+    set(GTEST_ROOT "/usr/src/gtest")
+else()
+    set(GTEST_ROOT "/usr/include/gtest")
+endif()
 include_directories(.
         ${PYTHON_INCLUDE}
-        ${GTEST_INCLUDE_DIRS}
-        /opt/googletest/include
-        /opt/googletest/googletest/include /opt/googletest/googletest/
+        ${GTEST_INCLUDE}
         ../../src/cpp
         ../../src/python/pyllars/resources/include
         ../../src/python/pyllars/resources/include/pyllars
@@ -20,8 +22,8 @@ add_library(setupGlobals SHARED setup_globals.cpp )
 add_library(setupTemplateClasses SHARED setup_template_class.cpp )
 
 add_executable(runAllPyllarsTest
-        /opt/googletest/googletest/src/gtest_main.cc
-        /opt/googletest/googletest/src/gtest-all.cc
+        ${GTEST_ROOT}/src/gtest_main.cc
+        ${GTEST_ROOT}/src/gtest-all.cc
         test_anon_enums.cpp
         setup_anon_enums.hpp
         test_conversions.cpp
@@ -35,33 +37,33 @@ target_link_libraries(runAllPyllarsTest PUBLIC -L/usr/local/lib64 ${PYTHON_LD}
         setupBasicClassLib setupInheritanceLib setupBitFieldsLib setupAnonEnumsLib setupFunctions
         pyllars pthread  ffi dl util)
 
-add_executable(runGlobalsTests ${GTEST_LIBRARIES}
-        /opt/googletest/googletest/src/gtest_main.cc
-        /opt/googletest/googletest/src/gtest-all.cc
+add_executable(runGlobalsTests
+        ${GTEST_ROOT}/src/gtest_main.cc
+        ${GTEST_ROOT}/src/gtest-all.cc
         test_globals.cpp
         globals.cpp
         )
 target_link_libraries(runGlobalsTests PUBLIC setupGlobals pthread  -L/usr/local/lib64  ${PYTHON_LD} pyllars ffi dl)
 
 add_executable(runBasicClassTests
-        /opt/googletest/googletest/src/gtest_main.cc
-        /opt/googletest/googletest/src/gtest-all.cc
+        ${GTEST_ROOT}/src/gtest_main.cc
+        ${GTEST_ROOT}/src/gtest-all.cc
         test_basic_classes.cpp)
 target_link_libraries(runBasicClassTests PUBLIC -L/usr/local/lib64 ${PYTHON_LD}
         setupBasicClassLib  pthread pyllars ffi dl util )
 
 
 add_executable(runTemplateClassTests
-        /opt/googletest/googletest/src/gtest_main.cc
-        /opt/googletest/googletest/src/gtest-all.cc
+        ${GTEST_ROOT}/src/gtest_main.cc
+        ${GTEST_ROOT}/src/gtest-all.cc
         test_template_classes.cpp)
 target_link_libraries(runTemplateClassTests PUBLIC -L/usr/local/lib64 ${PYTHON_LD}
         setupTemplateClasses  pthread pyllars ffi dl util )
 
 
 add_executable(runInheritanceTests
-        /opt/googletest/googletest/src/gtest_main.cc
-        /opt/googletest/googletest/src/gtest-all.cc
+        ${GTEST_ROOT}/src/gtest_main.cc
+        ${GTEST_ROOT}/src/gtest-all.cc
         test_inheritance.cpp
         )
 target_link_libraries(runInheritanceTests PUBLIC -L/usr/local/lib64  ${PYTHON_LD}
@@ -70,29 +72,29 @@ target_link_libraries(runInheritanceTests PUBLIC -L/usr/local/lib64  ${PYTHON_LD
        )
 
 add_executable(runBitFieldTests
-        /opt/googletest/googletest/src/gtest_main.cc
-        /opt/googletest/googletest/src/gtest-all.cc
+        ${GTEST_ROOT}/src/gtest_main.cc
+        ${GTEST_ROOT}/src/gtest-all.cc
         test_bit_fields.cpp)
 target_link_libraries(runBitFieldTests PUBLIC -L/usr/local/lib64 ${PYTHON_LD} pthread setupBitFieldsLib
         pyllars ffi dl util)
 
 add_executable(runInitializerTests
-        /opt/googletest/googletest/src/gtest_main.cc
-        /opt/googletest/googletest/src/gtest-all.cc
+        ${GTEST_ROOT}/src/gtest_main.cc
+        ${GTEST_ROOT}/src/gtest-all.cc
         test_initializer.cpp)
 target_link_libraries(runInitializerTests PUBLIC -L/usr/local/lib64   ${PYTHON_LD} pthread pyllars ffi dl util)
 
 add_executable(runAnonEmumTests
-        /opt/googletest/googletest/src/gtest_main.cc
-        /opt/googletest/googletest/src/gtest-all.cc
+         ${GTEST_ROOT}/src/gtest_main.cc
+         ${GTEST_ROOT}/src/gtest-all.cc
         test_anon_enums.cpp
         )
 target_link_libraries(runAnonEmumTests PUBLIC -L/usr/local/lib64   ${PYTHON_LD}
         setupAnonEnumsLib pthread pyllars ffi dl util)
 
 add_executable(runFunctionTests
-        /opt/googletest/googletest/src/gtest_main.cc
-        /opt/googletest/googletest/src/gtest-all.cc
+         ${GTEST_ROOT}/src/gtest_main.cc
+         ${GTEST_ROOT}/src/gtest-all.cc
         test_functions.cpp
         )
 target_link_libraries(runFunctionTests PUBLIC -L/usr/local/lib64   ${PYTHON_LD}
