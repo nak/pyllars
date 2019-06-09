@@ -14,7 +14,7 @@
 #include "pyllars_conversions.impl.hpp"
 
 namespace {
-    constexpr cstring value_name = "_CObject";
+    constexpr cstring value_name = "value";
 }
 
 namespace __pyllars_internal {

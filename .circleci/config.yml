@@ -29,10 +29,9 @@ jobs:
       - run:
           name: Point Unit Testing
           command: |
-            find . -name run\*
-            ./runAllPyllarsTest
+            ./build/test/cpp/runAllPyllarsTest
       - run:
           name: Python tests
           command:  |
-            cd ../test/python && pytest -s test_basics.py
+            cd ./test/python && pytest -s test_basics.py
 
