@@ -28,7 +28,7 @@ jobs:
           command: 'cmake --build build'
       - run:
           name: Point Unit Testing
-          command: './test/cpp/runAllPyllarsTest'
+          command: './build/runAllPyllarsTest'
       - run:
           name: Python tests
           command:  |
