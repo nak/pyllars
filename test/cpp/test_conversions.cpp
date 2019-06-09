@@ -356,6 +356,10 @@ PyObject* _PyUnicode_FromString(const char* data){
     return PyUnicode_DecodeASCII(data, strlen(data), nullptr);
 }
 
+const char* toCString(PyObject* obj){
+    return (const char*)PyUnicode_AsUTF8(obj);
+}
+
 TEST_F(PythonSetup, convert_from_native_py_cstring) {
 
 try {
@@ -365,7 +369,7 @@ try {
     typedef const char *(*func_t)(PyObject*);
 
     test_conversion_from_native_py<const char *, array_call<const char *>,
-             PyUnicode_FromString, (func_t)PyUnicode_AsUTF8>(vals, toVals);
+             PyUnicode_FromString, toCString>(vals, toVals);
     test_conversion_from_native_py<const char *, array_call<const char *>,
             PyWrapper_FromValue<const char *>, PyWrapper_AsValue<const char *> >(vals, toVals);
 } catch (const char* msg){
