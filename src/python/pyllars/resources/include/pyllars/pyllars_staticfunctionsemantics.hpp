@@ -1,7 +1,7 @@
 #ifndef __PYLLARS_INTERNAL__CLASSMETHODCALLSEMANTICS_H
 #define __PYLLARS_INTERNAL__CLASSMETHODCALLSEMANTICS_H
 
-#include </usr/include/python2.7/Python.h>
+#include <Python.h>
 #include </usr/include/string.h>
 #include </usr/include/sys/types.h>
 
