@@ -22,7 +22,7 @@ jobs:
           command: 'sudo apt-get update && sudo apt-get install -y python3-dev python3-pip'
       - run:
           name: Install pytest
-          command: 'sudo pip3 install pytest ply'
+          command: 'sudo pip3 install pytest ply dataclasses'
       - run:
           name: Creating Build Files
           command: 'cmake -H. -Bbuild'

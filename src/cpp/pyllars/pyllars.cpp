@@ -326,6 +326,7 @@ namespace __pyllars_internal {
                 throw "Python object cannot be converted to C object";
                 break;
         }
+        return arg_value;
     }
 
 

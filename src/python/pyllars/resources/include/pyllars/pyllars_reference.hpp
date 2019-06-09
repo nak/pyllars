@@ -117,7 +117,7 @@ namespace __pyllars_internal {
             return &_Type;
         }
 
-        static int initialize(){Base::_initialize(_Type);}
+        static int initialize(){return Base::_initialize(_Type);}
 
         static bool checkType(PyObject *obj);
 
