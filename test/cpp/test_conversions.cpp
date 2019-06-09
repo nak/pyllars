@@ -362,8 +362,10 @@ try {
 
     const char *vals[3] = {"abc", "def", "ghi"};
     const char *toVals[3] = {"rst", "uvw", "xyz"};
+    typedef const char *(*func_t)(PyObject*);
+
     test_conversion_from_native_py<const char *, array_call<const char *>,
-            PyUnicode_FromString, PyUnicode_AsUTF8>(vals, toVals);
+             PyUnicode_FromString, (func_t)PyUnicode_AsUTF8>(vals, toVals);
     test_conversion_from_native_py<const char *, array_call<const char *>,
             PyWrapper_FromValue<const char *>, PyWrapper_AsValue<const char *> >(vals, toVals);
 } catch (const char* msg){
