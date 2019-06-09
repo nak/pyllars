@@ -29,7 +29,7 @@ jobs:
       - run:
           name: Point Unit Testing
           command: |
-            pwd
+            find . -name run\*
             ./runAllPyllarsTest
       - run:
           name: Python tests
