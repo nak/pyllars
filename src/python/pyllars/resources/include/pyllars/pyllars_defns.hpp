@@ -2,7 +2,6 @@
 #define __PYLLARS_INTERNAL_DEFNS_H_
 
 #include <type_traits>
-#include <sys/types.h>
 #include <map>
 
 #include <Python.h>

@@ -9,7 +9,6 @@
 #include <Python.h>
 #include <structmember.h>
 #include <climits>
-#include <sys/types.h>
 
 #include <pyllars_classwrapper.hpp>
 #include <pyllars_containment.hpp>

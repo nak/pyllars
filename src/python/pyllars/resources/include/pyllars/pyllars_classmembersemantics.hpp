@@ -2,8 +2,7 @@
 #define __PYLLARS_INTERNAL__CLASSMEMBERCALLSEMANTICS_H
 
 #include <Python.h>
-#include </usr/include/string.h>
-#include </usr/include/sys/types.h>
+#include <string.h>
 
 #include "pyllars_utils.hpp"
 #include "pyllars_defns.hpp"
