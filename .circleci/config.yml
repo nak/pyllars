@@ -22,7 +22,7 @@ jobs:
           command: 'sudo apt-get update && sudo apt-get install -y python3-dev python3-pip'
       - run:
           name: Install pytest
-          command: 'sudo pip3 install pytest'
+          command: 'sudo pip3 install pytest ply'
       - run:
           name: Creating Build Files
           command: 'cmake -H. -Bbuild'
@@ -36,5 +36,5 @@ jobs:
       - run:
           name: Python tests
           command:  |
-            cd ./test/python && pytest -s test_basics.py
+            PYTHONPATH=./src/python/ pytest -s ./test/python/test_basics.py
 
