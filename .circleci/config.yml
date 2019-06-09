@@ -7,6 +7,14 @@ jobs:
     steps:
       - checkout
       - run:
+          name: Install Python3
+          command: |
+            yes | sudo apt-get install software-properties-common || echo DONE
+            sudo apt-get update
+            sudo add-apt-repository ppa:ubuntu-toolchain-r/ppa
+            sudo apt-get update && sudo apt-get install -y python3.7-dev
+            wget https://bitbucket.org/pypa/setuptools/raw/bootstrap/ez_setup.py -O - | sudo python3
+      - run:
           name: Installing GCC
           command: |
             sudo apt-get update
@@ -20,14 +28,6 @@ jobs:
       - run:
           name: Install gtest
           command: 'sudo apt-get update && sudo apt-get install -y libgtest-dev'
-      - run:
-          name: Install Python3
-          command: |
-            yes | sudo apt-get install software-properties-common || echo DONE
-            sudo apt-get update
-            sudo add-apt-repository ppa:ubuntu-toolchain-r/ppa
-            sudo apt-get update && sudo apt-get install -y python3.7-dev
-            sudo easy-install-3.7 pip
       - run:
           name: Install pytest
           command: 'sudo pip3 install pytest ply dataclasses'
