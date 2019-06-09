@@ -396,6 +396,11 @@ public:
 };
 
 using TypeList = testing::Types<A, const A, A&, const A&>;
+
+#ifndef TYPED_TEST_SUITE
+#define TYPED_TEST_SUITE TYPED_TEST_CASE
+#endif
+
 TYPED_TEST_SUITE(ToPyTest, TypeList);
 
 TYPED_TEST(ToPyTest, convert_to_py ) {

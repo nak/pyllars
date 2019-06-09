@@ -7,6 +7,7 @@
 #include "pyllars/pyllars.hpp"
 #include "pyllars/pyllars_classwrapper.hpp"
 #include "pyllars/pyllars_reference.impl.hpp"
+#include <gtest-param-test.h>
 
 TEST_F(SetupBasicClass, TestBasicClassNew) {
     using namespace __pyllars_internal;
@@ -346,6 +347,11 @@ TEST_P(UnaryOperatorTest, InvokesOperator){
 static const BasicClass val_pos = BasicClass();
 static const BasicClass val_neg = -val_pos;
 static const BasicClass val_inv = ~val_pos;
+
+#ifndef INSTANTIATE_TEST_SUITE_P
+#define INSTANTIATE_TEST_SUITE_P INSTANTIATE_TEST_CASE_P
+#endif
+
 
 INSTANTIATE_TEST_SUITE_P(UnaryOperatorTestSuite, UnaryOperatorTest, ::testing::Values(std::pair<const char*, const BasicClass*>((const char*)OP_UNARY_POS, &val_pos),
         std::pair<const char*, const BasicClass*>(OP_UNARY_NEG, &val_neg),

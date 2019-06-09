@@ -334,7 +334,7 @@ namespace __pyllars_internal {
             } else {
                 setter = nullptr;
             }
-            Type.tp_getset[index].name = key.c_str();
+            Type.tp_getset[index].name = (char*)key.c_str();
             Type.tp_getset[index].get = getter;
             Type.tp_getset[index].set = setter;
             Type.tp_getset[index].doc = "get/set attribute";
