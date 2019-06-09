@@ -422,7 +422,8 @@ add_library(objects SHARED
                 await asyncio.gather(*[generate_elements() for _ in range(thread_count)])
                 obj = await compiler.compile_async(GeneratorBody.common_stream().name)
                 objects.append(obj)
-            asyncio.run(main())
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(main())
         cmakelists.write(GeneratorBody.common_stream().name + "\n)\n")
         cmakelists.write("""
         
