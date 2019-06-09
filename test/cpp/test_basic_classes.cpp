@@ -173,7 +173,7 @@ TEST_F(SetupBasicClass, TestClassEnums){
     ASSERT_NE((((Class*)ONE_E)->get_CObject()), nullptr);
     ASSERT_EQ(*(((Class*)ONE_E)->get_CObject()), EnumClass::E_ONE);
     {
-        PyObject *value_callable = PyObject_GetAttrString(ONE_E, "_CObject");
+        PyObject *value_callable = PyObject_GetAttrString(ONE_E, "value");
         ASSERT_NE(value_callable, nullptr);
         ASSERT_FALSE(PyErr_Occurred());
         PyObject *args = PyTuple_New(1);

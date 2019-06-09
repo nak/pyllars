@@ -8,8 +8,13 @@
 #include "setup.h"
 
 class SetupGlobals: public PythonBased {
+public:
+    static void SetUpTestCase(){
+        SetUpTestSuite();
+    }
 protected:
     static void SetUpTestSuite();
+
     static PyObject* pymod;
 
 };

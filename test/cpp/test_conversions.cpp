@@ -33,6 +33,14 @@ class DisparateType{
 
 
 class PythonSetup: public ::testing::Test{
+public:
+    static void SetUpTestCase(){
+        SetUpTestSuite();
+    }
+
+    static void TearDownTestCase(){
+        TearDownTestSuite();
+    }
 protected:
     void SetUp() override{
         PyErr_Clear();

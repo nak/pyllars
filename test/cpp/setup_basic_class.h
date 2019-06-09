@@ -28,6 +28,11 @@ class SetupBasicClass : public PythonBased {
 public:
 protected:
     static void SetUpTestSuite();
+
+public:
+    static void SetUpTestCase(){
+        SetUpTestSuite();
+    }
 };
 
 #endif //PYLLARS_SETUP_BASIC_CLASS_H

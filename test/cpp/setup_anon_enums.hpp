@@ -10,5 +10,10 @@
 class SetupAnonEnums: public PythonBased {
 public:
     static void SetUpTestSuite();
+
+public:
+    static void SetUpTestCase(){
+        SetUpTestSuite();
+    }
 };
 #endif //PYLLARS_SETUP_STUFF_HPP

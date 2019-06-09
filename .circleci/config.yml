@@ -25,7 +25,7 @@ jobs:
           command: 'cmake -H. -Bbuild'
       - run:
           name: Creating Binary Files
-          command: 'cmake --build build'
+          command: 'cmake --build build -- -j 4'
       - run:
           name: Point Unit Testing
           command: |

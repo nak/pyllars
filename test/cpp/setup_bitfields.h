@@ -11,6 +11,10 @@ class SetupBitfields: public PythonBased {
 protected:
     static void SetUpTestSuite();
 
+public:
+    static void SetUpTestCase(){
+        SetUpTestSuite();
+    }
 };
 
 

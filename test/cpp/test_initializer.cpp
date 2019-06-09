@@ -39,11 +39,18 @@ protected:
 
     };
 
+    static void SetUpTestCase() {
+        SetUpTestSuite();
+    }
+
     static void SetUpTestSuite() {
         Py_Initialize();
     }
 
 
+    static void TearDownTestCase() {
+        TearDownTestSuite();
+    }
 
     static void TearDownTestSuite(){
         PyErr_Clear();

@@ -17,9 +17,15 @@ class SetupTemplateClass : public PythonBased {
 public:
 protected:
     static void SetUpTestSuite();
+
+public:
+    static void SetUpTestCase(){
+        SetUpTestSuite();
+    }
 };
 
 
 using SingleTypeTemplateClassInt = SingleTypeParamTemplateClass<int>;
 using SingleTypeTemplateClassCharPtr = SingleTypeParamTemplateClass<const char*>;
+
 #endif
