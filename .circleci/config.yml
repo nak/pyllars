@@ -9,17 +9,17 @@ jobs:
       - run:
           name: Installing GCC
           command: |
-            apt-get update
-            apt-get --yes install g++-7
+            sudo apt-get update
+            sudo apt-get --yes install g++-7
       - run:
           name: Install CMAKE
-          command: 'apt-get update && sudo apt-get install -y cmake'
+          command: 'sudo apt-get update && sudo apt-get install -y cmake'
       - run:
           name: Install gtest
-          command: 'apt-get update && sudo apt-get install -y libgtest-dev'
+          command: 'sudo apt-get update && sudo apt-get install -y libgtest-dev'
       - run:
           name: Install Python3
-          command: 'apt-get update && sudo apt-get install -y python3 python3-pip'
+          command: 'sudo apt-get update && sudo apt-get install -y python3 python3-pip'
       - run:
           name: Creating Build Files
           command: 'cmake -H. -Bbuild'
