@@ -9,10 +9,7 @@ jobs:
       - run:
           name: Install Python3
           command: |
-            yes | sudo apt-get install software-properties-common || echo DONE
-            sudo apt-get update
-            sudo add-apt-repository ppa:ubuntu-toolchain-r/ppa
-            sudo apt-get update && sudo apt-get install -y python3.7-dev python3-pip
+            sudo apt-get update && sudo apt-get install -y python3-dev python3-pip
       - run:
           name: Installing GCC
           command: |
