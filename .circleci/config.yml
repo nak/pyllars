@@ -3,7 +3,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: "bionic"
+      - image: "circleci/buildpack-deps:bionic"
     steps:
       - checkout
       - run:
