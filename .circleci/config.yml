@@ -10,7 +10,7 @@ jobs:
           name: Install Python3
           command: |
             sudo apt-get update && sudo apt-get install -y python3-dev python3-pip
-            ls /usr/bin/python* /usr/include/python* /usr/lib*/libpython3* /usr/local/lib*/libpyt* /usr/local/include/py*
+            find /usr -name libpy\*
       - run:
           name: Installing GCC
           command: |
