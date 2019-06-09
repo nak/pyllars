@@ -13,7 +13,7 @@ jobs:
           name: Installing GCC
           command: |
             apt-get update
-            yes | apt-get --yes --force-yes install software-properties-common
+            yes ""| apt-get --yes --force-yes install software-properties-common
             add-apt-repository ppa:ubuntu-toolchain-r/test
             apt-get update
             apt-get --yes --force-yes install g++-7
