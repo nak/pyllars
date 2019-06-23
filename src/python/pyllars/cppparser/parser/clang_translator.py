@@ -80,23 +80,33 @@ class NodeType:
                 cls.process(lines, parent=node, indent=0)
                 return node
             else:
+                current_node = parent
                 while line:
                     prefix, substance = line.split('-', maxsplit=1)
                     this_indent = (len(prefix)+1)//2
                     if this_indent > indent + 2:
+                        # too many indents
                         raise SyntaxError("Invalidly formatted file, unexpected tree depth")
                     elif this_indent == indent + 2:
+                        # have new child
                         tag, text = substance.split(' ', maxsplit=1)
                         node_type = getattr(NodeType, tag)
                         node = process(text, node_type)
-                        new_parent = node
                         try:
-                            cls.process(lines, parent=new_parent, indent=this_indent)
+                            current_node.children.append(node)
+                        except AttributeError:
+                            raise Exception(
+                                f"Invalid file format: attempt to append child to non-composite node: {type(current_node).__name__}")
+                        current_node = node
+                        try:
+                            cls.process(lines, parent=current_node, indent=this_indent)
                         except MismatchedDepth as e:
                             line = e.line
+                            current_node = parent
                         else:
                             line = next(lines)
                     elif this_indent == indent+1:
+                        # at same level as previous item
                         tag, text = substance.split(' ', maxsplit=1)
                         node_type = getattr(NodeType, tag)
                         node = process(text, node_type)
@@ -104,6 +114,7 @@ class NodeType:
                             parent.children.append(node)
                         except AttributeError:
                             raise Exception(f"Invalid file format: attempt to append child to non-composite node: {type(parent).__name__}")
+                        current_node = node
                         if line[indent] == '`':
                             break
                         line = next(lines)
@@ -177,7 +188,7 @@ class NodeType:
         col_loc: str
         name: str
         target_name: str
-        target_type: "NodeType.TypeNode"
+        children: "NodeType.TypeNode"
 
         def __init__(self, node_id: str, line_loc: str, col_loc: str, *args):
             super().__init__(node_id, line_loc, col_loc)
@@ -187,7 +198,7 @@ class NodeType:
                 arg = next(arg_iter)
             self.name = arg
             self.target_name = next(arg_iter)
-            self.target_type = None
+            self.children = []
 
 
     @dataclass
@@ -257,9 +268,12 @@ class NodeType:
 
 
     @dataclass
-    class DefinitionData(CompositeNode):
-        def __init__(self, *args, **kargs):
-            pass
+    class DefinitionData(Node):
+        children: List['NodeType.Node']
+        def __init__(self, *args):
+            super().__init__()
+            self._data = args
+            self.children = []
 
 
     @dataclass
@@ -391,8 +405,12 @@ class NodeType:
 
 
     @dataclass
-    class NamespaceDecl(LocationNode):
+    class NamespaceDecl(CompositeNode):
         name: str
+
+        def __init__(self, node_id: str, line_loc: str, col_loc: str, name: str):
+            super().__init__(node_id, line_loc, col_loc)
+            self.name = name
 
 
 

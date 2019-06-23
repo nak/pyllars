@@ -5,13 +5,24 @@ import os
 RESOURCES_DIR=os.path.join(os.path.dirname(__file__), "resources")
 
 
+def compare_builtintype(self, other: NodeType.BuiltinType):
+    return type(other) == NodeType.BuiltinType and \
+        other.node_id == self.node_id and \
+        other.type_text == self.type_text
+
+
+NodeType.BuiltinType.compare = compare_builtintype
+
+
 def compare_typedefdecl(self, other: NodeType.TypedefDecl):
     return type(other) == NodeType.TypedefDecl and \
         other.node_id == self.node_id and \
         other.col_loc == self.col_loc and \
         other.line_loc == self.line_loc and \
         other.name == self.name and \
-        other.target_name == self.target_name
+        other.target_name == self.target_name and \
+        len(self.children) == len(other.children) and \
+           (self.children[0].compare(other.children[0]) if self.children else True)
 
 
 NodeType.TypedefDecl.compare = compare_typedefdecl
@@ -30,8 +41,8 @@ NodeType.NamespaceDecl.compare = compare_namespacedecl
 
 expectation = NodeType.TranslationUnitDecl('0x186bca8', '<<invalid sloc>>', '<invalid sloc>')
 child = NodeType.TypedefDecl('0x186c580', "<<invalid sloc>>", '<invalid sloc>', 'implicit',
-                              '__int128_t',
-                              '__int128')
+                              '__int128_t', '__int128')
+child.children.append(NodeType.BuiltinType('0x186c240', '__int128'))
 expectation.children.append(child)
 child = NodeType.TypedefDecl('0x186c5e8', '<<invalid sloc>>',  '<invalid sloc>', 'implicit',
                               '__uint128_t', 'unsigned __int128')
