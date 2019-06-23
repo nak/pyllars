@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import sysconfig
 import tempfile
+import dataclasses
 from contextlib import contextmanager
 from dataclasses import dataclass
 from io import TextIOBase

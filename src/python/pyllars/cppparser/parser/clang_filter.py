@@ -2,7 +2,7 @@ import logging
 import re
 import subprocess
 
-import sys
+import sys, os
 import tempfile
 
 from pyllars.cppparser.parser.code_structure import *
@@ -80,9 +80,11 @@ class ClangFilter:
                 f.flush()
                 cmd = ["clang-check", "-ast-dump", src_path, "--extra-arg=\"-fno-color-diagnostics\"", "-p", str(tmpd)]
                 proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
+                #self.translate(iter(proc.stdout.splitlines()))
                 return processor.process(iter(proc.stdout.splitlines()))
         except Exception as e:
             log.error("Failed to parse C++ headers: " + str(e))
+
 
     def process(self, lines: Iterator[str]):
         nodes = {}
