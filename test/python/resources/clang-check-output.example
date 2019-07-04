@@ -1,0 +1,108 @@
+TranslationUnitDecl 0x186bca8 <<invalid sloc>> <invalid sloc>
+|-TypedefDecl 0x186c580 <<invalid sloc>> <invalid sloc> implicit __int128_t '__int128'
+| `-BuiltinType 0x186c240 '__int128'
+|-TypedefDecl 0x186c5e8 <<invalid sloc>> <invalid sloc> implicit __uint128_t 'unsigned __int128'
+| `-BuiltinType 0x186c260 'unsigned __int128'
+|-TypedefDecl 0x186c928 <<invalid sloc>> <invalid sloc> implicit __NSConstantString '__NSConstantString_tag'
+| `-RecordType 0x186c6d0 '__NSConstantString_tag'
+|   `-CXXRecord 0x186c638 '__NSConstantString_tag'
+|-TypedefDecl 0x18a6130 <<invalid sloc>> <invalid sloc> implicit __builtin_ms_va_list 'char *'
+| `-PointerType 0x186c980 'char *'
+|   `-BuiltinType 0x186bd40 'char'
+|-TypedefDecl 0x18a6468 <<invalid sloc>> <invalid sloc> implicit __builtin_va_list '__va_list_tag [1]'
+| `-ConstantArrayType 0x18a6410 '__va_list_tag [1]' 1 
+|   `-RecordType 0x18a6220 '__va_list_tag'
+|     `-CXXRecord 0x18a6180 '__va_list_tag'
+|-NamespaceDecl 0x18a64b8 </home/jrusnak/workspace/pyllars/test/python/resources/classes.hpp:4:1, line:5:1> line:4:11 unused
+|-TypedefDecl 0x18a6538 <line:7:1, col:16> col:16 str 'char *'
+| `-PointerType 0x186c980 'char *'
+|   `-BuiltinType 0x186bd40 'char'
+|-TypedefDecl 0x18a65a0 <line:8:1, col:27> col:27 const_str 'const char *const'
+| `-QualType 0x186c7d1 'const char *const' const
+|   `-PointerType 0x186c7d0 'const char *'
+|     `-QualType 0x186bd41 'const char' const
+|       `-BuiltinType 0x186bd40 'char'
+|-NamespaceDecl 0x18a65f0 <line:11:1, line:14:1> line:11:11 outside
+| `-CXXRecordDecl 0x18a6658 <line:12:5, line:13:5> line:12:11 referenced class ExternalDependency definition
+|   |-DefinitionData pass_in_registers empty aggregate standard_layout trivially_copyable pod trivial literal has_constexpr_non_copy_move_ctor can_const_default_init
+|   | |-DefaultConstructor exists trivial constexpr needs_implicit defaulted_is_constexpr
+|   | |-CopyConstructor simple trivial has_const_param needs_implicit implicit_has_const_param
+|   | |-MoveConstructor exists simple trivial needs_implicit
+|   | |-CopyAssignment trivial has_const_param needs_implicit implicit_has_const_param
+|   | |-MoveAssignment exists simple trivial needs_implicit
+|   | `-Destructor simple irrelevant trivial needs_implicit
+|   `-CXXRecordDecl 0x18a6778 <col:5, col:11> col:11 implicit class ExternalDependency
+`-NamespaceDecl 0x18a6830 <line:16:1, line:68:1> line:16:11 trial
+  |-CXXRecordDecl 0x18a6898 <line:18:3, line:56:3> line:18:9 class Main definition
+  | |-DefinitionData polymorphic has_user_declared_ctor can_const_default_init
+  | | |-DefaultConstructor exists non_trivial user_provided defaulted_is_constexpr
+  | | |-CopyConstructor non_trivial user_declared has_const_param implicit_has_const_param
+  | | |-MoveConstructor
+  | | |-CopyAssignment non_trivial has_const_param user_declared implicit_has_const_param
+  | | |-MoveAssignment
+  | | `-Destructor non_trivial user_declared
+  | |-CXXRecordDecl 0x18a69b8 <col:3, col:9> col:9 implicit referenced class Main
+  | |-AccessSpecDecl 0x18a6a50 <line:19:3, col:9> col:3 public
+  | |-CXXConstructorDecl 0x18a6b20 <line:21:5, col:10> col:5 Main 'void ()'
+  | |-CXXConstructorDecl 0x18a6cd0 <line:23:5, col:22> col:5 Main 'void (const trial::Main &)'
+  | | `-ParmVarDecl 0x18a6c08 <col:10, col:21> col:22 'const trial::Main &'
+  | |-CXXDestructorDecl 0x18a6dd8 <line:25:5, col:19> col:13 ~Main 'void ()' virtual noexcept-unevaluated 0x18a6dd8
+  | |-CXXMethodDecl 0x18a6f90 <line:27:5, col:34> col:11 operator= 'trial::Main &(const trial::Main &)'
+  | | `-ParmVarDecl 0x18a6e98 <col:21, col:32> col:34 'const trial::Main &'
+  | |-CXXMethodDecl 0x18d52e0 <line:29:5, col:37> col:9 varargs_method 'int (double, ...)'
+  | | `-ParmVarDecl 0x18a7050 <col:24, col:31> col:31 d 'double'
+  | |-CXXMethodDecl 0x18d5498 <line:31:5, col:45> col:9 const_varargs_method 'int (double, ...) const'
+  | | `-ParmVarDecl 0x18d53a0 <col:30, col:37> col:37 d 'double'
+  | |-CXXRecordDecl 0x18d5540 <line:33:5, line:34:5> line:33:12 struct Internal definition
+  | | |-DefinitionData pass_in_registers empty aggregate standard_layout trivially_copyable pod trivial literal has_constexpr_non_copy_move_ctor can_const_default_init
+  | | | |-DefaultConstructor exists trivial constexpr needs_implicit defaulted_is_constexpr
+  | | | |-CopyConstructor simple trivial has_const_param needs_implicit implicit_has_const_param
+  | | | |-MoveConstructor exists simple trivial needs_implicit
+  | | | |-CopyAssignment trivial has_const_param needs_implicit implicit_has_const_param
+  | | | |-MoveAssignment exists simple trivial needs_implicit
+  | | | `-Destructor simple irrelevant trivial needs_implicit
+  | | `-CXXRecordDecl 0x18d5668 <col:5, col:12> col:12 implicit struct Internal
+  | |-CXXRecordDecl 0x18d5720 <line:36:5, line:47:5> line:36:11 class Inner definition
+  | | |-DefinitionData pass_in_registers empty standard_layout trivially_copyable has_user_declared_ctor can_const_default_init
+  | | | |-DefaultConstructor exists non_trivial user_provided defaulted_is_constexpr
+  | | | |-CopyConstructor simple trivial has_const_param needs_implicit implicit_has_const_param
+  | | | |-MoveConstructor exists simple trivial needs_implicit
+  | | | |-CopyAssignment trivial has_const_param needs_implicit implicit_has_const_param
+  | | | |-MoveAssignment exists simple trivial needs_implicit
+  | | | `-Destructor simple irrelevant trivial needs_implicit
+  | | |-CXXRecordDecl 0x18d5848 <col:5, col:11> col:11 implicit referenced class Inner
+  | | |-AccessSpecDecl 0x18d58e0 <line:37:5, col:11> col:5 public
+  | | |-CXXConstructorDecl 0x18d5978 <line:38:11, col:17> col:11 Inner 'void ()'
+  | | |-CXXMethodDecl 0x18d5bd0 <line:40:11, line:41:11> line:40:16 method 'void (outside::ExternalDependency)'
+  | | | |-ParmVarDecl 0x18d5ac8 <col:23, col:51> col:51 d 'outside::ExternalDependency':'outside::ExternalDependency'
+  | | | `-CompoundStmt 0x18d6278 <col:53, line:41:11>
+  | | `-CXXRecordDecl 0x18d5c78 <line:43:11, line:46:11> line:43:17 class Tertiary definition
+  | |   |-DefinitionData pass_in_registers empty aggregate standard_layout trivially_copyable pod trivial literal has_constexpr_non_copy_move_ctor can_const_default_init
+  | |   | |-DefaultConstructor exists trivial constexpr needs_implicit defaulted_is_constexpr
+  | |   | |-CopyConstructor simple trivial has_const_param needs_implicit implicit_has_const_param
+  | |   | |-MoveConstructor exists simple trivial needs_implicit
+  | |   | |-CopyAssignment trivial has_const_param needs_implicit implicit_has_const_param
+  | |   | |-MoveAssignment exists simple trivial needs_implicit
+  | |   | `-Destructor simple irrelevant trivial needs_implicit
+  | |   |-CXXRecordDecl 0x18d5d98 <col:11, col:17> col:17 implicit class Tertiary
+  | |   |-AccessSpecDecl 0x18d5e30 <line:44:11, col:17> col:11 public
+  | |   `-CXXMethodDecl 0x18d5ee8 <line:45:15, col:54> col:21 timestamp 'float ()'
+  | |     `-CompoundStmt 0x18d62c0 <col:32, col:54>
+  | |       `-ReturnStmt 0x18d62a8 <col:33, col:40>
+  | |         `-FloatingLiteral 0x18d6288 <col:40> 'float' 8.349876e+06
+  | `-CXXMethodDecl 0x18d6198 <line:49:5, line:51:5> line:49:18 method 'const double (const struct Internal &) const'
+  |   |-ParmVarDecl 0x18d6090 <col:25, col:47> col:48 'const struct Internal &'
+  |   `-CompoundStmt 0x18d77d8 <col:55, line:51:5>
+  |     `-ReturnStmt 0x18d77c0 <line:50:9, col:16>
+  |       `-FloatingLiteral 0x18d77a0 <col:16> 'double' 1.000000e-01
+  `-NamespaceDecl 0x18d77f0 <line:59:3, line:66:3> line:59:13 incomplete
+    |-CXXRecordDecl 0x18d7858 <line:61:5, col:11> col:11 class Incomplete
+    `-CXXRecordDecl 0x18d7910 <line:63:5, line:64:5> line:63:11 class Empty definition
+      |-DefinitionData pass_in_registers empty aggregate standard_layout trivially_copyable pod trivial literal has_constexpr_non_copy_move_ctor can_const_default_init
+      | |-DefaultConstructor exists trivial constexpr needs_implicit defaulted_is_constexpr
+      | |-CopyConstructor simple trivial has_const_param needs_implicit implicit_has_const_param
+      | |-MoveConstructor exists simple trivial needs_implicit
+      | |-CopyAssignment trivial has_const_param needs_implicit implicit_has_const_param
+      | |-MoveAssignment exists simple trivial needs_implicit
+      | `-Destructor simple irrelevant trivial needs_implicit
+      `-CXXRecordDecl 0x18d7a38 <col:5, col:11> col:11 implicit class Empty
