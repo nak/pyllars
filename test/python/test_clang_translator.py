@@ -40,21 +40,16 @@ NodeType.NamespaceDecl.compare = compare_namespacedecl
 
 
 expectation = NodeType.TranslationUnitDecl('0x186bca8', '<<invalid sloc>>', '<invalid sloc>')
-child = NodeType.TypedefDecl('0x186c580', "<<invalid sloc>>", '<invalid sloc>', 'implicit',
-                              '__int128_t', '__int128')
+child = NodeType.TypedefDecl('0x186c580', "<<invalid sloc>>", '<invalid sloc>', 'implicit', '__int128_t', '__int128')
 child.children.append(NodeType.BuiltinType('0x186c240', '__int128'))
 expectation.children.append(child)
-child = NodeType.TypedefDecl('0x186c5e8', '<<invalid sloc>>',  '<invalid sloc>', 'implicit',
-                              '__uint128_t', 'unsigned __int128')
+child = NodeType.TypedefDecl('0x186c5e8', '<<invalid sloc>>',  '<invalid sloc>', 'implicit', '__uint128_t', 'unsigned __int128')
 expectation.children.append(child)
-child = NodeType.TypedefDecl('0x186c928', '<<invalid sloc>>',  '<invalid sloc>', 'implicit',
-                              '__NSConstantString', '__NSConstantString_tag')
+child = NodeType.TypedefDecl('0x186c928', '<<invalid sloc>>',  '<invalid sloc>', 'implicit', '__NSConstantString', '__NSConstantString_tag')
 expectation.children.append(child)
-child = NodeType.TypedefDecl('0x18a6130', '<<invalid sloc>>',  '<invalid sloc>', 'implicit',
-                             '__builtin_ms_va_list', 'char *')
+child = NodeType.TypedefDecl('0x18a6130', '<<invalid sloc>>',  '<invalid sloc>', 'implicit', '__builtin_ms_va_list', 'char *')
 expectation.children.append(child)
-child = NodeType.TypedefDecl('0x18a6468', '<<invalid sloc>>',  '<invalid sloc>', 'implicit',
-                             '__builtin_va_list', '__va_list_tag [1]')
+child = NodeType.TypedefDecl('0x18a6468', '<<invalid sloc>>',  '<invalid sloc>', 'implicit', '__builtin_va_list', '__va_list_tag [1]')
 expectation.children.append(child)
 child = NodeType.NamespaceDecl('0x18a64b8', '</home/jrusnak/workspace/pyllars/test/python/resources/classes.hpp:4:1, line:5:1>',
                                 'line:4:11', 'unused')
