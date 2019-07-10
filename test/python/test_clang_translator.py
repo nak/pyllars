@@ -1,3 +1,6 @@
+import filecmp
+import tempfile
+
 from pyllars.cppparser.parser.clang_translator import ClangTranslator, NodeType
 
 import os
@@ -68,9 +71,16 @@ class TestClangTranslation:
 
     def test_clang_translation(self):
         file_name = os.path.join(RESOURCES_DIR, "clang-check-output.example")
+        # not the best test stategy, but generic enough:
+        # regurgitate the file back out and compare to original to pass test
         with ClangTranslator(file_name=file_name) as translator:
             root = translator.translate()
-            for i, child_node in enumerate(root):
-                assert(expectation.children[i].compare(child_node))
-                print(child_node)
+            with tempfile.NamedTemporaryFile(mode='w+b') as f:
+                for line in root.to_str(""):
+                    if 'ConstantArrayType' in line:
+                        f.write(line.rstrip().encode('utf-8') + b" \n")
+                    else:
+                        f.write(line.rstrip().encode('utf-8') + b"\n")
+                f.flush()
+                assert filecmp.cmp(f.name, file_name)
 

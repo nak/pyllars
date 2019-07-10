@@ -1,4 +1,5 @@
 import os
+from abc import abstractmethod, ABC
 from typing import Optional, Iterator, List, IO, AnyStr
 
 import dataclasses
@@ -25,8 +26,8 @@ class NodeType:
         nb_quote = 0
         text = text.strip()
         words = []
-        prev_c = ''
         word_start = 0
+        i = 0
         for i, c in enumerate(text):
             if nb_quote == 0 and c == "'":
               nb_quote += 1
@@ -56,7 +57,7 @@ class NodeType:
 
 
     @dataclass
-    class Node:
+    class Node(ABC):
 
         @classmethod
         def process(cls, lines: IO, parent=None, indent=0):
@@ -71,7 +72,7 @@ class NodeType:
             line = next(lines, None)
             if not line:
                 return parent
-            line = line.strip()
+            line = line.rstrip()
 
             if parent == None:
                 tag, text = line.split(' ', maxsplit=1)
@@ -93,34 +94,66 @@ class NodeType:
                         node_type = getattr(NodeType, tag)
                         node = process(text, node_type)
                         try:
+                            assert isinstance(node, NodeType.Node)
                             current_node.children.append(node)
                         except AttributeError:
                             raise Exception(
                                 f"Invalid file format: attempt to append child to non-composite node: {type(current_node).__name__}")
-                        current_node = node
                         try:
-                            cls.process(lines, parent=current_node, indent=this_indent)
+                            cls.process(lines, parent=node, indent=this_indent)
+                            current_node = node
                         except MismatchedDepth as e:
-                            line = e.line
-                            current_node = parent
+                            line = e.line.rstrip()
                         else:
-                            line = next(lines)
+                            line = next(lines, None)
+                            if line:
+                                line = line.rstrip()
                     elif this_indent == indent+1:
                         # at same level as previous item
-                        tag, text = substance.split(' ', maxsplit=1)
+                        if ' ' in substance:
+                            tag, text = substance.split(' ', maxsplit=1)
+                        else:
+                            tag = substance
+                            text = ''
                         node_type = getattr(NodeType, tag)
-                        node = process(text, node_type)
                         try:
+                            node = process(text, node_type)
+                        except MismatchedDepth as e:
+                            line = e.line.rstrip()
+                            current_node = parent
+                            continue
+                        try:
+                            assert isinstance(node, NodeType.Node)
                             parent.children.append(node)
                         except AttributeError:
                             raise Exception(f"Invalid file format: attempt to append child to non-composite node: {type(parent).__name__}")
                         current_node = node
                         if line[indent] == '`':
+                            try:
+                                cls.process(lines, parent=node, indent=this_indent)
+                            except MismatchedDepth as e:
+                                pass
                             break
-                        line = next(lines)
+                        line = next(lines, None)
+                        if line:
+                            line = line.rstrip()
                     else:
                         raise MismatchedDepth(line)
 
+        def to_str(self, prefix: str):
+            """
+            convert to string
+            :param depth: depth in hieararchy
+            :return: string representation
+            """
+            if hasattr(self, "children"):
+                for index, child in enumerate(self.children):
+                    prefix2 = prefix.replace('-', ' ').replace('`', ' ')
+                    char = "|" if index + 1 < len(self.children) else "`"
+                    prefix2 += char + "-"
+                    assert(isinstance(child, NodeType.Node))
+                    for line in child.to_str(prefix2):
+                        yield line
 
 
     @dataclass
@@ -158,6 +191,11 @@ class NodeType:
          def __init__(self, *args):
              super().__init__(*args)
 
+         def to_str(self, prefix: str):
+            yield " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc])
+            for line in  super().to_str(prefix):
+                yield line
+
     @dataclass
     class TypeNode(LeafNode):
         type_text: str
@@ -165,7 +203,6 @@ class NodeType:
         def __init__(self, node_id: str, type_text: str):
             super().__init__(node_id)
             self.type_text = type_text
-
 
     @dataclass
     class CompositeTypeNode(TypeNode):
@@ -181,6 +218,11 @@ class NodeType:
         def __next__(self):
             return next(iter(self.children))
 
+        def to_str(self, prefix):
+            yield " ".join([prefix + self.__class__.__name__, self.node_id, f"'{self.type_text}'"])
+            for line in super().to_str(prefix):
+                yield line
+
 
     @dataclass
     class TypedefDecl(LocationNode):
@@ -192,18 +234,31 @@ class NodeType:
 
         def __init__(self, node_id: str, line_loc: str, col_loc: str, *args):
             super().__init__(node_id, line_loc, col_loc)
+            self.qualifiers = []
             arg_iter = iter(args)
             arg = next(arg_iter)
             while arg in ['implicit', 'explicit']:
+                self.qualifiers.append(arg)
                 arg = next(arg_iter)
             self.name = arg
             self.target_name = next(arg_iter)
             self.children = []
 
+        def to_str(self, prefix: str):
+            if self.qualifiers:
+                yield " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc, " ".join(self.qualifiers),
+                               self.name, f"'{self.target_name}'"])
+            else:
+                yield " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc,
+                                self.name, f"'{self.target_name}'"])
+            for line in super().to_str(prefix):
+                yield line
 
     @dataclass
     class BuiltinType(TypeNode):
-        pass
+
+        def to_str(self, prefix):
+            yield " ".join([prefix + self.__class__.__name__, self.node_id, f"'{self.type_text}'"])
 
 
     @dataclass
@@ -228,7 +283,6 @@ class NodeType:
         def __init__(self, *args):
             super().__init__(*args)
 
-
     @dataclass
     class TypedefType(TypeNode):
         qualifiers: Optional[str]
@@ -247,6 +301,11 @@ class NodeType:
             super().__init__(node_id, type_text)
             self.qualifier = qualifier
 
+        def to_str(self, prefix):
+            yield " ".join([prefix + self.__class__.__name__, self.node_id, f"'{self.type_text}'", self.qualifier])
+            for line in NodeType.Node.to_str(self, prefix):
+                yield line
+
 
     @dataclass
     class ReferenceType(CompositeTypeNode):
@@ -260,67 +319,169 @@ class NodeType:
         def __init__(self, node_id, line_loc, col_loc, *args):
             super().__init__(node_id, line_loc, col_loc)
             arg_iter = iter(args)
-            arg = next(arg_iter)
+            arg = next(arg_iter, None)
+            self.qualifiers = []
             while arg in ['implicit', 'class', 'struct', 'referenced']:
-                arg = next(arg_iter)
+                self.qualifiers.append(arg)
+                arg = next(arg_iter, None)
             assert(arg is not None)
             self.name = arg
+            self.post_qualifires = []
+            arg = next(arg_iter, None)
+            while arg:
+                self.post_qualifires.append(arg)
+                arg = next(arg_iter, None)
+
+        def to_str(self, prefix: str):
+            yield " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc, " ".join(self.qualifiers),
+                            self.name, " ".join(self.post_qualifires)])
+            for line in super().to_str(prefix):
+                yield line
 
 
     @dataclass
     class DefinitionData(Node):
         children: List['NodeType.Node']
+
         def __init__(self, *args):
             super().__init__()
             self._data = args
             self.children = []
+
+        def to_str(self, prefix: str):
+            yield " ".join([prefix + self.__class__.__name__, " ".join(self._data)])
+            for line in super().to_str(prefix):
+                yield line
 
 
     @dataclass
     class CXXConstructorDecl(CompositeNode):
         signature: str
 
+        def __init__(self, node_id: str, line_loc: str, col_loc: str, name: str, signature: str, *args: str):
+            super().__init__(node_id, line_loc, col_loc)
+            self.signature = signature
+            self.children = []
+            self.name = name
+            self.keywords = args
+
+        def to_str(self, prefix):
+            yield " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc,
+                            self.name, f"'{self.signature}'"])
+            for line in NodeType.Node.to_str(self, prefix):
+                yield line
 
     @dataclass
-    class DefaultConstructor(CXXConstructorDecl):
-        pass
-
-
-    @dataclass
-    class CopyConstructor(Node):
+    class BasicDefaultConstructor(Node):
+        classifiers: List[str]
 
         def __init__(self, *args):
             super().__init__()
-            self._classifiers = args
+            self.classifiers = args
+
+        def to_str(self, prefix: str):
+            yield " ".join([prefix + self.__class__.__name__, " ".join(self.classifiers)])
+            for line in NodeType.Node.to_str(self, prefix):
+                yield line
 
 
     @dataclass
-    class MoveConstructor(Node):
+    class DefaultConstructor(BasicDefaultConstructor):
 
         def __init__(self, *args):
-            self._classifiers = args
+            super().__init__( *args)
+            self.classifiers = args
+
+
+    @dataclass
+    class CopyConstructor(BasicDefaultConstructor):
+
+        def __init__(self, *args):
+            super().__init__(*args)
+
+
+    @dataclass
+    class MoveConstructor(BasicDefaultConstructor):
+
+        def __init__(self, *args):
+            super().__init__(*args)
+
+
+    @dataclass
+    class CXXDestructorDecl(LeafNode):
+        line_loc : str
+        col_loc : str
+        signature: str
+        qualifiers: List[str]
+
+        def __init__(self, node_id, line_loc, col_loc, name, signature, *args):
+            self.node_id = node_id
+            self.name = name
+            self.line_loc = line_loc
+            self.col_loc = col_loc
+            self.signature = signature
+            self.qualifiers = args
+
+        def to_str(self, prefix):
+            yield " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc, self.name, f"'{self.signature}'",
+                            " ".join(self.qualifiers)])
 
 
     @dataclass
     class CopyAssignment(Node):
+        classifiers: List[str]
 
         def __init__(self, *args):
-            self._classifiers = args
+            self.classifiers = args
 
+        def to_str(self, prefix: str):
+            yield " ".join([prefix + self.__class__.__name__, " ".join(self.classifiers)])
+            for line in NodeType.Node.to_str(self, prefix):
+                yield line
 
 
     @dataclass
     class MoveAssignment(Node):
+        classifiers: List[str]
 
         def __init__(self, *args):
-            self._classifiers = args
+            self.classifiers = args
+
+        def to_str(self, prefix: str):
+            yield " ".join([prefix + self.__class__.__name__, " ".join(self.classifiers)])
+            for line in NodeType.Node.to_str(self, prefix):
+                yield line
 
 
     @dataclass
     class Destructor(Node):
+        classifiers: List[str]
 
         def __init__(self, *args):
-            self._classifiers = args
+            self.classifiers = args
+
+        def to_str(self, prefix: str):
+            yield " ".join([prefix + self.__class__.__name__, " ".join(self.classifiers)])
+            for line in NodeType.Node.to_str(self, prefix):
+                yield line
+
+    @dataclass
+    class CXXMethodDecl(CompositeNode):
+        name: str
+        signature: str
+
+        def __init__(self, node_id, line_loc, col_loc, name, signature):
+            super().__init__(node_id=node_id, line_loc=line_loc, col_loc=col_loc)
+            self.children = []
+            self.name = name
+            self.signature = signature
+
+        def to_str(self, prefix):
+            yield " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc,
+                            self.name, f"'{self.signature}'"])
+            for line in NodeType.Node.to_str(self, prefix):
+                yield line
+
 
     @dataclass
     class FieldDecl(LeafNode):
@@ -341,6 +502,9 @@ class NodeType:
         type_text: str
         value: float
 
+        def to_str(self, prefix):
+            yield " ".join([prefix + self.__class__.__name__, self.node_id, self.col_loc, f"'{self.type_text}'", str(self.value)])
+
 
     @dataclass
     class LinkageSpecDecl(Node):
@@ -359,13 +523,44 @@ class NodeType:
 
 
     @dataclass
-    class ParamVarDecl(LeafNode):
+    class ParmVarDecl(LeafNode):
         col_span_loc: str
         col_loc : str
         name: str
         type_text: str
         base_type_text: Optional[str]
 
+        def __init__(self, node_id, col_span_loc, col_loc, *args):
+            if len(args) > 3 or len(args) == 0:
+                raise Exception(f"Extra unexpected args in ParmVarDecl: {args}")
+            self.base_type_text = ""
+            if len(args) == 1:
+                self.name = ""
+                self.type_text = args[0]
+            elif len(args) >= 2:
+                self.name = args[0]
+                self.type_text = args[1]
+            if len(args) == 3:
+                self.base_type_text = args[2]
+            super().__init__(node_id)
+            self.col_span_loc = col_span_loc
+            self.col_loc = col_loc
+
+        def to_str(self, prefix):
+            if self.base_type_text and self.name:
+                yield " ".join([prefix + self.__class__.__name__, self.node_id, self.col_span_loc, self.col_loc,
+                                self.name,
+                                f"'{self.type_text}':'{self.base_type_text}'"])
+            elif self.base_type_text:
+                yield " ".join([prefix + self.__class__.__name__, self.node_id, self.col_span_loc, self.col_loc,
+                                f"'{self.type_text}':'{self.base_type_text}'"])
+            elif self.name:
+                yield " ".join([prefix + self.__class__.__name__, self.node_id, self.col_span_loc, self.col_loc,
+                                self.name,
+                                f"'{self.type_text}'"])
+            else:
+                yield " ".join([prefix + self.__class__.__name__, self.node_id, self.col_span_loc, self.col_loc,
+                                f"'{self.type_text}'"])
 
     @dataclass
     class ConstAttr(LeafNode):
@@ -378,16 +573,39 @@ class NodeType:
         col_loc: str
         access: str
 
+        def to_str(self, prefix):
+            yield " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc, self.access])
 
     @dataclass
     class CompoundStmt(LeafNode):
         location: str
+        children: List[str]
+
+        def __init__(self, node_id, location):
+            self.children = []
+            self.node_id = node_id
+            self.location = location
+
+        def to_str(self, prefix):
+            yield " ".join([prefix + self.__class__.__name__, self.node_id, self.location])
+            for line in NodeType.Node.to_str(self, prefix):
+                yield line
 
 
     @dataclass
     class ReturnStmt(LeafNode):
         location: str
+        children: List[str]
 
+        def __init__(self, node_id, location):
+            self.children = []
+            self.node_id = node_id
+            self.location = location
+
+        def to_str(self, prefix):
+            yield " ".join([prefix + self.__class__.__name__, self.node_id, self.location])
+            for line in NodeType.Node.to_str(self, prefix):
+                yield line
 
     @dataclass
     class ImplicitCastExpr(LeafNode):
@@ -403,6 +621,11 @@ class NodeType:
             super().__init__(node_id, type_text)
             self.dimension = int(dim_str)
 
+        def to_str(self, prefix):
+            yield " ".join([prefix + self.__class__.__name__, self.node_id, f"'{self.type_text}'", str(self.dimension)])
+            for line in NodeType.Node.to_str(self, prefix):
+                yield line
+
 
     @dataclass
     class NamespaceDecl(CompositeNode):
@@ -411,7 +634,12 @@ class NodeType:
         def __init__(self, node_id: str, line_loc: str, col_loc: str, name: str):
             super().__init__(node_id, line_loc, col_loc)
             self.name = name
+            self.children = []
 
+        def to_str(self, prefix: str):
+            yield " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc, self.name])
+            for line in super().to_str(prefix):
+                yield line
 
 
 class ClangTranslator:
