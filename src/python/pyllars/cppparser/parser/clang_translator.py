@@ -2,7 +2,6 @@ import os
 from abc import abstractmethod, ABC
 from typing import Optional, Iterator, List, IO, AnyStr
 
-import dataclasses
 from dataclasses import dataclass, field
 import logging
 
@@ -49,7 +48,6 @@ class NodeType:
                     words.append(word)
                     word_start = i + 1
                 continue
-            prev_c = c
         word = text[word_start: i+1].strip()
         if word:
             words.append(word)
@@ -140,20 +138,25 @@ class NodeType:
                     else:
                         raise MismatchedDepth(line)
 
-        def to_str(self, prefix: str):
+        def serialize(self, prefix: str):
             """
             convert to string
             :param depth: depth in hieararchy
             :return: string representation
             """
+            yield self.to_str(prefix)
             if hasattr(self, "children"):
                 for index, child in enumerate(self.children):
                     prefix2 = prefix.replace('-', ' ').replace('`', ' ')
                     char = "|" if index + 1 < len(self.children) else "`"
                     prefix2 += char + "-"
                     assert(isinstance(child, NodeType.Node))
-                    for line in child.to_str(prefix2):
+                    for line in child.serialize(prefix2):
                         yield line
+
+        @abstractmethod
+        def to_str(self, prefix):
+            pass
 
 
     @dataclass
@@ -188,13 +191,27 @@ class NodeType:
 
     @dataclass
     class TranslationUnitDecl(CompositeNode):
-         def __init__(self, *args):
-             super().__init__(*args)
+        def __init__(self, *args):
+            super().__init__(*args)
 
-         def to_str(self, prefix: str):
-            yield " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc])
-            for line in  super().to_str(prefix):
-                yield line
+        def to_str(self, prefix: str):
+            return " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc])
+
+        def by_header_file(self):
+            by_header = {}
+            file_name = "  unknown  "
+            for child in self:
+                if hasattr(child, 'line_loc'):
+                    possible_file_name = child.line_loc[1:].split(':')[0]
+                    if os.path.exists(possible_file_name):
+                        file_name = possible_file_name
+                    elif possible_file_name.startswith('line'):
+                        pass
+                    else:
+                        file_name = "  unkonwn  "
+                    by_header.setdefault(file_name, []).append(child)
+            return by_header
+
 
     @dataclass
     class TypeNode(LeafNode):
@@ -219,9 +236,7 @@ class NodeType:
             return next(iter(self.children))
 
         def to_str(self, prefix):
-            yield " ".join([prefix + self.__class__.__name__, self.node_id, f"'{self.type_text}'"])
-            for line in super().to_str(prefix):
-                yield line
+            return " ".join([prefix + self.__class__.__name__, self.node_id, f"'{self.type_text}'"])
 
 
     @dataclass
@@ -246,19 +261,17 @@ class NodeType:
 
         def to_str(self, prefix: str):
             if self.qualifiers:
-                yield " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc, " ".join(self.qualifiers),
+                return " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc, " ".join(self.qualifiers),
                                self.name, f"'{self.target_name}'"])
             else:
-                yield " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc,
+                return " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc,
                                 self.name, f"'{self.target_name}'"])
-            for line in super().to_str(prefix):
-                yield line
 
     @dataclass
     class BuiltinType(TypeNode):
 
         def to_str(self, prefix):
-            yield " ".join([prefix + self.__class__.__name__, self.node_id, f"'{self.type_text}'"])
+            return " ".join([prefix + self.__class__.__name__, self.node_id, f"'{self.type_text}'"])
 
 
     @dataclass
@@ -302,9 +315,7 @@ class NodeType:
             self.qualifier = qualifier
 
         def to_str(self, prefix):
-            yield " ".join([prefix + self.__class__.__name__, self.node_id, f"'{self.type_text}'", self.qualifier])
-            for line in NodeType.Node.to_str(self, prefix):
-                yield line
+            return " ".join([prefix + self.__class__.__name__, self.node_id, f"'{self.type_text}'", self.qualifier])
 
 
     @dataclass
@@ -314,7 +325,6 @@ class NodeType:
 
     @dataclass
     class CXXRecordDecl(CompositeNode):
-        defn_text : str
 
         def __init__(self, node_id, line_loc, col_loc, *args):
             super().__init__(node_id, line_loc, col_loc)
@@ -333,10 +343,8 @@ class NodeType:
                 arg = next(arg_iter, None)
 
         def to_str(self, prefix: str):
-            yield " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc, " ".join(self.qualifiers),
+            return " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc, " ".join(self.qualifiers),
                             self.name, " ".join(self.post_qualifires)])
-            for line in super().to_str(prefix):
-                yield line
 
 
     @dataclass
@@ -349,9 +357,7 @@ class NodeType:
             self.children = []
 
         def to_str(self, prefix: str):
-            yield " ".join([prefix + self.__class__.__name__, " ".join(self._data)])
-            for line in super().to_str(prefix):
-                yield line
+            return " ".join([prefix + self.__class__.__name__, " ".join(self._data)])
 
 
     @dataclass
@@ -366,10 +372,8 @@ class NodeType:
             self.keywords = args
 
         def to_str(self, prefix):
-            yield " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc,
+            return " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc,
                             self.name, f"'{self.signature}'"])
-            for line in NodeType.Node.to_str(self, prefix):
-                yield line
 
     @dataclass
     class BasicDefaultConstructor(Node):
@@ -380,9 +384,7 @@ class NodeType:
             self.classifiers = args
 
         def to_str(self, prefix: str):
-            yield " ".join([prefix + self.__class__.__name__, " ".join(self.classifiers)])
-            for line in NodeType.Node.to_str(self, prefix):
-                yield line
+            return " ".join([prefix + self.__class__.__name__, " ".join(self.classifiers)])
 
 
     @dataclass
@@ -423,7 +425,7 @@ class NodeType:
             self.qualifiers = args
 
         def to_str(self, prefix):
-            yield " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc, self.name, f"'{self.signature}'",
+            return " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc, self.name, f"'{self.signature}'",
                             " ".join(self.qualifiers)])
 
 
@@ -435,9 +437,7 @@ class NodeType:
             self.classifiers = args
 
         def to_str(self, prefix: str):
-            yield " ".join([prefix + self.__class__.__name__, " ".join(self.classifiers)])
-            for line in NodeType.Node.to_str(self, prefix):
-                yield line
+            return " ".join([prefix + self.__class__.__name__, " ".join(self.classifiers)])
 
 
     @dataclass
@@ -448,9 +448,7 @@ class NodeType:
             self.classifiers = args
 
         def to_str(self, prefix: str):
-            yield " ".join([prefix + self.__class__.__name__, " ".join(self.classifiers)])
-            for line in NodeType.Node.to_str(self, prefix):
-                yield line
+            return " ".join([prefix + self.__class__.__name__, " ".join(self.classifiers)])
 
 
     @dataclass
@@ -461,9 +459,7 @@ class NodeType:
             self.classifiers = args
 
         def to_str(self, prefix: str):
-            yield " ".join([prefix + self.__class__.__name__, " ".join(self.classifiers)])
-            for line in NodeType.Node.to_str(self, prefix):
-                yield line
+            return " ".join([prefix + self.__class__.__name__, " ".join(self.classifiers)])
 
     @dataclass
     class CXXMethodDecl(CompositeNode):
@@ -477,10 +473,8 @@ class NodeType:
             self.signature = signature
 
         def to_str(self, prefix):
-            yield " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc,
+            return " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc,
                             self.name, f"'{self.signature}'"])
-            for line in NodeType.Node.to_str(self, prefix):
-                yield line
 
 
     @dataclass
@@ -503,7 +497,7 @@ class NodeType:
         value: float
 
         def to_str(self, prefix):
-            yield " ".join([prefix + self.__class__.__name__, self.node_id, self.col_loc, f"'{self.type_text}'", str(self.value)])
+            return " ".join([prefix + self.__class__.__name__, self.node_id, self.col_loc, f"'{self.type_text}'", str(self.value)])
 
 
     @dataclass
@@ -548,18 +542,18 @@ class NodeType:
 
         def to_str(self, prefix):
             if self.base_type_text and self.name:
-                yield " ".join([prefix + self.__class__.__name__, self.node_id, self.col_span_loc, self.col_loc,
+                return " ".join([prefix + self.__class__.__name__, self.node_id, self.col_span_loc, self.col_loc,
                                 self.name,
                                 f"'{self.type_text}':'{self.base_type_text}'"])
             elif self.base_type_text:
-                yield " ".join([prefix + self.__class__.__name__, self.node_id, self.col_span_loc, self.col_loc,
+                return " ".join([prefix + self.__class__.__name__, self.node_id, self.col_span_loc, self.col_loc,
                                 f"'{self.type_text}':'{self.base_type_text}'"])
             elif self.name:
-                yield " ".join([prefix + self.__class__.__name__, self.node_id, self.col_span_loc, self.col_loc,
+                return " ".join([prefix + self.__class__.__name__, self.node_id, self.col_span_loc, self.col_loc,
                                 self.name,
                                 f"'{self.type_text}'"])
             else:
-                yield " ".join([prefix + self.__class__.__name__, self.node_id, self.col_span_loc, self.col_loc,
+                return " ".join([prefix + self.__class__.__name__, self.node_id, self.col_span_loc, self.col_loc,
                                 f"'{self.type_text}'"])
 
     @dataclass
@@ -574,7 +568,7 @@ class NodeType:
         access: str
 
         def to_str(self, prefix):
-            yield " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc, self.access])
+            return " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc, self.access])
 
     @dataclass
     class CompoundStmt(LeafNode):
@@ -587,9 +581,7 @@ class NodeType:
             self.location = location
 
         def to_str(self, prefix):
-            yield " ".join([prefix + self.__class__.__name__, self.node_id, self.location])
-            for line in NodeType.Node.to_str(self, prefix):
-                yield line
+            return " ".join([prefix + self.__class__.__name__, self.node_id, self.location])
 
 
     @dataclass
@@ -603,9 +595,7 @@ class NodeType:
             self.location = location
 
         def to_str(self, prefix):
-            yield " ".join([prefix + self.__class__.__name__, self.node_id, self.location])
-            for line in NodeType.Node.to_str(self, prefix):
-                yield line
+            return " ".join([prefix + self.__class__.__name__, self.node_id, self.location])
 
     @dataclass
     class ImplicitCastExpr(LeafNode):
@@ -622,9 +612,7 @@ class NodeType:
             self.dimension = int(dim_str)
 
         def to_str(self, prefix):
-            yield " ".join([prefix + self.__class__.__name__, self.node_id, f"'{self.type_text}'", str(self.dimension)])
-            for line in NodeType.Node.to_str(self, prefix):
-                yield line
+            return " ".join([prefix + self.__class__.__name__, self.node_id, f"'{self.type_text}'", str(self.dimension)])
 
 
     @dataclass
@@ -637,9 +625,7 @@ class NodeType:
             self.children = []
 
         def to_str(self, prefix: str):
-            yield " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc, self.name])
-            for line in super().to_str(prefix):
-                yield line
+            return " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc, self.name])
 
 
 class ClangTranslator:

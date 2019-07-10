@@ -76,7 +76,7 @@ class TestClangTranslation:
         with ClangTranslator(file_name=file_name) as translator:
             root = translator.translate()
             with tempfile.NamedTemporaryFile(mode='w+b') as f:
-                for line in root.to_str(""):
+                for line in root.serialize(""):
                     if 'ConstantArrayType' in line:
                         f.write(line.rstrip().encode('utf-8') + b" \n")
                     else:
@@ -84,3 +84,4 @@ class TestClangTranslation:
                 f.flush()
                 assert filecmp.cmp(f.name, file_name)
 
+        root.by_header_file()
