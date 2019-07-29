@@ -1,11 +1,14 @@
 import filecmp
 import tempfile
 
+from pyllars.cppparser.generation import clang
+from pyllars.cppparser.generation.base2 import Compiler
 from pyllars.cppparser.parser.clang_translator import ClangTranslator, NodeType
 
 import os
 
-RESOURCES_DIR=os.path.join(os.path.dirname(__file__), "resources")
+RESOURCES_DIR = os.path.join(os.path.dirname(__file__), "resources")
+PYLLARS_INCLUDE_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "..", "src", "python", "resources", "include")
 
 
 def compare_builtintype(self, other: NodeType.BuiltinType):
@@ -85,3 +88,164 @@ class TestClangTranslation:
                 assert filecmp.cmp(f.name, file_name)
 
         root.by_header_file()
+
+    def test_wrap_ns(self):
+        ns_C = NodeType.NamespaceDecl(node_id="1", line_loc="", col_loc="", name="C")
+        ns_B = NodeType.NamespaceDecl(node_id="1", line_loc="", col_loc="", name="B")
+        ns_A = NodeType.NamespaceDecl(node_id="2", line_loc="", col_loc="", name="A")
+        ns_B.parent = ns_A
+        ns_C.parent = ns_B
+        generator = clang.NamespaceDeclGenerator(ns_C, ".", ".", "/tmp")
+        text = generator._wrap_in_namespaces("HERE")
+        assert text == """
+namespace B{
+   namespace A{
+
+        HERE
+
+   }
+}
+"""
+
+    def test_generate_ns(self, tmpdir):
+        ns_C = NodeType.NamespaceDecl(node_id="1", line_loc="", col_loc="", name="C")
+        ns_B = NodeType.NamespaceDecl(node_id="1", line_loc="", col_loc="", name="B")
+        ns_A = NodeType.NamespaceDecl(node_id="2", line_loc="", col_loc="", name="A")
+        ns_B.parent = ns_A
+        ns_C.parent = ns_B
+        dummy_header = open(os.path.join(str(tmpdir), "dummy.hpp"), 'w')
+        dummy_header.close()
+        output_dir = os.path.join(str(tmpdir), "output")
+        os.makedirs(output_dir, exist_ok=True)
+        generator = clang.NamespaceDeclGenerator(ns_C, str(tmpdir), os.path.basename(dummy_header.name), output_dir)
+        header_file_name, body_file_name = generator.generate()
+        assert open(header_file_name).read() == """
+#include <vector>
+#include <cstddef>
+
+#include <Python.h>
+#include <pyllars/pyllars.hpp>
+
+namespace A{
+namespace B{
+
+        
+            PyObject *C_module(); 
+            
+            /**
+             * static initializer method to register initialization routine
+             **/
+            status_t C_register( pyllars::Initializer* const);
+            
+            /**
+             * called back on initialization to initialize Python wrapper for this C construct
+             * @param top_level_mod:  mod to which the wrapper Python object should belong
+             **/
+            status_t C_ready(PyObject * const top_level_mod);
+            
+
+   }
+}
+"""
+        hash = "#"
+        line = f"{hash}include \"C.hpp\"\n#include \"../B.hpp\""
+        assert open(body_file_name).read() == line + \
+"""
+
+namespace A{
+namespace B{
+
+        
+                    PyObject * C_module(){
+                        static PyObject* C_mod = nullptr;
+                        if (!C_mod){
+                            #if PY_MAJOR_VERSION==3
+        
+                                // Initialize Python3 module associated with this namespace
+                                static PyModuleDef C_moddef = {
+                                    PyModuleDef_HEAD_INIT,
+                                    "C",
+                                    "Example module that creates an extension type.",
+                                    -1,
+                                    NULL, NULL, NULL, NULL, NULL
+                                };
+                                C_mod = PyModule_Create(&C_moddef);
+        
+                            #else
+        
+                                // Initialize Python2 module associated with this namespace
+                                C_mod = Py_InitModule3("C", nullptr,
+                                                              "Module corresponding to C++ namespace C");
+        
+                            #endif
+                        }
+                        return C_mod;
+                    }
+            
+                    
+                    status_t C__ready(PyObject* global_mod){
+                      static bool inited = false;
+                        if (inited) return 0;// if already initialized
+                        inited = true;
+                        int status = 0;
+    
+                        if (!::A::B_module() || C_module()){
+                            status = -2;
+                        } else {
+                            PyModule_AddObject( ::A::B_module(), "C", C_module());
+                        }
+                        return status;
+                    }
+                    
+                    status_t C_set_up(){
+                        return C_module()?0:-2;
+                    } // end init
+    
+            
+                class Initializer_C: public pyllars::Initializer{
+                public:
+                    Initializer_C():pyllars::Initializer(){
+                        A::B_register(this);                          
+                    }
+
+                    int set_up() override{
+                       int status = pyllars::Initializer::set_up();
+                       return status == 0?C_set_up():status;
+                    }
+
+                    int ready(PyObject * const top_level_mod) override{
+                       int status = pyllars::Initializer::ready(top_level_mod);
+                       return status == 0?C_ready(top_level_mod):status;
+                    }
+                    
+                    static Initializer_C* initializer;
+                    
+                    static Initializer_C *singleton(){
+                        static  Initializer_C _initializer;
+                        return &_initializer;
+                    }
+                 };
+                 
+                
+                //ensure instance is created on global static initialization, otherwise this
+                //element would never be reigstered and picked up
+                Initializer_C * Initializer_C::initializer = singleton();
+    
+                status_t C_register( pyllars::Initializer* const init ){ 
+                    // DO NOT RELY SOLEY ON global static initializatin as order is not guaranteed, so 
+                    // initializer initializer var here:
+                    
+                    return Initializer_C::singleton()->register_init(init);
+                }
+
+   }
+}
+"""
+
+        generator = clang.NamespaceDeclGenerator(ns_B, str(tmpdir), os.path.basename(dummy_header.name), output_dir)
+        generator.generate()
+        generator = clang.NamespaceDeclGenerator(ns_A, str(tmpdir), os.path.basename(dummy_header.name), output_dir)
+        generator.generate()
+        compiler = Compiler(compiler_flags=[f"-I{RESOURCES_DIR}", f"-I{PYLLARS_INCLUDE_DIR}"],
+                            output_dir=output_dir,optimization_level="-O0", debug=True)
+        compiler.compile(body_file_name)

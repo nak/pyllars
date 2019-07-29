@@ -94,6 +94,7 @@ class NodeType:
                         try:
                             assert isinstance(node, NodeType.Node)
                             current_node.children.append(node)
+                            node.parent = current_node
                         except AttributeError:
                             raise Exception(
                                 f"Invalid file format: attempt to append child to non-composite node: {type(current_node).__name__}")
@@ -158,10 +159,23 @@ class NodeType:
         def to_str(self, prefix):
             pass
 
+        @property
+        def full_cpp_name(self):
+            parent = self.parent
+            prefix = ""
+            while parent:
+                prefix = f"{parent.name}::" + prefix
+                parent = parent.parent
+            return prefix + self.name
 
     @dataclass
     class LeafNode(Node):
         node_id: str
+        parent: Optional["NodeType.Node"]
+
+        def __init__(self, node_id: str, parent: Optional["NodeType.Node"] = None):
+            self.node_id = node_id
+            self.parent = parent
 
     @dataclass
     class LocationNode(LeafNode):
@@ -269,6 +283,9 @@ class NodeType:
 
     @dataclass
     class BuiltinType(TypeNode):
+
+        def __init__(self, node_id: str, type_text: str):
+            super().__init__(node_id, type_text)
 
         def to_str(self, prefix):
             return " ".join([prefix + self.__class__.__name__, self.node_id, f"'{self.type_text}'"])

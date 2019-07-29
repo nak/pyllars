@@ -65,7 +65,7 @@ class Compiler(object):
         hex = m.hexdigest()
         uuid = uuid.UUID(hex)
         target =  os.path.join(self._output_dir, os.path.basename(path) + str(uuid) + ".o")
-        cmd = "%(cxx)s -ftemplate-backtrace-limit=0 -g -O -std=c++14 %(cxxflags)s -c -fPIC %(includes)s -I%(python_include)s " \
+        cmd = "%(cxx)s -ftemplate-backtrace-limit=0 -g -O -std=c++1z %(cxxflags)s -c -fPIC %(includes)s -I%(python_include)s " \
               "-I%(pyllars_include)s -o \"%(target)s\" \"%(compilable)s\"" % {
                   'cxx': Compiler.CXX,
                   'cxxflags': Compiler.CFLAGS,
