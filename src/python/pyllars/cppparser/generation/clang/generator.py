@@ -115,18 +115,19 @@ class Generator(ABC):
         os.makedirs(root, exist_ok=True)
         return root
 
-    def _wrap_in_namespaces(self, string: str):
+    def _wrap_in_namespaces(self, string: str, within_pyllars: bool = False):
         indent = 0
         text = "\n"
         parent = self._node.parent
         while parent:
-            if isinstance(parent, NodeType.NamespaceDecl):
+            if parent.name:
                 text = f"\nnamespace {parent.name}{{" + text
-                indent += 1
+            indent += 1
             parent = parent.parent
         text += f"\n        {string}\n\n"
         for indent in reversed(range(indent)):
             indent_text = indent * "   "
             text += f"{indent_text}}}\n"
-
+        if within_pyllars:
+            text = f"namespace pyllars{{\n{text}\n}}\n"
         return text

@@ -13,24 +13,30 @@ class NamespaceDeclGenerator(Generator):
             # generate header
             header_stream.write(Generator.COMMON_HEADER)
             parent = self._node.parent
-            parent_name = parent.name if parent else "pyllars"
             code = f"""
             PyObject *{self._node.name}_module(); 
             
             /**
              * static initializer method to register initialization routine
              **/
-            status_t {self._node.name}_register( pyllars::Initializer* const);
+            status_t {self._node.name}_register(::pyllars::Initializer* const);
             
             /**
              * called back on initialization to initialize Python wrapper for this C construct
              * @param top_level_mod:  mod to which the wrapper Python object should belong
              **/
             status_t {self._node.name}_ready(PyObject * const top_level_mod);
+            
+            /**
+             * add child object
+             **/
+            status_t {self._node.name}_addPyObject(const char* const name, PyObject* pyobj){{
+                return PyModule_AddObject(::pyllars::{self._node.full_cpp_name}_module(), name, pyobj);
+            }}
             """
-            header_stream.write(self._wrap_in_namespaces(code))
+            header_stream.write(self._wrap_in_namespaces(code, True))
             # generate body
-            parent_mod = f"::{parent.full_cpp_name}_module()" if parent else "global_mod"
+            parent_mod = f"::pyllars::{parent.full_cpp_name}_module()" if parent else "global_mod"
             hash = "#"
             code = f"""
                     PyObject * {self._node.name}_module(){{
@@ -92,7 +98,7 @@ class NamespaceDeclGenerator(Generator):
             body_stream.write(f"#include \"{self._node.name}.hpp\"\n")
             if self._node.parent:
                 body_stream.write(f"#include \"../{self._node.parent.name}.hpp\"\n")
-            body_stream.write(self._wrap_in_namespaces(code))
+            body_stream.write(self._wrap_in_namespaces(code, True))
 
         finally:
             body_stream.close()

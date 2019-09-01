@@ -71,7 +71,7 @@ class NodeType:
             if not line:
                 return parent
             line = line.rstrip()
-
+            print(line)
             if parent == None:
                 tag, text = line.split(' ', maxsplit=1)
                 node_type = getattr(NodeType, tag)
@@ -107,6 +107,7 @@ class NodeType:
                             line = next(lines, None)
                             if line:
                                 line = line.rstrip()
+                                print(line)
                     elif this_indent == indent+1:
                         # at same level as previous item
                         if ' ' in substance:
@@ -124,6 +125,8 @@ class NodeType:
                         try:
                             assert isinstance(node, NodeType.Node)
                             parent.children.append(node)
+                            if not isinstance(parent, NodeType.TranslationUnitDecl):
+                                node.parent = parent
                         except AttributeError:
                             raise Exception(f"Invalid file format: attempt to append child to non-composite node: {type(parent).__name__}")
                         current_node = node
@@ -136,6 +139,7 @@ class NodeType:
                         line = next(lines, None)
                         if line:
                             line = line.rstrip()
+                            print(line)
                     else:
                         raise MismatchedDepth(line)
 
@@ -167,6 +171,16 @@ class NodeType:
                 prefix = f"{parent.name}::" + prefix
                 parent = parent.parent
             return prefix + self.name
+
+        @property
+        def namespace_name(self):
+            parent = self.parent
+            prefix = ""
+            while parent:
+                if isinstance(parent, NodeType.NamespaceDecl):
+                    prefix = f"{parent.name}" + prefix if prefix else f"{parent.name}"
+                parent = parent.parent
+            return prefix
 
     @dataclass
     class LeafNode(Node):
