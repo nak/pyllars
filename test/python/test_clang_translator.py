@@ -117,7 +117,7 @@ namespace B{
         dummy_header.close()
         output_dir = os.path.join(str(tmpdir), "output")
         os.makedirs(output_dir, exist_ok=True)
-        generator = clang.NamespaceDeclGenerator(ns_C, str(tmpdir), os.path.basename(dummy_header.name), output_dir)
+        generator = clang.Generator.create(ns_C, str(tmpdir), os.path.basename(dummy_header.name), output_dir)
         header_file_name, body_file_name = generator.generate()
         assert open(header_file_name).read() == """
 #include <vector>
@@ -242,10 +242,28 @@ namespace B{
 }
 """
 
-        generator = clang.NamespaceDeclGenerator(ns_B, str(tmpdir), os.path.basename(dummy_header.name), output_dir)
+        generator = clang.Generator.create(ns_B, str(tmpdir), os.path.basename(dummy_header.name), output_dir)
         generator.generate()
-        generator = clang.NamespaceDeclGenerator(ns_A, str(tmpdir), os.path.basename(dummy_header.name), output_dir)
+        generator = clang.Generator.create(ns_A, str(tmpdir), os.path.basename(dummy_header.name), output_dir)
         generator.generate()
         compiler = Compiler(compiler_flags=[f"-I{RESOURCES_DIR}", f"-I{PYLLARS_INCLUDE_DIR}"],
                             output_dir=output_dir,optimization_level="-O0", debug=True)
         compiler.compile(body_file_name)
+
+    def test_generation(self, tmpdir):
+        file_name = os.path.join(RESOURCES_DIR, "clang-check-output.example")
+        # not the best test stategy, but generic enough:
+        # regurgitate the file back out and compare to original to pass test
+        output_dir = os.path.join(str(tmpdir), "output")
+        os.makedirs(output_dir)
+        header = os.path.join(RESOURCES_DIR, "classes.hpp")
+        with ClangTranslator(file_name=file_name) as translator:
+            root = translator.translate()
+            generator = clang.Generator.create(root, os.path.dirname(header), os.path.basename(header), output_dir)
+            generator.generate_all()
+
+        compiler = Compiler(compiler_flags=[f"-I{RESOURCES_DIR}", f"-I{PYLLARS_INCLUDE_DIR}"],
+                            output_dir=output_dir, optimization_level="-O0", debug=True)
+        for dir, dirnames, filenames in os.walk(output_dir):
+            for filename in [os.path.join(dir, name) for name in filenames if name.endswith(".cpp")]:
+                compiler.compile(filename)

@@ -7,9 +7,6 @@ import subprocess
 
 import pkg_resources
 
-from pyllars.cppparser.generation import Generator
-from pyllars.cppparser.generation.base2 import Compiler, Linker
-from pyllars.cppparser.parser.clang_filter import ClangFilter
 import pytest
 
 
@@ -70,6 +67,9 @@ def linker_flags(libpyllars):
 
 @pytest.fixture(scope='session')
 def testglobals(linker_flags):
+    from pyllars.cppparser.generation import Generator
+    from pyllars.cppparser.generation.base2 import Compiler, Linker
+    from pyllars.cppparser.parser.clang_filter import ClangFilter
     compiler = Compiler(compiler_flags=["-I%s" % TEST_RESOURCES_DIR, "-I."],
                         optimization_level="-O0",
                         debug=True,

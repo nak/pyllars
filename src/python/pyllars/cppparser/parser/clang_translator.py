@@ -358,6 +358,7 @@ class NodeType:
             while arg:
                 self.post_qualifires.append(arg)
                 arg = next(arg_iter, None)
+            self.bases = []
 
         def to_str(self, prefix: str):
             return " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc, " ".join(self.qualifiers),
@@ -513,6 +514,13 @@ class NodeType:
         type_text: str
         value: float
 
+        def __init__(self, node_id: str, col_loc: str, type_text:str, value: str):
+            super().__init__(node_id=node_id)
+            self.node_id = node_id
+            self.col_loc = col_loc
+            self.type_text = type_text
+            self.value = value
+
         def to_str(self, prefix):
             return " ".join([prefix + self.__class__.__name__, self.node_id, self.col_loc, f"'{self.type_text}'", str(self.value)])
 
@@ -583,6 +591,14 @@ class NodeType:
         line_loc: str
         col_loc: str
         access: str
+
+        def __init__(self, node_id: str, line_loc: str, col_loc:str, access:str,
+                     parent: Optional["NodeType.Node"] = None):
+            super().__init__(node_id=node_id, parent=parent)
+            self.line_loc = line_loc
+            self.col_loc = col_loc
+            self.access = access
+
 
         def to_str(self, prefix):
             return " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc, self.access])

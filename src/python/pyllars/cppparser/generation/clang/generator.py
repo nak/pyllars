@@ -82,6 +82,26 @@ class Generator(ABC):
         """
         generate header and body for this objects' node
         """
+
+    def generate_all(self):
+        self.generate()
+        for child in getattr(self._node, "children", []):
+            generator = Generator.create(child, self._root_dir, self._source_path, self._output_dir)
+            if generator:
+                generator.generate_all()
+
+    @property
+    def source_path(self):
+        return self._source_path
+
+    @property
+    def root_dir(self):
+        return self._root_dir
+
+    @property
+    def source_path_root(self):
+        return self._source_path_root
+
     @property
     def my_root_dir(self):
         root = self._output_dir
@@ -103,7 +123,7 @@ class Generator(ABC):
             if isinstance(parent, NodeType.NamespaceDecl):
                 text = f"\nnamespace {parent.name}{{" + text
                 indent += 1
-                parent = parent.parent
+            parent = parent.parent
         text += f"\n        {string}\n\n"
         for indent in reversed(range(indent)):
             indent_text = indent * "   "

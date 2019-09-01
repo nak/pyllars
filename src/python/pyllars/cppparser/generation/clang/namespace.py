@@ -1,12 +1,8 @@
 import os
-from pyllars.cppparser.parser.clang_translator import NodeType
 from .generator import Generator
 
 
 class NamespaceDeclGenerator(Generator):
-
-    def __init__(self, node: NodeType.NamespaceDecl, root_dir: str, source_path: str, output_dir: str):
-        super().__init__(node=node, root_dir=root_dir, source_path=source_path, output_dir=output_dir)
 
     def generate(self):
         header_stream = open(os.path.join(self.my_root_dir, self._node.name+'.hpp'), 'w',
