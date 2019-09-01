@@ -15,6 +15,22 @@ namespace outside{
 
 namespace trial{
 
+    class A{
+    public:
+        void aMethod();
+    };
+
+    class B{
+    public:
+        void bMethod();
+    };
+
+    class Inherited: public A{
+    };
+
+    class MultipleInherited: public A, public B{
+    };
+
   class Main{
   public:
 
