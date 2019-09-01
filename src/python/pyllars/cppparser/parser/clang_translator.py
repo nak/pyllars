@@ -192,6 +192,48 @@ class NodeType:
             self.parent = parent
 
     @dataclass
+    class InheritanceNode(LeafNode):
+
+        clazz: str
+
+        def __init__(self, clazz: str, parent: Optional["NodeType.Node"] = None):
+            super().__init__(node_id=None)
+            self.clazz = clazz
+
+        def to_str(self, prefix):
+            return " ".join([prefix + self.__clazz, self.node_id])
+
+        @property
+        def full_name(self):
+            return self.clazz
+
+        @property
+        def name(self):
+            return self.clazz.split('::')[-1]
+
+
+    @dataclass
+    class public(InheritanceNode):
+
+        def __init__(self, clazz: str, parent: Optional["NodeType.Node"] = None):
+            super().__init__(clazz=clazz, parent=parent)
+
+
+    @dataclass
+    class protected(InheritanceNode):
+
+        def __init__(self, clazz: str, parent: Optional["NodeType.Node"] = None):
+            super().__init__(clazz=clazz, parent=parent)
+
+
+    @dataclass
+    class private(InheritanceNode):
+
+        def __init__(self, clazz: str, parent: Optional["NodeType.Node"] = None):
+            super().__init__(clazz=clazz, parent=parent)
+
+
+    @dataclass
     class LocationNode(LeafNode):
         line_loc: str
         col_loc: str
@@ -372,7 +414,10 @@ class NodeType:
             while arg:
                 self.post_qualifires.append(arg)
                 arg = next(arg_iter, None)
-            self.bases = []
+
+        @property
+        def bases(self):
+            return [child for child in self.children if isinstance(child, NodeType.public)]
 
         def to_str(self, prefix: str):
             return " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc, " ".join(self.qualifiers),

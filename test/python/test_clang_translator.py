@@ -1,8 +1,11 @@
 import filecmp
+import subprocess
 import tempfile
 
+import pytest
+
 from pyllars.cppparser.generation import clang
-from pyllars.cppparser.generation.base2 import Compiler
+from pyllars.cppparser.compilation.compile import Compiler
 from pyllars.cppparser.parser.clang_translator import ClangTranslator, NodeType
 
 import os
@@ -68,6 +71,18 @@ child = NodeType.NamespaceDecl('0x18a65f0', '<line:11:1, line:14:1>', 'line:11:1
 expectation.children.append(child)
 child = NodeType.NamespaceDecl('0x18a6830', '<line:16:1, line:68:1>', 'line:16:11', 'trial')
 expectation.children.append(child)
+
+
+@pytest.fixture
+def clang_output_classes(tmpdir):
+    src_path = os.path.join(RESOURCES_DIR, "classes.hpp")
+    output_path = os.path.join(str(tmpdir), "clang-output.classes")
+    cmd = ["clang-check", "-ast-dump", src_path, "--extra-arg=\"-fno-color-diagnostics\""]
+    with open(output_path, 'w') as output_file:
+        p = subprocess.run(cmd, stdout=output_file, stderr=subprocess.PIPE)
+        if p.returncode != 0:
+            raise Exception(f"Failed to parse {src_path} through clang-check tool")
+    return output_path
 
 
 class TestClangTranslation:
@@ -250,14 +265,13 @@ namespace B{
                             output_dir=output_dir,optimization_level="-O0", debug=True)
         compiler.compile(body_file_name)
 
-    def test_generation(self, tmpdir):
-        file_name = os.path.join(RESOURCES_DIR, "clang-check-output.example")
+    def test_generation(self, tmpdir, clang_output_classes):
         # not the best test stategy, but generic enough:
         # regurgitate the file back out and compare to original to pass test
         output_dir = os.path.join(str(tmpdir), "output")
         os.makedirs(output_dir)
         header = os.path.join(RESOURCES_DIR, "classes.hpp")
-        with ClangTranslator(file_name=file_name) as translator:
+        with ClangTranslator(file_name=clang_output_classes) as translator:
             root = translator.translate()
             generator = clang.Generator.create(root, os.path.dirname(header), os.path.basename(header), output_dir)
             generator.generate_all()

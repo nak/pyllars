@@ -68,13 +68,24 @@ class CXXRecordDeclGenerator(Generator):
             inheritance_code = f""
             for base in self._node.bases or []:
                 base_class_name = base.full_name
-                base_class_bare_name = base.name
                 inheritance_code += f"""
-                    status |= pylars{base_class_name}::{base_class_bare_name}_set_up();
-                    __pyllars_internal::PythonClassWrapper< {typename} ::{class_full_name} >::addBaseClass
-                        (&PythonClassWrapper< {typename} {base_class_name} >::getPyType()); /*1*/
+                    status |= pyllars::{base.full_name}_set_up();
+                    __pyllars_internal::PythonClassWrapper< {typename} ::{class_full_name}>::addBaseClass<::{base_class_name}>();
 
                 """
+            ready_code = ""
+            for base in self._node.bases or []:
+                ready_code += f"""
+                    status |= pyllars::{base.full_name}_ready(top_level_mod);
+                """
+            for base in self._node.bases or []:
+                hierarchy = base.full_name.split('::')[:-1]
+                text = "// Difficult to get header location as source of inheritance class, so declase set_up & ready explicitly here\n" \
+                    "namespace pyllars{\n" +"\n".join([f"namespace {name}{{" for name in hierarchy])
+                text += f"\nstatus_t {base.name}_set_up();\n"
+                text += f"\nstatus_t {base.name}_ready(PyObject*);\n"
+                text += "}\n"*(len(hierarchy) + 1)
+                body_stream.write(text + "\n\n")
             body_stream.write(self._wrap_in_namespaces(f"""
             namespace {{
                 //From: CXXRecordDeclGenerator.generate
@@ -102,6 +113,7 @@ class CXXRecordDeclGenerator(Generator):
 
                     int ready(PyObject * const top_level_mod) override{{
                        int status = pyllars::Initializer::ready(top_level_mod);
+                       {ready_code}
                        typedef typename ::{self._node.full_cpp_name}  main_type;
                        status |= __pyllars_internal::PythonClassWrapper< main_type >::initialize();  //classes
                      
