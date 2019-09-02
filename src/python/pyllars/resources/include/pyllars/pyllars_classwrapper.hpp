@@ -39,7 +39,7 @@ static constexpr cstring OP_BINARY_OR  = "__or__";
 static constexpr cstring OP_BINARY_XOR = "__xor__";
 static constexpr cstring OP_BINARY_MOD = "__mod__";
 static constexpr cstring OP_BINARY_LSHIFT = "__lshift__";
-static constexpr cstring OP_BINARY_RSHIFT = "__lshift__";
+static constexpr cstring OP_BINARY_RSHIFT = "__rshift__";
 
 static constexpr cstring OP_BINARY_IADD = "__iadd__";
 static constexpr cstring OP_BINARY_ISUB = "__isub__";
@@ -50,7 +50,7 @@ static constexpr cstring OP_BINARY_IOR  = "__ior__";
 static constexpr cstring OP_BINARY_IXOR = "__ixor__";
 static constexpr cstring OP_BINARY_IMOD = "__imod__";
 static constexpr cstring OP_BINARY_ILSHIFT = "__ilshift__";
-static constexpr cstring OP_BINARY_IRSHIFT = "__iRshift__";
+static constexpr cstring OP_BINARY_IRSHIFT = "__irshift__";
 
 static const char* const emptylist[] = {nullptr};
 
@@ -289,11 +289,11 @@ namespace __pyllars_internal {
             BinaryOp<OP_BINARY_IXOR, kwlist,method_t, method>::addBinaryOperator();}
 
         template<const char* const kwlist[2],typename method_t, method_t method>
-        static void addInplaceDicOperator(){
+        static void addInplaceDivOperator(){
             BinaryOp<OP_BINARY_IDIV, kwlist,method_t, method>::addBinaryOperator();}
 
         template<const char* const kwlist[2], typename KeyType, typename method_t, method_t method>
-        static void addMapOperatorMethod(){
+        static void addMapOperator(){
             typedef typename func_traits<method_t>::ReturnType ValueType;
             if constexpr(func_traits<method_t>::is_const_method) {
                 _addMapOperatorMethod < kwlist, KeyType, ValueType, ValueType(CClass::*)(KeyType) const, method > ();

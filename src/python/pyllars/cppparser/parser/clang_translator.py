@@ -27,16 +27,18 @@ class NodeType:
         words = []
         word_start = 0
         i = 0
+        prev_c = None
         for i, c in enumerate(text):
             if nb_quote == 0 and c == "'":
               nb_quote += 1
               word_start = i +1
+              prev_c = c
               continue
-            elif nb_quote == 0 and c == '<':
+            elif nb_quote == 0 and c == '<' and prev_c in [None, ' ']:
                 nb_angle_brackets += 1
-            elif nb_angle_brackets > 0 and c=='>':
+            elif nb_angle_brackets > 0 and c == '>':
                 nb_angle_brackets -=1
-            elif nb_quote == 0 and c==' ' and nb_angle_brackets == 0:
+            elif nb_quote == 0 and c == ' ' and nb_angle_brackets == 0:
                 word = text[word_start: i].strip()
                 if word:
                     words.append(word)
@@ -47,7 +49,9 @@ class NodeType:
                     word = text[word_start: i]
                     words.append(word)
                     word_start = i + 1
+                prev_c = c
                 continue
+            prev_c = c
         word = text[word_start: i+1].strip()
         if word:
             words.append(word)
@@ -679,7 +683,7 @@ class NodeType:
 
 
     @dataclass
-    class ReturnStmt(LeafNode):
+    class ReturnStmt(CompositeNode):
         location: str
         children: List[str]
 
@@ -720,6 +724,40 @@ class NodeType:
 
         def to_str(self, prefix: str):
             return " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc, self.name])
+
+    @dataclass
+    class UnaryOperator(CompositeNode):
+        col_loc: str
+
+        def __init__(self, node_id: str, col_loc: str, *args):
+            super().__init__(node_id=node_id, line_loc="", col_loc=col_loc)
+            self.col_loc = col_loc
+
+        def to_str(self, prefix: str):
+            return " ".join([prefix + self.__class__.__name__, self.node_id, self.col_loc])
+
+    @dataclass
+    class BinaryOperator(CompositeNode):
+        col_loc: str
+
+        def __init__(self, node_id: str, col_loc: str, *args):
+            super().__init__(node_id=node_id, line_loc="", col_loc=col_loc)
+            self.col_loc = col_loc
+
+        def to_str(self, prefix: str):
+            return " ".join([prefix + self.__class__.__name__, self.node_id, self.col_loc])
+
+    @dataclass
+    class CXXThisExpr(LeafNode):
+        col_loc: str
+
+        def __init__(self, node_id: str, col_loc: str, *args):
+            super().__init__(node_id=node_id)
+            self.col_loc = col_loc
+
+        def to_str(self, prefix: str):
+            return " ".join([prefix + self.__class__.__name__, self.node_id, self.col_loc])
+
 
 
 class ClangTranslator:

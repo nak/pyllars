@@ -83,6 +83,27 @@ namespace trial{
 
   }
 
+
+  class FullOperatorList{
+  public:
+    FullOperatorList& operator+(){
+      return *this;
+    }
+    FullOperatorList& operator-();
+    FullOperatorList& operator~();
+
+    FullOperatorList& operator+(const int);
+    FullOperatorList& operator-(const int);
+    FullOperatorList& operator*(const double);
+    FullOperatorList& operator/(const float);
+    FullOperatorList& operator&(const int);
+    FullOperatorList& operator|(const int);
+    FullOperatorList& operator^(const int);
+    FullOperatorList& operator%(const int);
+    FullOperatorList& operator<<(const int);
+    FullOperatorList& operator>>(const int);
+
+  };
 }
 
 #endif

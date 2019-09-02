@@ -522,7 +522,7 @@ class CXXMethodDeclGenerator(Generator):
         if self._node.name == "operator=":
             return self.generate_assignment()
         if self._node.name.startswith("operator"):
-            return self._generate_operator()
+            return self.generate_operator()
         class_name = self._node.parent.name
         class_full_cpp_name = self._node.parent.full_cpp_name
         body_stream = open(
@@ -643,6 +643,113 @@ class CXXMethodDeclGenerator(Generator):
                                        __pyllars_internal::PythonClassWrapper< main_type >::addMethod<this_name, kwlist, 
                                            method_t,
                                            &::{class_full_cpp_name}::operator= >();
+                                       return status;
+                                    }}
+
+                                    static Initializer_{name}* initializer;
+
+                                    static Initializer_{name} *singleton(){{
+                                        static  Initializer_{name} _initializer;
+                                        return &_initializer;
+                                    }}
+                                 }};
+
+
+                                //ensure instance is created on global static initialization, otherwise this
+                                //element would never be reigstered and picked up
+                                Initializer_{name} * Initializer_{name}::initializer = singleton();
+
+                            }}
+                        """, True))
+        finally:
+            body_stream.close()
+        return None, body_stream.name
+
+    def generate_operator(self):
+        unary_mapping = {
+            '~' : 'Inv',
+            '+' : 'Pos',
+            '-' : 'Neg',
+        }
+        binary_mapping = {
+            '+': 'Add',
+            '-': 'Sub',
+            '*': 'Mul',
+            '/': 'Div',
+            '&': 'And',
+            '|': 'Or',
+            '^': 'Xor',
+            '<<': 'Lshift',
+            '>>': 'Rshift',
+            '%': 'Mod',
+            '+=': 'InplaceAdd',
+            '-=': 'InplaceSub',
+            '*=': 'InplaceMul',
+            '/=': 'InplaceDiv',
+            '&=': 'InplaceAnd',
+            '|=': 'InplaceOr',
+            '^=': 'InplaceXor',
+            '<<=': 'InplaceLshift',
+            '>>=': 'InplaceRshift',
+            '%=': 'InplaceMod',
+            '[]': 'Map'
+        }
+        operator_kind = self._node.name.replace("operator", '')
+        params = [p for p in self._node.children if isinstance(p, NodeType.ParmVarDecl)]
+        if len(params) > 1:
+            raise Exception("Unexpected number of operator params")
+        cpp_op_name = unary_mapping.get(operator_kind) if len(params) == 0 else binary_mapping.get(operator_kind)
+        if cpp_op_name is None:
+            raise Exception(f"Unknown operator: {operator_kind}")
+
+        class_name = self._node.parent.name
+        class_full_cpp_name = self._node.parent.full_cpp_name
+        body_stream = open(
+            os.path.join(self.my_root_dir, self._source_path_root, class_name + '::' + self._node.name.replace("/", " div") + '.cpp'), 'w',
+            encoding='utf-8')
+        try:
+            parent = self._node.parent
+            parent_name = parent.name
+            parent_header_path = os.path.join("..", parent_name)
+            # generate body
+            body_stream.write(f"""\n#include \"{self.source_path}\" 
+#include \"{parent_header_path}.hpp\"
+#include <{self.source_path}>
+                            """)
+            name = self._node.name.replace(operator_kind, cpp_op_name)
+            signature = self._full_signature()
+            kwlist = []
+            for index, c in enumerate(params):
+                if not c.name:
+                    kwlist.append(f"\"_{index}\"")
+                else:
+                    kwlist.append(f"\"{c.name}\"")
+            kwlist_items = ", ".join(kwlist + ["nullptr"])
+            kwlist_if = "" if len(params) == 0 else "kwlist,"
+            body_stream.write(self._wrap_in_namespaces(f"""
+
+                            namespace {{
+                               //From: CXXMethodDeclGenerator.generate
+
+                               typedef const char* const kwlist_t[{len(kwlist)+1}];
+                               constexpr kwlist_t kwlist = {{{kwlist_items}}};
+
+                                class Initializer_{name}: public pyllars::Initializer{{
+                                public:
+                                    Initializer_{name}():pyllars::Initializer(){{
+                                        {parent_name}_register(this);                          
+                                    }}
+
+                                    int set_up() override{{
+                                        return 0; //nothing to do on setup
+                                    }}
+                                    typedef {signature};
+                                    int ready(PyObject * const top_level_mod) override{{
+                                       int status = pyllars::Initializer::ready(top_level_mod);
+                                       typedef typename ::{class_full_cpp_name}  main_type;
+                                       __pyllars_internal::PythonClassWrapper< main_type >::add{cpp_op_name}Operator<{kwlist_if}
+                                           method_t,
+                                           &::{class_full_cpp_name}::{self._node.name} >();
                                        return status;
                                     }}
 
