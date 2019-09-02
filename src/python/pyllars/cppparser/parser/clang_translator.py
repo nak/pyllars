@@ -88,6 +88,8 @@ class NodeType:
                         raise SyntaxError("Invalidly formatted file, unexpected tree depth")
                     elif this_indent == indent + 2:
                         # have new child
+                        if ' ' not in substance:
+                            substance += ' '
                         tag, text = substance.split(' ', maxsplit=1)
                         node_type = getattr(NodeType, tag)
                         node = process(text, node_type)

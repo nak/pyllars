@@ -108,21 +108,22 @@ class Generator(ABC):
         parent = self._node.parent
         path = ""
         while parent:
-            path = os.path.join(parent.name, path)
+            if hasattr(parent, 'name'):
+                path = os.path.join(parent.name, path)
             parent = parent.parent
         if path:
             root = os.path.join(root, path)
         os.makedirs(root, exist_ok=True)
         return root
 
-    def _wrap_in_namespaces(self, string: str, within_pyllars: bool = False):
+    def _wrap_in_namespaces(self, string: str, within_pyllars: bool = False, prefix=""):
         indent = 0
         text = "\n"
         parent = self._node.parent
         while parent:
-            if parent.name:
-                text = f"\nnamespace {parent.name}{{" + text
-            indent += 1
+            if hasattr(parent, 'name') and parent.name:
+                text = f"\nnamespace {prefix}{parent.name}{{" + text
+                indent += 1
             parent = parent.parent
         text += f"\n        {string}\n\n"
         for indent in reversed(range(indent)):

@@ -10,6 +10,8 @@ typedef const char* const const_str;
 
 namespace outside{
     class ExternalDependency{
+    public:
+       // ExternalDependency& operator=(const ExternalDependency&){}
     };
 }
 
