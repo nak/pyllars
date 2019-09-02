@@ -9,101 +9,113 @@ typedef const char* const const_str;
 
 
 namespace outside{
-    class ExternalDependency{
-    public:
-       // ExternalDependency& operator=(const ExternalDependency&){}
-    };
+    class ExternalDependency;
 }
 
 namespace trial{
 
-    class A{
-    public:
-        void aMethod();
-    };
+    namespace attributes{
 
-    class B{
-    public:
-        void bMethod();
-    };
-
-    class Inherited: public A{
-    };
-
-    class MultipleInherited: public A, public B{
-    };
-
-  class Main{
-  public:
-
-    Main();
-
-    Main(const Main &);
-
-    virtual ~Main();
-
-    Main &operator=(const Main & );
-
-    int varargs_method(double d, ...);
-
-    int const_varargs_method(double d, ...) const;
-
-    struct Internal{
-    };
-
-    class Inner{
-    public:
-          Inner();
-    
-          void method(outside::ExternalDependency d){
-          }
-    
-          class Tertiary{
-          public:
-              float timestamp(){return 8349876.123f; }
-          };
-    };
-
-    const double method(const struct Internal &) const{
-        return 0.1;
+        class AttributesClass{
+        public:
+            int int_val;
+            const float const_float_val;
+            static constexpr int constexpr_int_val = 42;
+            const AttributesClass* ptr;
+        private:
+            double private_flost_val;
+        };
     }
 
+    namespace inheritance{
+        class BaseA{
+        public:
+            void aMethod();
+        };
+    
+        class BaseB{
+        public:
+            void bMethod();
+        };
+    
+        class Inherited: public BaseA{
+        };
+    
+        class MultipleInherited: public BaseA, public BaseB{
+        };
+    }
 
-    //std::string string_method();
+    class BasicClass{
+    public:
+    
+        BasicClass();
+    
+        BasicClass(const BasicClass &);
+    
+        virtual ~BasicClass();
+    
+        BasicClass &operator=(const BasicClass & );
+    
+        int varargs_method(double d, ...);
+    
+        int const_varargs_method(double d, ...) const;
+
+        struct Internal;
+
+        const double method(const struct Internal &) const{
+            return 0.1;
+        }
+
+        static void static_method();
+
+        class InnerClass{
+        public:
+              InnerClass();
+        
+              void method(outside::ExternalDependency& d){
+              }
+        
+              class InnerInnerClass{
+              public:
+                  float timestamp(){return 8349876.123f; }
+              };
+
+        };
 
   };
 
 
-  namespace incomplete{
+    namespace incomplete{
 
-    class Incomplete;
+        class Incomplete;
 
-    class Empty{
-    };
+        class Empty{
+        };
 
-  }
-
-
-  class FullOperatorList{
-  public:
-    FullOperatorList& operator+(){
-      return *this;
     }
-    FullOperatorList& operator-();
-    FullOperatorList& operator~();
 
-    FullOperatorList& operator+(const int);
-    FullOperatorList& operator-(const int);
-    FullOperatorList& operator*(const double);
-    FullOperatorList& operator/(const float);
-    FullOperatorList& operator&(const int);
-    FullOperatorList& operator|(const int);
-    FullOperatorList& operator^(const int);
-    FullOperatorList& operator%(const int);
-    FullOperatorList& operator<<(const int);
-    FullOperatorList& operator>>(const int);
+    namespace operators{
 
-  };
+        class FullOperatorList{
+        public:
+            FullOperatorList& operator+(){
+              return *this;
+            }
+            int operator-();
+            FullOperatorList& operator~();
+
+            FullOperatorList& operator+(const int);
+            FullOperatorList& operator-(const int);
+            FullOperatorList& operator*(const double);
+            FullOperatorList& operator/(const float);
+            FullOperatorList& operator&(const int);
+            FullOperatorList& operator|(const int);
+            FullOperatorList& operator^(const int);
+            FullOperatorList& operator%(const int);
+            FullOperatorList& operator<<(const int);
+            FullOperatorList& operator>>(const int);
+        };
+    }
 }
 
 #endif

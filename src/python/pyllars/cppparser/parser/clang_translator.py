@@ -65,6 +65,12 @@ class NodeType:
         def process(cls, lines: IO, parent=None, indent=0):
             def process(text, node_type):
                 words = NodeType._line_splitter(text)
+                if 'parent' in words:
+                    index = words.index('parent', 0)
+                    for i in range(index+2, len(words)):
+                        words[i-2] = words[i]
+                    words = words[:-2]
+                    raise Exception("Unable to process sporadically defined type: %s" % words)
                 try:
                     return node_type(*words)
                 except Exception as e:
@@ -80,7 +86,8 @@ class NodeType:
                 tag, text = line.split(' ', maxsplit=1)
                 node_type = getattr(NodeType, tag)
                 node = process(text, node_type)
-                cls.process(lines, parent=node, indent=0)
+                if node:
+                    cls.process(lines, parent=node, indent=0)
                 return node
             else:
                 current_node = parent
@@ -548,12 +555,14 @@ class NodeType:
     class CXXMethodDecl(CompositeNode):
         name: str
         signature: str
+        qualifiers: List[str]
 
-        def __init__(self, node_id, line_loc, col_loc, name, signature):
+        def __init__(self, node_id, line_loc, col_loc, name, signature, *qualifiers):
             super().__init__(node_id=node_id, line_loc=line_loc, col_loc=col_loc)
             self.children = []
             self.name = name
             self.signature = signature
+            self.qualifiers = qualifiers
 
         def to_str(self, prefix):
             return " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc,
@@ -566,11 +575,40 @@ class NodeType:
         col_loc: str
         type_text: str
 
+        def to_str(self, prefix: str):
+            return " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc, self.type_text])
+
+
+    @dataclass
+    class VarDecl(CompositeNode):
+        name: str
+        type_text: str
+        qualifiers: List[str]
+
+        def __init__(self, node_id: str, line_loc: str, col_loc: str, name: str, type_text: str, *qualifiers: str):
+            super().__init__(node_id=node_id, line_loc=line_loc, col_loc=col_loc)
+            self.name = name
+            self.type_text = type_text
+            self.qualifiers = qualifiers
+
+        def to_str(self, prefix: str):
+            return " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc, self.name, self.type_text, self.qualifiers])
+
     @dataclass
     class IntegerLiteral(LeafNode):
         col_loc: str
         type_text: str
         value: int
+
+        def __init__(self, node_id: str, col_loc: str, type_text: str, value: str):
+            super().__init__(node_id=node_id)
+            self.col_loc = col_loc
+            self.type_text = type_text
+            self.value = value
+
+        def to_str(self, prefix: str):
+            return " ".join([prefix + self.__class__.__name__, self.node_id, self.col_loc, self.type_text, self.value])
+
 
 
     @dataclass

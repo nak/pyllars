@@ -354,12 +354,27 @@ class CopyAssignmentGenerator(Generator):
             body_stream.write(f"""\n#include \"{self.source_path}\" 
 #include \"{parent_header_path}.hpp\"
 #include <cstddef>
+#include <type_traits>
+
                     """)
             name = class_name + "_default_copy_assignment"
             body_stream.write(self._wrap_in_namespaces(f"""
 
                     namespace {{
                         //From: DefaultConstructorDeclGenerator.generate
+
+                        /**
+                        * clang does not properly delete default assignment operator, so must use compile-time check
+                        * instead to prevent compiler error from generated code that shouldn't be
+                        */
+                        template<const char* const name, const char* const kwlist[], typename T>
+                        static int ready_template(){{
+                            if constexpr (std::is_copy_assignable<T>::value){{
+                               typedef T& (T::*method_t)(const T&);
+                               __pyllars_internal::PythonClassWrapper<T>::template addMethod<name, kwlist, method_t, &T::operator= >();	
+                            }}
+                            return 0;
+                        }}
 
                        typedef const char* const kwlist_t[2];
                        constexpr kwlist_t kwlist = {{"assign_to", nullptr}};
@@ -377,12 +392,7 @@ class CopyAssignmentGenerator(Generator):
                             }}
 
                             int ready(PyObject * const top_level_mod) override{{
-                               int status = pyllars::Initializer::ready(top_level_mod);
-                               typedef typename ::{class_full_cpp_name}  main_type;
-                               __pyllars_internal::PythonClassWrapper< main_type >::addMethod<this_name, kwlist, 
-                                   ::{class_full_cpp_name}& (::{class_full_cpp_name}::*)(const ::{class_full_cpp_name}&),
-                                   &::{class_full_cpp_name}::operator= >();
-                               return status;
+                                return ready_template<this_name, kwlist, ::{class_full_cpp_name}>();
                             }}
 
                             static Initializer_{name}* initializer;
@@ -510,13 +520,15 @@ class CXXMethodDeclGenerator(Generator):
         return ' '.join(parts)
 
     def _full_signature(self):
+        is_static = 'static' in self._node.qualifiers
         ret_type = self._scoped_type_name(self._node.signature.split('(')[0])
         qualifiers = self._node.signature.rsplit(')', maxsplit=1)[-1]
         params = [self._scoped_type_name(p.type_text) for p in self._node.children if isinstance(p, NodeType.ParmVarDecl)]
         if '...' in self._node.signature:
             params.append("...")
         params = ", ".join(params)
-        return f"{ret_type} (::{self._node.parent.full_cpp_name}::*method_t)({params}) {qualifiers}"
+        class_qualifier = f"(::{self._node.parent.full_cpp_name}::*method_t)" if not is_static else "(method_t)"
+        return f"{ret_type} {class_qualifier}({params}) {qualifiers}"
 
     def generate(self):
         if self._node.name == "operator=":
@@ -538,6 +550,7 @@ class CXXMethodDeclGenerator(Generator):
 #include <{self.source_path}>
                             """)
             name = self._node.name
+            method_qualifier = "Class" if 'static' in self._node.qualifiers else ""
             signature = self._full_signature()
             kwlist = []
             for c in reversed([c for c in self._node.children if isinstance(c, NodeType.ParmVarDecl)]):
@@ -567,7 +580,7 @@ class CXXMethodDeclGenerator(Generator):
                                     int ready(PyObject * const top_level_mod) override{{
                                        int status = pyllars::Initializer::ready(top_level_mod);
                                        typedef typename ::{class_full_cpp_name}  main_type;
-                                       __pyllars_internal::PythonClassWrapper< main_type >::addMethod<this_name, kwlist, 
+                                       __pyllars_internal::PythonClassWrapper< main_type >::add{method_qualifier}Method<this_name, kwlist, 
                                            method_t,
                                            &::{class_full_cpp_name}::{name} >();
                                        return status;
