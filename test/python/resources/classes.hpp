@@ -25,6 +25,12 @@ namespace trial{
         private:
             double private_flost_val;
         };
+
+        class BitFieldClass{
+        public:
+            unsigned short short3: 3;
+            const short short5: 5;
+        };
     }
 
     namespace inheritance{

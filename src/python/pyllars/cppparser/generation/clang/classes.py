@@ -1,4 +1,6 @@
 import os
+from typing import List
+
 from pyllars.cppparser.parser.clang_translator import NodeType
 from .generator import Generator
 
@@ -487,14 +489,6 @@ class MoveAssignmentGenerator(Generator):
 
 class CXXMethodDeclGenerator(Generator):
 
-    KEYWORDS = ["asm", "auto", "bool", "break", "case", "catch", "char", "class", "const", "const_cast",
-                "constinue", "default", "delete", "do", "double", "dynamic_cast", "else", "enum", "explicit",
-                "export", "extern", "false", "float", "for", "friend", "goto", "if", "inline", "int", "long",
-                "mutable", "namespace", "new", "operator", "private", "protected", "public", "register",
-                "reinterpret_cast", "return", "short", "signed", "sizeof", "static", "static_cast", "struct",
-                "switch", "template", "this", "throw", "true", "try", " typedef", "typeid", "typename",
-                "union", "unsigned", "using", "virtual", "void", "volatile", "wchar_t", "while", "&", "*", "&&", "..."]
-
     def _scoped_type_name(self, typ):
         parts = typ.strip().split(' ')
 
@@ -788,14 +782,6 @@ class CXXMethodDeclGenerator(Generator):
 
 
 class FieldDeclGenerator(Generator):
-    KEYWORDS = ["asm", "auto", "bool", "break", "case", "catch", "char", "class", "const", "const_cast",
-                "constinue", "default", "delete", "do", "double", "dynamic_cast", "else", "enum", "explicit",
-                "export", "extern", "false", "float", "for", "friend", "goto", "if", "inline", "int", "long",
-                "mutable", "namespace", "new", "operator", "private", "protected", "public", "register",
-                "reinterpret_cast", "return", "short", "signed", "sizeof", "static", "static_cast", "struct",
-                "switch", "template", "this", "throw", "true", "try", " typedef", "typeid", "typename",
-                "union", "unsigned", "using", "virtual", "void", "volatile", "wchar_t", "while", "&", "*", "&&", "..."]
-
     def _scoped_type_name(self, typ):
         parts = typ.strip().split(' ')
 
@@ -824,6 +810,11 @@ class FieldDeclGenerator(Generator):
     def generate(self):
         if 'public' not in self._node.qualifiers:
             return None, None
+
+        bitfield_specs = [c for c in self._node.children if isinstance(c, NodeType.IntegerLiteral)]
+        if not isinstance(self, VarDeclGenerator) and bitfield_specs:
+            return self.generate_bitfield(bitfield_specs)
+
         class_name = self._node.parent.name
         class_full_cpp_name = self._node.parent.full_cpp_name
         body_stream = open(
@@ -884,6 +875,74 @@ class FieldDeclGenerator(Generator):
             body_stream.close()
         return None, body_stream.name
 
+    def generate_bitfield(self, specs: List["NodeType.IntegerLiteral"]):
+        if len(specs) > 1:
+            raise Exception("multiple size specs provided for bit feild")
+        size = specs[0].value
+        is_const = 'const' in self._node.type_text.split()
+        class_name = self._node.parent.name
+        class_full_cpp_name = self._node.parent.full_cpp_name
+        body_stream = open(
+            os.path.join(self.my_root_dir, self._source_path_root, class_name + '::' + self._node.name + '.cpp'), 'w',
+            encoding='utf-8')
+        try:
+            parent = self._node.parent
+            parent_name = parent.name
+            parent_header_path = os.path.join("..", parent_name)
+            # generate body
+            body_stream.write(f"""\n#include \"{self.source_path}\" 
+        #include \"{parent_header_path}.hpp\"
+        #include <{self.source_path}>
+                                    """)
+            name = self._node.name
+            typename = self._scoped_type_name(self._node.type_text)
+            const_typename = 'const ' + typename if 'const' not in typename.split() else typename
+            setter = "" if is_const else f"static std::function<{typename}(::{class_full_cpp_name}&, {const_typename}&)> setter = [](::{class_full_cpp_name} & obj, {const_typename}& value)->{typename}{{obj.{self._node.name} = value; return value;}};"
+            setter_value = "nullptr" if is_const else "&setter"
+            body_stream.write(self._wrap_in_namespaces(f"""
+
+                                    namespace {{
+                                       //From: CXXMethodDeclGenerator.generate
+
+                                       constexpr cstring this_name = "{name}";
+
+                                        class Initializer_{name}: public pyllars::Initializer{{
+                                        public:
+                                            Initializer_{name}():pyllars::Initializer(){{
+                                                {parent_name}_register(this);                          
+                                            }}
+
+                                            int set_up() override{{
+                                                return 0; //nothing to do on setup
+                                            }}
+                                            int ready(PyObject * const top_level_mod) override{{
+                                               int status = pyllars::Initializer::ready(top_level_mod);
+                                               static std::function<{typename}(const ::{class_full_cpp_name}&)> getter = [](const ::{class_full_cpp_name} & obj)->{typename}{{return  obj.{self._node.name};}};
+                                               {setter}
+                                               typedef typename ::{class_full_cpp_name}  main_type;
+                                               __pyllars_internal::PythonClassWrapper< main_type >::template addBitField<this_name, 
+                                                   {typename}, {size}>(getter, {setter_value});
+                                               return status;
+                                            }}
+
+                                            static Initializer_{name}* initializer;
+
+                                            static Initializer_{name} *singleton(){{
+                                                static  Initializer_{name} _initializer;
+                                                return &_initializer;
+                                            }}
+                                         }};
+
+
+                                        //ensure instance is created on global static initialization, otherwise this
+                                        //element would never be reigstered and picked up
+                                        Initializer_{name} * Initializer_{name}::initializer = singleton();
+
+                                    }}
+                                """, True))
+        finally:
+            body_stream.close()
+        return None, body_stream.name
 
 class VarDeclGenerator(FieldDeclGenerator):
     pass

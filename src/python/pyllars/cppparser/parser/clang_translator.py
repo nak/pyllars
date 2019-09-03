@@ -579,15 +579,13 @@ class NodeType:
 
 
     @dataclass
-    class FieldDecl(LeafNode):
-        line_loc: str
-        col_loc: str
+    class FieldDecl(CompositeNode):
         name: str
         type_text: str
         qualifiers: List[str]
 
         def __init__(self, node_id: str, line_loc: str, col_loc: str, name: str, type_text: str, *qualifiers: str):
-            super().__init__(node_id=node_id)
+            super().__init__(node_id=node_id, line_loc=line_loc, col_loc=col_loc)
             self.name = name
             self.type_text = type_text
             self.qualifiers = list(qualifiers)
