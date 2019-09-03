@@ -428,9 +428,18 @@ class NodeType:
                 self.post_qualifires.append(arg)
                 arg = next(arg_iter, None)
 
+        def normalize(self):
+            access = 'private'
+            for field in [f for f in self.children if isinstance(f, (NodeType.AccessSpecDecl, NodeType.VarDecl, NodeType.FieldDecl)) ]:
+                if isinstance(field, NodeType.AccessSpecDecl):
+                    access = field.access
+                else:
+                    field.qualifiers.append(access)
+
         @property
         def bases(self):
             return [child for child in self.children if isinstance(child, NodeType.public)]
+
 
         def to_str(self, prefix: str):
             return " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc, " ".join(self.qualifiers),
@@ -573,10 +582,18 @@ class NodeType:
     class FieldDecl(LeafNode):
         line_loc: str
         col_loc: str
+        name: str
         type_text: str
+        qualifiers: List[str]
+
+        def __init__(self, node_id: str, line_loc: str, col_loc: str, name: str, type_text: str, *qualifiers: str):
+            super().__init__(node_id=node_id)
+            self.name = name
+            self.type_text = type_text
+            self.qualifiers = list(qualifiers)
 
         def to_str(self, prefix: str):
-            return " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc, self.type_text])
+            return " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc, self.name, self.type_text])
 
 
     @dataclass
@@ -589,7 +606,7 @@ class NodeType:
             super().__init__(node_id=node_id, line_loc=line_loc, col_loc=col_loc)
             self.name = name
             self.type_text = type_text
-            self.qualifiers = qualifiers
+            self.qualifiers = list(qualifiers)
 
         def to_str(self, prefix: str):
             return " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc, self.name, self.type_text, self.qualifiers])

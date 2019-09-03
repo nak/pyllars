@@ -6,6 +6,8 @@ from .classes import (CXXRecordDeclGenerator,
                       MoveConstructorGenerator,
                       CopyAssignmentGenerator,
                       CXXMethodDeclGenerator,
+                      VarDeclGenerator,
+                      FieldDeclGenerator,
                       )
 
 from .tranlation_unit import TranslationUnitDeclGenerator

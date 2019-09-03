@@ -5,6 +5,7 @@ from .generator import Generator
 class CXXRecordDeclGenerator(Generator):
 
     def generate(self):
+        self._node.normalize()
         if 'implicit' in self._node.qualifiers:
             return None, None
         header_stream = open(os.path.join(self.my_root_dir, self._node.name+'.hpp'), 'w',
@@ -103,7 +104,8 @@ class CXXRecordDeclGenerator(Generator):
                         if (inited){{
                             return status;
                         }}
-                        {inheritance_code}
+                        typedef typename ::{self._node.full_cpp_name}  main_type;
+                        status |= __pyllars_internal::PythonClassWrapper< main_type >::initialize();  //classes
                         //not really much to do here
                         inited = true;
                         status = 0;
@@ -113,8 +115,7 @@ class CXXRecordDeclGenerator(Generator):
                     int ready(PyObject * const top_level_mod) override{{
                        int status = pyllars::Initializer::ready(top_level_mod);
                        {ready_code}
-                       typedef typename ::{self._node.full_cpp_name}  main_type;
-                       status |= __pyllars_internal::PythonClassWrapper< main_type >::initialize();  //classes
+                       {inheritance_code}
                      
                        status |= ::pyllars::{parent_full_name}_addPyObject("{self._node.name}", 
                                                     (PyObject*) __pyllars_internal::PythonClassWrapper< typename ::{self._node.full_cpp_name} >::getPyType());
@@ -784,3 +785,105 @@ class CXXMethodDeclGenerator(Generator):
         finally:
             body_stream.close()
         return None, body_stream.name
+
+
+class FieldDeclGenerator(Generator):
+    KEYWORDS = ["asm", "auto", "bool", "break", "case", "catch", "char", "class", "const", "const_cast",
+                "constinue", "default", "delete", "do", "double", "dynamic_cast", "else", "enum", "explicit",
+                "export", "extern", "false", "float", "for", "friend", "goto", "if", "inline", "int", "long",
+                "mutable", "namespace", "new", "operator", "private", "protected", "public", "register",
+                "reinterpret_cast", "return", "short", "signed", "sizeof", "static", "static_cast", "struct",
+                "switch", "template", "this", "throw", "true", "try", " typedef", "typeid", "typename",
+                "union", "unsigned", "using", "virtual", "void", "volatile", "wchar_t", "while", "&", "*", "&&", "..."]
+
+    def _scoped_type_name(self, typ):
+        parts = typ.strip().split(' ')
+
+        def full_name(t):
+            if "::" in t:
+                first, rest = t.split("::", maxsplit=1)
+            else:
+                first, rest = t, ""
+            # search upward for enclosing definition
+            parent = self._node
+            while parent:
+                if hasattr(parent, 'name') and parent.name == first:
+                    return "::" + ("::".join([parent.full_cpp_name, rest]) if rest else parent.full_cpp_name)
+                parent = parent.parent
+            # possibly an internally defined class or type:
+            for child in self._node.parent.children:
+                if hasattr(child, 'name') and child.name == t:
+                    return '::' + child.full_cpp_name
+            return t
+
+        for index, typ in enumerate(parts):
+            if not typ in self.KEYWORDS:
+                parts[index] = full_name(typ)
+        return ' '.join(parts)
+
+    def generate(self):
+        if 'public' not in self._node.qualifiers:
+            return None, None
+        class_name = self._node.parent.name
+        class_full_cpp_name = self._node.parent.full_cpp_name
+        body_stream = open(
+            os.path.join(self.my_root_dir, self._source_path_root, class_name + '::' + self._node.name + '.cpp'), 'w',
+            encoding='utf-8')
+        try:
+            parent = self._node.parent
+            parent_name = parent.name
+            parent_header_path = os.path.join("..", parent_name)
+            # generate body
+            body_stream.write(f"""\n#include \"{self.source_path}\" 
+        #include \"{parent_header_path}.hpp\"
+        #include <{self.source_path}>
+                                    """)
+            name = self._node.name
+            member_qualifier = "Class" if 'static' in self._node.qualifiers else ""
+            typename = self._scoped_type_name(self._node.type_text)
+            body_stream.write(self._wrap_in_namespaces(f"""
+
+                                    namespace {{
+                                       //From: CXXMethodDeclGenerator.generate
+
+                                       constexpr cstring this_name = "{name}";
+
+                                        class Initializer_{name}: public pyllars::Initializer{{
+                                        public:
+                                            Initializer_{name}():pyllars::Initializer(){{
+                                                {parent_name}_register(this);                          
+                                            }}
+
+                                            int set_up() override{{
+                                                return 0; //nothing to do on setup
+                                            }}
+                                            int ready(PyObject * const top_level_mod) override{{
+                                               int status = pyllars::Initializer::ready(top_level_mod);
+                                               typedef typename ::{class_full_cpp_name}  main_type;
+                                               __pyllars_internal::PythonClassWrapper< main_type >::template add{member_qualifier}Attribute<this_name, 
+                                                   {typename}>(&::{class_full_cpp_name}::{name});
+                                               return status;
+                                            }}
+
+                                            static Initializer_{name}* initializer;
+
+                                            static Initializer_{name} *singleton(){{
+                                                static  Initializer_{name} _initializer;
+                                                return &_initializer;
+                                            }}
+                                         }};
+
+
+                                        //ensure instance is created on global static initialization, otherwise this
+                                        //element would never be reigstered and picked up
+                                        Initializer_{name} * Initializer_{name}::initializer = singleton();
+
+                                    }}
+                                """, True))
+        finally:
+            body_stream.close()
+        return None, body_stream.name
+
+
+class VarDeclGenerator(FieldDeclGenerator):
+    pass
