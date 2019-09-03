@@ -474,6 +474,20 @@ class NodeType:
             return " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc,
                             self.name, f"'{self.signature}'"])
 
+
+    @dataclass
+    class CXXCtorInitializer(CompositeNode):
+
+        def __init__(self, node_id: str, line_loc: str, col_loc: str, name: str, *args: str):
+            super().__init__(node_id, line_loc, col_loc)
+            self.children = []
+            self.name = name
+            self.keywords = args
+
+        def to_str(self, prefix):
+            return " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc,
+                            self.name])
+
     @dataclass
     class BasicDefaultConstructor(Node):
         classifiers: List[str]
@@ -749,9 +763,16 @@ class NodeType:
             return " ".join([prefix + self.__class__.__name__, self.node_id, self.location])
 
     @dataclass
-    class ImplicitCastExpr(LeafNode):
-        type_text: str
-        info: Optional[str]
+    class ImplicitCastExpr(CompositeNode):
+        args: List[str]
+
+        def __init__(self, node_id: str, location: str, col_loc: str, *args):
+            super().__init__(node_id=node_id, line_loc=location, col_loc=col_loc)
+            self.args = list(args)
+
+        def to_str(self, prefix: str):
+            return " ".join([prefix + self.__class__.__name__, self.node_id])
+
 
 
     @dataclass

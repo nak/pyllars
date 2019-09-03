@@ -26,11 +26,20 @@ namespace trial{
             double private_flost_val;
         };
 
-        class BitFieldClass{
-        public:
-            unsigned short short3: 3;
-            const short short5: 5;
+
+        struct BitFieldClass{
+            BitFieldClass():size_1bit(1),
+                size_2bit(0),
+                const_size_11bit(3),
+                size_31bit(42){
+            }
+
+            signed char size_1bit : 1;
+            unsigned char size_2bit: 2;
+            const int const_size_11bit: 11;
+            long size_31bit: 31;
         };
+
     }
 
     namespace inheritance{
@@ -41,7 +50,7 @@ namespace trial{
     
         class BaseB{
         public:
-            void bMethod();
+            void bMethod() const;
         };
     
         class Inherited: public BaseA{
