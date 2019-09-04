@@ -10,6 +10,37 @@ from pyllars.cppparser.parser.clang_translator import ClangTranslator, NodeType
 
 import os
 
+
+@pytest.fixture
+def clang_output_classes(tmpdir):
+    """
+    :return: path to clang check output for simple class tests (inheritance, methods, attributes)
+    """
+    src_path = os.path.join(RESOURCES_DIR, "classes.hpp")
+    output_path = os.path.join(str(tmpdir), "clang-output.classes")
+    cmd = ["clang-check", "-ast-dump", src_path, "--extra-arg=\"-fno-color-diagnostics\""]
+    with open(output_path, 'w') as output_file:
+        p = subprocess.run(cmd, stdout=output_file, stderr=subprocess.PIPE)
+        if p.returncode != 0:
+            raise Exception(f"Failed to parse {src_path} through clang-check tool")
+    return output_path
+
+
+@pytest.fixture
+def clang_output_complexattributes(tmpdir):
+    """
+    :return: path to clang check output for simple class tests (inheritance, methods, attributes)
+    """
+    src_path = os.path.join(RESOURCES_DIR, "complexattributes.hpp")
+    output_path = os.path.join(str(tmpdir), "clang-output.classes")
+    cmd = ["clang-check", "-ast-dump", src_path, "--extra-arg=\"-fno-color-diagnostics\""]
+    with open(output_path, 'w') as output_file:
+        p = subprocess.run(cmd, stdout=output_file, stderr=subprocess.PIPE)
+        if p.returncode != 0:
+            raise Exception(f"Failed to parse {src_path} through clang-check tool")
+    return output_path
+
+
 RESOURCES_DIR = os.path.join(os.path.dirname(__file__), "resources")
 PYLLARS_INCLUDE_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "..", "src", "python", "resources", "include")
 
@@ -71,18 +102,6 @@ child = NodeType.NamespaceDecl('0x18a65f0', '<line:11:1, line:14:1>', 'line:11:1
 expectation.children.append(child)
 child = NodeType.NamespaceDecl('0x18a6830', '<line:16:1, line:68:1>', 'line:16:11', 'trial')
 expectation.children.append(child)
-
-
-@pytest.fixture
-def clang_output_classes(tmpdir):
-    src_path = os.path.join(RESOURCES_DIR, "classes.hpp")
-    output_path = os.path.join(str(tmpdir), "clang-output.classes")
-    cmd = ["clang-check", "-ast-dump", src_path, "--extra-arg=\"-fno-color-diagnostics\""]
-    with open(output_path, 'w') as output_file:
-        p = subprocess.run(cmd, stdout=output_file, stderr=subprocess.PIPE)
-        if p.returncode != 0:
-            raise Exception(f"Failed to parse {src_path} through clang-check tool")
-    return output_path
 
 
 class TestClangTranslation:
@@ -265,13 +284,30 @@ namespace B{
                             output_dir=output_dir,optimization_level="-O0", debug=True)
         compiler.compile(body_file_name)
 
-    def test_generation(self, tmpdir, clang_output_classes):
+    def test_generation_classes(self, tmpdir, clang_output_classes):
         # not the best test stategy, but generic enough:
         # regurgitate the file back out and compare to original to pass test
         output_dir = os.path.join(str(tmpdir), "output")
         os.makedirs(output_dir)
         header = os.path.join(RESOURCES_DIR, "classes.hpp")
         with ClangTranslator(file_name=clang_output_classes) as translator:
+            root = translator.translate()
+            generator = clang.Generator.create(root, os.path.dirname(header), os.path.basename(header), output_dir)
+            generator.generate_all()
+
+        compiler = Compiler(compiler_flags=[f"-I{RESOURCES_DIR}", f"-I{PYLLARS_INCLUDE_DIR}"],
+                            output_dir=output_dir, optimization_level="-O0", debug=True)
+        for dir, dirnames, filenames in os.walk(output_dir):
+            for filename in [os.path.join(dir, name) for name in filenames if name.endswith(".cpp")]:
+                compiler.compile(filename)
+
+    def test_generation_complexattributes(self, tmpdir, clang_output_complexattributes):
+        # not the best test stategy, but generic enough:
+        # regurgitate the file back out and compare to original to pass test
+        output_dir = os.path.join(str(tmpdir), "output")
+        os.makedirs(output_dir)
+        header = os.path.join(RESOURCES_DIR, "complexattributes.hpp")
+        with ClangTranslator(file_name=clang_output_complexattributes) as translator:
             root = translator.translate()
             generator = clang.Generator.create(root, os.path.dirname(header), os.path.basename(header), output_dir)
             generator.generate_all()

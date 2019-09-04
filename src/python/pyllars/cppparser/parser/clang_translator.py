@@ -598,11 +598,16 @@ class NodeType:
         type_text: str
         qualifiers: List[str]
 
-        def __init__(self, node_id: str, line_loc: str, col_loc: str, name: str, type_text: str, *qualifiers: str):
+        def __init__(self, node_id: str, line_loc: str, col_loc: str, *args: str):
+            args = list(args)
+            if args[0] == 'referenced':
+                args = args[1:]
+
+            self.qualifiers = args[2:]
+            name, type_text = args[:2]
             super().__init__(node_id=node_id, line_loc=line_loc, col_loc=col_loc)
             self.name = name
             self.type_text = type_text
-            self.qualifiers = list(qualifiers)
 
         def to_str(self, prefix: str):
             return " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc, self.name, self.type_text])
@@ -832,6 +837,47 @@ class NodeType:
         def to_str(self, prefix: str):
             return " ".join([prefix + self.__class__.__name__, self.node_id, self.col_loc])
 
+    @dataclass
+    class ArraySubscriptExpr(CompositeNode):
+
+        type_text: str
+        qualifiers: List[str]
+
+        def __init__(self, node_id: str,  col_loc: str, type_text: str, *args: str):
+            super().__init__(node_id=node_id, line_loc="", col_loc=col_loc)
+            self.type_text = type_text
+            self.qualifiers = list(args)
+
+        def to_str(self, prefix: str):
+            return " ".join([prefix + self.__class__.__name__, self.node_id, self.col_loc])
+
+    @dataclass
+    class MemberExpr(CompositeNode):
+        type_text: str
+        arguments: List[str]
+
+        def __init__(self, node_id: str,  col_loc: str, type_text: str, *args: str):
+            super().__init__(node_id=node_id, line_loc="", col_loc=col_loc)
+            self.type_text = type_text
+            self.arguments = list(args)
+
+        def to_str(self, prefix: str):
+            return " ".join([prefix + self.__class__.__name__, self.node_id, self.col_loc])
+
+
+
+    @dataclass
+    class DeclRefExpr(CompositeNode):
+        type_text: str
+        arguments: List[str]
+
+        def __init__(self, node_id: str,  col_loc: str, type_text: str, *args: str):
+            super().__init__(node_id=node_id, line_loc="", col_loc=col_loc)
+            self.type_text = type_text
+            self.arguments = list(args)
+
+        def to_str(self, prefix: str):
+            return " ".join([prefix + self.__class__.__name__, self.node_id, self.col_loc])
 
 
 class ClangTranslator:
