@@ -21,7 +21,7 @@ class CXXRecordDeclGenerator(Generator):
                /**
                 * Register a subcomponent for initialization
                 **/
-               status_t {self._node.name}_register(::pyllars::Initializer*);
+               status_t {self._node.name or "pyllars"}_register(::pyllars::Initializer*);
                
                /**
                 * add a child object
@@ -88,6 +88,23 @@ class CXXRecordDeclGenerator(Generator):
                 text += f"\nstatus_t {base.name}_ready(PyObject*);\n"
                 text += "}\n"*(len(hierarchy) + 1)
                 body_stream.write(text + "\n\n")
+            if parent_full_name:
+                add_pyobject_code = f"""
+                                       status |= ::pyllars::{parent_full_name}_addPyObject("{self._node.name}", 
+                                                    (PyObject*) __pyllars_internal::PythonClassWrapper< typename ::{self._node.full_cpp_name} >::getPyType());
+                     
+"""
+            else:
+                add_pyobject_code = f"""
+                                      PyObject *pyllars_mod = PyImport_ImportModule("pyllars");
+                                      status |= PyModule_AddObject(top_level_mod, "{self._node.name}",
+                                         (PyObject*) __pyllars_internal::PythonClassWrapper< typename ::{self._node.full_cpp_name} >::getPyType());
+                                      if (pyllars_mod){{
+                                         status |= PyModule_AddObject(pyllars_mod, "{self._node.name}",
+                                            (PyObject*) __pyllars_internal::PythonClassWrapper< typename ::{self._node.full_cpp_name} >::getPyType());
+                                      }}
+
+"""
             body_stream.write(self._wrap_in_namespaces(f"""
             namespace {{
                 //From: CXXRecordDeclGenerator.generate
@@ -96,7 +113,7 @@ class CXXRecordDeclGenerator(Generator):
                 public:
                     Initializer_{class_name}():pyllars::Initializer(){{
                     
-                        pyllars::{parent_full_name}_register(this);                          
+                        pyllars::{parent_full_name or "pyllars"}_register(this);                          
                     }}
 
                     int set_up() override{{
@@ -119,8 +136,7 @@ class CXXRecordDeclGenerator(Generator):
                        {ready_code}
                        {inheritance_code}
                      
-                       status |= ::pyllars::{parent_full_name}_addPyObject("{self._node.name}", 
-                                                    (PyObject*) __pyllars_internal::PythonClassWrapper< typename ::{self._node.full_cpp_name} >::getPyType());
+                       {add_pyobject_code}
                      
                        return status;
                     }}

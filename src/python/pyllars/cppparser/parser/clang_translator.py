@@ -447,6 +447,46 @@ class NodeType:
 
 
     @dataclass
+    class EnumDecl(CompositeNode):
+
+        def __init__(self, node_id, line_loc, col_loc, *args):
+            super().__init__(node_id, line_loc, col_loc)
+            arg_iter = iter(args)
+            arg = next(arg_iter, None)
+            self.qualifiers = []
+            while arg in ['implicit', 'class', 'struct', 'referenced']:
+                self.qualifiers.append(arg)
+                arg = next(arg_iter, None)
+            self.name = arg if arg is not None else ""
+            self.post_qualifires = []
+            arg = next(arg_iter, None)
+            while arg:
+                self.post_qualifires.append(arg)
+                arg = next(arg_iter, None)
+
+        def to_str(self, prefix: str):
+            return " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc, " ".join(self.qualifiers),
+                            self.name, " ".join(self.post_qualifires)])
+
+
+    @dataclass
+    class EnumConstantDecl(LeafNode):
+        col_id: str
+        name: str
+        parent_type_name: str
+
+        def __init__(self, node_id: str, line_loc: str,  col_loc: str, name: str, parent_type_name: str):
+            super().__init__(node_id=node_id)
+            self.line_loc = line_loc
+            self.col_loc = col_loc
+            self.name = name
+            self.parent_type_name = parent_type_name
+
+        def to_str(self, prefix: str):
+            return " ".join([prefix + self.__class__.__name__, " ".join(self._data)])
+
+
+    @dataclass
     class DefinitionData(Node):
         children: List['NodeType.Node']
 
@@ -612,7 +652,6 @@ class NodeType:
         def to_str(self, prefix: str):
             return " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc, self.name, self.type_text])
 
-
     @dataclass
     class VarDecl(CompositeNode):
         name: str
@@ -627,6 +666,7 @@ class NodeType:
 
         def to_str(self, prefix: str):
             return " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc, self.name, self.type_text, self.qualifiers])
+
 
     @dataclass
     class IntegerLiteral(LeafNode):
