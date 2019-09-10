@@ -93,7 +93,8 @@ namespace __pyllars_internal {
     struct Types {
         static const char *const type_name() {
             if constexpr(std::is_function<T>::value){
-                return 1;
+                static const char* const name = "<function>";
+                return name;
             } else {
                 return _Types<T>::type_name;
             }

@@ -14,7 +14,6 @@ class Generator(ABC):
                 "switch", "template", "this", "throw", "true", "try", " typedef", "typeid", "typename",
                 "union", "unsigned", "using", "virtual", "void", "volatile", "wchar_t", "while", "&", "*", "&&", "..."]
 
-
     COMMON_HEADER = """
 #include <vector>
 #include <cstddef>

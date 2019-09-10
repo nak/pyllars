@@ -8,7 +8,7 @@ class CXXRecordDeclGenerator(Generator):
 
     def generate(self):
         self._node.normalize()
-        if 'implicit' in self._node.qualifiers:
+        if 'implicit' in self._node.qualifiers or not self._node.name:
             return None, None
         header_stream = open(os.path.join(self.my_root_dir, self._node.name+'.hpp'), 'w',
                              encoding='utf-8')
@@ -60,7 +60,7 @@ class CXXRecordDeclGenerator(Generator):
                        const char* const _Types<::{self._node.full_cpp_name}>::type_name =  "{self._node.name}";
                    }}
                """)
-            if not self._node.name or 'definition' in self._node.qualifiers or 'implicit' in self._node.qualifiers:
+            if not self._node.name or 'implicit' in self._node.qualifiers:
                 return header_stream.name, body_stream.name
             class_name = self._node.name if self._node.name else "anonymous_"
             parent_full_name = parent.full_cpp_name if parent else ""
@@ -176,11 +176,18 @@ class DefaultConstructorGenerator(Generator):
             return None, None
         class_name = self._node.parent.parent.name
         class_full_cpp_name = self._node.parent.parent.full_cpp_name
-        body_stream = open(os.path.join(self.my_root_dir, self._source_path_root, class_name + ' default_constructor.cpp'), 'w',
-                           encoding='utf-8')
+
+        parent = self._node.parent.parent
+        while parent and not parent.name and isinstance(parent, NodeType.CXXRecordDecl):
+            parent = parent.parent
+            if not parent:
+                return None, None
+        body_stream = open(
+            os.path.join(self.my_root_dir, self._source_path_root, class_name + ' default_constructor.cpp'), 'w',
+            encoding='utf-8')
+
         try:
-            parent = self._node.parent
-            parent_name = parent.parent.name
+            parent_name = parent.name
             parent_header_path = os.path.join("..", parent_name)
             # generate body
             body_stream.write(f"""\n#include \"{self.source_path}\" 
@@ -237,12 +244,16 @@ class CopyConstructorGenerator(Generator):
             return None, None
         class_name = self._node.parent.parent.name
         class_full_cpp_name = self._node.parent.parent.full_cpp_name
+        parent = self._node.parent.parent
+        while parent and not parent.name and isinstance(parent, NodeType.CXXRecordDecl):
+            parent = parent.parent
+            if not parent:
+                return None, None
         body_stream = open(
             os.path.join(self.my_root_dir, self._source_path_root, class_name + ' default_copy_constructor.cpp'), 'w',
             encoding='utf-8')
         try:
-            parent = self._node.parent
-            parent_name = parent.parent.name
+            parent_name = parent.name
             parent_header_path = os.path.join("..", parent_name)
             # generate body
             body_stream.write(f"""\n#include \"{self.source_path}\" 
@@ -299,12 +310,16 @@ class MoveConstructorGenerator(Generator):
             return None, None
         class_name = self._node.parent.parent.name
         class_full_cpp_name = self._node.parent.parent.full_cpp_name
+        parent = self._node.parent.parent
+        while parent and not parent.name and isinstance(parent, NodeType.CXXRecordDecl):
+            parent = parent.parent
+            if not parent:
+                return None, None
         body_stream = open(
             os.path.join(self.my_root_dir, self._source_path_root, class_name + ' default_move_constructor.cpp'), 'w',
             encoding='utf-8')
         try:
-            parent = self._node.parent
-            parent_name = parent.parent.name
+            parent_name = parent.name
             parent_header_path = os.path.join("..", parent_name)
             # generate body
             body_stream.write(f"""\n#include \"{self.source_path}\" 
@@ -362,12 +377,16 @@ class CopyAssignmentGenerator(Generator):
             return None, None
         class_name = self._node.parent.parent.name
         class_full_cpp_name = self._node.parent.parent.full_cpp_name
+        parent = self._node.parent.parent
+        while parent and not parent.name and isinstance(parent, NodeType.CXXRecordDecl):
+            parent = parent.parent
+            if not parent:
+                return None, None
         body_stream = open(
             os.path.join(self.my_root_dir, self._source_path_root, class_name + ' default_copy_assignment.cpp'), 'w',
             encoding='utf-8')
         try:
-            parent = self._node.parent
-            parent_name = parent.parent.name
+            parent_name = parent.name
             parent_header_path = os.path.join("..", parent_name)
             # generate body
             body_stream.write(f"""\n#include \"{self.source_path}\" 
@@ -441,12 +460,16 @@ class MoveAssignmentGenerator(Generator):
             return None, None
         class_name = self._node.parent.parent.name
         class_full_cpp_name = self._node.parent.parent.full_cpp_name
+        parent = self._node.parent.parent
+        while parent and not parent.name and isinstance(parent, NodeType.CXXRecordDecl):
+            parent = parent.parent
+            if not parent:
+                return None, None
         body_stream = open(
             os.path.join(self.my_root_dir, self._source_path_root, class_name + ' default_move_assignment.cpp'), 'w',
             encoding='utf-8')
         try:
-            parent = self._node.parent
-            parent_name = parent.parent.name
+            parent_name = parent.name
             parent_header_path = os.path.join("..", parent_name)
             # generate body
             body_stream.write(f"""\n#include \"{self.source_path}\" 
@@ -548,11 +571,15 @@ class CXXMethodDeclGenerator(Generator):
             return self.generate_operator()
         class_name = self._node.parent.name
         class_full_cpp_name = self._node.parent.full_cpp_name
+        parent = self._node.parent
+        while parent and not parent.name and isinstance(parent, NodeType.CXXRecordDecl):
+            parent = parent.parent
+            if not parent:
+                return None, None
         body_stream = open(
             os.path.join(self.my_root_dir, self._source_path_root, class_name + '::' + self._node.name + '.cpp'), 'w',
             encoding='utf-8')
         try:
-            parent = self._node.parent
             parent_name = parent.name
             parent_header_path = os.path.join("..", parent_name)
             # generate body
@@ -617,13 +644,20 @@ class CXXMethodDeclGenerator(Generator):
         return None, body_stream.name
 
     def generate_assignment(self):
+        if 'default_delete' in self._node.qualifiers:
+            return None, None
         class_name = self._node.parent.name
         class_full_cpp_name = self._node.parent.full_cpp_name
         body_stream = open(
             os.path.join(self.my_root_dir, self._source_path_root, class_name + '::' + self._node.name + '.cpp'), 'w',
             encoding='utf-8')
         try:
+
             parent = self._node.parent
+            while parent and not parent.name and isinstance(parent, NodeType.CXXRecordDecl):
+                parent = parent.parent
+                if not parent:
+                    return None, None
             parent_name = parent.name
             parent_header_path = os.path.join("..", parent_name)
             # generate body
@@ -718,6 +752,8 @@ class CXXMethodDeclGenerator(Generator):
             '%=': 'InplaceMod',
             '[]': 'Map'
         }
+        if 'default_delete' in self._node.qualifiers:
+            return None, None
         operator_kind = self._node.name.replace("operator", '')
         params = [p for p in self._node.children if isinstance(p, NodeType.ParmVarDecl)]
         if len(params) > 1:
@@ -733,6 +769,10 @@ class CXXMethodDeclGenerator(Generator):
             encoding='utf-8')
         try:
             parent = self._node.parent
+            while parent and not parent.name and isinstance(parent, NodeType.CXXRecordDecl):
+                parent = parent.parent
+                if not parent:
+                    return None, None
             parent_name = parent.name
             parent_header_path = os.path.join("..", parent_name)
             # generate body
@@ -838,6 +878,10 @@ class FieldDeclGenerator(Generator):
             encoding='utf-8')
         try:
             parent = self._node.parent
+            while parent and not parent.name and isinstance(parent, NodeType.CXXRecordDecl):
+                parent = parent.parent
+                if not parent:
+                    return None, None
             parent_name = parent.name
             parent_header_path = os.path.join("..", parent_name)
             # generate body
@@ -903,6 +947,10 @@ class FieldDeclGenerator(Generator):
             encoding='utf-8')
         try:
             parent = self._node.parent
+            while parent and not parent.name and isinstance(parent, NodeType.CXXRecordDecl):
+                parent = parent.parent
+                if not parent:
+                    return None, None
             parent_name = parent.name
             parent_header_path = os.path.join("..", parent_name)
             # generate body

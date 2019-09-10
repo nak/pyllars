@@ -1,6 +1,6 @@
 import os
 from abc import abstractmethod, ABC
-from typing import Optional, Iterator, List, IO, AnyStr
+from typing import Optional, Iterator, List, IO, AnyStr, Dict
 
 from dataclasses import dataclass, field
 import logging
@@ -58,21 +58,26 @@ class NodeType:
         return words
 
 
-    @dataclass
     class Node(ABC):
+        _node_cache : Dict[str, "NodeType.Node"] = {}
 
         @classmethod
         def process(cls, lines: IO, parent=None, indent=0):
             def process(text, node_type):
+                parent = None
                 words = NodeType._line_splitter(text)
-                if 'parent' in words:
-                    index = words.index('parent', 0)
-                    for i in range(index+2, len(words)):
-                        words[i-2] = words[i]
-                    words = words[:-2]
-                    raise Exception("Unable to process sporadically defined type: %s" % words)
+                if len(words) > 2 and words[1] == 'parent':
+                    parent = NodeType.Node._node_cache.get(words[2], None)
+                    if not parent:
+                        return None
+                    words = [words[0]] + words[3:]
                 try:
-                    return node_type(*words)
+                    new_node = node_type(*words)
+                    if words and words[0].startswith('0x'):
+                        NodeType.Node._node_cache[words[0]] = new_node
+                    if parent:
+                        new_node.parent = parent if not isinstance(parent, NodeType.TranslationUnitDecl) else None
+                    return new_node
                 except Exception as e:
                     log.error(f"Failed to process {node_type} with args '{words}': " + str(e))
                     raise e
@@ -102,13 +107,21 @@ class NodeType:
                         if ' ' not in substance:
                             substance += ' '
                         tag, text = substance.split(' ', maxsplit=1)
-                        node_type = getattr(NodeType, tag)
-                        node = process(text, node_type)
+                        try:
+                            node_type = getattr(NodeType, tag.replace(':', ''))
+                            node = process(text, node_type)
+                        except Exception as e:
+                            log.error(str(e))
+                            node = NodeType.UnknownOrErrorNode()
+                        if node is None:
+                            line = next(lines, None)
+                            continue
                         try:
                             assert isinstance(node, NodeType.Node)
                             current_node.children.append(node)
-                            node.parent = current_node
-                        except AttributeError:
+                            if not hasattr(node, 'parent'):
+                                node.parent = current_node
+                        except AttributeError as e:
                             raise Exception(
                                 f"Invalid file format: attempt to append child to non-composite node: {type(current_node).__name__}")
                         try:
@@ -128,18 +141,21 @@ class NodeType:
                         else:
                             tag = substance
                             text = ''
-                        node_type = getattr(NodeType, tag)
                         try:
+                            node_type = getattr(NodeType, tag)
                             node = process(text, node_type)
                         except MismatchedDepth as e:
                             line = e.line.rstrip()
                             current_node = parent
                             continue
+                        except Exception as e:
+                            log.error(str(e))
+                            node = NodeType.UnknownOrErrorNode()
                         try:
                             assert isinstance(node, NodeType.Node)
                             parent.children.append(node)
-                            if not isinstance(parent, NodeType.TranslationUnitDecl):
-                                node.parent = parent
+                            if not hasattr(node, 'parent'):
+                                node.parent = parent if not isinstance(parent, NodeType.TranslationUnitDecl) else None
                         except AttributeError:
                             raise Exception(f"Invalid file format: attempt to append child to non-composite node: {type(parent).__name__}")
                         current_node = node
@@ -195,21 +211,31 @@ class NodeType:
                 parent = parent.parent
             return prefix
 
+
+    @dataclass
+    class UnknownOrErrorNode(Node):
+        children : List["NodeType.Node"]
+
+        def __init__(self, *args):
+            self.children = []
+
+        def to_str(self, prefix):
+            return "Unknown or errored Node"
+
+
     @dataclass
     class LeafNode(Node):
         node_id: str
-        parent: Optional["NodeType.Node"]
 
-        def __init__(self, node_id: str, parent: Optional["NodeType.Node"] = None):
+        def __init__(self, node_id: str):  # parent: Optional["NodeType.Node"] = None):
             self.node_id = node_id
-            self.parent = parent
 
     @dataclass
     class InheritanceNode(LeafNode):
 
         clazz: str
 
-        def __init__(self, clazz: str, parent: Optional["NodeType.Node"] = None):
+        def __init__(self, clazz: str):
             super().__init__(node_id=None)
             self.clazz = clazz
 
@@ -228,22 +254,22 @@ class NodeType:
     @dataclass
     class public(InheritanceNode):
 
-        def __init__(self, clazz: str, parent: Optional["NodeType.Node"] = None):
-            super().__init__(clazz=clazz, parent=parent)
+        def __init__(self, clazz: str):
+            super().__init__(clazz=clazz)
 
 
     @dataclass
     class protected(InheritanceNode):
 
-        def __init__(self, clazz: str, parent: Optional["NodeType.Node"] = None):
-            super().__init__(clazz=clazz, parent=parent)
+        def __init__(self, clazz: str):
+            super().__init__(clazz=clazz)
 
 
     @dataclass
     class private(InheritanceNode):
 
-        def __init__(self, clazz: str, parent: Optional["NodeType.Node"] = None):
-            super().__init__(clazz=clazz, parent=parent)
+        def __init__(self, clazz: str):
+            super().__init__(clazz=clazz)
 
 
     @dataclass
@@ -299,10 +325,18 @@ class NodeType:
     @dataclass
     class TypeNode(LeafNode):
         type_text: str
+        qualifiers: str
+        children : List["NodeType.Node"]
 
-        def __init__(self, node_id: str, type_text: str):
+        def __init__(self, node_id: str, type_text: str, *args: str):
             super().__init__(node_id)
             self.type_text = type_text
+            self.qualifiers = list(args)
+            self.children = []
+
+        def to_str(self, prefix):
+            return " ".join([prefix + self.__class__.__name__, self.node_id, f"'{self.type_text}'"])
+
 
     @dataclass
     class CompositeTypeNode(TypeNode):
@@ -323,15 +357,12 @@ class NodeType:
 
 
     @dataclass
-    class TypedefDecl(LocationNode):
-        line_loc: str
-        col_loc: str
+    class TypedefDecl(CompositeNode):
         name: str
         target_name: str
-        children: "NodeType.TypeNode"
 
         def __init__(self, node_id: str, line_loc: str, col_loc: str, *args):
-            super().__init__(node_id, line_loc, col_loc)
+            super().__init__(node_id=node_id, line_loc=line_loc, col_loc=col_loc)
             self.qualifiers = []
             arg_iter = iter(args)
             arg = next(arg_iter)
@@ -340,7 +371,6 @@ class NodeType:
                 arg = next(arg_iter)
             self.name = arg
             self.target_name = next(arg_iter)
-            self.children = []
 
         def to_str(self, prefix: str):
             if self.qualifiers:
@@ -349,6 +379,24 @@ class NodeType:
             else:
                 return " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc,
                                 self.name, f"'{self.target_name}'"])
+
+    @dataclass
+    class ElaboratedType(LeafNode):
+        name : str
+        spec : str
+        args : List[str]
+        children: List["NodeType.Node"]
+
+        def __init__(self, node_id: str, spec: str, name: str, *args: str):
+            super().__init__(node_id=node_id)
+            self.spec = spec
+            self.name = name
+            self.args = list(args)
+            self.children = []
+
+        def to_str(self, prefix):
+            return " ".join([prefix + self.__class__.__name__, self.node_id])
+
 
     @dataclass
     class BuiltinType(TypeNode):
@@ -371,6 +419,9 @@ class NodeType:
         def __init__(self, node_id: str, type_text: str):
             super().__init__(node_id, type_text)
 
+        def to_str(self, prefix):
+            return " ".join([prefix + self.__class__.__name__, self.node_id, f"'{self.type_text}'"])
+
 
     @dataclass
     class ElbaoratedType(TypeNode):
@@ -384,12 +435,15 @@ class NodeType:
 
     @dataclass
     class TypedefType(TypeNode):
-        qualifiers: Optional[str]
 
+        def __init__(self, *args):
+            super().__init__(*args)
 
     @dataclass
     class Typedef(TypeNode):
-        pass
+
+        def __init__(self, *args):
+            super().__init__(*args)
 
 
     @dataclass
@@ -417,11 +471,13 @@ class NodeType:
             arg_iter = iter(args)
             arg = next(arg_iter, None)
             self.qualifiers = []
-            while arg in ['implicit', 'class', 'struct', 'referenced']:
+            while arg in ['implicit', 'class', 'struct', 'referenced', 'definition']:
                 self.qualifiers.append(arg)
                 arg = next(arg_iter, None)
-            assert(arg is not None)
-            self.name = arg
+            if arg is None or arg == 'struct' or arg == 'class':
+                self.name = ""
+            else:
+                self.name = arg
             self.post_qualifires = []
             arg = next(arg_iter, None)
             while arg:
@@ -470,17 +526,17 @@ class NodeType:
 
 
     @dataclass
-    class EnumConstantDecl(LeafNode):
+    class EnumConstantDecl(CompositeNode):
         col_id: str
         name: str
         parent_type_name: str
 
-        def __init__(self, node_id: str, line_loc: str,  col_loc: str, name: str, parent_type_name: str):
-            super().__init__(node_id=node_id)
-            self.line_loc = line_loc
-            self.col_loc = col_loc
-            self.name = name
-            self.parent_type_name = parent_type_name
+        def __init__(self, node_id: str, line_loc: str,  col_loc: str, *args: str):
+            if len(args) > 2:
+                args = args[-2:]
+            super().__init__(node_id=node_id, line_loc=line_loc, col_loc=col_loc)
+            self.name = args[0]
+            self.parent_type_name = args[1]
 
         def to_str(self, prefix: str):
             return " ".join([prefix + self.__class__.__name__, " ".join(self._data)])
@@ -503,11 +559,16 @@ class NodeType:
     class CXXConstructorDecl(CompositeNode):
         signature: str
 
-        def __init__(self, node_id: str, line_loc: str, col_loc: str, name: str, signature: str, *args: str):
+        def __init__(self, node_id: str, line_loc: str, col_loc: str, *args: str):
             super().__init__(node_id, line_loc, col_loc)
-            self.signature = signature
+            self.qualifires = []
+            while args and args[0] in ['implicit', 'referenced', 'definition']:
+                self.qualifires.append(args[0])
+                args = args[1:]
+            self.name = args[0]
+            self.signature = args[1]
+            args = args[2:]
             self.children = []
-            self.name = name
             self.keywords = args
 
         def to_str(self, prefix):
@@ -563,17 +624,16 @@ class NodeType:
 
 
     @dataclass
-    class CXXDestructorDecl(LeafNode):
+    class CXXDestructorDecl(CompositeNode):
         line_loc : str
         col_loc : str
         signature: str
         qualifiers: List[str]
 
         def __init__(self, node_id, line_loc, col_loc, name, signature, *args):
+            super().__init__(node_id=node_id, line_loc=line_loc, col_loc=col_loc)
             self.node_id = node_id
             self.name = name
-            self.line_loc = line_loc
-            self.col_loc = col_loc
             self.signature = signature
             self.qualifiers = args
 
@@ -620,12 +680,17 @@ class NodeType:
         signature: str
         qualifiers: List[str]
 
-        def __init__(self, node_id, line_loc, col_loc, name, signature, *qualifiers):
+        def __init__(self, node_id: str, line_loc: str, col_loc: str, *args: str):
             super().__init__(node_id=node_id, line_loc=line_loc, col_loc=col_loc)
+            self.qualifires = []
+            while args and args[0] in ['implicit', 'referenced', 'definition']:
+                self.qualifires.append(args[0])
+                args = args[1:]
+            self.name = args[0]
+            self.signature = args[1]
+            args = args[2:]
             self.children = []
-            self.name = name
-            self.signature = signature
-            self.qualifiers = qualifiers
+            self.qualifiers = args
 
         def to_str(self, prefix):
             return " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc,
@@ -644,7 +709,11 @@ class NodeType:
                 args = args[1:]
 
             self.qualifiers = args[2:]
-            name, type_text = args[:2]
+            if len(args) == 1:
+                name = ""
+                type_text = args[0]
+            else:
+                name, type_text = args[:2]
             super().__init__(node_id=node_id, line_loc=line_loc, col_loc=col_loc)
             self.name = name
             self.type_text = type_text
@@ -703,19 +772,39 @@ class NodeType:
 
 
     @dataclass
-    class LinkageSpecDecl(Node):
-        line_loc: str
-        line_loc2: str
+    class LinkageSpecDecl(CompositeNode):
         spec_text: str
+
+        def __init__(self, node_id: str, line_loc: str, col_loc: str, spec: str):
+            super().__init__(node_id=node_id, line_loc=line_loc, col_loc=col_loc)
+            self.spec_text = spec
+
+        def to_str(self, prefix):
+            return " ".join([prefix + self.__class__.__name__, self.node_id, self.col_loc, f"'{self.spec_text}'"])
 
 
     @dataclass
-    class FunctionDecl(LeafNode):
-        line_loc: str
-        col_loc: str
+    class FunctionDecl(CompositeNode):
         name: str
         spec: str
-        qualifiers: Optional[str]
+        qualifiers: List[str]
+
+        def __init__(self, node_id: str, line_loc: str, col_loc: str, *args: str):
+            super().__init__(node_id=node_id, col_loc=col_loc, line_loc=line_loc)
+            self.prequalifiers = []
+            while args and args[0] in ['implicit', 'used']:
+                self.prequalifiers.append(args[0])
+                args = args[1:]
+            self.name = args[0]
+            args = args[1:]
+            while args and args[0] in ['new', 'new[]', 'delete', 'delete[]']:
+                self.name += " " + args[0]
+                args = args[1:]
+            self.spec = args[0]
+            self.qualifiers = list(args[1:])
+
+        def to_str(self, prefix):
+            return " ".join([prefix + self.__class__.__name__, self.node_id, self.col_loc, f"'{self.name}'", str(f"'self.spec)'")])
 
 
     @dataclass
@@ -762,6 +851,13 @@ class NodeType:
     class ConstAttr(LeafNode):
         line_loc: str
 
+        def __init__(self, node_id: str, line_loc: str, *args: str):
+            super().__init__(node_id=node_id)
+            self.line_loc = line_loc
+
+        def to_str(self, prefix):
+            return 'ConstAttr %s' % self.node_id
+
 
     @dataclass
     class AccessSpecDecl(LeafNode):
@@ -769,9 +865,8 @@ class NodeType:
         col_loc: str
         access: str
 
-        def __init__(self, node_id: str, line_loc: str, col_loc:str, access:str,
-                     parent: Optional["NodeType.Node"] = None):
-            super().__init__(node_id=node_id, parent=parent)
+        def __init__(self, node_id: str, line_loc: str, col_loc:str, access:str):
+            super().__init__(node_id=node_id)
             self.line_loc = line_loc
             self.col_loc = col_loc
             self.access = access
@@ -792,6 +887,47 @@ class NodeType:
 
         def to_str(self, prefix):
             return " ".join([prefix + self.__class__.__name__, self.node_id, self.location])
+
+    @dataclass
+    class DeclStmt(LeafNode):
+
+        def __init__(self, node_id: str, *args: str):
+            super().__init__(node_id=node_id)
+            self.children = []
+
+        def to_str(self, prefix):
+            return " ".join([prefix + self.__class__.__name__, self.node_id])
+
+
+    @dataclass
+    class Overrides(LeafNode):
+
+        def __init__(self, *args: str):
+            super().__init__(node_id="")
+            self.children = []
+
+        def to_str(self, prefix):
+            return " ".join([prefix + self.__class__.__name__])
+
+    @dataclass
+    class CXXNewExpr(LeafNode):
+
+        def __init__(self, *args: str):
+            super().__init__(node_id="")
+            self.children = []
+
+        def to_str(self, prefix):
+            return " ".join([prefix + self.__class__.__name__])
+
+    @dataclass
+    class VisibilityAttr(LeafNode):
+
+        def __init__(self, *args: str):
+            super().__init__(node_id="")
+            self.children = []
+
+        def to_str(self, prefix):
+            return " ".join([prefix + self.__class__.__name__])
 
 
     @dataclass

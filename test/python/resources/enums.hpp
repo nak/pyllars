@@ -9,3 +9,9 @@ struct Struct{
 
 };
 
+namespace scoped{
+
+    enum {ONE, TWO, THREE};
+
+    enum class ScopedClassEnum{ONE, TWO, THREE};
+}

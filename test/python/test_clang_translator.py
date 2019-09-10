@@ -1,4 +1,5 @@
 import filecmp
+import glob
 import subprocess
 import tempfile
 
@@ -11,52 +12,63 @@ from pyllars.cppparser.parser.clang_translator import ClangTranslator, NodeType
 import os
 
 
+RESOURCES_DIR = os.path.join(os.path.dirname(__file__), "resources")
+PYLLARS_INCLUDE_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "..", "src", "python", "resources", "include")
+
+
+@pytest.fixture(params=glob.glob(os.path.join(RESOURCES_DIR, "*.hpp")))
+def clang_output(tmpdir, request):
+    """
+    :param base_name: base name of file to process (assumed with RESROUCES_DIR)
+    :return: path to clang check output for given file name
+    """
+    src_path = request.param
+    output_path = os.path.join(str(tmpdir), "clang-output.classes")
+    cmd = ["clang-check", "-ast-dump", src_path, "--extra-arg=\"-fno-color-diagnostics\""]
+    with open(output_path, 'w') as output_file:
+        p = subprocess.run(cmd, stdout=output_file, stderr=subprocess.PIPE)
+        if p.returncode != 0:
+            raise Exception(f"Failed to parse {src_path} through clang-check tool")
+    return src_path, output_path
+
 @pytest.fixture
 def clang_output_classes(tmpdir):
     """
     :return: path to clang check output for simple class tests (inheritance, methods, attributes)
     """
-    src_path = os.path.join(RESOURCES_DIR, "classes.hpp")
-    output_path = os.path.join(str(tmpdir), "clang-output.classes")
-    cmd = ["clang-check", "-ast-dump", src_path, "--extra-arg=\"-fno-color-diagnostics\""]
-    with open(output_path, 'w') as output_file:
-        p = subprocess.run(cmd, stdout=output_file, stderr=subprocess.PIPE)
-        if p.returncode != 0:
-            raise Exception(f"Failed to parse {src_path} through clang-check tool")
-    return output_path
+    return clang_output(tmpdir, "classes")
 
 
 @pytest.fixture
 def clang_output_complexattributes(tmpdir):
     """
-    :return: path to clang check output for simple class tests (inheritance, methods, attributes)
+    :return: path to clang check output for classes with compled attributes (array attributes, etc)
     """
-    src_path = os.path.join(RESOURCES_DIR, "complexattributes.hpp")
-    output_path = os.path.join(str(tmpdir), "clang-output.classes")
-    cmd = ["clang-check", "-ast-dump", src_path, "--extra-arg=\"-fno-color-diagnostics\""]
-    with open(output_path, 'w') as output_file:
-        p = subprocess.run(cmd, stdout=output_file, stderr=subprocess.PIPE)
-        if p.returncode != 0:
-            raise Exception(f"Failed to parse {src_path} through clang-check tool")
-    return output_path
+    return clang_output(tmpdir, "complextattributes")
+
 
 @pytest.fixture
 def clang_output_enums(tmpdir):
     """
+    :return: path to clang check output for simple enums/class enums
+    """
+    return clang_output(tmpdir, "enums")
+
+
+@pytest.fixture
+def clang_output_functions(tmpdir):
+    """
+    :return: path to clang check output for simple function tests
+    """
+    return clang_output(tmpdir, "functions")
+
+
+@pytest.fixture
+def clang_output_globals(tmpdir):
+    """
     :return: path to clang check output for simple class tests (inheritance, methods, attributes)
     """
-    src_path = os.path.join(RESOURCES_DIR, "enums.hpp")
-    output_path = os.path.join(str(tmpdir), "clang-output.classes")
-    cmd = ["clang-check", "-ast-dump", src_path, "--extra-arg=\"-fno-color-diagnostics\""]
-    with open(output_path, 'w') as output_file:
-        p = subprocess.run(cmd, stdout=output_file, stderr=subprocess.PIPE)
-        if p.returncode != 0:
-            raise Exception(f"Failed to parse {src_path} through clang-check tool")
-    return output_path
-
-
-RESOURCES_DIR = os.path.join(os.path.dirname(__file__), "resources")
-PYLLARS_INCLUDE_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "..", "src", "python", "resources", "include")
+    return clang_output(tmpdir, "globals")
 
 
 def compare_builtintype(self, other: NodeType.BuiltinType):
@@ -141,13 +153,14 @@ class TestClangTranslation:
         ns_C = NodeType.NamespaceDecl(node_id="1", line_loc="", col_loc="", name="C")
         ns_B = NodeType.NamespaceDecl(node_id="1", line_loc="", col_loc="", name="B")
         ns_A = NodeType.NamespaceDecl(node_id="2", line_loc="", col_loc="", name="A")
+        ns_A.parent = None
         ns_B.parent = ns_A
         ns_C.parent = ns_B
         generator = clang.NamespaceDeclGenerator(ns_C, ".", ".", "/tmp")
         text = generator._wrap_in_namespaces("HERE")
         assert text == """
+namespace A{
 namespace B{
-   namespace A{
 
         HERE
 
@@ -159,6 +172,7 @@ namespace B{
         ns_C = NodeType.NamespaceDecl(node_id="1", line_loc="", col_loc="", name="C")
         ns_B = NodeType.NamespaceDecl(node_id="1", line_loc="", col_loc="", name="B")
         ns_A = NodeType.NamespaceDecl(node_id="2", line_loc="", col_loc="", name="A")
+        ns_A.parent = None
         ns_B.parent = ns_A
         ns_C.parent = ns_B
         dummy_header = open(os.path.join(str(tmpdir), "dummy.hpp"), 'w')
@@ -322,6 +336,40 @@ namespace B{
         os.makedirs(output_dir)
         header = os.path.join(RESOURCES_DIR, "enums.hpp")
         with ClangTranslator(file_name=clang_output_enums) as translator:
+            root = translator.translate()
+            generator = clang.Generator.create(root, os.path.dirname(header), os.path.basename(header), output_dir)
+            generator.generate_all()
+
+        compiler = Compiler(compiler_flags=[f"-I{RESOURCES_DIR}", f"-I{PYLLARS_INCLUDE_DIR}"],
+                            output_dir=output_dir, optimization_level="-O0", debug=True)
+        for dir, dirnames, filenames in os.walk(output_dir):
+            for filename in [os.path.join(dir, name) for name in filenames if name.endswith(".cpp")]:
+                compiler.compile(filename)
+
+    def test_generation_functions(self, tmpdir, clang_output_functions):
+        # not the best test stategy, but generic enough:
+        # regurgitate the file back out and compare to original to pass test
+        output_dir = os.path.join(str(tmpdir), "output")
+        os.makedirs(output_dir)
+        header = os.path.join(RESOURCES_DIR, "functions.hpp")
+        with ClangTranslator(file_name=clang_output_functions) as translator:
+            root = translator.translate()
+            generator = clang.Generator.create(root, os.path.dirname(header), os.path.basename(header), output_dir)
+            generator.generate_all()
+
+        compiler = Compiler(compiler_flags=[f"-I{RESOURCES_DIR}", f"-I{PYLLARS_INCLUDE_DIR}"],
+                            output_dir=output_dir, optimization_level="-O0", debug=True)
+        for dir, dirnames, filenames in os.walk(output_dir):
+            for filename in [os.path.join(dir, name) for name in filenames if name.endswith(".cpp")]:
+                compiler.compile(filename)
+
+    def test_generation_all(self, tmpdir, clang_output):
+        # not the best test stategy, but generic enough:
+        # regurgitate the file back out and compare to original to pass test
+        output_dir = os.path.join(str(tmpdir), "output")
+        os.makedirs(output_dir)
+        header, clang_output_path = clang_output
+        with ClangTranslator(file_name=clang_output_path) as translator:
             root = translator.translate()
             generator = clang.Generator.create(root, os.path.dirname(header), os.path.basename(header), output_dir)
             generator.generate_all()

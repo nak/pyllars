@@ -36,6 +36,7 @@ namespace scoped{
     };
 
     long long scoped_function(const TestClass::InnerTestClass &inner);
+
 }
 
 
@@ -47,7 +48,6 @@ namespace trial{
 
     int some_global_function(const double & value, outside::ExternalDependency &d) ;//throw(double );
 
-
     static constexpr double double_value = 2.33;
 }
 
@@ -57,7 +57,5 @@ float global_number();
 enum {FIRST=1, SECOND=2, THIRD=3} anonymous_enum_var;
 enum  Enumeration {ZERO, ONE, TWO, THREE};
 constexpr Enumeration enum_var = TWO;
-enum class UnsizedClassEnum { A, B, C};
-enum class SizedClassEnum: long { A = -1, B=-2, C=-3};
 
 #endif

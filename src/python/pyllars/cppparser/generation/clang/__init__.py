@@ -10,6 +10,7 @@ from .classes import (CXXRecordDeclGenerator,
                       FieldDeclGenerator,
                       )
 from .enums import (EnumDeclGenerator)
+from .functions import (FunctionDeclGenerator)
 
 from .tranlation_unit import TranslationUnitDeclGenerator
 from .generator import Generator

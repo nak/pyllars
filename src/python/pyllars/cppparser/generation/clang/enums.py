@@ -11,12 +11,9 @@ class EnumDeclGenerator(Generator):
         elements = [c for c in self._node.children if isinstance(c, NodeType.EnumConstantDecl)]
         if 'implicit' in self._node.qualifiers or not elements:
             return None, None
-        header_stream = open(os.path.join(self.my_root_dir, self._node.name + '.hpp'), 'w',
-                             encoding='utf-8')
-        body_stream = open(os.path.join(self.my_root_dir, self._source_path_root, self._node.name + '.cpp'), 'w',
-                           encoding='utf-8')
-
         parent = self._node.parent
+        while hasattr(parent, 'name') and not parent.name:
+            parent = parent.parent
         parent_name = parent.name if parent else "pyllars"
         c_scope = parent.full_cpp_name + "::" if parent and parent.full_cpp_name else ""
         if self._node.name:
@@ -25,6 +22,11 @@ class EnumDeclGenerator(Generator):
         else:
             name = f"decltype(::{c_scope}{elements[0].name})"
             full_cpp_name = f"decltype(::{c_scope}{elements[0].name})"
+        header_stream = open(os.path.join(self.my_root_dir, name + '.hpp'), 'w',
+                             encoding='utf-8')
+        body_stream = open(os.path.join(self.my_root_dir, self._source_path_root, name + '.cpp'), 'w',
+                           encoding='utf-8')
+
         try:
             # generate header
             header_stream.write(Generator.COMMON_HEADER)
@@ -33,9 +35,9 @@ class EnumDeclGenerator(Generator):
 
             # generate body
             body_stream.write(f"""\n#include "{self.source_path}" 
-#include \"{self._node.name}.hpp"
+#include \"{name}.hpp"
             """)
-            if self._node.parent:
+            if self._node.parent and parent_name != 'pyllars':
                 body_stream.write(f"\n#include \"..{os.sep}{parent_name}.hpp\"\n")
             body_stream.write(f"""
                     namespace __pyllars_internal{{
@@ -94,7 +96,7 @@ class EnumDeclGenerator(Generator):
                 """
             body_stream.write(self._wrap_in_namespaces(f"""
             namespace {{
-                //From: CXXRecordDeclGenerator.generate
+                //From: EnumDeclGenerator.generate
 
                 class Initializer_{name}: public pyllars::Initializer{{
                 public:
