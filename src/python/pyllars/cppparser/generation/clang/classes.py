@@ -172,9 +172,11 @@ class DefinitionDataGenerator(Generator):
 class DefaultConstructorGenerator(Generator):
 
     def generate(self):
+        class_name = self._node.parent.parent.name
+        if not class_name:
+            return None, None
         if 'default_is_constexpr' in self._node.classifiers:
             return None, None
-        class_name = self._node.parent.parent.name
         class_full_cpp_name = self._node.parent.parent.full_cpp_name
 
         parent = self._node.parent.parent
@@ -240,9 +242,11 @@ class DefaultConstructorGenerator(Generator):
 class CopyConstructorGenerator(Generator):
 
     def generate(self):
+        class_name = self._node.parent.parent.name
+        if not class_name:
+            return None, None
         if 'user_declared' in self._node.classifiers or not self._node.classifiers:
             return None, None
-        class_name = self._node.parent.parent.name
         class_full_cpp_name = self._node.parent.parent.full_cpp_name
         parent = self._node.parent.parent
         while parent and not parent.name and isinstance(parent, NodeType.CXXRecordDecl):
@@ -306,9 +310,11 @@ class CopyConstructorGenerator(Generator):
 class MoveConstructorGenerator(Generator):
 
     def generate(self):
+        class_name = self._node.parent.parent.name
+        if not class_name:
+            return None, None
         if 'user_declared' in self._node.classifiers or not self._node.classifiers:
             return None, None
-        class_name = self._node.parent.parent.name
         class_full_cpp_name = self._node.parent.parent.full_cpp_name
         parent = self._node.parent.parent
         while parent and not parent.name and isinstance(parent, NodeType.CXXRecordDecl):
@@ -373,9 +379,11 @@ class MoveConstructorGenerator(Generator):
 class CopyAssignmentGenerator(Generator):
 
     def generate(self):
+        class_name = self._node.parent.parent.name
+        if not class_name:
+            return None, None
         if 'user_declared' in self._node.classifiers or not self._node.classifiers:
             return None, None
-        class_name = self._node.parent.parent.name
         class_full_cpp_name = self._node.parent.parent.full_cpp_name
         parent = self._node.parent.parent
         while parent and not parent.name and isinstance(parent, NodeType.CXXRecordDecl):
@@ -456,6 +464,9 @@ class CopyAssignmentGenerator(Generator):
 class MoveAssignmentGenerator(Generator):
 
     def generate(self):
+        class_name = self._node.parent.parent.name
+        if not class_name:
+            return None, None
         if 'user_declared' in self._node.classifiers or not self._node.classifiers:
             return None, None
         class_name = self._node.parent.parent.name
@@ -864,15 +875,19 @@ class FieldDeclGenerator(Generator):
         return ' '.join(parts)
 
     def generate(self):
-        if 'public' not in self._node.qualifiers:
+        if 'public' not in self._node.qualifiers and 'struct' not in self._node.parent.qualifiers:
             return None, None
-
+        parent = self._node.parent
+        while parent and not parent.name:
+            parent = parent.parent
+        if not parent:
+            return None, None
         bitfield_specs = [c for c in self._node.children if isinstance(c, NodeType.IntegerLiteral)]
         if not isinstance(self, VarDeclGenerator) and bitfield_specs:
             return self.generate_bitfield(bitfield_specs)
 
-        class_name = self._node.parent.name
-        class_full_cpp_name = self._node.parent.full_cpp_name
+        class_name = parent.name
+        class_full_cpp_name = parent.full_cpp_name
         body_stream = open(
             os.path.join(self.my_root_dir, self._source_path_root, class_name + '::' + self._node.name + '.cpp'), 'w',
             encoding='utf-8')
@@ -891,11 +906,11 @@ class FieldDeclGenerator(Generator):
                                     """)
             name = self._node.name
             member_qualifier = "Class" if 'static' in self._node.qualifiers else ""
-            typename = self._scoped_type_name(self._node.type_text)
+            typename = self._scoped_type_name(self._node.type_text) if 'anonymous struct' not in self._node.type_text else f"decltype(::{self._node.full_cpp_name})"
             body_stream.write(self._wrap_in_namespaces(f"""
 
                                     namespace {{
-                                       //From: CXXMethodDeclGenerator.generate
+                                       //From: FieldDeclGenerator.generate
 
                                        constexpr cstring this_name = "{name}";
 
