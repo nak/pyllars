@@ -849,6 +849,30 @@ class CXXMethodDeclGenerator(Generator):
 
 
 class FieldDeclGenerator(Generator):
+
+    def normalize(self):
+        # find parent
+        if self._node.parent.name:
+            self.parent_name = self._node.parent.name
+        else:
+            index = self._node.parent.parent.children.index(self._node.parent)
+            if index < 0:
+                raise Exception("Invalid structure in hierarchy")
+
+            def find(parent: NodeType.Node):
+                if len(parent.parent.children) > index and isinstance(parent.parent.children[index+1], NodeType.FieldDecl):
+                    # parent is anonymous type with a named field declaration, so this element is referenced to direct parent (field)
+                    parent_field_name = self._node.parent.parent.children[index+1].name
+                    return f"decltype(::{self._node.parent.parent.full_cpp_name}::{parent_field_name})"
+                else:
+                    # parent is anonymous type without associated field, so element belongs to parent's parent when referenced in code
+                    if parent.parent.name:
+                        return self.parent.parent.name
+                    else:
+                        return find(parent.parent)
+
+            self.parent_name = find(self._node.parent)
+
     def _scoped_type_name(self, typ):
         parts = typ.strip().split(' ')
 
@@ -875,6 +899,7 @@ class FieldDeclGenerator(Generator):
         return ' '.join(parts)
 
     def generate(self):
+        self.normalize()
         if 'public' not in self._node.qualifiers and 'struct' not in self._node.parent.qualifiers:
             return None, None
         parent = self._node.parent
@@ -906,7 +931,7 @@ class FieldDeclGenerator(Generator):
                                     """)
             name = self._node.name
             member_qualifier = "Class" if 'static' in self._node.qualifiers else ""
-            typename = self._scoped_type_name(self._node.type_text) if 'anonymous struct' not in self._node.type_text else f"decltype(::{self._node.full_cpp_name})"
+            typename = self.parent_name  # self._scoped_type_name(self._node.type_text) if 'anonymous struct' not in self._node.type_text else f"decltype(::{self._node.full_cpp_name})"
             body_stream.write(self._wrap_in_namespaces(f"""
 
                                     namespace {{
