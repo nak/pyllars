@@ -28,6 +28,14 @@ namespace trial{
 
         };
 
+        union Union{
+           int intval;
+           struct{
+              short sval1;
+              short sval2;
+           };
+        };
+
 
     }
 

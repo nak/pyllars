@@ -471,7 +471,7 @@ class NodeType:
             arg_iter = iter(args)
             arg = next(arg_iter, None)
             self.qualifiers = []
-            while arg in ['implicit', 'class', 'struct', 'referenced', 'definition']:
+            while arg in ['implicit', 'class', 'struct', 'referenced', 'definition', 'union']:
                 self.qualifiers.append(arg)
                 arg = next(arg_iter, None)
             if arg is None or arg == 'struct' or arg == 'class':
@@ -701,11 +701,14 @@ class NodeType:
     class FieldDecl(CompositeNode):
         name: str
         type_text: str
+        prequalifiers = List[str]
         qualifiers: List[str]
 
         def __init__(self, node_id: str, line_loc: str, col_loc: str, *args: str):
             args = list(args)
-            if args[0] == 'referenced':
+            self.prequalifiers = []
+            if args[0] in ['referenced', 'implicit']:
+                self.prequalifiers.append(args[0])
                 args = args[1:]
 
             self.qualifiers = args[2:]
@@ -720,6 +723,21 @@ class NodeType:
 
         def to_str(self, prefix: str):
             return " ".join([prefix + self.__class__.__name__, self.node_id, self.line_loc, self.col_loc, self.name, self.type_text])
+
+
+    @dataclass
+    class IndirectFieldDecl(FieldDecl):
+        def __init__(self, *args, **kargs):
+            super().__init__(*args, **kargs)
+
+    @dataclass
+    class Field(LeafNode):
+        def __init__(self, node_id: str,  *args, **kargs):
+            super().__init__(node_id=node_id)
+
+        def to_str(self, prefix: str):
+            return " ".join([prefix + self.__class__.__name__, self.node_id])
+
 
     @dataclass
     class VarDecl(CompositeNode):
@@ -751,7 +769,6 @@ class NodeType:
 
         def to_str(self, prefix: str):
             return " ".join([prefix + self.__class__.__name__, self.node_id, self.col_loc, self.type_text, self.value])
-
 
 
     @dataclass

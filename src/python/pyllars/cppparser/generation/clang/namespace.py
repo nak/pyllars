@@ -39,6 +39,7 @@ class NamespaceDeclGenerator(Generator):
             parent_mod = f"::pyllars::{parent.full_cpp_name}_module()" if parent else "global_mod"
             hash = "#"
             code = f"""
+            
                     PyObject * {self._node.name}_module(){{
                         static PyObject* {self._node.name}_mod = nullptr;
                         if (!{self._node.name}_mod){{

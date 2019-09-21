@@ -8,112 +8,107 @@ class CXXRecordDeclGenerator(Generator):
 
     def generate(self):
         self._node.normalize()
-        if 'implicit' in self._node.qualifiers or not self._node.name:
+        if 'implicit' in self._node.qualifiers:
             return None, None
-        header_stream = open(os.path.join(self.my_root_dir, self._node.name+'.hpp'), 'w',
+
+        name = self._node.name or "anonymous_%s" % self._node.node_id
+        parent = self._node.parent
+        parent_name = parent.name if parent else "pyllars"
+        typename_qualifier = "typename" if 'union' not in self._node.qualifiers else ""
+
+        if self._node.name:
+            typename = f"{typename_qualifier} ::{self._node.full_cpp_name}"
+        else:
+            index = self._node.parent.children.index(self._node)
+            if index < 0:
+                raise Exception("invalid code structure encountered")
+            if len(self._node.parent.children) > index + 1 and isinstance(self._node.parent.children[index + 1],
+                                                                          NodeType.FieldDecl):
+                field = self._node.parent.children[index + 1].full_cpp_name
+                typename = f"decltype(::{field})" if field else None
+            else:
+                typename = None
+
+        header_stream = open(os.path.join(self.my_root_dir, name+'.hpp'), 'w',
                              encoding='utf-8')
-        body_stream = open(os.path.join(self.my_root_dir, self._source_path_root, self._node.name+'.cpp'), 'w',
+        body_stream = open(os.path.join(self.my_root_dir, self._source_path_root, name+'.cpp'), 'w',
                            encoding='utf-8')
         try:
+            if self._node.name:
+                add_pyobject_code = f"PyObject_SetAttrString((PyObject*)__pyllars_internal::PythonClassWrapper< {typename}>::getPyType(), name, pyobj)"
+            else:
+                parent_name = self._node.parent.name or "anonymous_%s" % self._node.node_id
+                add_pyobject_code = f"{parent_name}_addPyObject(name, pyobj)"
+
             # generate header
             header_stream.write(Generator.COMMON_HEADER)
             header_stream.write(self._wrap_in_namespaces(f"""
                /**
                 * Register a subcomponent for initialization
                 **/
-               status_t {self._node.name or "pyllars"}_register(::pyllars::Initializer*);
+               status_t {name}_register(::pyllars::Initializer*);
                
                /**
                 * add a child object
                 **/
-               status_t {self._node.name}_addPyObject(const char* const name, PyObject* pyobj){{
-                   return PyObject_SetAttrString((PyObject*)__pyllars_internal::PythonClassWrapper< typename ::{self._node.full_cpp_name} >::getPyType(),
-                       name, pyobj);
-               }}
+               status_t {name}_addPyObject(const char* const name, PyObject* pyobj);
             """, True))
-            parent = self._node.parent
-            parent_name = parent.name if parent else "pyllars"
 
             #generate body
             body_stream.write(f"""\n#include "{self.source_path}" 
-#include \"{self._node.name}.hpp"
+#include \"{name}.hpp"
             """)
             if self._node.parent:
                 body_stream.write(f"\n#include \"..{os.sep}{parent_name}.hpp\"\n")
-            if not self._node.name and self._node.children:
-                body_stream.write(f"""
-                    namespace __pyllars_internal{{
-                        template<>
-                        struct _Types<decltype({self._node.full_cpp_name})>{{
-                            static const char* const type_name;
-                        }};
-                        const char* const _Types<decltype({self._node.full_cpp_name})>::type_name =  "(anonymous enum)";
-                    }}
-                """)
-            else:
-                body_stream.write(f"""
-                   namespace __pyllars_internal{{
-                       template<>
-                       struct _Types<::{self._node.full_cpp_name}>{{
-                           static const char* const type_name;
-                       }};
-                       const char* const _Types<::{self._node.full_cpp_name}>::type_name =  "{self._node.name}";
-                   }}
-               """)
-            if not self._node.name or 'implicit' in self._node.qualifiers:
-                return header_stream.name, body_stream.name
-            class_name = self._node.name if self._node.name else "anonymous_"
-            parent_full_name = parent.full_cpp_name if parent else ""
-
-            typename = "typename" if 'union' in self._node.qualifiers else ""
-            class_full_name = self._node.full_cpp_name
-            inheritance_code = f""
-            for base in self._node.bases or []:
-                base_class_name = base.full_name
-                inheritance_code += f"""
-                    status |= pyllars::{base.full_name}_set_up();
-                    __pyllars_internal::PythonClassWrapper< {typename} ::{class_full_name}>::addBaseClass<::{base_class_name}>();
-
-                """
+            body_stream.write(f"""
+                namespace __pyllars_internal{{
+                    template<>
+                    struct _Types<{typename}>{{
+                        static const char* const type_name;
+                    }};
+                    const char* const _Types<{typename}>::type_name =  "{name}";
+                }}
+            """)
+            class_full_name = self._node.full_cpp_name if self._node.name else None
+            inheritance_code = ""
             ready_code = ""
-            for base in self._node.bases or []:
-                ready_code += f"""
-                    status |= pyllars::{base.full_name}_ready(top_level_mod);
-                """
-            for base in self._node.bases or []:
-                hierarchy = base.full_name.split('::')[:-1]
-                text = "// Difficult to get header location as source of inheritance class, so declase set_up & ready explicitly here\n" \
-                    "namespace pyllars{\n" +"\n".join([f"namespace {name}{{" for name in hierarchy])
-                text += f"\nstatus_t {base.name}_set_up();\n"
-                text += f"\nstatus_t {base.name}_ready(PyObject*);\n"
-                text += "}\n"*(len(hierarchy) + 1)
-                body_stream.write(text + "\n\n")
-            if parent_full_name:
-                add_pyobject_code = f"""
-                                       status |= ::pyllars::{parent_full_name}_addPyObject("{self._node.name}", 
-                                                    (PyObject*) __pyllars_internal::PythonClassWrapper< typename ::{self._node.full_cpp_name} >::getPyType());
-                     
-"""
+            if typename:
+                for base in self._node.bases or []:
+                    base_class_name = base.full_name
+                    inheritance_code += f"""
+                        status |= pyllars::{base.full_name}_set_up();
+                        __pyllars_internal::PythonClassWrapper< {typename_qualifier} ::{class_full_name}>::addBaseClass<::{base_class_name}>();
+    
+                    """
+                for base in self._node.bases or []:
+                    ready_code += f"""
+                        status |= pyllars::{base.full_name}_ready(top_level_mod);
+                    """
+                for base in self._node.bases or []:
+                    hierarchy = base.full_name.split('::')[:-1]
+                    text = "// Difficult to get header location as source of inheritance class, so declase set_up & ready explicitly here\n" \
+                        "namespace pyllars{\n" +"\n".join([f"namespace {name}{{" for name in hierarchy])
+                    text += f"\nstatus_t {base.name}_set_up();\n"
+                    text += f"\nstatus_t {base.name}_ready(PyObject*);\n"
+                    text += "}\n"*(len(hierarchy) + 1)
+                    body_stream.write(text + "\n\n")
+            if not self._node.name:
+                add_myobject_code = ""
             else:
-                add_pyobject_code = f"""
-                                      PyObject *pyllars_mod = PyImport_ImportModule("pyllars");
-                                      status |= PyModule_AddObject(top_level_mod, "{self._node.name}",
-                                         (PyObject*) __pyllars_internal::PythonClassWrapper< typename ::{self._node.full_cpp_name} >::getPyType());
-                                      if (pyllars_mod){{
-                                         status |= PyModule_AddObject(pyllars_mod, "{self._node.name}",
-                                            (PyObject*) __pyllars_internal::PythonClassWrapper< typename ::{self._node.full_cpp_name} >::getPyType());
-                                      }}
-
-"""
+                add_myobject_code = f"status |= {parent_name}_addPyObject(\"{name}\", (PyObject*)__pyllars_internal::PythonClassWrapper<{typename}>::getPyType())"
+            initializer_code = f"status |= __pyllars_internal::PythonClassWrapper< {typename} >::initialize();" if typename else ""
             body_stream.write(self._wrap_in_namespaces(f"""
+            status_t {name}_addPyObject(const char* const name, PyObject* pyobj){{
+               return {add_pyobject_code};
+            }}             
+                
             namespace {{
                 //From: CXXRecordDeclGenerator.generate
-             
-                class Initializer_{class_name}: public pyllars::Initializer{{
+                class Initializer_{name}: public pyllars::Initializer{{
                 public:
-                    Initializer_{class_name}():pyllars::Initializer(){{
+                    Initializer_{name}():pyllars::Initializer(){{
                     
-                        pyllars::{parent_full_name or "pyllars"}_register(this);                          
+                        {parent_name}_register(this);                          
                     }}
 
                     int set_up() override{{
@@ -123,9 +118,7 @@ class CXXRecordDeclGenerator(Generator):
                         if (inited){{
                             return status;
                         }}
-                        typedef typename ::{self._node.full_cpp_name}  main_type;
-                        status |= __pyllars_internal::PythonClassWrapper< main_type >::initialize();  //classes
-                        //not really much to do here
+                        {initializer_code}
                         inited = true;
                         status = 0;
                         return status;
@@ -136,15 +129,15 @@ class CXXRecordDeclGenerator(Generator):
                        {ready_code}
                        {inheritance_code}
                      
-                       {add_pyobject_code}
+                       {add_myobject_code};
                      
                        return status;
                     }}
                     
-                    static Initializer_{class_name}* initializer;
+                    static Initializer_{name}* initializer;
                     
-                    static Initializer_{class_name} *singleton(){{
-                        static  Initializer_{class_name} _initializer;
+                    static Initializer_{name} *singleton(){{
+                        static  Initializer_{name} _initializer;
                         return &_initializer;
                     }}
                  }};
@@ -152,7 +145,12 @@ class CXXRecordDeclGenerator(Generator):
                 
                 //ensure instance is created on global static initialization, otherwise this
                 //element would never be reigstered and picked up
-                Initializer_{class_name} * Initializer_{class_name}::initializer = singleton();
+                Initializer_{name} * Initializer_{name}::initializer = singleton();
+                     
+                status_t {name}_register(::pyllars::Initializer* const init){{
+                    return Initializer_{name}::initializer->register_init(init);
+                }}
+            
     
             }}
                 """, True))
@@ -1048,5 +1046,10 @@ class FieldDeclGenerator(Generator):
             body_stream.close()
         return None, body_stream.name
 
+
 class VarDeclGenerator(FieldDeclGenerator):
+    pass
+
+
+class IndirectFieldDeclGenerator(FieldDeclGenerator):
     pass
