@@ -57,7 +57,6 @@ class NodeType:
             words.append(word)
         return words
 
-
     class Node(ABC):
         _node_cache : Dict[str, "NodeType.Node"] = {}
 
@@ -485,7 +484,7 @@ class NodeType:
                 arg = next(arg_iter, None)
 
         def normalize(self):
-            access = 'private'
+            access = 'private' if (not 'union' in self.qualifiers and not 'struct' in self.qualifiers) else 'public'
             for field in [f for f in self.children if isinstance(f, (NodeType.AccessSpecDecl, NodeType.VarDecl, NodeType.FieldDecl)) ]:
                 if isinstance(field, NodeType.AccessSpecDecl):
                     access = field.access

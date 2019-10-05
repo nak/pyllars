@@ -1,5 +1,5 @@
 import os
-from typing import List
+from typing import List, Optional
 
 from pyllars.cppparser.parser.clang_translator import NodeType
 from .generator import Generator
@@ -24,11 +24,13 @@ class CXXRecordDeclGenerator(Generator):
                 raise Exception("invalid code structure encountered")
             if len(self._node.parent.children) > index + 1 and isinstance(self._node.parent.children[index + 1],
                                                                           NodeType.FieldDecl):
-                field = self._node.parent.children[index + 1].full_cpp_name
-                typename = f"decltype(::{field})" if field else None
+                field = self._node.parent.children[index + 1]
+                field_name = field.full_cpp_name
+                typename = f"decltype(::{field_name})" if field.name else None
             else:
                 typename = None
-
+        if not typename:
+            return None, None
         header_stream = open(os.path.join(self.my_root_dir, name+'.hpp'), 'w',
                              encoding='utf-8')
         body_stream = open(os.path.join(self.my_root_dir, self._source_path_root, name+'.cpp'), 'w',
@@ -52,6 +54,7 @@ class CXXRecordDeclGenerator(Generator):
                 * add a child object
                 **/
                status_t {name}_addPyObject(const char* const name, PyObject* pyobj);
+               
             """, True))
 
             #generate body
@@ -60,7 +63,8 @@ class CXXRecordDeclGenerator(Generator):
             """)
             if self._node.parent:
                 body_stream.write(f"\n#include \"..{os.sep}{parent_name}.hpp\"\n")
-            body_stream.write(f"""
+            if typename:
+                body_stream.write(f"""
                 namespace __pyllars_internal{{
                     template<>
                     struct _Types<{typename}>{{
@@ -170,6 +174,7 @@ class DefinitionDataGenerator(Generator):
 class DefaultConstructorGenerator(Generator):
 
     def generate(self):
+        parent = self._node.parent.parent
         class_name = self._node.parent.parent.name
         if not class_name:
             return None, None
@@ -177,7 +182,6 @@ class DefaultConstructorGenerator(Generator):
             return None, None
         class_full_cpp_name = self._node.parent.parent.full_cpp_name
 
-        parent = self._node.parent.parent
         while parent and not parent.name and isinstance(parent, NodeType.CXXRecordDecl):
             parent = parent.parent
             if not parent:
@@ -212,8 +216,7 @@ class DefaultConstructorGenerator(Generator):
                             int ready(PyObject * const top_level_mod) override{{
                                static const char* const kwlist[] = {{}};
                                int status = pyllars::Initializer::ready(top_level_mod);
-                               typedef typename ::{class_full_cpp_name}  main_type;
-                               __pyllars_internal::PythonClassWrapper< main_type >::addConstructor<>(kwlist);
+                               __pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name} >::addConstructor<>(kwlist);
                                return status;
                             }}
 
@@ -280,8 +283,7 @@ class CopyConstructorGenerator(Generator):
                             int ready(PyObject * const top_level_mod) override{{
                                static const char* const kwlist[] = {{"object"}};
                                int status = pyllars::Initializer::ready(top_level_mod);
-                               typedef typename ::{class_full_cpp_name}  main_type;
-                               __pyllars_internal::PythonClassWrapper< main_type >::addConstructor<const ::{class_full_cpp_name}&>(kwlist);
+                               __pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name} >::addConstructor<const ::{class_full_cpp_name}&>(kwlist);
                                return status;
                             }}
 
@@ -349,8 +351,7 @@ class MoveConstructorGenerator(Generator):
                             int ready(PyObject * const top_level_mod) override{{
                                static const char* const kwlist[] = {{"object"}};
                                int status = pyllars::Initializer::ready(top_level_mod);
-                               typedef typename ::{class_full_cpp_name}  main_type;
-                               __pyllars_internal::PythonClassWrapper< main_type >::addConstructor<const ::{class_full_cpp_name}&&>(kwlist);
+                               __pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name} >::addConstructor<const ::{class_full_cpp_name}&&>(kwlist);
                                return status;
                             }}
 
@@ -508,8 +509,7 @@ class MoveAssignmentGenerator(Generator):
 
                             int ready(PyObject * const top_level_mod) override{{
                                int status = pyllars::Initializer::ready(top_level_mod);
-                               typedef typename ::{class_full_cpp_name}  main_type;
-                               __pyllars_internal::PythonClassWrapper< main_type >::addMethod<this_name, kwlist, 
+                               __pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name} >::addMethod<this_name, kwlist, 
                                    ::{class_full_cpp_name}& (::{class_full_cpp_name}::*)(const ::{class_full_cpp_name}&&),
                                    &::{class_full_cpp_name}::operator= >();
                                return status;
@@ -626,8 +626,7 @@ class CXXMethodDeclGenerator(Generator):
                                     typedef {signature};
                                     int ready(PyObject * const top_level_mod) override{{
                                        int status = pyllars::Initializer::ready(top_level_mod);
-                                       typedef typename ::{class_full_cpp_name}  main_type;
-                                       __pyllars_internal::PythonClassWrapper< main_type >::add{method_qualifier}Method<this_name, kwlist, 
+                                       __pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name} >::add{method_qualifier}Method<this_name, kwlist, 
                                            method_t,
                                            &::{class_full_cpp_name}::{name} >();
                                        return status;
@@ -705,9 +704,8 @@ class CXXMethodDeclGenerator(Generator):
 
                                     int ready(PyObject * const top_level_mod) override{{
                                        int status = pyllars::Initializer::ready(top_level_mod);
-                                       typedef typename ::{class_full_cpp_name}  main_type;
                                        typedef {signature};
-                                       __pyllars_internal::PythonClassWrapper< main_type >::addMethod<this_name, kwlist, 
+                                       __pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name}  >::addMethod<this_name, kwlist, 
                                            method_t,
                                            &::{class_full_cpp_name}::operator= >();
                                        return status;
@@ -819,8 +817,7 @@ class CXXMethodDeclGenerator(Generator):
                                     typedef {signature};
                                     int ready(PyObject * const top_level_mod) override{{
                                        int status = pyllars::Initializer::ready(top_level_mod);
-                                       typedef typename ::{class_full_cpp_name}  main_type;
-                                       __pyllars_internal::PythonClassWrapper< main_type >::add{cpp_op_name}Operator<{kwlist_if}
+                                       __pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name} >::add{cpp_op_name}Operator<{kwlist_if}
                                            method_t,
                                            &::{class_full_cpp_name}::{self._node.name} >();
                                        return status;
@@ -846,30 +843,78 @@ class CXXMethodDeclGenerator(Generator):
         return None, body_stream.name
 
 
-class FieldDeclGenerator(Generator):
-
-    def normalize(self):
-        # find parent
-        if self._node.parent.name:
-            self.parent_name = self._node.parent.name
+def _parent_wrapper_name(node: NodeType.Node, recursed: Optional[NodeType.Node] = None):
+    if False and not node.name:
+        if node.parent is None:
+            return None, None, None
+        return _parent_wrapper_name(node.parent, recursed)
+    parent = node.parent
+    if recursed:
+        node = recursed
+    index = parent.parent.children.index(parent)
+    if index < 0:
+        raise Exception("Invalid structure in hierarchy")
+    is_named_attribute = len(parent.parent.children) -1 > index and isinstance(parent.parent.children[index + 1], NodeType.FieldDecl)
+    if parent.name:
+        if recursed:
+            return f"__pyllars_internal::PythonAnonymousClassWrapper< ::{parent.full_cpp_name} >",\
+                   f"::{parent.full_cpp_name}", \
+                   f"decltype(::{parent.full_cpp_name}::{node.name})",\
+                   f"::{parent.full_cpp_name}::{node.name}"
         else:
-            index = self._node.parent.parent.children.index(self._node.parent)
-            if index < 0:
-                raise Exception("Invalid structure in hierarchy")
+            return f"__pyllars_internal::PythonClassWrapper< ::{parent.full_cpp_name} >", \
+                   f"::{parent.full_cpp_name}", \
+                   f"decltype(::{parent.full_cpp_name}::{node.name})",\
+                   f"::{parent.full_cpp_name}::{node.name}"
+    elif is_named_attribute:
+        # parent is anonymous type with a named field declaration, so this element is referenced to direct parent (field)
+        parent_field_name = parent.parent.children[index + 1].name
+        if parent_field_name:
+            return f"__pyllars_internal::PythonClassWrapper<decltype(::{parent.parent.full_cpp_name}::{parent_field_name})>", \
+                   f"decltype(::{parent.parent.full_cpp_name}::{parent_field_name})", \
+                   f"decltype(::{parent.parent.full_cpp_name}::{parent_field_name}.{node.name})", \
+                   f"decltype(::{parent.parent.full_cpp_name}::{parent_field_name})::{node.name}"
+        elif parent.parent.name:
+            return f"__pyllars_internal::PythonClassWrapper<::{parent.parent.full_cpp_name}>", \
+                   f"::{parent.parent.full_cpp_name}", \
+                   f"decltype(::{parent.parent.full_cpp_name}::{node.name})", \
+                   f"::{parent.parent.full_cpp_name}::{node.name}"
+        else:
+            return _parent_wrapper_name(parent, node)
+    elif recursed:
+        return _parent_wrapper_name(parent, node)
 
-            def find(parent: NodeType.Node):
-                if len(parent.parent.children) > index and isinstance(parent.parent.children[index+1], NodeType.FieldDecl):
-                    # parent is anonymous type with a named field declaration, so this element is referenced to direct parent (field)
-                    parent_field_name = self._node.parent.parent.children[index+1].name
-                    return f"decltype(::{self._node.parent.parent.full_cpp_name}::{parent_field_name})"
-                else:
-                    # parent is anonymous type without associated field, so element belongs to parent's parent when referenced in code
-                    if parent.parent.name:
-                        return self.parent.parent.name
-                    else:
-                        return find(parent.parent)
+    index = parent.parent.children.index(parent)
+    if index < 0:
+        raise Exception("Invalid structure in hierarchy")
 
-            self.parent_name = find(self._node.parent)
+    if is_named_attribute:
+        # parent is anonymous type with a named field declaration, so this element is referenced to direct parent (field)
+        parent_field_name = parent.parent.children[index + 1].name
+        if parent_field_name:
+            return f"__pyllars_internal::PythonClassWrapper<decltype(::{parent.parent.full_cpp_name}::{parent_field_name})>", \
+                   f"{parent.parent.full_cpp_name}", \
+                   f"decltype(::{parent.parent.full_cpp_name}::{parent_field_name})",\
+                   f"::{parent.parent.full_cpp_name}::{parent_field_name}"
+        elif parent.parent.name:
+            return f"__pyllars_internal::PythonClassWrapper<decltype(::{parent.parent.full_cpp_name})>", \
+                   f"::{parent.parent.full_cpp_name}",\
+                   f"decltype(::{parent.parent.full_cpp_name}::{node.name})",\
+                   f"::{parent.parent.full_cpp_name}::{node.name}"
+        else:
+            return _parent_wrapper_name(parent, node)
+    else:
+        # parent is anonymous type without associated field, so element belongs to parent's parent when referenced in code
+        if parent.parent.name:
+            return f"__pyllars_internal::PythonAnonymousClassWrapper< ::{parent.parent.full_cpp_name} >", \
+                   f"::{parent.parent.full_cpp_name}", \
+                   f"decltype(::{parent.parent.full_cpp_name}::{node.name})", \
+                   f"::{parent.parent.full_cpp_name}::{node.name}"
+        else:
+            return _parent_wrapper_name(parent, node)
+
+
+class FieldDeclGenerator(Generator):
 
     def _scoped_type_name(self, typ):
         parts = typ.strip().split(' ')
@@ -897,8 +942,9 @@ class FieldDeclGenerator(Generator):
         return ' '.join(parts)
 
     def generate(self):
-        self.normalize()
         if 'public' not in self._node.qualifiers and 'struct' not in self._node.parent.qualifiers:
+            return None, None
+        if isinstance(self._node, NodeType.IndirectFieldDecl):
             return None, None
         parent = self._node.parent
         while parent and not parent.name:
@@ -909,10 +955,8 @@ class FieldDeclGenerator(Generator):
         if not isinstance(self, VarDeclGenerator) and bitfield_specs:
             return self.generate_bitfield(bitfield_specs)
 
-        class_name = parent.name
-        class_full_cpp_name = parent.full_cpp_name
         body_stream = open(
-            os.path.join(self.my_root_dir, self._source_path_root, class_name + '::' + self._node.name + '.cpp'), 'w',
+            os.path.join(self.my_root_dir, self._source_path_root,  (parent.name or f"anon_{parent.node_id}") + '::' + (self._node.name or "anon_" + self._node.node_id) + '.cpp'), 'w',
             encoding='utf-8')
         try:
             parent = self._node.parent
@@ -927,9 +971,11 @@ class FieldDeclGenerator(Generator):
         #include \"{parent_header_path}.hpp\"
         #include <{self.source_path}>
                                     """)
-            name = self._node.name
+            name = self._node.name or f"anon_{self._node.node_id}"
+            if not self._node.name:
+                return None, None
+            wrapper, _, attribute_type_name, attribute_full_cpp_name = _parent_wrapper_name(self._node)
             member_qualifier = "Class" if 'static' in self._node.qualifiers else ""
-            typename = self.parent_name  # self._scoped_type_name(self._node.type_text) if 'anonymous struct' not in self._node.type_text else f"decltype(::{self._node.full_cpp_name})"
             body_stream.write(self._wrap_in_namespaces(f"""
 
                                     namespace {{
@@ -948,9 +994,8 @@ class FieldDeclGenerator(Generator):
                                             }}
                                             int ready(PyObject * const top_level_mod) override{{
                                                int status = pyllars::Initializer::ready(top_level_mod);
-                                               typedef typename ::{class_full_cpp_name}  main_type;
-                                               __pyllars_internal::PythonClassWrapper< main_type >::template add{member_qualifier}Attribute<this_name, 
-                                                   {typename}>(&::{class_full_cpp_name}::{name});
+                                               {wrapper}::template add{member_qualifier}Attribute<this_name, 
+                                                   {attribute_type_name}>(&{attribute_full_cpp_name});
                                                return status;
                                             }}
 
@@ -978,10 +1023,11 @@ class FieldDeclGenerator(Generator):
             raise Exception("multiple size specs provided for bit feild")
         size = specs[0].value
         is_const = 'const' in self._node.type_text.split()
-        class_name = self._node.parent.name
-        class_full_cpp_name = self._node.parent.full_cpp_name
+        name = self._node.name or f"anon_{self._node.node_id}"
+        wrapper, parent_type_name, attribute_type_name, attribute_full_cpp_name = _parent_wrapper_name(self._node)
         body_stream = open(
-            os.path.join(self.my_root_dir, self._source_path_root, class_name + '::' + self._node.name + '.cpp'), 'w',
+            os.path.join(self.my_root_dir, self._source_path_root, (self._node.parent.name or f"anon_{self._node.parent.node_id}") + '::' +
+                         (self._node.name or "anon_{self._node.node_id}") + '.cpp'), 'w',
             encoding='utf-8')
         try:
             parent = self._node.parent
@@ -999,7 +1045,7 @@ class FieldDeclGenerator(Generator):
             name = self._node.name
             typename = self._scoped_type_name(self._node.type_text)
             const_typename = 'const ' + typename if 'const' not in typename.split() else typename
-            setter = "" if is_const else f"static std::function<{typename}(::{class_full_cpp_name}&, {const_typename}&)> setter = [](::{class_full_cpp_name} & obj, {const_typename}& value)->{typename}{{obj.{self._node.name} = value; return value;}};"
+            setter = "" if is_const else f"static std::function<{typename}({parent_type_name}&, {const_typename}&)> setter = []({parent_type_name} & obj, {const_typename}& value)->{typename}{{obj.{name} = value; return value;}};"
             setter_value = "nullptr" if is_const else "&setter"
             body_stream.write(self._wrap_in_namespaces(f"""
 
@@ -1019,10 +1065,9 @@ class FieldDeclGenerator(Generator):
                                             }}
                                             int ready(PyObject * const top_level_mod) override{{
                                                int status = pyllars::Initializer::ready(top_level_mod);
-                                               static std::function<{typename}(const ::{class_full_cpp_name}&)> getter = [](const ::{class_full_cpp_name} & obj)->{typename}{{return  obj.{self._node.name};}};
+                                               static std::function<{typename}(const {parent_type_name}&)> getter = [](const {parent_type_name} & obj)->{typename}{{return  obj.{name};}};
                                                {setter}
-                                               typedef typename ::{class_full_cpp_name}  main_type;
-                                               __pyllars_internal::PythonClassWrapper< main_type >::template addBitField<this_name, 
+                                               {wrapper}::template addBitField<this_name, 
                                                    {typename}, {size}>(getter, {setter_value});
                                                return status;
                                             }}

@@ -24,7 +24,17 @@ namespace trial{
             struct {
                unsigned int word1: 4;
                unsigned word2: 4;
+               struct {
+                  bool bool1:1;
+               };
             } anon_struct_instance;
+
+            struct{
+                int anon1;
+                struct{
+                    int recursvieAnon2;
+                };
+            };
 
         };
 

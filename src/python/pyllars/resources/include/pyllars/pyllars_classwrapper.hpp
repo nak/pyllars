@@ -501,6 +501,68 @@ namespace __pyllars_internal {
   template<>
   struct PythonClassWrapper<const double>;
 
+  /**
+   * for inner structs like:
+   * struct Outer{
+   *    struct {
+   *      int value;
+   *    }; // note: no type name AND no attribute name
+   * };
+   */
+  template<typename T>
+  class PythonAnonymousClassWrapper: protected PythonClassWrapper<T>{
+  public:
+       typedef PythonClassWrapper<T> Parent;
+       typedef typename Parent::T_NoRef T_NoRef ;
+
+        /**
+         * Initialize python type if needed
+         * @return Python-based PyTypeObject associated with T
+        */
+        static PyTypeObject* getType(){
+           return Parent::getType();
+        }
+
+        /**
+         * Python initialization of underlying type, called to init and register type with
+         * underlying Python system
+         *
+         * @param name: Python simple-name of the type
+         **/
+        static int initialize(){return Parent::initialize();}
+
+           /**
+         * Add an enum value to the class
+         */
+        template<typename EnumT>
+        static int addEnumValue( const char* const name, EnumT value){
+            return Parent::addEnumValue(name, value);
+        }
+
+        static int addEnumClassValue( const char* const name, const T value){
+            return Parent::addEnumClassValue(name, value);
+        }
+
+        /**
+         * Add a mutable bit field to this Python type definition
+         **/
+        template<const char *const name, typename FieldType, const size_t bits>
+        static void addBitField(
+                typename BitFieldContainer<T_NoRef>::template Container<name, FieldType, bits>::getter_t &getter,
+                typename BitFieldContainer<T_NoRef>::template Container<name, FieldType,  bits>::setter_t *setter=nullptr){
+             return Parent::addBitField(getter, setter);
+         }
+
+        /**
+         * add a getter method for the given compile-time-known named public class member
+         **/
+        template<const char *const name, typename FieldType>
+        static void addAttribute(typename MemberContainer<name, T_NoRef, FieldType>::member_t member){
+            return Parent::addAttribute(member);
+        }
+
+  };
+
 
 
 }
