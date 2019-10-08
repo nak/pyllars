@@ -60,6 +60,7 @@ class CXXRecordDeclGenerator(Generator):
             #generate body
             body_stream.write(f"""\n#include "{self.source_path}" 
 #include \"{name}.hpp"
+#include <pyllars/pyllars_classwrapper.impl.hpp>
             """)
             if self._node.parent:
                 body_stream.write(f"\n#include \"..{os.sep}{parent_name}.hpp\"\n")
@@ -86,7 +87,7 @@ class CXXRecordDeclGenerator(Generator):
                     """
                 for base in self._node.bases or []:
                     ready_code += f"""
-                        status |= pyllars::{base.full_name}_ready(top_level_mod);
+                        pyllars::{base.full_name}_ready(top_level_mod);
                     """
                 for base in self._node.bases or []:
                     hierarchy = base.full_name.split('::')[:-1]
@@ -122,14 +123,14 @@ class CXXRecordDeclGenerator(Generator):
                         if (inited){{
                             return status;
                         }}
-                        {initializer_code}
                         inited = true;
                         status = 0;
                         return status;
                     }}
 
                     int ready(PyObject * const top_level_mod) override{{
-                       int status = pyllars::Initializer::ready(top_level_mod);
+                       int status = 0;
+                       {initializer_code}
                        {ready_code}
                        {inheritance_code}
                      
@@ -146,17 +147,17 @@ class CXXRecordDeclGenerator(Generator):
                     }}
                  }};
                  
-                
-                //ensure instance is created on global static initialization, otherwise this
-                //element would never be reigstered and picked up
-                Initializer_{name} * Initializer_{name}::initializer = singleton();
-                     
-                status_t {name}_register(::pyllars::Initializer* const init){{
-                    return Initializer_{name}::initializer->register_init(init);
-                }}
-            
-    
             }}
+            
+            //ensure instance is created on global static initialization, otherwise this
+            //element would never be reigstered and picked up
+            Initializer_{name} * Initializer_{name}::initializer = singleton();
+                 
+            status_t {name}_register(::pyllars::Initializer* const init){{
+                return Initializer_{name}::initializer->register_init(init);
+            }}
+        
+    
                 """, True))
 
         finally:
@@ -196,6 +197,7 @@ class DefaultConstructorGenerator(Generator):
             # generate body
             body_stream.write(f"""\n#include \"{self.source_path}\" 
 #include \"{parent_header_path}.hpp\"
+#include <pyllars/pyllars_classwrapper.impl.hpp>
                     """)
             name = class_name + "_default_constructor"
             body_stream.write(self._wrap_in_namespaces(f"""
@@ -210,14 +212,14 @@ class DefaultConstructorGenerator(Generator):
                             }}
 
                             int set_up() override{{
-                                return 0; //nothing to do on setup
+                                static const char* const kwlist[] = {{}};
+                               int status = 0;
+                               __pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name} >::addConstructor<>(kwlist);
+                               return status;
                             }}
 
                             int ready(PyObject * const top_level_mod) override{{
-                               static const char* const kwlist[] = {{}};
-                               int status = pyllars::Initializer::ready(top_level_mod);
-                               __pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name} >::addConstructor<>(kwlist);
-                               return status;
+                               return 0; //nothing to do on  ready                               
                             }}
 
                             static Initializer_{name}* initializer;
@@ -263,6 +265,7 @@ class CopyConstructorGenerator(Generator):
             # generate body
             body_stream.write(f"""\n#include \"{self.source_path}\" 
 #include \"{parent_header_path}.hpp\"
+#include <pyllars/pyllars_classwrapper.impl.hpp>
                     """)
             name = class_name + "_default_copy_constructor"
             body_stream.write(self._wrap_in_namespaces(f"""
@@ -277,14 +280,14 @@ class CopyConstructorGenerator(Generator):
                             }}
 
                             int set_up() override{{
-                                return 0; //nothing to do on setup
+                               static const char* const kwlist[] = {{"object"}};
+                               int status = 0;
+                               __pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name} >::addConstructor<const ::{class_full_cpp_name}&>(kwlist);
+                               return status;
                             }}
 
                             int ready(PyObject * const top_level_mod) override{{
-                               static const char* const kwlist[] = {{"object"}};
-                               int status = pyllars::Initializer::ready(top_level_mod);
-                               __pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name} >::addConstructor<const ::{class_full_cpp_name}&>(kwlist);
-                               return status;
+                                return 0; //nothing to do on ready
                             }}
 
                             static Initializer_{name}* initializer;
@@ -330,6 +333,7 @@ class MoveConstructorGenerator(Generator):
             # generate body
             body_stream.write(f"""\n#include \"{self.source_path}\" 
 #include \"{parent_header_path}.hpp\"
+#include <pyllars/pyllars_classwrapper.impl.hpp>
                     """)
             name = class_name + "_default_move_constructor"
             body_stream.write(self._wrap_in_namespaces(f"""
@@ -345,14 +349,14 @@ class MoveConstructorGenerator(Generator):
                             }}
 
                             int set_up() override{{
-                                return 0; //nothing to do on setup
+                               static const char* const kwlist[] = {{"object"}};
+                               int status = 0;
+                               __pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name} >::addConstructor<const ::{class_full_cpp_name}&&>(kwlist);
+                               return status;
                             }}
 
                             int ready(PyObject * const top_level_mod) override{{
-                               static const char* const kwlist[] = {{"object"}};
-                               int status = pyllars::Initializer::ready(top_level_mod);
-                               __pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name} >::addConstructor<const ::{class_full_cpp_name}&&>(kwlist);
-                               return status;
+                                return 0; //nothing to do on ready
                             }}
 
                             static Initializer_{name}* initializer;
@@ -400,6 +404,7 @@ class CopyAssignmentGenerator(Generator):
 #include \"{parent_header_path}.hpp\"
 #include <cstddef>
 #include <type_traits>
+#include <pyllars/pyllars_classwrapper.impl.hpp>
 
                     """)
             name = class_name + "_default_copy_assignment"
@@ -433,11 +438,11 @@ class CopyAssignmentGenerator(Generator):
                             }}
 
                             int set_up() override{{
-                                return 0; //nothing to do on setup
+                                return ready_template<this_name, kwlist, ::{class_full_cpp_name}>();
                             }}
 
                             int ready(PyObject * const top_level_mod) override{{
-                                return ready_template<this_name, kwlist, ::{class_full_cpp_name}>();
+                                return 0; //nothing to do on ready
                             }}
 
                             static Initializer_{name}* initializer;
@@ -485,6 +490,7 @@ class MoveAssignmentGenerator(Generator):
             body_stream.write(f"""\n#include \"{self.source_path}\" 
 #include \"{parent_header_path}.hpp\"
 #include <cstddef>
+#include <pyllars/pyllars_classwrapper.impl.hpp>
                     """)
             name = class_name + "_default_move_assignment"
             body_stream.write(self._wrap_in_namespaces(f"""
@@ -504,15 +510,15 @@ class MoveAssignmentGenerator(Generator):
                             }}
 
                             int set_up() override{{
-                                return 0; //nothing to do on setup
-                            }}
-
-                            int ready(PyObject * const top_level_mod) override{{
-                               int status = pyllars::Initializer::ready(top_level_mod);
+                               int status = 0'
                                __pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name} >::addMethod<this_name, kwlist, 
                                    ::{class_full_cpp_name}& (::{class_full_cpp_name}::*)(const ::{class_full_cpp_name}&&),
                                    &::{class_full_cpp_name}::operator= >();
                                return status;
+                            }}
+
+                            int ready(PyObject * const top_level_mod) override{{
+                                return 0; //nothing to do on ready
                             }}
 
                             static Initializer_{name}* initializer;
@@ -595,6 +601,7 @@ class CXXMethodDeclGenerator(Generator):
             body_stream.write(f"""\n#include \"{self.source_path}\" 
 #include \"{parent_header_path}.hpp\"
 #include <{self.source_path}>
+#include <pyllars/pyllars_classwrapper.impl.hpp>
                             """)
             name = self._node.name
             method_qualifier = "Class" if 'static' in self._node.qualifiers else ""
@@ -621,15 +628,15 @@ class CXXMethodDeclGenerator(Generator):
                                     }}
 
                                     int set_up() override{{
-                                        return 0; //nothing to do on setup
-                                    }}
-                                    typedef {signature};
-                                    int ready(PyObject * const top_level_mod) override{{
-                                       int status = pyllars::Initializer::ready(top_level_mod);
+                                       int status = 0;
                                        __pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name} >::add{method_qualifier}Method<this_name, kwlist, 
                                            method_t,
                                            &::{class_full_cpp_name}::{name} >();
                                        return status;
+                                    }}
+                                    typedef {signature};
+                                    int ready(PyObject * const top_level_mod) override{{
+                                        return 0; //nothing to do on ready
                                     }}
 
                                     static Initializer_{name}* initializer;
@@ -672,6 +679,7 @@ class CXXMethodDeclGenerator(Generator):
             body_stream.write(f"""\n#include \"{self.source_path}\" 
 #include \"{parent_header_path}.hpp\"
 #include <{self.source_path}>
+#include <pyllars/pyllars_classwrapper.impl.hpp>
                             """)
             name = "this"
             signature = self._full_signature()
@@ -699,16 +707,16 @@ class CXXMethodDeclGenerator(Generator):
                                     }}
 
                                     int set_up() override{{
-                                        return 0; //nothing to do on setup
-                                    }}
-
-                                    int ready(PyObject * const top_level_mod) override{{
-                                       int status = pyllars::Initializer::ready(top_level_mod);
+                                       int status = 0;
                                        typedef {signature};
                                        __pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name}  >::addMethod<this_name, kwlist, 
                                            method_t,
                                            &::{class_full_cpp_name}::operator= >();
                                        return status;
+                                    }}
+
+                                    int ready(PyObject * const top_level_mod) override{{
+                                        return 0; //nothing to do on setup
                                     }}
 
                                     static Initializer_{name}* initializer;
@@ -786,6 +794,7 @@ class CXXMethodDeclGenerator(Generator):
             body_stream.write(f"""\n#include \"{self.source_path}\" 
 #include \"{parent_header_path}.hpp\"
 #include <{self.source_path}>
+#include <pyllars/pyllars_classwrapper.impl.hpp>
                             """)
             name = self._node.name.replace(operator_kind, cpp_op_name)
             signature = self._full_signature()
@@ -812,15 +821,15 @@ class CXXMethodDeclGenerator(Generator):
                                     }}
 
                                     int set_up() override{{
-                                        return 0; //nothing to do on setup
-                                    }}
-                                    typedef {signature};
-                                    int ready(PyObject * const top_level_mod) override{{
-                                       int status = pyllars::Initializer::ready(top_level_mod);
+                                       int status = 0;
                                        __pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name} >::add{cpp_op_name}Operator<{kwlist_if}
                                            method_t,
                                            &::{class_full_cpp_name}::{self._node.name} >();
                                        return status;
+                                    }}
+                                    typedef {signature};
+                                    int ready(PyObject * const top_level_mod) override{{
+                                        return 0; //nothing to do on setup
                                     }}
 
                                     static Initializer_{name}* initializer;
@@ -968,13 +977,15 @@ class FieldDeclGenerator(Generator):
             parent_header_path = os.path.join("..", parent_name)
             # generate body
             body_stream.write(f"""\n#include \"{self.source_path}\" 
-        #include \"{parent_header_path}.hpp\"
-        #include <{self.source_path}>
+#include \"{parent_header_path}.hpp\"
+#include <{self.source_path}>
+#include <pyllars/pyllars_classwrapper.impl.hpp>
+#include <pyllars/pyllars_membersemantics.impl.hpp>
                                     """)
             name = self._node.name or f"anon_{self._node.node_id}"
             if not self._node.name:
                 return None, None
-            wrapper, _, attribute_type_name, attribute_full_cpp_name = _parent_wrapper_name(self._node)
+            wrapper, parent_type_name, attribute_type_name, attribute_full_cpp_name = _parent_wrapper_name(self._node)
             member_qualifier = "Class" if 'static' in self._node.qualifiers else ""
             body_stream.write(self._wrap_in_namespaces(f"""
 
@@ -990,13 +1001,16 @@ class FieldDeclGenerator(Generator):
                                             }}
 
                                             int set_up() override{{
-                                                return 0; //nothing to do on setup
-                                            }}
-                                            int ready(PyObject * const top_level_mod) override{{
-                                               int status = pyllars::Initializer::ready(top_level_mod);
+                                               int status = 0;
                                                {wrapper}::template add{member_qualifier}Attribute<this_name, 
                                                    {attribute_type_name}>(&{attribute_full_cpp_name});
                                                return status;
+                                            }}
+                                            
+                                            int ready(PyObject * const top_level_mod) override{{
+                                                int status = {wrapper}::initialize();
+                                                status |= __pyllars_internal::PythonClassWrapper<{attribute_type_name}>::initialize();
+                                                return status;
                                             }}
 
                                             static Initializer_{name}* initializer;
@@ -1039,8 +1053,10 @@ class FieldDeclGenerator(Generator):
             parent_header_path = os.path.join("..", parent_name)
             # generate body
             body_stream.write(f"""\n#include \"{self.source_path}\" 
-        #include \"{parent_header_path}.hpp\"
-        #include <{self.source_path}>
+#include \"{parent_header_path}.hpp\"
+#include <{self.source_path}>
+#include <pyllars/pyllars_classwrapper.impl.hpp>
+#include <pyllars/pyllars_membersemantics.impl.hpp>
                                     """)
             name = self._node.name
             typename = self._scoped_type_name(self._node.type_text)
@@ -1060,11 +1076,14 @@ class FieldDeclGenerator(Generator):
                                                 {parent_name}_register(this);                          
                                             }}
 
-                                            int set_up() override{{
-                                                return 0; //nothing to do on setup
+                                            status_t ready(PyObject * const top_level_mod) override{{
+                                                int status = {wrapper}::initialize();
+                                                status |= __pyllars_internal::PythonClassWrapper<{attribute_type_name}>::initialize();
+                                                return status;
                                             }}
-                                            int ready(PyObject * const top_level_mod) override{{
-                                               int status = pyllars::Initializer::ready(top_level_mod);
+                                            
+                                            status_t set_up() override{{
+                                               int status = 0;
                                                static std::function<{typename}(const {parent_type_name}&)> getter = [](const {parent_type_name} & obj)->{typename}{{return  obj.{name};}};
                                                {setter}
                                                {wrapper}::template addBitField<this_name, 

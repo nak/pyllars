@@ -765,7 +765,8 @@ namespace __pyllars_internal {
             throw PyllarsException(PyExc_ValueError, "new takes not key words");
         }
         if (PyTuple_Size(args) != 1) {
-            throw PyllarsException(PyExc_TypeError, "new takes only one arg (and int, a tuple, or list of tuples)");
+	  PyErr_SetString(PyExc_TypeError,  "new takes only one arg (an int, a tuple, or list of tuples)");
+	  return nullptr;
         }
         auto arg = PyTuple_GetItem(args, 0);
         if (PyLong_Check(arg)) {

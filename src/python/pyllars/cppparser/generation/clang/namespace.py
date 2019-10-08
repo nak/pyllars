@@ -30,13 +30,11 @@ class NamespaceDeclGenerator(Generator):
             /**
              * add child object
              **/
-            status_t {self._node.name}_addPyObject(const char* const name, PyObject* pyobj){{
-                return PyModule_AddObject(::pyllars::{self._node.full_cpp_name}_module(), name, pyobj);
-            }}
+            status_t {self._node.name}_addPyObject(const char* const name, PyObject* pyobj);
             """
             header_stream.write(self._wrap_in_namespaces(code, True))
             # generate body
-            parent_mod = f"::pyllars::{parent.full_cpp_name}_module()" if parent else "global_mod"
+            parent_mod = f"::pyllars::{parent.full_cpp_name}_module()" if parent else "parent_mod"
             hash = "#"
             code = f"""
             
@@ -67,13 +65,16 @@ class NamespaceDeclGenerator(Generator):
                     }}
             
                     
-                    status_t {self._node.name}__ready(PyObject* global_mod){{
-                      static bool inited = false;
+                    status_t {self._node.name}_ready(PyObject* parent_mod){{
+                        static bool inited = false;
                         if (inited) return 0;// if already initialized
                         inited = true;
                         int status = 0;
+                        
+                        //overwrite for namespace as they should all belong to "global pyllars" module
+                        parent_mod = PyImport_ImportModule("pyllars");
     
-                        if (!{parent_mod} || {self._node.name}_module()){{
+                        if (!{parent_mod} || !{self._node.name}_module()){{
                             status = -2;
                         }} else {{
                             PyModule_AddObject( {parent_mod}, "{self._node.name}", {self._node.name}_module());
@@ -84,7 +85,10 @@ class NamespaceDeclGenerator(Generator):
                     status_t {self._node.name}_set_up(){{
                         return {self._node.name}_module()?0:-2;
                     }} // end init
-    
+                    
+                    status_t {self._node.name}_addPyObject(const char* const name, PyObject* pyobj){{
+                        return PyModule_AddObject(::pyllars::{self._node.full_cpp_name}_module(), name, pyobj);
+                    }}
             """
             code += self.INITIALIZER_CODE % {
                 'name': self._node.name,

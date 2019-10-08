@@ -344,6 +344,10 @@ namespace  __pyllars_internal {
     };
 
     template<>
+    class PythonClassWrapper<bool> : public PyNumberCustomObject<bool> {
+    };
+
+    template<>
     class PythonClassWrapper<char> : public PyNumberCustomObject<char> {
     };
 
@@ -385,6 +389,10 @@ namespace  __pyllars_internal {
     };
 
 
+
+    template<>
+    class PythonClassWrapper<volatile bool> : public PyNumberCustomObject<volatile bool> {
+    };
 
     template<>
     class PythonClassWrapper<volatile char> : public PyNumberCustomObject<volatile char> {
@@ -429,6 +437,10 @@ namespace  __pyllars_internal {
 
     
     template<>
+    class PythonClassWrapper<const bool> : public PyNumberCustomObject<const bool> {
+    };
+
+    template<>
     class PythonClassWrapper<const char> : public PyNumberCustomObject<const char> {
     };
 
@@ -466,6 +478,10 @@ namespace  __pyllars_internal {
 
     template<>
     class PythonClassWrapper<const unsigned long long> : public PyNumberCustomObject<const unsigned long long> {
+    };
+
+    template<>
+    class PythonClassWrapper<const volatile bool> : public PyNumberCustomObject<const volatile bool> {
     };
 
     template<>

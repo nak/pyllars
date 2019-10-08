@@ -1,19 +1,28 @@
 import filecmp
 import glob
+import importlib
 import subprocess
 import tempfile
 
 import pytest
+from dataclasses import dataclass
 
 from pyllars.cppparser.generation import clang
-from pyllars.cppparser.compilation.compile import Compiler
+from pyllars.cppparser.compilation.compile import Compiler, Linker
 from pyllars.cppparser.parser.clang_translator import ClangTranslator, NodeType
 
 import os
-
+import sys
 
 RESOURCES_DIR = os.path.join(os.path.dirname(__file__), "resources")
 PYLLARS_INCLUDE_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "..", "src", "python", "resources", "include")
+
+
+@dataclass
+class ClangOutput:
+    src_path: str
+    output_path: str
+    module_name: str
 
 
 @pytest.fixture(params=glob.glob(os.path.join(RESOURCES_DIR, "*.hpp")))
@@ -29,7 +38,38 @@ def clang_output(tmpdir, request):
         p = subprocess.run(cmd, stdout=output_file, stderr=subprocess.PIPE)
         if p.returncode != 0:
             raise Exception(f"Failed to parse {src_path} through clang-check tool")
-    return src_path, output_path
+    return ClangOutput(src_path, output_path, os.path.basename(request.param).replace(".hpp", ""))
+
+@pytest.fixture
+def test_module(tmpdir, clang_output, request):
+    # not the best test stategy, but generic enough:
+    # regurgitate the file back out and compare to original to pass test
+    output_dir = "modules"
+    os.makedirs(output_dir)
+    header = clang_output.src_path
+    with ClangTranslator(file_name=clang_output.output_path) as translator:
+        root = translator.translate()
+        generator = clang.Generator.create(root, os.path.dirname(header), os.path.basename(header), output_dir)
+        generator.generate_all()
+
+    compiler_flags = [f"-I{RESOURCES_DIR}", f"-I{PYLLARS_INCLUDE_DIR}"]
+    compiler = Compiler(compiler_flags=compiler_flags,
+                        output_dir=output_dir, optimization_level="-O0", debug=True)
+    objects = []
+    for dir, dirnames, filenames in os.walk(output_dir):
+        for filename in [os.path.join(dir, name) for name in filenames if name.endswith(".cpp")]:
+            objects.append(compiler.compile(filename))
+
+    linker = Linker(compiler_flags=compiler_flags, linker_options=[], debug=True)
+    linker.link(objects=objects, output_module_path=output_dir, module_name=clang_output.module_name)
+    sys.path += [output_dir]
+    importlib.import_module(clang_output.module_name)
+
+    def fin():
+        sys.path.remove(output_dir)
+
+    request.addfinalizer(fin)
+    return clang_output.module_name
 
 @pytest.fixture
 def clang_output_classes(tmpdir):
@@ -168,19 +208,39 @@ namespace B{
 }
 """
 
-    def test_generation(self, tmpdir, clang_output):
-        # not the best test stategy, but generic enough:
-        # regurgitate the file back out and compare to original to pass test
-        output_dir = os.path.join(str(tmpdir), "output")
-        os.makedirs(output_dir)
-        header, clang_output_path = clang_output
-        with ClangTranslator(file_name=clang_output_path) as translator:
-            root = translator.translate()
-            generator = clang.Generator.create(root, os.path.dirname(header), os.path.basename(header), output_dir)
-            generator.generate_all()
+    def test_generation(self, test_module):
+        test_function = getattr(self, f"test_{test_module}")
+        test_function()
 
-        compiler = Compiler(compiler_flags=[f"-I{RESOURCES_DIR}", f"-I{PYLLARS_INCLUDE_DIR}"],
-                            output_dir=output_dir, optimization_level="-O0", debug=True)
-        for dir, dirnames, filenames in os.walk(output_dir):
-            for filename in [os.path.join(dir, name) for name in filenames if name.endswith(".cpp")]:
-                compiler.compile(filename)
+    def test_anonymous(self):
+        sys.path.append("./modules")
+        import pyllars
+        import anonymous
+        AnonInner = pyllars.trial.AnonymousInnerTypes.AnonInner
+        inst = AnonInner()
+        inst.anon_struct_instance.word1 = 1
+        assert inst.anon_struct_instance.word1 == pyllars.c_int(1)
+        inst.anon_struct_instance.word1 = 5
+        assert inst.anon_struct_instance.word1 == 5
+        with pytest.raises(ValueError):
+            inst.anon_struct_instance.word1 = -2
+        assert inst.anon_struct_instance.word1 == 5
+
+        inst.anon_struct_instance.bool1 = False
+        assert inst.anon_struct_instance.bool1 is False
+        inst.anon_struct_instance.bool1 = True
+        assert inst.anon_struct_instance.bool1 is True
+        inst.anon1 = pyllars.c_int(1284)
+        assert inst.anon1 == 1284
+        inst.recursiveAnon2 = -121
+        assert inst.recursiveAnon2 == -121
+        inst.recursiveAnon2 = 2020
+        assert inst.recursiveAnon2 == 2020
+
+        inst.intval = -122
+        assert inst.intval == -122
+        assert inst.sval1 == -122
+        assert inst.sval2 == -1  # union two shorts overlapping with intval
+        inst.sval1 = 1
+        assert inst.sval1 == 1
+        assert inst.intval == -65535

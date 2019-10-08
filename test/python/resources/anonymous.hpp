@@ -32,20 +32,20 @@ namespace trial{
             struct{
                 int anon1;
                 struct{
-                    int recursvieAnon2;
+                    int recursiveAnon2;
                 };
             };
 
-        };
 
-        union Union{
-           int intval;
-           struct{
-              short sval1;
-              short sval2;
-           };
-        };
+            union {
+               int intval;
+               struct{
+                  short sval1;
+                  short sval2;
+               };
+            };
 
+        };
 
     }
 

@@ -26,7 +26,9 @@ namespace __pyllars_internal{
         }
         static PyObject* noargs = PyTuple_New(0);
         //call Base with no args, we will do the work here
-        Base::_init(self, noargs, nullptr);
+	static PyObject *_kwds = PyDict_New();
+        PyDict_SetItemString(_kwds, "__internal_allow_null", Py_True);
+        Base::_init(self, noargs, _kwds);
         if (arg) {
             self->_CObject = ((PythonClassWrapper *) arg)->get_CObject();
             if (!self->_CObject) {
@@ -181,7 +183,9 @@ namespace __pyllars_internal{
         }
         static PyObject* noargs = PyTuple_New(0);
         //call Base with no args, we will do the work here
-        Base::_init(self, noargs, nullptr);
+	static PyObject *_kwds = PyDict_New();
+        PyDict_SetItemString(_kwds, "__internal_allow_null", Py_True);
+        Base::_init(self, noargs, _kwds);
         if (arg) {
             self->_CObject = ((PythonClassWrapper *) arg)->get_CObject();
             if (!self->_CObject) {

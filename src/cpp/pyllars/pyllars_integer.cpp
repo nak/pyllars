@@ -683,6 +683,9 @@ namespace __pyllars_internal{
     }
 
     template
+    class PyNumberCustomObject<const bool>;
+
+    template
     class PyNumberCustomObject<const char>;
 
     template
@@ -712,6 +715,9 @@ namespace __pyllars_internal{
     template
     class PyNumberCustomObject<const unsigned long long>;
 
+
+    template
+    class PyNumberCustomObject<bool>;
 
     template
     class PyNumberCustomObject<char>;
@@ -746,6 +752,9 @@ namespace __pyllars_internal{
 
 
     template
+    class PyNumberCustomObject<volatile const bool>;
+
+    template
     class PyNumberCustomObject<volatile const char>;
 
     template
@@ -775,6 +784,9 @@ namespace __pyllars_internal{
     template
     class PyNumberCustomObject<volatile const unsigned long long>;
 
+
+    template
+    class PyNumberCustomObject<volatile bool>;
 
     template
     class PyNumberCustomObject<volatile char>;

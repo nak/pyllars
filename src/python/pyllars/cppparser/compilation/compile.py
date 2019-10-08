@@ -3,20 +3,15 @@ import hashlib
 import logging
 import os
 import shlex
-import shutil
 import subprocess
 import sysconfig
 import tempfile
-import dataclasses
 from contextlib import contextmanager
 from dataclasses import dataclass
 from io import TextIOBase
 from typing import List, Type, Optional
 
 import pkg_resources
-
-from abc import ABC, abstractmethod
-
 
 PYLLARS_RESOURCES_DIR = pkg_resources.resource_filename("pyllars", "resources")
 PYLLARS_LIBS_DIR = os.path.join(PYLLARS_RESOURCES_DIR, "lib")
@@ -177,27 +172,18 @@ extern "C"{
                 print(p.stdout)
                 print(p.stderr)
                 raise Exception("Failed to build common code file %s" % f.name)
-            cmd = "%(cxx)s -shared -O -fPIC -std=c++1z %(cxxflags)s -I%(python_include)s -shared -o %(output_module_path)s -Wl,--no-undefined " \
-                  "%(objs)s %(python_lib_name)s %(linker_flags)s -Wl,-R,'$ORIGIN' -lpthread -lffi %(codefile)s -I%(pyllars_include)s" % {
-                      'cxx': Compiler.LDCXXSHARED,
-                      'cxxflags': Compiler.CFLAGS + " " + " ".join(self._compiler_flags),
-                      'linker_flags': " ".join(self._link_flags +["-L", PYLLARS_LIBS_DIR, "-Wl,-rpath", PYLLARS_LIBS_DIR,
-                                                                  "-lpyllars"]),
-                      'output_module_path': os.path.join(output_module_path, "%s.so" % module_name),
-                      'objs': " ".join(["\"%s\"" % o for o in objects]),
-                      'pyllars_include': PYLLARS_INCLUDE_DIR,
-                      'python_include': Compiler.PYINCLUDE,
-                      'codefile': f.name + ".o",
-                      'python_lib_name': " %s/%s" % (Compiler.LIBDIR, Compiler.LDLIBRARY),
-                  }
-            cmd = cmd.replace("-O2", self._optimization_level)
-            cmd = cmd.replace("-O3", self._optimization_level)
-            if not self._debug:
-                cmd = cmd.replace("-g", "")
-            elif " -g" not in cmd:
-                cmd += " -g"
-            print(cmd)
-            p = subprocess.run(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
+            objs = " ".join(["\"%s\"" % o for o in objects])
+            cxx = Compiler.LDCXXSHARED
+            cxxflags = Compiler.CFLAGS + " " + " ".join(self._compiler_flags)
+            linker_flags = " ".join(self._link_flags +["-L", PYLLARS_LIBS_DIR, "-Wl,-rpath", PYLLARS_LIBS_DIR, "-lpyllars"])
+            python_lib_name = os.path.join(Compiler.LIBDIR, Compiler.LDLIBRARY)
+
+            cmd2 = f"{cxx} -fPIC -std=c++1z {cxxflags} -I{Compiler.PYINCLUDE} -o {output_module_path}/{module_name}.so "\
+                  f"{objs} {python_lib_name} {linker_flags} -Wl,--no-undefined -Wl,-R,'$ORIGIN' -lpthread -lffi -I{PYLLARS_INCLUDE_DIR} {f.name}"
+            cmd2 = cmd2.replace("-O2", self._optimization_level)
+            cmd2 = cmd2.replace("-O3", self._optimization_level)
+            print(cmd2)
+            p = subprocess.run(shlex.split(cmd2), stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
             if p.returncode != 0:
                 print(p.stdout)
                 print(p.stderr)
