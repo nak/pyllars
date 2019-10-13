@@ -343,6 +343,7 @@ namespace  __pyllars_internal {
         explicit PyNumberCustomObject();
     };
 
+
     template<>
     class PythonClassWrapper<bool> : public PyNumberCustomObject<bool> {
     };
@@ -352,8 +353,13 @@ namespace  __pyllars_internal {
     };
 
     template<>
+    class PythonClassWrapper<signed char> : public PyNumberCustomObject<signed char> {
+    };
+
+    template<>
     class PythonClassWrapper<short> : public PyNumberCustomObject<short> {
     };
+
     template<>
     class PythonClassWrapper<int> : public PyNumberCustomObject<int> {
     };
@@ -396,6 +402,10 @@ namespace  __pyllars_internal {
 
     template<>
     class PythonClassWrapper<volatile char> : public PyNumberCustomObject<volatile char> {
+    };
+
+    template<>
+    class PythonClassWrapper<volatile signed char> : public PyNumberCustomObject<volatile signed char> {
     };
 
     template<>
@@ -445,19 +455,23 @@ namespace  __pyllars_internal {
     };
 
     template<>
-    class PythonClassWrapper<const short> : public PyNumberCustomObject<const short> {
+    class PythonClassWrapper<const signed char> : public PyNumberCustomObject<const signed char> {
     };
 
     template<>
-    class PythonClassWrapper<const int> : public PyNumberCustomObject<const int> {
+    class PythonClassWrapper<const signed short> : public PyNumberCustomObject<const short> {
     };
 
     template<>
-    class PythonClassWrapper<const long> : public PyNumberCustomObject<const long> {
+    class PythonClassWrapper<const signed int> : public PyNumberCustomObject<const int> {
     };
 
     template<>
-    class PythonClassWrapper<const long long> : public PyNumberCustomObject<const long long> {
+    class PythonClassWrapper<const signed long> : public PyNumberCustomObject<const long> {
+    };
+
+    template<>
+    class PythonClassWrapper<const signed long long> : public PyNumberCustomObject<const long long> {
     };
 
     template<>
@@ -486,6 +500,10 @@ namespace  __pyllars_internal {
 
     template<>
     class PythonClassWrapper<const volatile char> : public PyNumberCustomObject<const volatile char> {
+    };
+
+    template<>
+    class PythonClassWrapper<const volatile signed char> : public PyNumberCustomObject<const volatile signed char> {
     };
 
     template<>

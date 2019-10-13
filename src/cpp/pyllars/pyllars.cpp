@@ -350,4 +350,46 @@ namespace __pyllars_internal {
         return nullptr;
     }
 
+
+    template<>
+    PyObject *set_array_values<const char **, false, -1, void>(const char **values, const ssize_t size, PyObject *from,
+                                                               PyObject *referenced) {
+        if (!PyList_Check(referenced) || PyList_Size(referenced) != size) {
+            PyErr_SetString(PyExc_RuntimeError, "Internal error setting array elements");
+        }
+        if (PyList_Check(from)) {
+
+            //have python list to set from
+            if (PyList_Size(from) != size) {
+                PyErr_SetString(PyExc_TypeError, "Invalid array size");
+                return nullptr;
+            }
+            for (int i = 0; i < size; ++i) {
+                PyObject *item = PyList_GetItem(from, i);
+                if (!PyString_Check(item)) {
+                    return nullptr;
+                }
+                const char *asstr = PyString_AsString(item);
+
+                if (!asstr) {
+                    PyErr_SetString(PyExc_TypeError, "Not a string on array elements assignment");
+                    return nullptr;
+                } else {
+                    //make copy and keep reference
+                    PyObject *pystr = PyString_FromString(asstr);
+                    PyList_SetItem(referenced, i, pystr);
+                    values[i] = (const char *const) PyString_AsString(pystr);
+                }
+            }
+        } else {
+            PyErr_SetString(PyExc_TypeError, "Invalid argument type");
+            return nullptr;
+        }
+        return Py_None;
+    }
+}
+
+status_t pyllars::pyllars_addPyObject(const char* const name, PyObject* obj){
+    PyObject* module = PyImport_ImportModule("pyllars");
+    return PyModule_AddObject(module, name, obj);
 }

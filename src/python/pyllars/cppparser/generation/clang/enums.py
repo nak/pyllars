@@ -34,7 +34,9 @@ class EnumDeclGenerator(Generator):
             """, True))
 
             # generate body
-            body_stream.write(f"""\n#include "{self.source_path}" 
+            body_stream.write(f"""\n
+#include <pyllars/pyllars_classwrapper.impl.hpp>
+#include "{self.source_path}" 
 #include \"{name}.hpp"
             """)
             if self._node.parent and parent_name != 'pyllars':
@@ -101,30 +103,23 @@ class EnumDeclGenerator(Generator):
                 class Initializer_{name}: public pyllars::Initializer{{
                 public:
                     Initializer_{name}():pyllars::Initializer(){{
-
-                        pyllars::{parent_full_name or "pyllars"}_register(this);                          
+                        pyllars::{parent_full_name or "pyllars"}_register(this);
+                        if (__pyllars_internal::PythonClassWrapper< ::{full_cpp_name} >::initialize() != 0){{
+                            PyErr_SetString(PyExc_SystemError, "Internal error when adding method/constructor");
+                        }}                           
                     }}
 
                     int set_up() override{{
-                        static int status = -1;
-                        using namespace __pyllars_internal;
-                        static bool inited = false;
-                        if (inited){{
-                            return status;
-                        }}
-                        typedef typename ::{full_cpp_name}  main_type;
-                        status |= __pyllars_internal::PythonClassWrapper< main_type >::initialize();  //classes
-                        inited = true;
-                        status = 0;
-                        return status;
+                        return 0;
                     }}
 
                     int ready(PyObject * const top_level_mod) override{{
-                       int status = pyllars::Initializer::ready(top_level_mod);
-
+                       static int status = 0;
+                       static bool readied = false;
+                       if (readied){{ return status; }}
+                       readied = true; 
                        {add_pyobject_code}
                        {setup_code}
-
                        return status;
                     }}
 

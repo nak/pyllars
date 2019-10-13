@@ -1,8 +1,10 @@
 import filecmp
 import glob
 import importlib
+import shutil
 import subprocess
 import tempfile
+from contextlib import suppress
 
 import pytest
 from dataclasses import dataclass
@@ -40,26 +42,32 @@ def clang_output(tmpdir, request):
             raise Exception(f"Failed to parse {src_path} through clang-check tool")
     return ClangOutput(src_path, output_path, os.path.basename(request.param).replace(".hpp", ""))
 
+
 @pytest.fixture
-def test_module(tmpdir, clang_output, request):
+def test_module(clang_output, request):
     # not the best test stategy, but generic enough:
     # regurgitate the file back out and compare to original to pass test
     output_dir = "modules"
-    os.makedirs(output_dir)
+    output_gen_dir = os.path.join(output_dir, clang_output.module_name)
+    with suppress(Exception):
+        shutil.rmtree(output_gen_dir)
+    os.makedirs(output_gen_dir, exist_ok=True)
     header = clang_output.src_path
     with ClangTranslator(file_name=clang_output.output_path) as translator:
         root = translator.translate()
-        generator = clang.Generator.create(root, os.path.dirname(header), os.path.basename(header), output_dir)
+        generator = clang.Generator.create(root, os.path.dirname(header), os.path.basename(header), output_gen_dir)
         generator.generate_all()
 
     compiler_flags = [f"-I{RESOURCES_DIR}", f"-I{PYLLARS_INCLUDE_DIR}"]
     compiler = Compiler(compiler_flags=compiler_flags,
                         output_dir=output_dir, optimization_level="-O0", debug=True)
     objects = []
-    for dir, dirnames, filenames in os.walk(output_dir):
+    body_path = clang_output.src_path.replace(".hpp", ".cpp")
+    if os.path.exists(body_path):
+        objects.append(compiler.compile(body_path))
+    for dir, dirnames, filenames in os.walk(output_gen_dir):
         for filename in [os.path.join(dir, name) for name in filenames if name.endswith(".cpp")]:
             objects.append(compiler.compile(filename))
-
     linker = Linker(compiler_flags=compiler_flags, linker_options=[], debug=True)
     linker.link(objects=objects, output_module_path=output_dir, module_name=clang_output.module_name)
     sys.path += [output_dir]
@@ -244,3 +252,8 @@ namespace B{
         inst.sval1 = 1
         assert inst.sval1 == 1
         assert inst.intval == -65535
+
+    def test_classes(self, test_module):
+        sys.path.append("./modules")
+        import pyllars
+        import classes

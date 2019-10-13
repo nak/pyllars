@@ -4,6 +4,7 @@ from typing import List, Optional
 from pyllars.cppparser.parser.clang_translator import NodeType
 from .generator import Generator
 
+
 class CXXRecordDeclGenerator(Generator):
 
     def generate(self):
@@ -18,6 +19,8 @@ class CXXRecordDeclGenerator(Generator):
 
         if self._node.name:
             typename = f"{typename_qualifier} ::{self._node.full_cpp_name}"
+        elif not self._node.parent:
+            typename = None
         else:
             index = self._node.parent.children.index(self._node)
             if index < 0:
@@ -112,27 +115,22 @@ class CXXRecordDeclGenerator(Generator):
                 class Initializer_{name}: public pyllars::Initializer{{
                 public:
                     Initializer_{name}():pyllars::Initializer(){{
-                    
-                        {parent_name}_register(this);                          
+                        {parent_name}_register(this);
+                        int status = 0;
+                        {inheritance_code}
+                        if (status != 0){{
+                            PyErr_SetString(PyExc_SystemError, "Internal error when adding method/constructor");
+                        }}                          
                     }}
 
                     int set_up() override{{
-                        static int status = -1;
-                        using namespace __pyllars_internal;
-                        static bool inited = false;
-                        if (inited){{
-                            return status;
-                        }}
-                        inited = true;
-                        status = 0;
-                        return status;
+                        return 0;
                     }}
 
                     int ready(PyObject * const top_level_mod) override{{
                        int status = 0;
                        {initializer_code}
                        {ready_code}
-                       {inheritance_code}
                      
                        {add_myobject_code};
                      
@@ -209,13 +207,15 @@ class DefaultConstructorGenerator(Generator):
                         public:
                             Initializer_{name}():pyllars::Initializer(){{
                                 {parent_name}_register(this);                          
+                                static const char* const kwlist[] = {{}};
+                                int status = __pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name} >::addConstructor<>(kwlist);
+                                if (status != 0){{
+                                    PyErr_SetString(PyExc_SystemError, "Internal error when adding method/constructor");
+                                }}
                             }}
 
                             int set_up() override{{
-                                static const char* const kwlist[] = {{}};
-                               int status = 0;
-                               __pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name} >::addConstructor<>(kwlist);
-                               return status;
+                               return 0;
                             }}
 
                             int ready(PyObject * const top_level_mod) override{{
@@ -277,13 +277,15 @@ class CopyConstructorGenerator(Generator):
                         public:
                             Initializer_{name}():pyllars::Initializer(){{
                                 {parent_name}_register(this);                          
+                               static const char* const kwlist[] = {{"object"}};
+                               int status = __pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name} >::addConstructor<const ::{class_full_cpp_name}&>(kwlist);
+                               if (status != 0){{
+                                    PyErr_SetString(PyExc_SystemError, "Internal error when adding method/constructor");
+                               }}
                             }}
 
                             int set_up() override{{
-                               static const char* const kwlist[] = {{"object"}};
-                               int status = 0;
-                               __pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name} >::addConstructor<const ::{class_full_cpp_name}&>(kwlist);
-                               return status;
+                               return 0;
                             }}
 
                             int ready(PyObject * const top_level_mod) override{{
@@ -344,15 +346,16 @@ class MoveConstructorGenerator(Generator):
                         class Initializer_{name}: public pyllars::Initializer{{
                         public:
                             Initializer_{name}():pyllars::Initializer(){{
-
                                 {parent_name}_register(this);                          
+                                static const char* const kwlist[] = {{"object"}};
+                                int status = __pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name} >::addConstructor<const ::{class_full_cpp_name}&&>(kwlist);
+                                if (status != 0){{
+                                    PyErr_SetString(PyExc_SystemError, "Internal error when adding method/constructor");
+                                }}
                             }}
 
                             int set_up() override{{
-                               static const char* const kwlist[] = {{"object"}};
-                               int status = 0;
-                               __pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name} >::addConstructor<const ::{class_full_cpp_name}&&>(kwlist);
-                               return status;
+                                return 0;
                             }}
 
                             int ready(PyObject * const top_level_mod) override{{
@@ -418,7 +421,7 @@ class CopyAssignmentGenerator(Generator):
                         * instead to prevent compiler error from generated code that shouldn't be
                         */
                         template<const char* const name, const char* const kwlist[], typename T>
-                        static int ready_template(){{
+                        static int template_set_up(){{
                             if constexpr (std::is_copy_assignable<T>::value){{
                                typedef T& (T::*method_t)(const T&);
                                __pyllars_internal::PythonClassWrapper<T>::template addMethod<name, kwlist, method_t, &T::operator= >();	
@@ -435,10 +438,13 @@ class CopyAssignmentGenerator(Generator):
                             Initializer_{name}():pyllars::Initializer(){{
 
                                 {parent_name}_register(this);                          
+                                if (template_set_up<this_name, kwlist, ::{class_full_cpp_name}>()! = 0){{
+                                    PyErr_SetString(PyExc_SystemError, "Internal error when adding method/constructor");                                 
+                                }}
                             }}
 
                             int set_up() override{{
-                                return ready_template<this_name, kwlist, ::{class_full_cpp_name}>();
+                                return 0;
                             }}
 
                             int ready(PyObject * const top_level_mod) override{{
@@ -507,14 +513,15 @@ class MoveAssignmentGenerator(Generator):
                             Initializer_{name}():pyllars::Initializer(){{
 
                                 {parent_name}_register(this);                          
+                                if (__pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name} >::addMethod<this_name, kwlist, 
+                                   ::{class_full_cpp_name}& (::{class_full_cpp_name}::*)(const ::{class_full_cpp_name}&&),
+                                   &::{class_full_cpp_name}::operator= >() != 0){{
+                                    PyErr_SetString(PyExc_SystemError, "Internal error when adding method/constructor");                                                                    
+                                }}
                             }}
 
                             int set_up() override{{
-                               int status = 0'
-                               __pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name} >::addMethod<this_name, kwlist, 
-                                   ::{class_full_cpp_name}& (::{class_full_cpp_name}::*)(const ::{class_full_cpp_name}&&),
-                                   &::{class_full_cpp_name}::operator= >();
-                               return status;
+                               return 0;
                             }}
 
                             int ready(PyObject * const top_level_mod) override{{
@@ -625,14 +632,15 @@ class CXXMethodDeclGenerator(Generator):
                                 public:
                                     Initializer_{name}():pyllars::Initializer(){{
                                         {parent_name}_register(this);                          
-                                    }}
+                                       if (__pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name} >::add{method_qualifier}Method<this_name, kwlist, 
+                                           method_t,
+                                           &::{class_full_cpp_name}::{name} >()!= 0){{
+                                           PyErr_SetString(PyExc_SystemError, "Internal error when adding method/constructor");                                                                                                               
+                                        }}
+                                   }}
 
                                     int set_up() override{{
-                                       int status = 0;
-                                       __pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name} >::add{method_qualifier}Method<this_name, kwlist, 
-                                           method_t,
-                                           &::{class_full_cpp_name}::{name} >();
-                                       return status;
+                                        return 0;
                                     }}
                                     typedef {signature};
                                     int ready(PyObject * const top_level_mod) override{{
@@ -703,16 +711,17 @@ class CXXMethodDeclGenerator(Generator):
                                 class Initializer_{name}: public pyllars::Initializer{{
                                 public:
                                     Initializer_{name}():pyllars::Initializer(){{
-                                        {parent_name}_register(this);                          
+                                        {parent_name}_register(this);                     
+                                        typedef {signature};
+                                        if (__pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name}  >::addMethod<this_name, kwlist, 
+                                              method_t,
+                                              &::{class_full_cpp_name}::operator= >()!= 0){{
+                                            PyErr_SetString(PyExc_SystemError, "Internal error when adding method/constructor");                                                                                                          
+                                        }}
                                     }}
 
                                     int set_up() override{{
-                                       int status = 0;
-                                       typedef {signature};
-                                       __pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name}  >::addMethod<this_name, kwlist, 
-                                           method_t,
-                                           &::{class_full_cpp_name}::operator= >();
-                                       return status;
+                                       return 0;
                                     }}
 
                                     int ready(PyObject * const top_level_mod) override{{
@@ -818,14 +827,15 @@ class CXXMethodDeclGenerator(Generator):
                                 public:
                                     Initializer_{name}():pyllars::Initializer(){{
                                         {parent_name}_register(this);                          
+                                        if (__pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name} >::add{cpp_op_name}Operator<{kwlist_if}
+                                              method_t,
+                                              &::{class_full_cpp_name}::{self._node.name} >() != 0){{
+                                            PyErr_SetString(PyExc_SystemError, "Internal error when adding method/constructor");
+                                        }}
                                     }}
 
                                     int set_up() override{{
-                                       int status = 0;
-                                       __pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name} >::add{cpp_op_name}Operator<{kwlist_if}
-                                           method_t,
-                                           &::{class_full_cpp_name}::{self._node.name} >();
-                                       return status;
+                                       return 0;
                                     }}
                                     typedef {signature};
                                     int ready(PyObject * const top_level_mod) override{{
@@ -860,10 +870,13 @@ def _parent_wrapper_name(node: NodeType.Node, recursed: Optional[NodeType.Node] 
     parent = node.parent
     if recursed:
         node = recursed
-    index = parent.parent.children.index(parent)
-    if index < 0:
-        raise Exception("Invalid structure in hierarchy")
-    is_named_attribute = len(parent.parent.children) -1 > index and isinstance(parent.parent.children[index + 1], NodeType.FieldDecl)
+    if parent.parent:
+        index = parent.parent.children.index(parent)
+        if index < 0:
+            raise Exception("Invalid structure in hierarchy")
+        is_named_attribute = len(parent.parent.children) -1 > index and isinstance(parent.parent.children[index + 1], NodeType.FieldDecl)
+    else:
+        is_named_attribute = False
     if parent.name:
         if recursed:
             return f"__pyllars_internal::PythonAnonymousClassWrapper< ::{parent.full_cpp_name} >",\
@@ -951,9 +964,13 @@ class FieldDeclGenerator(Generator):
         return ' '.join(parts)
 
     def generate(self):
-        if 'public' not in self._node.qualifiers and 'struct' not in self._node.parent.qualifiers:
+        if 'public' not in self._node.qualifiers and\
+                (self._node.parent is None or not hasattr(self._node.parent, 'qualifiers')\
+                 or 'struct' not in self._node.parent.qualifiers):
             return None, None
         if isinstance(self._node, NodeType.IndirectFieldDecl):
+            return None, None
+        if not self._node.name:
             return None, None
         parent = self._node.parent
         while parent and not parent.name:
@@ -998,13 +1015,14 @@ class FieldDeclGenerator(Generator):
                                         public:
                                             Initializer_{name}():pyllars::Initializer(){{
                                                 {parent_name}_register(this);                          
+                                                if ({wrapper}::template add{member_qualifier}Attribute<this_name, 
+                                                      {attribute_type_name}>(&{attribute_full_cpp_name}) != 0){{
+                                                    PyErr_SetString(PyExc_SystemError, "Internal error when adding method/constructor");
+                                                }}
                                             }}
 
                                             int set_up() override{{
-                                               int status = 0;
-                                               {wrapper}::template add{member_qualifier}Attribute<this_name, 
-                                                   {attribute_type_name}>(&{attribute_full_cpp_name});
-                                               return status;
+                                               return 0;
                                             }}
                                             
                                             int ready(PyObject * const top_level_mod) override{{
@@ -1074,6 +1092,12 @@ class FieldDeclGenerator(Generator):
                                         public:
                                             Initializer_{name}():pyllars::Initializer(){{
                                                 {parent_name}_register(this);                          
+                                               static std::function<{typename}(const {parent_type_name}&)> getter = [](const {parent_type_name} & obj)->{typename}{{return  obj.{name};}};
+                                               {setter}
+                                               if ({wrapper}::template addBitField<this_name, 
+                                                     {typename}, {size}>(getter, {setter_value}) != 0){{
+                                                    PyErr_SetString(PyExc_SystemError, "Internal error when adding method/constructor");
+                                                }}
                                             }}
 
                                             status_t ready(PyObject * const top_level_mod) override{{
@@ -1083,12 +1107,7 @@ class FieldDeclGenerator(Generator):
                                             }}
                                             
                                             status_t set_up() override{{
-                                               int status = 0;
-                                               static std::function<{typename}(const {parent_type_name}&)> getter = [](const {parent_type_name} & obj)->{typename}{{return  obj.{name};}};
-                                               {setter}
-                                               {wrapper}::template addBitField<this_name, 
-                                                   {typename}, {size}>(getter, {setter_value});
-                                               return status;
+                                               return 0;
                                             }}
 
                                             static Initializer_{name}* initializer;

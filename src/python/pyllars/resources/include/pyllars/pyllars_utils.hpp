@@ -249,11 +249,39 @@ namespace __pyllars_internal {
     };
 
     template<typename RType, typename ...Args>
+    struct func_traits<RType(Args...) noexcept>{
+        constexpr static bool has_ellipsis = false;
+        constexpr static ssize_t argsize = sizeof...(Args);
+
+
+        typedef RType(*type)(Args...) noexcept;
+        typedef RType ReturnType;
+
+        const static std::string type_name(){
+            return __pyllars_internal::type_name<RType(Args...)>();
+        }
+
+    };
+
+    template<typename RType, typename ...Args>
     struct func_traits<RType(Args..., ...)>{
         constexpr static bool has_ellipsis = true;
         constexpr static ssize_t argsize = sizeof...(Args);
 
         typedef RType(*type)(Args..., ...);
+        typedef RType ReturnType;
+        const static std::string type_name(){
+           return __pyllars_internal::type_name<RType(Args..., ...)>();
+        }
+
+    };
+
+    template<typename RType, typename ...Args>
+    struct func_traits<RType(Args..., ...) noexcept>{
+        constexpr static bool has_ellipsis = true;
+        constexpr static ssize_t argsize = sizeof...(Args);
+
+        typedef RType(*type)(Args..., ...) noexcept;
         typedef RType ReturnType;
         const static std::string type_name(){
            return __pyllars_internal::type_name<RType(Args..., ...)>();

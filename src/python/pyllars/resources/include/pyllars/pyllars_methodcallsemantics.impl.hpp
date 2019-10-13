@@ -18,9 +18,9 @@ namespace __pyllars_internal {
                                                               typename PyObjectPack<Args>::type... pyargs) {
         if (!extra_args){
             if constexpr (std::is_void<ReturnType>::value) {
-                return (self.*method)(toCArgument<Args>(pyargs).value()...);
+                return (self.*method)(toCArgument<Args>(*pyargs).value()...);
             } else {
-                (self.*method)(toCArgument<Args>(pyargs).value()...);
+                (self.*method)(toCArgument<Args>(*pyargs).value()...);
             }
         }
         typedef typename std::remove_reference<ReturnType>::type ReturnType_NoRef;
@@ -29,7 +29,7 @@ namespace __pyllars_internal {
 
         ffi_cif cif;
         ffi_type *arg_types[sizeof...(Args) + extra_args_size] = {FFIType<Args>::type()...};
-        void *arg_values[sizeof...(Args) + extra_args_size + 1] = {(void *) &self, (void *) toCArgument<Args>(pyargs).ptr()...};
+        void *arg_values[sizeof...(Args) + extra_args_size + 1] = {(void *) &self, (void *) toCArgument<Args>(*pyargs).ptr()...};
         ffi_status status;
 
         // Because the return _CObject from foo() is smaller than sizeof(long), it
@@ -68,7 +68,7 @@ namespace __pyllars_internal {
                                                                     typename PyObjectPack<Args>::type... pyargs) {
         if (!extra_args){
             if constexpr (std::is_void<ReturnType>::value) {
-                return (self.*method)(toCArgument<Args>(pyargs).value()...);
+                return (self.*method)(toCArgument<Args>(*pyargs).value()...);
             } else {
                 (self.*method)(toCArgument<Args>(*pyargs).value()...);
             }
@@ -80,7 +80,7 @@ namespace __pyllars_internal {
 
         ffi_cif cif;
         ffi_type *arg_types[sizeof...(Args) + extra_args_size] = {FFIType<Args>::type()...};
-        void *arg_values[sizeof...(Args) + extra_args_size + 1] = {(void *) &self, (void *) toCArgument<Args>(pyargs).ptr()...};
+        void *arg_values[sizeof...(Args) + extra_args_size + 1] = {(void *) &self, (void *) toCArgument<Args>(*pyargs).ptr()...};
         ffi_status status;
 
         // Because the return _CObject from foo() is smaller than sizeof(long), it

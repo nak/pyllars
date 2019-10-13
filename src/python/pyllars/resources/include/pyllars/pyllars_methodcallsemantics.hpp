@@ -31,7 +31,7 @@ namespace __pyllars_internal {
         };
 
         inline static ReturnType invoke(type &method, CClass & self, PyObject* extra_args_tuple, typename PyObjectPack<Args>::type... pyargs){
-            return (self.*method)(__pyllars_internal::toCArgument<Args>(*pyargs).value()...);
+            return (self.*method)(std::forward<Args>(__pyllars_internal::toCArgument<Args>(*pyargs).value())...);
         }
 
         const static std::string type_name(){
@@ -69,7 +69,7 @@ namespace __pyllars_internal {
                     + __pyllars_internal::type_name<CClass>() + std::string(")(");
 
                 std::string arg_names[] = {Types<Args>::type_name()...};
-                for (int i = 0; i < sizeof...(Args); ++i) {
+                for (unsigned int i = 0; i < sizeof...(Args); ++i) {
                     n += arg_names[i] + std::string(",");
                 }
                 n += std::string(" ...)");
@@ -149,7 +149,7 @@ namespace __pyllars_internal {
                     + __pyllars_internal::type_name<CClass>() + std::string(")(");
 
                 std::string arg_names[] = {Types<Args>::type_name()...};
-                for (int i = 0; i < sizeof...(Args); ++i) {
+                for (unsigned int i = 0; i < sizeof...(Args); ++i) {
                     n += arg_names[i] + std::string(",");
                 }
                 n += std::string(" ...) const");

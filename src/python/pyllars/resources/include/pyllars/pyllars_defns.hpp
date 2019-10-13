@@ -38,6 +38,11 @@ namespace __pyllars_internal {
     };
 
     template<>
+    struct _Types<signed char> {
+        static constexpr cstring type_name = "c_signed_char";
+    };
+
+    template<>
     struct _Types<char> {
         static constexpr cstring type_name = "c_char";
     };

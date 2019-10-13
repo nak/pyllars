@@ -82,7 +82,7 @@ namespace pyllars {
 
     int init(PyObject *global_mod);
 
-
+    status_t pyllars_addPyObject(const char* const, PyObject* obj);
 
 }  // namespace pyllars
 

@@ -64,6 +64,7 @@ class FunctionDeclGenerator(Generator):
             # generate body
             body_stream.write(f"""\n
 #include <pyllars/pyllars_function_wrapper.hpp>
+#include <pyllars/pyllars_staticfunctionsemantics.impl.hpp>
 #include "{self.source_path}" 
 #include \"{self._node.name}.hpp"
             """)
@@ -95,20 +96,11 @@ class FunctionDeclGenerator(Generator):
                     }}
 
                     int set_up() override{{
-                        static int status = -1;
-                        using namespace __pyllars_internal;
-                        static bool inited = false;
-                        if (inited){{
-                            return status;
-                        }}
-                        status = 0;
-                       
-                        inited = true;
-                        return status;
+                        return 0;
                     }}
 
                     int ready(PyObject * const top_level_mod) override{{
-                       int status = pyllars::Initializer::ready(top_level_mod);
+                        int status = pyllars::Initializer::ready(top_level_mod);
                         PyObject* pyobj = (PyObject*)__pyllars_internal::PythonFunctionWrapper<{full_signature}>::createPy<kwlist, ::{full_cpp_name}>("{name}"); 
                         {addobj_code}
                         return status;

@@ -6,7 +6,7 @@ namespace trial{
   class ClassA{
   public:
 
-    ClassA();
+    ClassA(){};
 
     ClassA(const ClassA &){}
 

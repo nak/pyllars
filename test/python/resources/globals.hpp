@@ -1,6 +1,5 @@
 #ifndef __GLOBALFUNCTIONS__
 #define __GLOBALFUNCTIONS__
-#include <time.h>
 
 
 typedef char * str;

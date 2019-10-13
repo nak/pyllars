@@ -5,6 +5,8 @@
 #define __PYLLARS__INTERNAL__CONVERSIONS_CPP__
 
 #include <Python.h>
+#include "pyllars_integer.hpp"
+#include "pyllars_floating_point.hpp"
 #include "pyllars_utils.hpp"
 #include "pyllars_conversions.hpp"
 #include "pyllars_callbacks.hpp"
