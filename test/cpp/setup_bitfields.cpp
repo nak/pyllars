@@ -14,6 +14,19 @@
 
 #include "class_test_defns.h"
 
+#include "pyllars/pyllars_classmethod.hpp"
+#include "pyllars/pyllars_classstaticmethod.hpp"
+#include "pyllars/pyllars_classconstructor.hpp"
+#include "pyllars/pyllars_classenum.hpp"
+#include "pyllars/pyllars_classenumclass.hpp"
+#include "pyllars/pyllars_classbinaryoperator.hpp"
+#include "pyllars/pyllars_classunaryoperator.hpp"
+#include "pyllars/pyllars_classstaticmember.hpp"
+#include "pyllars/pyllars_classmember.hpp"
+#include "pyllars/pyllars_classbitfield.hpp"
+#include "pyllars/pyllars_class.hpp"
+
+
 typedef const char c_string[];
 
 constexpr c_string bit_name = "bit";

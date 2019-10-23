@@ -14,6 +14,18 @@
 #include "class_test_defns.h"
 #include "setup_inheritance_test.h"
 
+#include "pyllars/pyllars_classmethod.hpp"
+#include "pyllars/pyllars_classstaticmethod.hpp"
+#include "pyllars/pyllars_classconstructor.hpp"
+#include "pyllars/pyllars_classenum.hpp"
+#include "pyllars/pyllars_classenumclass.hpp"
+#include "pyllars/pyllars_classbinaryoperator.hpp"
+#include "pyllars/pyllars_classunaryoperator.hpp"
+#include "pyllars/pyllars_classstaticmember.hpp"
+#include "pyllars/pyllars_classmember.hpp"
+#include "pyllars/pyllars_classbitfield.hpp"
+#include "pyllars/pyllars_class.hpp"
+
 constexpr c_string new_method_name = "new_method";
 
 template<>

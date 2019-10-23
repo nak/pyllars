@@ -43,14 +43,14 @@ namespace pyllars {
          * Ready all PyTypeObjects, adding to each types parent,
          * @param top_level_module: Top level module for holding global type objects
          */
-         virtual status_t ready(PyObject* top_level_module){
+         virtual status_t ready(PyObject* parent){
              static int status = 0;
              static bool called = false;
              if (called) return status;
              called = true;
              if (!_initializers) return 0;
              for (auto &_initializer : *_initializers) {
-                 status |= _initializer->ready(top_level_module);
+                 status |= _initializer->ready(parent);
              }
              return status;
          }
@@ -77,8 +77,6 @@ namespace pyllars {
     };
 
     int pyllars_register(Initializer *init);
-
-    int pyllars_register_last(Initializer *init);
 
     int init(PyObject *global_mod);
 

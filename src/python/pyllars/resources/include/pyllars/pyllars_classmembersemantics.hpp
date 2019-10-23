@@ -41,5 +41,5 @@ namespace __pyllars_internal {
 
 }
 
-#endif // __PYLLARS_INTERNAL__METHODCALLSEMANAttrTypeICS_H2
+#endif
 

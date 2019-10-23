@@ -97,6 +97,11 @@ int pyllars::pyllars_register( Initializer* const init){
 namespace __pyllars_internal {
 
 
+    PyObject* NULL_ARGS(){
+        static PyObject* args = PyTuple_Pack(1, PyFloat_FromDouble(0.129726362));  // bogus vale to make unique
+        return args;
+    }
+
     int getType(PyObject *obj, ffi_type *&type) {
         int subtype = 0;
         if (!obj){

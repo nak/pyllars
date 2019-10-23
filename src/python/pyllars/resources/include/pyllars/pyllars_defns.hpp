@@ -10,6 +10,9 @@
 
 namespace __pyllars_internal {
 
+    constexpr size_t ct_strlen( const char* s ) noexcept{
+        return *s ? 1 + ct_strlen(s + 1) : 0;
+    }
 
     typedef const char *const cstring;
 
@@ -62,12 +65,10 @@ namespace __pyllars_internal {
         static constexpr cstring type_name = "c_long";
     };
 
-
     template<>
     struct _Types<long long> {
         static constexpr cstring type_name = "c_long_long";
     };
-
 
     template<>
     struct _Types<unsigned char> {
@@ -631,19 +632,27 @@ namespace __pyllars_internal {
     template<>
     class PythonClassWrapper<const double>;
 
+
     /**
      * Class common to all C++ wrapper classes
      **/
-    struct CommonBaseWrapper {
+    struct CommonBaseWrapper{
         PyObject_HEAD
-
-        static PyTypeObject* getPyType(){return &_BaseType;}
 
         typedef bool (*comparison_func_t)(CommonBaseWrapper*, CommonBaseWrapper*);
         typedef size_t (*hash_t)(CommonBaseWrapper*);
+        typedef const char *const cstring;
+
+        static constexpr cstring tp_name_prefix = "[*pyllars*] ";
+        static constexpr size_t tp_name_prefix_len = ct_strlen(tp_name_prefix);
+        static constexpr cstring ptrtp_name_prefix = "[*pyllars:ptr*] ";
+        static constexpr size_t ptrtp_name_prefix_len = ct_strlen(ptrtp_name_prefix);
+
 
         comparison_func_t compare;
         hash_t hash;
+
+        static PyTypeObject* getPyType(){return &_BaseType;}
 
         struct Base{
             PyObject_HEAD
@@ -656,18 +665,10 @@ namespace __pyllars_internal {
         } baseClass;
 
 
-
-        typedef const char *const cstring;
-        static constexpr cstring tp_name_prefix = "[*pyllars*] ";
-        static constexpr size_t tp_name_prefix_len = strlen(tp_name_prefix);
-
         static bool IsClassType(PyObject *obj) {
             auto *pytype = (PyTypeObject *) PyObject_Type(obj);
             return strncmp(pytype->tp_name, tp_name_prefix, tp_name_prefix_len) == 0;
         }
-
-        static constexpr cstring ptrtp_name_prefix = "[*pyllars:ptr*] ";
-        static constexpr size_t ptrtp_name_prefix_len = strlen(ptrtp_name_prefix);
 
         static bool IsCFunctionType(PyObject *obj) {
             auto *pytype = (PyTypeObject *) PyObject_Type(obj);
@@ -861,5 +862,9 @@ namespace __pyllars_internal {
         const std::string _msg;
         PyObject* const _excType;
     };
+
+    extern PyObject* NULL_ARGS();
+
+    constexpr int ERR_PYLLARS_ON_CREATE = -1;
 }
 #endif

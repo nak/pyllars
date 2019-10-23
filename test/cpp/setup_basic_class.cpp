@@ -9,6 +9,17 @@
 #include "pyllars/pyllars_classmembersemantics.impl.hpp"
 #include "pyllars/pyllars_staticfunctionsemantics.impl.hpp"
 #include "pyllars/pyllars_conversions.impl.hpp"
+#include "pyllars/pyllars_classmethod.hpp"
+#include "pyllars/pyllars_classstaticmethod.hpp"
+#include "pyllars/pyllars_classconstructor.hpp"
+#include "pyllars/pyllars_classenum.hpp"
+#include "pyllars/pyllars_classenumclass.hpp"
+#include "pyllars/pyllars_classbinaryoperator.hpp"
+#include "pyllars/pyllars_classunaryoperator.hpp"
+#include "pyllars/pyllars_classstaticmember.hpp"
+#include "pyllars/pyllars_classmember.hpp"
+#include "pyllars/pyllars_classbitfield.hpp"
+#include "pyllars/pyllars_class.hpp"
 
 #include "class_test_defns.h"
 #include "setup_basic_class.h"
@@ -32,8 +43,31 @@ long long convertEnum(const EnumClass &val){
     return (long long)val;
 }
 
+const char *const empty_list[] = {nullptr};
+
 template
 struct __pyllars_internal::PythonClassWrapper<BasicClass const, void>;
+
+template
+class pyllars::PyllarsClassConstructor<empty_list, BasicClass>;
+
+static const char *const kwlist_copy_constr2[] = {"float_val", "unused", nullptr};
+
+template
+class pyllars::PyllarsClassConstructor<kwlist_copy_constr2, BasicClass, const double, const char *const>;
+
+const char *const kwlist_copy_constr[] = {"obj", nullptr};
+
+template
+class pyllars::PyllarsClassConstructor<kwlist_copy_constr, BasicClass, BasicClass&>;
+
+template
+class pyllars::PyllarsClassConstructor<kwlist_copy_constr, BasicClass, BasicClass&&>;
+
+const char *const kwlist[2] = {"_CObject", nullptr};
+
+template
+class pyllars::PyllarsClassConstructor<kwlist_copy_constr, BasicClass, const double>;
 
 void
 SetupBasicClass::SetUpTestSuite() {
@@ -42,17 +76,8 @@ SetupBasicClass::SetUpTestSuite() {
     static bool inited = false;
     if (inited) return;
     inited = true;
-    static const char *const kwlist[2] = {"_CObject", nullptr};
-    static const char *const empty_list[] = {nullptr};
-    static const char *const kwlist_copy_constr[] = {"obj", nullptr};
-    static const char *const kwlist_copy_constr2[] = {"float_val", "unused", nullptr};
     {
         typedef PythonClassWrapper <BasicClass> Class;
-        Class::addConstructor<>(empty_list);
-        Class::addConstructor<const BasicClass &>(kwlist_copy_constr);
-        Class::addConstructor<const BasicClass &&>(kwlist_copy_constr);
-        Class::addConstructor<const double>(kwlist);
-        Class::addConstructor<const double, const char *const>(kwlist_copy_constr2);
         Class::addPosOperator<BasicClass(BasicClass::*)() const, &BasicClass::operator+ >();
         Class::addNegOperator<BasicClass(BasicClass::*)() const, &BasicClass::operator- >();
         Class::addInvOperator<BasicClass(BasicClass::*)() const, &BasicClass::operator~ >();
@@ -60,8 +85,8 @@ SetupBasicClass::SetUpTestSuite() {
         Class::addAddOperator<kwlist, double(BasicClass::*)(const BasicClass&) const, &BasicClass::operator+>();
         Class::addMethod<method_name, kwlist, int(BasicClass::*)(const double), &BasicClass::public_method>();
         Class::addClassMethod<static_method_name, kwlist, const char *const(), &BasicClass::static_public_method>();
-        Class::addMapOperatorMethod<kwlist, const char* const, int&(BasicClass::*)(const char* const), &BasicClass::operator[]>();
-        Class::addMapOperatorMethod<kwlist, const char* const, const int &(BasicClass::*)(const char* const) const, &BasicClass::operator[]>();
+        Class::addMapOperator<kwlist, const char* const, int&(BasicClass::*)(const char* const), &BasicClass::operator[]>();
+        Class::addMapOperator<kwlist, const char* const, const int &(BasicClass::*)(const char* const) const, &BasicClass::operator[]>();
         Class::addClassAttribute<class_const_member_name, const int>(&BasicClass::class_const_member);
         Class::addClassAttribute<class_member_name, int>(&BasicClass::class_member);
         Class::addAttribute<int_array_member_name, int[3]>(&BasicClass::int_array);

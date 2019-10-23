@@ -9,6 +9,18 @@
 #include "pyllars/pyllars_reference.impl.hpp"
 #include <gtest-param-test.h>
 
+#include "pyllars/pyllars_classmethod.hpp"
+#include "pyllars/pyllars_classstaticmethod.hpp"
+#include "pyllars/pyllars_classconstructor.hpp"
+#include "pyllars/pyllars_classenum.hpp"
+#include "pyllars/pyllars_classenumclass.hpp"
+#include "pyllars/pyllars_classbinaryoperator.hpp"
+#include "pyllars/pyllars_classunaryoperator.hpp"
+#include "pyllars/pyllars_classstaticmember.hpp"
+#include "pyllars/pyllars_classmember.hpp"
+#include "pyllars/pyllars_classbitfield.hpp"
+#include "pyllars/pyllars_class.hpp"
+
 TEST_F(SetupBasicClass, TestBasicClassNew) {
     using namespace __pyllars_internal;
     PyObject *new_op = PyObject_GetAttrString((PyObject*)PythonClassWrapper<BasicClass>::getPyType(), "new");
@@ -226,6 +238,7 @@ TEST_F(SetupBasicClass, TestPointers){
     typedef PythonClassWrapper<BasicClass> Class;
     static auto empty = PyTuple_New(0);
     PyObject* obj = PyObject_Call((PyObject*) Class::getPyType(), empty, nullptr);
+    ASSERT_NE(obj, nullptr);
     auto self = PyObject_GetAttrString(obj, "this");
     ASSERT_NE(self, nullptr);
 

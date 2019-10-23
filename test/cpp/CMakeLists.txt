@@ -31,6 +31,7 @@ add_library(setupFunctions SHARED setup_functions.cpp )
 add_library(setupGlobals SHARED setup_globals.cpp )
 add_library(setupTemplateClasses SHARED setup_template_class.cpp )
 
+
 add_executable(runAllPyllarsTest
         ${GTEST_ROOT}/src/gtest_main.cc
         ${GTEST_ROOT}/src/gtest-all.cc
@@ -42,6 +43,7 @@ add_executable(runAllPyllarsTest
         test_bit_fields.cpp
         test_functions.cpp
         test_initializer.cpp function_defns.hpp globals.h globals.cpp)
+
 
 target_link_libraries(runAllPyllarsTest PUBLIC -L/usr/local/lib64 ${PYTHON_LD}
         setupBasicClassLib setupInheritanceLib setupBitFieldsLib setupAnonEnumsLib setupFunctions

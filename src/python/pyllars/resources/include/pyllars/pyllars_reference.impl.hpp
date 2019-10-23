@@ -9,27 +9,21 @@ namespace __pyllars_internal{
     template <typename T>
     int PythonClassWrapper<T&, void>::_init(PythonClassWrapper *self, PyObject *args, PyObject *kwds){
         // Must have at least one arg to reference or we ar bootstrapping
-
-        const bool allow_no_arguments = kwds && PyDict_GetItemString(kwds, "__internal_allow_null");
-        if (PyTuple_Size(args) != allow_no_arguments?0:1){
+        const bool allow_null = args == NULL_ARGS();
+        PyObject *arg = nullptr;
+        if (!allow_null && PyTuple_Size(args) != 1){
             PyErr_SetString(PyExc_TypeError, "Must supply exactly  one object to reference when constructing wrapper to "
                                              "C-style reference");
             return -1;
-        }
-        PyObject *arg = nullptr;
-        if (!allow_no_arguments) {
-            PyObject *arg = PyTuple_GetItem(args, 0);
+        } else if (!allow_null) {
+            arg = PyTuple_GetItem(args, 0);
             if (!PythonClassWrapper<T>::checkType(arg) &&
                 !PyObject_TypeCheck(arg, &_Type)) {
                 PyErr_SetString(PyExc_ValueError, "Type mismatch create wrapper to reference to C object");
                 return -1;
             }
         }
-        static PyObject* noargs = PyTuple_New(0);
-        //call Base with no args, we will do the work here
-	static PyObject *_kwds = PyDict_New();
-        PyDict_SetItemString(_kwds, "__internal_allow_null", Py_True);
-        Base::_init(self, noargs, _kwds);
+        Base::_init(self, args, kwds);
         if (arg) {
             self->_CObject = ((PythonClassWrapper *) arg)->get_CObject();
             if (!self->_CObject) {
@@ -37,6 +31,8 @@ namespace __pyllars_internal{
                 return -1;
             }
             self->make_reference(arg);
+        } else {
+            self->_CObject = nullptr;
         }
         return 0;
     }
@@ -64,16 +60,13 @@ namespace __pyllars_internal{
     template <typename T>
     PythonClassWrapper<T&, void> *
     PythonClassWrapper<T&, void>::fromCObject(T& cobj, PyObject *referencing){
-        static PyObject *kwds = PyDict_New();
-        static PyObject *emptyargs = PyTuple_New(0);
-        PyDict_SetItemString(kwds, "__internal_allow_null", Py_True);
         PyTypeObject *type_ = getPyType();
 
         if (!type_ || !type_->tp_name) {
             PyErr_SetString(PyExc_RuntimeError, "Uninitialized type when creating object");
             return nullptr;
         }
-        auto pyobj = (PythonClassWrapper *) PyObject_Call(reinterpret_cast<PyObject *>(type_), emptyargs, kwds);
+        auto pyobj = (PythonClassWrapper *) PyObject_Call(reinterpret_cast<PyObject *>(type_), NULL_ARGS(), nullptr);
         if (pyobj) {
             pyobj->_CObject = &cobj;
         }
@@ -84,22 +77,20 @@ namespace __pyllars_internal{
     template <typename T>
     PythonClassWrapper<T&, void> *
     PythonClassWrapper<T&, void>::fromCPointer(T& cobj, const ssize_t size, PyObject *referencing){
-        static PyObject *kwds = PyDict_New();
-        static PyObject *emptyargs = PyTuple_New(0);
-        PyDict_SetItemString(kwds, "__internal_allow_null", Py_True);
         PyTypeObject *type_ = getPyType();
 
         if (!type_ || !type_->tp_name) {
             PyErr_SetString(PyExc_RuntimeError, "Uninitialized type when creating object");
             return nullptr;
         }
-        auto pyobj = (PythonClassWrapper *) PyObject_Call(reinterpret_cast<PyObject *>(type_), emptyargs, kwds);
+        auto pyobj = (PythonClassWrapper *) PyObject_Call(reinterpret_cast<PyObject *>(type_), NULL_ARGS(), nullptr);
         if (pyobj) {
             pyobj->_CObject = &cobj;
             pyobj->_max = size-1;
         }
         return pyobj;
     }
+
     template<typename T>
     PyTypeObject PythonClassWrapper<T&, void>::_Type = {
         #if PY_MAJOR_VERSION == 3
@@ -167,14 +158,12 @@ namespace __pyllars_internal{
     int PythonClassWrapper<T&&, void>::_init(PythonClassWrapper *self, PyObject *args, PyObject *kwds){
         // Must have at least one arg to reference or we ar bootstrapping
 
-        const bool allow_no_arguments = kwds && PyDict_GetItemString(kwds, "__internal_allow_null");
-        if (PyTuple_Size(args) != allow_no_arguments?0:1){
+        PyObject *arg = nullptr;
+        if (args && PyTuple_Size(args) != 1){
             PyErr_SetString(PyExc_TypeError, "Must supply exactly  one object to reference when constructing wrapper to "
                                              "C-style reference");
             return -1;
-        }
-        PyObject *arg = nullptr;
-        if (!allow_no_arguments) {
+        } else if (args) {
             PyObject *arg = PyTuple_GetItem(args, 0);
             if (!PythonClassWrapper<T>::checkType(arg) &&
                 !PyObject_TypeCheck(arg, &_Type)) {
@@ -182,11 +171,8 @@ namespace __pyllars_internal{
                 return -1;
             }
         }
-        static PyObject* noargs = PyTuple_New(0);
         //call Base with no args, we will do the work here
-	static PyObject *_kwds = PyDict_New();
-        PyDict_SetItemString(_kwds, "__internal_allow_null", Py_True);
-        Base::_init(self, noargs, _kwds);
+        Base::_init(self, NULL_ARGS(), nullptr);
         if (arg) {
             self->_CObject = ((PythonClassWrapper *) arg)->get_CObject();
             if (!self->_CObject) {
@@ -201,16 +187,13 @@ namespace __pyllars_internal{
     template <typename T>
     PythonClassWrapper<T&&, void> *
     PythonClassWrapper<T&&, void>::fromCObject(T&& cobj, PyObject *referencing){
-        static PyObject *kwds = PyDict_New();
-        static PyObject *emptyargs = PyTuple_New(0);
-        PyDict_SetItemString(kwds, "__internal_allow_null", Py_True);
         PyTypeObject *type_ = getPyType();
 
         if (!type_ || !type_->tp_name) {
             PyErr_SetString(PyExc_RuntimeError, "Uninitialized type when creating object");
             return nullptr;
         }
-        auto pyobj = (PythonClassWrapper *) PyObject_Call(reinterpret_cast<PyObject *>(type_), emptyargs, kwds);
+        auto pyobj = (PythonClassWrapper *) PyObject_Call(reinterpret_cast<PyObject *>(type_), NULL_ARGS(), nullptr);
         if (pyobj) {
             pyobj->_CObject = &cobj;
         }
@@ -260,9 +243,9 @@ namespace __pyllars_internal{
             nullptr,                         /* tp_descr_get */
             nullptr,                         /* tp_descr_set */
             0,                         /* tp_dictoffset */
-            (initproc) PythonClassWrapper::_init,  /* tp_init */
+            (initproc) PythonClassWrapper<T>::_init,  /* tp_init */
             nullptr,                         /* tp_alloc */
-            PythonClassWrapper::_new,             /* tp_new */
+            PythonClassWrapper<T>::_new,             /* tp_new */
             _free,                         /*tp_free*/
             nullptr,                         /*tp_is_gc*/
             nullptr,                         /*tp_bases*/

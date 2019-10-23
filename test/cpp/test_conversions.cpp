@@ -14,6 +14,18 @@
 #include "pyllars/pyllars_classmembersemantics.impl.hpp"
 #include "pyllars/pyllars_staticfunctionsemantics.impl.hpp"
 
+#include "pyllars/pyllars_classmethod.hpp"
+#include "pyllars/pyllars_classstaticmethod.hpp"
+#include "pyllars/pyllars_classconstructor.hpp"
+#include "pyllars/pyllars_classenum.hpp"
+#include "pyllars/pyllars_classenumclass.hpp"
+#include "pyllars/pyllars_classbinaryoperator.hpp"
+#include "pyllars/pyllars_classunaryoperator.hpp"
+#include "pyllars/pyllars_classstaticmember.hpp"
+#include "pyllars/pyllars_classmember.hpp"
+#include "pyllars/pyllars_classbitfield.hpp"
+#include "pyllars/pyllars_class.hpp"
+
 struct A{
     int ivalue;
 
@@ -455,6 +467,7 @@ using TypeList2 = testing::Types<A, const A>;
 TYPED_TEST_SUITE(ToPyTest2, TypeList2);
 
 TYPED_TEST(ToPyTest2, convert_to_py_array ) {
+    PyErr_Clear();
     constexpr size_t size = 23;
     using T =typename TestFixture::Type[size];
     using T_element = typename TestFixture::Type;

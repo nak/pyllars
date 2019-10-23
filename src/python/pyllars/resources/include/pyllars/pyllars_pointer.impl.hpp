@@ -217,6 +217,7 @@ namespace __pyllars_internal {
                 }
                 if (!res) {
                     PyErr_SetString(PyExc_TypeError, "Unknown error creating wrapper to C element");
+                    return nullptr;
                 }
                 if constexpr (is_pointer_like<T_base>::value) {
                     ((PythonPointerWrapperBase<T_base> *) res)->_depth = self_->_depth - 1;
@@ -448,11 +449,14 @@ namespace __pyllars_internal {
                 return -1;
             }
         }
+
+        const bool have_args = args != NULL_ARGS();
+
         //if have an argument, set pointer _CObject, otherwise set to nullptr
-        if (args && PyTuple_Size(args) > 1) {
+        if (have_args && PyTuple_Size(args) > 1) {
             PyErr_SetString(PyExc_TypeError, "Excpect only one object in Pointer constructor");
             return-1;
-        } else if (args && PyTuple_Size(args) == 1) {
+        } else if (have_args && PyTuple_Size(args) == 1) {
             // we are asked to make a new pointer from an existing object:
             PyObject *pyobj = PyTuple_GetItem(args, 0);
             if (!pyobj) {

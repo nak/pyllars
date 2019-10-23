@@ -12,6 +12,9 @@
 #include "setup.h"
 #include "setup_anon_enums.hpp"
 
+#include "pyllars/pyllars_classenum.hpp"
+#include "pyllars/pyllars_classenumclass.hpp"
+
 template<>
 const char* const __pyllars_internal::_Types<ClassWithEnum>::type_name = "ClassWithEnum";
 

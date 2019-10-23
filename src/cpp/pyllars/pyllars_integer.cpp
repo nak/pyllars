@@ -616,7 +616,10 @@ namespace __pyllars_internal{
             return *((PyNumberCustomObject*)obj)->_CObject;
         };
         self->toInt = toInt;
-        if (self) {
+        if (args == NULL_ARGS()){
+            self->_CObject = nullptr;
+            return 0;
+        } else if (self) {
 
 
             if (PyTuple_Size(args) == 0) {

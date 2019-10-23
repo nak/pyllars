@@ -636,15 +636,16 @@ namespace __pyllars_internal{
         };
         PyTypeObject * const coreTypePtr = PythonClassWrapper<typename core_type<number_type>::type>::getPyType();
         // self->template populate_type_info< number_type>(&checkType, coreTypePtr);
+        self->asDouble = [self]() -> double { return self->_CObject?(double) *self->_CObject:0.0; };
+        if (args == NULL_ARGS()){
+            self->_CObject = nullptr;
+            return 0;
+        }
         if (self) {
             if (PyTuple_Size(args) == 0) {
                 if constexpr(std::is_reference<number_type>::value){
-                    if (kw && PyODict_GetItemString(kw, "__internal_allow_null")){
-                        self->_CObject = nullptr;
-                    } else {
-                        PyErr_SetString(PyExc_TypeError, "Cannot initialize reference type without initial _CObject");
-                        return -1;
-                    }
+                    PyErr_SetString(PyExc_TypeError, "Cannot initialize reference type without initial _CObject");
+                    return -1;
                 } else {
                     self->_CObject = new number_type_basic(0.0);
                 }
@@ -673,7 +674,6 @@ namespace __pyllars_internal{
                 PyErr_SetString(PyExc_TypeError, "Should only call with at most one arument");
                 return -1;
             }
-            self->asDouble = [self]() -> double { return (double) *self->_CObject; };
             PythonClassWrapper<number_type>::initialize();
             return 0;
         }
