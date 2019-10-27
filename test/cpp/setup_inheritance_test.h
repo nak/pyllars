@@ -4,7 +4,7 @@
 
 #ifndef PYLLARS_SETUP_INHERITANCE_TEST_H
 #define PYLLARS_SETUP_INHERITANCE_TEST_H
-
+#include "setup.h"
 #include "setup_basic_class.h"
 
 class SetupInheritanceTest : public SetupBasicClass{

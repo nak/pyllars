@@ -2,23 +2,28 @@
 // Created by jrusnak on 3/24/19.
 //
 #include <Python.h>
+#include "pyllars/pyllars_class.hpp"
+#include "pyllars/pyllars_classmethod.hpp"
+#include "pyllars/pyllars_classmember.hpp"
+#include "pyllars/pyllars_classenum.hpp"
+#include "pyllars/pyllars_classenumclass.hpp"
 
 #include "pyllars/pyllars.hpp"
-#include "pyllars/pyllars_reference.impl.hpp"
-#include "pyllars/pyllars_membersemantics.impl.hpp"
-#include "pyllars/pyllars_classmembersemantics.impl.hpp"
-#include "pyllars/pyllars_staticfunctionsemantics.impl.hpp"
-#include "pyllars/pyllars_conversions.impl.hpp"
+#include "pyllars/internal/pyllars_reference.impl.hpp"
+#include "pyllars/internal/pyllars_membersemantics.impl.hpp"
+#include "pyllars/internal/pyllars_classmembersemantics.impl.hpp"
+#include "pyllars/internal/pyllars_staticfunctionsemantics.impl.hpp"
+#include "pyllars/internal/pyllars_conversions.impl.hpp"
 #include "pyllars/pyllars_classmethod.hpp"
 #include "pyllars/pyllars_classstaticmethod.hpp"
 #include "pyllars/pyllars_classconstructor.hpp"
 #include "pyllars/pyllars_classenum.hpp"
 #include "pyllars/pyllars_classenumclass.hpp"
-#include "pyllars/pyllars_classbinaryoperator.hpp"
+#include "pyllars/internal/pyllars_classbinaryoperator.hpp"
 #include "pyllars/pyllars_classunaryoperator.hpp"
 #include "pyllars/pyllars_classstaticmember.hpp"
 #include "pyllars/pyllars_classmember.hpp"
-#include "pyllars/pyllars_classbitfield.hpp"
+#include "pyllars/internal/pyllars_classbitfield.hpp"
 #include "pyllars/pyllars_class.hpp"
 
 #include "class_test_defns.h"
@@ -27,8 +32,6 @@
 int BasicClass::class_member = 6234;
 const int BasicClass::class_const_member;
 
-template<>
-const char* const __pyllars_internal::_Types<BasicClass>::type_name = "BasicClass";
 
 template<>
 const char* const __pyllars_internal::_Types<BasicClass2>::type_name = "BasicClass2";
@@ -44,9 +47,9 @@ long long convertEnum(const EnumClass &val){
 }
 
 const char *const empty_list[] = {nullptr};
-
+const char* const class_name = "BasicClass";
 template
-struct __pyllars_internal::PythonClassWrapper<BasicClass const, void>;
+class pyllars::PythonClass<class_name, BasicClass const, pyllars::GlobalNamespace >;
 
 template
 class pyllars::PyllarsClassConstructor<empty_list, BasicClass>;

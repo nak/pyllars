@@ -1,14 +1,14 @@
 //
 // Created by jrusnak on 3/24/19.
 //
-
+#include "setup.h"
 #include "setup_template_class.h"
 #include "template_class_defns.h"
 #include "pyllars/pyllars.hpp"
-#include "pyllars/pyllars_classwrapper.hpp"
-#include "pyllars/pyllars_reference.impl.hpp"
-#include "pyllars/pyllars_conversions.impl.hpp"
-#include <pyllars_templates.hpp>
+#include "pyllars/internal/pyllars_classwrapper.hpp"
+#include "pyllars/internal/pyllars_reference.impl.hpp"
+#include "pyllars/internal/pyllars_conversions.impl.hpp"
+#include <pyllars/internal/pyllars_templates.hpp>
 
 
 template<typename T>

@@ -4,8 +4,12 @@
 
 #ifndef PYLLARS_SETUP_H
 #define PYLLARS_SETUP_H
-#include "gtest/gtest.h"
+
 #include <Python.h>
+
+
+#include "gtest/gtest.h"
+#include "pyllars_namespacewrapper.hpp"
 
 class PythonBased: public ::testing::Test{
 public:
@@ -26,6 +30,7 @@ protected:
     static void SetUpTestSuite() {
         Py_Initialize();
         PyErr_Clear();
+        PyllarsInit("pyllars");
     }
 
     static void TearDownTestSuite(){

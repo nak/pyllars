@@ -1,12 +1,11 @@
 //
 // Created by jrusnak on 3/24/19.
 //
-
 #include "setup_basic_class.h"
 #include "class_test_defns.h"
 #include "pyllars/pyllars.hpp"
-#include "pyllars/pyllars_classwrapper.hpp"
-#include "pyllars/pyllars_reference.impl.hpp"
+#include "pyllars/internal/pyllars_classwrapper.hpp"
+#include "pyllars/internal/pyllars_reference.impl.hpp"
 #include <gtest-param-test.h>
 
 #include "pyllars/pyllars_classmethod.hpp"
@@ -14,11 +13,11 @@
 #include "pyllars/pyllars_classconstructor.hpp"
 #include "pyllars/pyllars_classenum.hpp"
 #include "pyllars/pyllars_classenumclass.hpp"
-#include "pyllars/pyllars_classbinaryoperator.hpp"
+#include "pyllars/internal/pyllars_classbinaryoperator.hpp"
 #include "pyllars/pyllars_classunaryoperator.hpp"
 #include "pyllars/pyllars_classstaticmember.hpp"
 #include "pyllars/pyllars_classmember.hpp"
-#include "pyllars/pyllars_classbitfield.hpp"
+#include "pyllars/internal/pyllars_classbitfield.hpp"
 #include "pyllars/pyllars_class.hpp"
 
 TEST_F(SetupBasicClass, TestBasicClassNew) {

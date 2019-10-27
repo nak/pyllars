@@ -42,7 +42,7 @@ add_executable(runAllPyllarsTest
         test_inheritance.cpp
         test_bit_fields.cpp
         test_functions.cpp
-        test_initializer.cpp function_defns.hpp globals.h globals.cpp)
+        function_defns.hpp globals.h globals.cpp)
 
 
 target_link_libraries(runAllPyllarsTest PUBLIC -L/usr/local/lib64 ${PYTHON_LD}
@@ -89,12 +89,6 @@ add_executable(runBitFieldTests
         test_bit_fields.cpp)
 target_link_libraries(runBitFieldTests PUBLIC -L/usr/local/lib64 ${PYTHON_LD} pthread setupBitFieldsLib
         pyllars ffi dl util)
-
-add_executable(runInitializerTests
-        ${GTEST_ROOT}/src/gtest_main.cc
-        ${GTEST_ROOT}/src/gtest-all.cc
-        test_initializer.cpp)
-target_link_libraries(runInitializerTests PUBLIC -L/usr/local/lib64   ${PYTHON_LD} pthread pyllars ffi dl util)
 
 add_executable(runAnonEmumTests
          ${GTEST_ROOT}/src/gtest_main.cc

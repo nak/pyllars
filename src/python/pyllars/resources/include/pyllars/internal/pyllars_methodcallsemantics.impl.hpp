@@ -7,7 +7,7 @@
 
 #include "pyllars_methodcallsemantics.hpp"
 
-#include "pyllars_classwrapper.impl.hpp"
+#include "pyllars/internal/pyllars_classwrapper.impl.hpp"
 
 namespace __pyllars_internal {
 

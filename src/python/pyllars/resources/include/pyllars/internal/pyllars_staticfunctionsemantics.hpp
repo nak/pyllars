@@ -5,8 +5,8 @@
 #include <string.h>
 
 #include "pyllars_utils.hpp"
-#include "pyllars_defns.hpp"
-#include "pyllars_conversions.hpp"
+#include "pyllars/internal/pyllars_defns.hpp"
+#include "pyllars/internal/pyllars_conversions.hpp"
 #include "pyllars_varargs.hpp"
 
 #include <ffi.h>

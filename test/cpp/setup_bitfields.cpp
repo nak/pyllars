@@ -5,12 +5,12 @@
 #include "setup_bitfields.h"
 
 #include "pyllars/pyllars.hpp"
-#include "pyllars/pyllars_classwrapper.impl.hpp"
-#include "pyllars/pyllars_pointer.impl.hpp"
-#include "pyllars/pyllars_membersemantics.impl.hpp"
-#include "pyllars/pyllars_classmembersemantics.impl.hpp"
-#include "pyllars/pyllars_staticfunctionsemantics.impl.hpp"
-#include "pyllars/pyllars_conversions.impl.hpp"
+#include "pyllars/internal/pyllars_classwrapper.impl.hpp"
+#include "pyllars/internal/pyllars_pointer.impl.hpp"
+#include "pyllars/internal/pyllars_membersemantics.impl.hpp"
+#include "pyllars/internal/pyllars_classmembersemantics.impl.hpp"
+#include "pyllars/internal/pyllars_staticfunctionsemantics.impl.hpp"
+#include "pyllars/internal/pyllars_conversions.impl.hpp"
 
 #include "class_test_defns.h"
 
@@ -19,11 +19,11 @@
 #include "pyllars/pyllars_classconstructor.hpp"
 #include "pyllars/pyllars_classenum.hpp"
 #include "pyllars/pyllars_classenumclass.hpp"
-#include "pyllars/pyllars_classbinaryoperator.hpp"
+#include "pyllars/internal/pyllars_classbinaryoperator.hpp"
 #include "pyllars/pyllars_classunaryoperator.hpp"
 #include "pyllars/pyllars_classstaticmember.hpp"
 #include "pyllars/pyllars_classmember.hpp"
-#include "pyllars/pyllars_classbitfield.hpp"
+#include "pyllars/internal/pyllars_classbitfield.hpp"
 #include "pyllars/pyllars_class.hpp"
 
 

@@ -4,7 +4,7 @@
 #include <Python.h>
 
 #include "pyllars_utils.hpp"
-#include "pyllars_defns.hpp"
+#include "pyllars/internal/pyllars_defns.hpp"
 
 /**
 * This unit defines template classes needed to contain method pointers and

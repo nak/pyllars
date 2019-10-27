@@ -4,10 +4,8 @@
 #include <cmath>
 
 #include <pyllars/pyllars.hpp>
-#include <pyllars/pyllars_pointer.impl.hpp>
-#include <pyllars/pyllars_classwrapper.impl.hpp>
-
-pyllars::Initializer *pyllars::Initializer::root = nullptr;
+#include <pyllars/internal/pyllars_pointer.impl.hpp>
+#include <pyllars/internal/pyllars_classwrapper.impl.hpp>
 
 
 static void _pyllars_import_to_top(PyObject* pyllars_mod, PyObject* module){
@@ -48,14 +46,9 @@ PyllarsInit(const char* const name){
   if(mod){
     Py_INCREF(mod);
     PyObject_SetAttrString(pyllars_mod, name, mod);
-    int rc = pyllars::Initializer::root? pyllars::Initializer::root->set_up():0;
-    if (0 == rc) {
-       rc = pyllars::Initializer::root?pyllars::Initializer::root->ready(mod):0;
-    } 
-    if (rc != 0){
-      printf("Failed to initialize some components of %s", name);
-    }
-    _pyllars_import_to_top(pyllars_mod, mod);
+  }
+  if (__pyllars_internal::Init::ready()!= 0){
+      printf("Failed to ready all types");
   }
   return mod;
 }
@@ -78,24 +71,14 @@ int PyllarsInit(const char* const name){
 }
 #endif
 
-int pyllars::pyllars_register( Initializer* const init){
-    // ensure root is "clean" and no static initizlied as this function
-    // may be called during static initialization before root has been assigend
-    // a static _CObject
-    static Initializer _root;
-    if(!Initializer::root)
-      Initializer::root = &_root;
 
-    return Initializer::root->register_init(init);
-}
-
-#include <pyllars/pyllars_integer.hpp>
-#include <pyllars/pyllars_floating_point.hpp>
-#include "pyllars_classwrapper.impl.hpp"
+#include <pyllars/internal/pyllars_integer.hpp>
+#include <pyllars/internal/pyllars_floating_point.hpp>
+#include "pyllars/internal/pyllars_classwrapper.impl.hpp"
 
 
 namespace __pyllars_internal {
-
+    std::vector<Init::ready_func_t> *Init::_readyFuncs = nullptr;
 
     PyObject* NULL_ARGS(){
         static PyObject* args = PyTuple_Pack(1, PyFloat_FromDouble(0.129726362));  // bogus vale to make unique
@@ -392,9 +375,4 @@ namespace __pyllars_internal {
         }
         return Py_None;
     }
-}
-
-status_t pyllars::pyllars_addPyObject(const char* const name, PyObject* obj){
-    PyObject* module = PyImport_ImportModule("pyllars");
-    return PyModule_AddObject(module, name, obj);
 }

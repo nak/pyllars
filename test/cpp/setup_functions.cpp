@@ -6,7 +6,7 @@
 #include "function_defns.hpp"
 
 #include "pyllars/pyllars.hpp"
-#include "pyllars/pyllars_function_wrapper.hpp"
+#include "pyllars/internal/pyllars_function_wrapper.hpp"
 
 
 void

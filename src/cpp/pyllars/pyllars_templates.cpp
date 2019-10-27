@@ -3,8 +3,8 @@
 
 #include <Python.h>
 #include <string.h>
-#include "pyllars_templates.hpp"
-#include "pyllars_defns.hpp"
+#include "pyllars/internal/pyllars_templates.hpp"
+#include "pyllars/internal/pyllars_defns.hpp"
 
 namespace __pyllars_internal {
 

@@ -8,7 +8,7 @@
 #include <limits.h>
 #include <ffi.h>
 
-#include "pyllars_containment.hpp"
+#include "pyllars/internal/pyllars_containment.hpp"
 #include "pyllars_type_traits.hpp"
 #include "pyllars_utils.hpp"
 #include "pyllars_varargs.hpp"

@@ -5,7 +5,7 @@
 #ifndef __PYLLARS_INTERNAL__CLASSMEMBERSEMANTICS_CPP__
 #define __PYLLARS_INTERNAL__CLASSMEMBERSEMANTICS_CPP__
 
-#include "pyllars_classmembersemantics.hpp"
+#include "pyllars/internal/pyllars_classmembersemantics.hpp"
 
 namespace __pyllars_internal{
 

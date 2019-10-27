@@ -4,7 +4,7 @@
 #include <map>
 #include <vector>
 #include <Python.h>
-#include "pyllars_classwrapper.hpp"
+#include "pyllars/internal/pyllars_classwrapper.hpp"
 
 
 

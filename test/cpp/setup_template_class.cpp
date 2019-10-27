@@ -4,13 +4,16 @@
 #include <Python.h>
 
 #include "pyllars/pyllars.hpp"
-#include "pyllars/pyllars_reference.impl.hpp"
-#include "pyllars/pyllars_membersemantics.impl.hpp"
-#include "pyllars/pyllars_classmembersemantics.impl.hpp"
-#include "pyllars/pyllars_staticfunctionsemantics.impl.hpp"
-#include "pyllars/pyllars_templates.hpp"
+#include "pyllars/internal/pyllars_reference.impl.hpp"
+#include "pyllars/internal/pyllars_membersemantics.impl.hpp"
+#include "pyllars/internal/pyllars_classmembersemantics.impl.hpp"
+#include "pyllars/internal/pyllars_staticfunctionsemantics.impl.hpp"
+#include "pyllars/internal/pyllars_templates.hpp"
 
 #include "setup_template_class.h"
+#include <pyllars/pyllars_classmethod.hpp>
+#include <pyllars/pyllars_class.hpp>
+#include <pyllars/pyllars_classconstructor.hpp>
 
 
 template<>

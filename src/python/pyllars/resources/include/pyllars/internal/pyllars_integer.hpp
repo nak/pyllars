@@ -5,8 +5,8 @@
 #ifndef PYLLARS_PYLLARS_INTEGER_H
 #define PYLLARS_PYLLARS_INTEGER_H
 
-#include "pyllars_defns.hpp"
-#include "pyllars_classwrapper.hpp"
+#include "pyllars/internal/pyllars_defns.hpp"
+#include "pyllars/internal/pyllars_classwrapper.hpp"
 
 namespace  __pyllars_internal {
 
@@ -14,7 +14,7 @@ namespace  __pyllars_internal {
      Struct (non-template) to hold a common number (integer) base Type that is not instantiable,
      but provide for common reference base type
     */
-    struct PyNumberCustomBase : CommonBaseWrapper{
+    struct PyNumberCustomBase : public CommonBaseWrapper{
         PyObject_HEAD
 
         static PyTypeObject _Type;
@@ -295,6 +295,34 @@ namespace  __pyllars_internal {
 
         static constexpr auto _new = PyType_GenericNew;
 
+        template<typename Parent, bool enabled = std::is_base_of<CommonBaseWrapper, Parent>::value>
+        static status_t ready() {
+            _initialize(_Type);
+        }
+
+        static status_t preinit(){
+            Py_Initialize();
+            static PyObject *module = PyImport_ImportModule("pyllars");
+            static bool inited = false;
+            static int rc = -1;
+            if (inited) return rc;
+            inited = true;
+
+            rc = PyType_Ready(&PyNumberCustomBase::_Type);
+            rc |= PyType_Ready(&_Type);
+            rc |= PyType_Ready(&CommonBaseWrapper::_BaseType);
+            rc |= PyType_Ready(&PyNumberCustomObject::_Type);
+            Py_INCREF(&_Type);
+            Py_INCREF(&PyNumberCustomBase::_Type);
+            Py_INCREF(&PyNumberCustomObject::_Type);
+                    if (module && rc == 0) {
+                        PyModule_AddObject(module, __pyllars_internal::type_name<number_type>(),
+                                           (PyObject *) &PyNumberCustomObject::_Type);
+                    }
+                    return rc;
+        }
+
+
     protected:
         static PyMethodDef _methods[];
         static int _initialize(PyTypeObject &type);
@@ -321,19 +349,12 @@ namespace  __pyllars_internal {
             _referenced = obj;
         }
 
+
         std::function<__int128_t()> asLongLong;
         PyObject *_referenced;
         size_t _depth;
         number_type *_CObject;
 
-        class Initializer : public pyllars::Initializer {
-        public:
-            Initializer();
-
-            status_t set_up() override;
-
-            static Initializer *initializer;
-        };
 
         static void _dealloc(PyObject* self){}
 

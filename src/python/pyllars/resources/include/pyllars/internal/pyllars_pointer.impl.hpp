@@ -7,9 +7,9 @@
 
 #include "pyllars.hpp"
 #include "pyllars_pointer.hpp"
-#include "pyllars_floating_point.hpp"
-#include "pyllars_integer.hpp"
-#include "pyllars_classwrapper.impl.hpp"
+#include "pyllars/internal/pyllars_floating_point.hpp"
+#include "pyllars/internal/pyllars_integer.hpp"
+#include "pyllars/internal/pyllars_classwrapper.impl.hpp"
 #include "pyllars_reference.impl.hpp"
 
 namespace __pyllars_internal {

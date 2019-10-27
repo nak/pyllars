@@ -1,15 +1,16 @@
 #include <stdlib.h>
 #include "gtest/gtest.h"
+#include "setup.h"
 #include "pyllars/pyllars.hpp"
-#include "pyllars/pyllars_function_wrapper.hpp"
-#include "pyllars/pyllars_staticfunctionsemantics.impl.hpp"
+#include "pyllars/internal/pyllars_function_wrapper.hpp"
+#include "pyllars/internal/pyllars_staticfunctionsemantics.impl.hpp"
 #include <map>
 #include "class_test_defns.h"
 #include "setup.h"
 #include "setup_functions.hpp"
 #include "function_defns.hpp"
-#include "pyllars/pyllars_classwrapper.hpp"
-#include "pyllars/pyllars_integer.hpp"
+#include "pyllars/internal/pyllars_classwrapper.hpp"
+#include "pyllars/internal/pyllars_integer.hpp"
 
 constexpr const char* const kwlist_void_return[] = {"_CObject", nullptr};
 constexpr const char* const kwlist_long_long_return[] = {"i", "d", nullptr};

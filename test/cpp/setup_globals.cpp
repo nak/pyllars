@@ -5,8 +5,8 @@
 #include "setup_globals.h"
 
 #include "pyllars/pyllars.hpp"
-#include "pyllars/pyllars_globalmembersemantics.impl.hpp"
-#include "pyllars/pyllars_conversions.impl.hpp"
+#include "pyllars/internal/pyllars_globalmembersemantics.impl.hpp"
+#include "pyllars/internal/pyllars_conversions.impl.hpp"
 
 #include "globals.h"
 

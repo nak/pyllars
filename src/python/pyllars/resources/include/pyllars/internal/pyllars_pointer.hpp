@@ -11,8 +11,8 @@
 #include <structmember.h>
 #include <climits>
 
-#include "pyllars_classwrapper.hpp"
-#include "pyllars_containment.hpp"
+#include "pyllars/internal/pyllars_classwrapper.hpp"
+#include "pyllars/internal/pyllars_containment.hpp"
 
 
 namespace __pyllars_internal {

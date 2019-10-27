@@ -18,7 +18,7 @@
 #include <memory>
 #include <limits>
 #include "pyllars_type_traits.hpp"
-#include "pyllars_defns.hpp"
+#include "pyllars/internal/pyllars_defns.hpp"
 
 #undef NULL
 #define NULL nullptr

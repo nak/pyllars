@@ -1,7 +1,7 @@
 //
 // Created by jrusnak on 10/13/19.
 //
-#include "pyllars_classwrapper.hpp"
+#include "pyllars/internal/pyllars_classwrapper.hpp"
 
 #ifndef PYLLARS_PYLLARS_CLASSENUMCLASS_HPP
 #define PYLLARS_PYLLARS_CLASSENUMCLASS_HPP

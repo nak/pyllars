@@ -27,7 +27,7 @@ namespace __pyllars_internal {
 
     template<typename T>
     struct _Types {
-        static cstring type_name;
+        static const char* type_name;
     };
 
     template<>

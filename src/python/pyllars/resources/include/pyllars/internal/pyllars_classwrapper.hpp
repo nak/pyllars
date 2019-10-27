@@ -13,15 +13,15 @@
 #include <Python.h>
 #include <tupleobject.h>
 
+#include "pyllars_namespacewrapper.hpp"
 #include "pyllars_type_traits.hpp"
 #include "pyllars.hpp"
 #include "pyllars_defns.hpp"
 #include "pyllars_staticfunctionsemantics.hpp"
-#include "pyllars_classmembersemantics.hpp"
+#include "pyllars/internal/pyllars_classmembersemantics.hpp"
 #include "pyllars_membersemantics.hpp"
 #include "pyllars_methodcallsemantics.hpp"
 #include "pyllars_containment.hpp"
-#include "pyllars_namespacewrapper.hpp"
 
 typedef const char cstring[];
 static constexpr cstring operatormapname = "operator[]";
@@ -54,6 +54,10 @@ static constexpr cstring OP_BINARY_ILSHIFT = "__ilshift__";
 static constexpr cstring OP_BINARY_IRSHIFT = "__irshift__";
 
 static const char* const emptylist[] = {nullptr};
+
+namespace pyllars{
+    class CommonNamespaceWrapper;
+}
 
 namespace __pyllars_internal {
 
@@ -121,6 +125,10 @@ namespace __pyllars_internal {
                 return PyObject_SetAttrString((PyObject*) Parent::getPyType(), Types<typename Parent::WrappedType>::type_name(), (PyObject*) getPyType());
             }
             return status;
+        }
+
+        static status_t preinit(){
+            return 0;
         }
 
         /**
@@ -342,9 +350,9 @@ namespace __pyllars_internal {
 
 
     protected:
-        typedef int (*readyImpl_t)();
-        static readyImpl_t*&  readyImpl(){
-            static readyImpl_t* impl = nullptr;
+        typedef status_t (*readyImpl_t)();
+        static readyImpl_t&  readyImpl(){
+            static readyImpl_t impl = nullptr;
             return impl;
         }
 

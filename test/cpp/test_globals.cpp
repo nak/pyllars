@@ -2,11 +2,11 @@
 // Created by jrusnak on 3/24/19.
 //
 
-
+#include "setup.h"
 #include "setup_globals.h"
 #include "pyllars/pyllars.hpp"
-#include "pyllars/pyllars_globalmembersemantics.impl.hpp"
-#include "pyllars/pyllars_classwrapper.impl.hpp"
+#include "pyllars/internal/pyllars_globalmembersemantics.impl.hpp"
+#include "pyllars/internal/pyllars_classwrapper.impl.hpp"
 #include "globals.h"
 
 TEST_F(SetupGlobals, TestGlobals) {

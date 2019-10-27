@@ -10,10 +10,10 @@
 #include <structmember.h>
 #include <climits>
 
-#include "pyllars_integer.hpp"
-#include "pyllars_floating_point.hpp"
-#include "pyllars_classwrapper.hpp"
-#include "pyllars_containment.hpp"
+#include "pyllars/internal/pyllars_integer.hpp"
+#include "pyllars/internal/pyllars_floating_point.hpp"
+#include "pyllars/internal/pyllars_classwrapper.hpp"
+#include "pyllars/internal/pyllars_containment.hpp"
 #include "pyllars_pointer.hpp"
 
 

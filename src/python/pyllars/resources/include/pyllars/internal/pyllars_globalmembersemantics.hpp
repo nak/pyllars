@@ -3,9 +3,9 @@
 
 #include <Python.h>
 
-#include "pyllars_defns.hpp"
+#include "pyllars/internal/pyllars_defns.hpp"
 #include "pyllars.hpp"
-#include "pyllars_classwrapper.hpp"
+#include "pyllars/internal/pyllars_classwrapper.hpp"
 
 namespace __pyllars_internal {
 

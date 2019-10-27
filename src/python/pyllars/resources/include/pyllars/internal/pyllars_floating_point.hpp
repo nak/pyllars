@@ -1,7 +1,7 @@
 #ifndef __PYLLARS__FLOATING_POINT_H__
 #define __PYLLARS__FLOATING_POINT_H__
 
-#include "pyllars_classwrapper.hpp"
+#include "pyllars/internal/pyllars_classwrapper.hpp"
 
 namespace __pyllars_internal{
 
@@ -55,6 +55,33 @@ namespace __pyllars_internal{
         static int initialize(){
             return _initialize(_Type);
         }
+
+        template<typename Parent, bool enabled = std::is_base_of<CommonBaseWrapper, Parent>::value>
+        static status_t ready() {
+            _initialize(_Type);
+        }
+
+        static status_t preinit(){
+            static int rc = -1;
+            static bool inited = false;
+            if (inited) {
+                return rc;
+            }
+            static PyObject *module = PyImport_ImportModule("pyllars");
+            rc = PyType_Ready(CommonBaseWrapper::getPyType()) |
+                 PyType_Ready(&PyFloatingPtCustomBase::_Type) |
+                 PyType_Ready(&PyFloatingPtCustomObject::_Type);
+            Py_INCREF(&PyFloatingPtCustomBase::_Type);
+            Py_INCREF(&PyFloatingPtCustomObject::_Type);
+            if (module && rc == 0) {
+                PyModule_AddObject(module, __pyllars_internal::type_name<number_type>(),
+                                   (PyObject *) &PyFloatingPtCustomObject::_Type);
+            }
+            rc |= PyType_Ready(&_Type);
+            return rc;
+        }
+
+
     protected:
 
         static PyObject *richcompare(PyObject *a, PyObject *b, int op);
@@ -73,15 +100,6 @@ namespace __pyllars_internal{
         PyObject *_referenced;
         size_t _depth;
         number_type_basic *_CObject;
-
-        class Initializer : public pyllars::Initializer {
-        public:
-            Initializer();
-
-            status_t set_up() override;
-
-            static Initializer *initializer;
-        };
 
         static void _dealloc(PyObject* self){}
 

@@ -2,7 +2,7 @@
 #define __PYLLARS__FLOATING_POINT_IMPL_H__
 
 #include "pyllars_reference.hpp"
-#include "pyllars_defns.impl.hpp"
+#include "pyllars/internal/pyllars_defns.impl.hpp"
 
 namespace __pyllars_internal{
 

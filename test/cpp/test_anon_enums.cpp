@@ -1,15 +1,15 @@
+#include "setup.h"
 #include <stdlib.h>
 #include "gtest/gtest.h"
 #include "pyllars/pyllars.hpp"
-#include "pyllars/pyllars_classwrapper.impl.hpp"
-#include "pyllars/pyllars_pointer.impl.hpp"
-#include "pyllars/pyllars_membersemantics.impl.hpp"
-#include "pyllars/pyllars_classmembersemantics.impl.hpp"
-#include "pyllars/pyllars_staticfunctionsemantics.impl.hpp"
+#include "pyllars/internal/pyllars_classwrapper.impl.hpp"
+#include "pyllars/internal/pyllars_pointer.impl.hpp"
+#include "pyllars/internal/pyllars_membersemantics.impl.hpp"
+#include "pyllars/internal/pyllars_classmembersemantics.impl.hpp"
+#include "pyllars/internal/pyllars_staticfunctionsemantics.impl.hpp"
 #include <map>
 #include "class_test_defns.h"
 #include "anon_enum_defns.h"
-#include "setup.h"
 #include "setup_anon_enums.hpp"
 
 #include "pyllars/pyllars_classenum.hpp"

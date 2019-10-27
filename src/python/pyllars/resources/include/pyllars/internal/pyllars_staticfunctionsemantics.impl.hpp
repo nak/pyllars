@@ -5,10 +5,10 @@
 #ifndef __PYLLARS_INTERNAL__CLASSMETHODSEMANTICS_CPP__
 #define __PYLLARS_INTERNAL__CLASSMETHODSEMANTICS_CPP__
 
-#include "pyllars_function_wrapper.hpp"
+#include "pyllars/internal/pyllars_function_wrapper.hpp"
 #include "pyllars_staticfunctionsemantics.impl.hpp"
 #include "pyllars_utils.impl.hpp"
-#include "pyllars_conversions.impl.hpp"
+#include "pyllars/internal/pyllars_conversions.impl.hpp"
 #include <cstddef>
 
 namespace __pyllars_internal{
