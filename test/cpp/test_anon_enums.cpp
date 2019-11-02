@@ -16,13 +16,13 @@
 #include "pyllars/pyllars_classenumclass.hpp"
 
 template<>
-const char* const __pyllars_internal::_Types<ClassWithEnum>::type_name = "ClassWithEnum";
+const char* const __pyllars_internal::TypeInfo<ClassWithEnum>::type_name = "ClassWithEnum";
 
 template<>
-const char* const __pyllars_internal::_Types<decltype(ClassWithEnum::FIRST)>::type_name = "anonymous enum";
+const char* const __pyllars_internal::TypeInfo<decltype(ClassWithEnum::FIRST)>::type_name = "anonymous enum";
 
 template<>
-const char* const __pyllars_internal::_Types<Enum>::type_name = "Enum";
+const char* const __pyllars_internal::TypeInfo<Enum>::type_name = "Enum";
 
 
 

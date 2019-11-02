@@ -123,6 +123,7 @@ TEST_F(SetupBasicClass, TestBasicClass){
         ASSERT_NE(mapped, nullptr);
         ASSERT_EQ(PyLong_AsLong(mapped), 123);
         PyMapping_SetItemString(obj, "123", PyLong_FromLong(99));
+        ASSERT_FALSE(PyErr_Occurred());
         mapped = PyMapping_GetItemString(obj, "123");
         ASSERT_FALSE(PyErr_Occurred());
         ASSERT_NE(mapped, nullptr);
@@ -337,7 +338,7 @@ TEST_F(SetupBasicClass, TestBasicClassBinaryOperators){
 }
 
 class UnaryOperatorTest : public SetupBasicClass,
-                          public testing::WithParamInterface<std::pair<const char*, const BasicClass*> >{
+public testing::WithParamInterface<std::pair<__pyllars_internal::OpUnaryEnum, const BasicClass*> >{
 
 };
 
@@ -345,9 +346,17 @@ TEST_P(UnaryOperatorTest, InvokesOperator){
     using namespace __pyllars_internal;
     typedef PythonClassWrapper<BasicClass> Class;
 
-    auto  [name, expected] = GetParam();
+
+    static const std::map<OpUnaryEnum, const char*> opUnaryNameMap = {
+            {OpUnaryEnum::INV, "__invert__"},
+            {OpUnaryEnum::POS, "__pos__"},
+            {OpUnaryEnum::NEG, "__neg__"}
+    };
+
+    auto  [kind, expected] = GetParam();
     PyObject * obj = PyObject_Call((PyObject*)Class::getPyType(), PyTuple_New(0), nullptr);
     ASSERT_NE(obj, nullptr);
+    const char* const name = opUnaryNameMap.at(kind);
     auto func = PyObject_GetAttrString(obj, name);
     ASSERT_NE(func, nullptr);
     auto pyobj = PyObject_Call(func, PyTuple_New(0), nullptr);
@@ -365,25 +374,49 @@ static const BasicClass val_inv = ~val_pos;
 #endif
 
 
-INSTANTIATE_TEST_SUITE_P(UnaryOperatorTestSuite, UnaryOperatorTest, ::testing::Values(std::pair<const char*, const BasicClass*>((const char*)OP_UNARY_POS, &val_pos),
-        std::pair<const char*, const BasicClass*>(OP_UNARY_NEG, &val_neg),
-        std::pair<const char*, const BasicClass*>(OP_UNARY_INV, &val_inv)
+INSTANTIATE_TEST_SUITE_P(UnaryOperatorTestSuite, UnaryOperatorTest, ::testing::Values(std::pair<__pyllars_internal::OpUnaryEnum, const BasicClass*>(__pyllars_internal::OpUnaryEnum::POS, &val_pos),
+        std::pair<__pyllars_internal::OpUnaryEnum, const BasicClass*>(__pyllars_internal::OpUnaryEnum::NEG, &val_neg),
+        std::pair<__pyllars_internal::OpUnaryEnum, const BasicClass*>(__pyllars_internal::OpUnaryEnum::INV, &val_inv)
         ));
 
 
 class BinaryOperatorTest : public SetupBasicClass,
-                          public testing::WithParamInterface<std::tuple<const char*, const BasicClass*, std::function<void(PyObject*)> > >{
+public testing::WithParamInterface<std::tuple<__pyllars_internal::OpBinaryEnum, const BasicClass*, std::function<void(PyObject*)> > >{
 
 };
 
 TEST_P(BinaryOperatorTest, InvokeOperator){
     using namespace __pyllars_internal;
+
+    static const std::map<OpBinaryEnum, const char*> opBinaryNameMap= {
+            {OpBinaryEnum::ADD, "__add__"},
+            {OpBinaryEnum::SUB, "__sub__"},
+            {OpBinaryEnum::MUL, "__mul__"},
+            {OpBinaryEnum::DIV, "__div__"},
+            {OpBinaryEnum::AND, "__and__"},
+            {OpBinaryEnum::OR, "__or__"},
+            {OpBinaryEnum::XOR, "__xor__"},
+            {OpBinaryEnum::MOD, "__mod__"},
+            {OpBinaryEnum::LSHIFT, "__lshift__"},
+            {OpBinaryEnum::RSHIFT, "__rshift__"},
+
+            {OpBinaryEnum::IADD, "__iadd__"},
+            {OpBinaryEnum::ISUB, "__isub__"},
+            {OpBinaryEnum::IMUL, "__imul__"},
+            {OpBinaryEnum::IDIV, "__idiv__"},
+            {OpBinaryEnum::IAND, "__iand__"},
+            {OpBinaryEnum::IOR, "__ior__"},
+            {OpBinaryEnum::IXOR, "__ixor__"},
+            {OpBinaryEnum::IMOD, "__imod__"},
+            {OpBinaryEnum::ILSHIFT, "__ilshift__"},
+            {OpBinaryEnum::IRSHIFT, "__irshift__"}
+    };
     typedef PythonClassWrapper<BasicClass> Class;
 
-    auto  [name, val1, expectation] = GetParam();
+    auto  [kind, val1, expectation] = GetParam();
     PyObject * obj = PyObject_Call((PyObject*)Class::getPyType(), PyTuple_New(0), nullptr);
     ASSERT_NE(obj, nullptr);
-    auto func = PyObject_GetAttrString(obj, name);
+    auto func = PyObject_GetAttrString(obj, (const char* const)opBinaryNameMap.at(kind));
     ASSERT_NE(func, nullptr);
     ASSERT_TRUE(PyCallable_Check(func));
     auto args = PyTuple_New(1);
@@ -402,5 +435,5 @@ static std::function<void(PyObject*)> expectation_add = [](PyObject* result){
 };
 
 INSTANTIATE_TEST_SUITE_P(BinaryOperatorTestSuite, BinaryOperatorTest, ::testing::Values(
-        std::tuple<const char*, const BasicClass*, std::function<void(PyObject*)>>((const char*)OP_BINARY_ADD, &val_pos, expectation_add)
+        std::tuple<__pyllars_internal::OpBinaryEnum, const BasicClass*, std::function<void(PyObject*)>>(__pyllars_internal::OpBinaryEnum::ADD, &val_pos, expectation_add)
 ));

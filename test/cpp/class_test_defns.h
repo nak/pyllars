@@ -88,7 +88,7 @@ public:
 
     const double * const double_ptr_member;
     int int_array[3];
-    const int cont_int_value = -2348;
+    const int const_int_value = -2348;
 
     static constexpr int class_const_member = 42;
     static int class_member;

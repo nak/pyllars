@@ -25,6 +25,7 @@
 #include "pyllars/pyllars_classmember.hpp"
 #include "pyllars/internal/pyllars_classbitfield.hpp"
 #include "pyllars/pyllars_class.hpp"
+#include "pyllars/pyllars_classmapoperator.hpp"
 
 #include "class_test_defns.h"
 #include "setup_basic_class.h"
@@ -32,24 +33,26 @@
 int BasicClass::class_member = 6234;
 const int BasicClass::class_const_member;
 
+template<>
+const char* const __pyllars_internal::TypeInfo<BasicClass>::type_name = "BasicClass";
 
 template<>
-const char* const __pyllars_internal::_Types<BasicClass2>::type_name = "BasicClass2";
+const char* const __pyllars_internal::TypeInfo<BasicClass2>::type_name = "BasicClass2";
 
 template<>
-const char* const __pyllars_internal::_Types<NonDestructible>::type_name = "NonDestructible";
+const char* const __pyllars_internal::TypeInfo<NonDestructible>::type_name = "NonDestructible";
 
 template<>
-const char* const __pyllars_internal::_Types<EnumClass>::type_name = "EnumClass";
+const char* const __pyllars_internal::TypeInfo<EnumClass>::type_name = "EnumClass";
 
 long long convertEnum(const EnumClass &val){
     return (long long)val;
 }
 
 const char *const empty_list[] = {nullptr};
-const char* const class_name = "BasicClass";
+
 template
-class pyllars::PythonClass<class_name, BasicClass const, pyllars::GlobalNamespace >;
+class pyllars::PyllarsClass<BasicClass const, pyllars::GlobalNamespace >;
 
 template
 class pyllars::PyllarsClassConstructor<empty_list, BasicClass>;
@@ -72,6 +75,20 @@ const char *const kwlist[2] = {"_CObject", nullptr};
 template
 class pyllars::PyllarsClassConstructor<kwlist_copy_constr, BasicClass, const double>;
 
+template
+class pyllars::PyllarsClassMapOperator<int& (BasicClass::*)(const char* const), &BasicClass::operator[]>;
+
+template
+class pyllars::PyllarsClassMapOperator<const int& (BasicClass::*)(const char* const) const, &BasicClass::operator[]>;
+
+
+template
+        class pyllars::PyllarsClassMember<const_int_member_name, BasicClass, const int, &BasicClass::const_int_value>;
+
+template
+        class pyllars::PyllarsClassMethod<method_name, kwlist, int(BasicClass::*)(const double), &BasicClass::public_method>;
+
+
 void
 SetupBasicClass::SetUpTestSuite() {
     using namespace __pyllars_internal;
@@ -86,14 +103,10 @@ SetupBasicClass::SetUpTestSuite() {
         Class::addInvOperator<BasicClass(BasicClass::*)() const, &BasicClass::operator~ >();
         Class::addSubOperator<kwlist, BasicClass(BasicClass::*)(const double), &BasicClass::operator- >();
         Class::addAddOperator<kwlist, double(BasicClass::*)(const BasicClass&) const, &BasicClass::operator+>();
-        Class::addMethod<method_name, kwlist, int(BasicClass::*)(const double), &BasicClass::public_method>();
         Class::addClassMethod<static_method_name, kwlist, const char *const(), &BasicClass::static_public_method>();
-        Class::addMapOperator<kwlist, const char* const, int&(BasicClass::*)(const char* const), &BasicClass::operator[]>();
-        Class::addMapOperator<kwlist, const char* const, const int &(BasicClass::*)(const char* const) const, &BasicClass::operator[]>();
         Class::addClassAttribute<class_const_member_name, const int>(&BasicClass::class_const_member);
         Class::addClassAttribute<class_member_name, int>(&BasicClass::class_member);
         Class::addAttribute<int_array_member_name, int[3]>(&BasicClass::int_array);
-        Class::addAttribute<const_int_member_name, const int>(&BasicClass::cont_int_value);
         Class::addAttribute<dbl_ptr_member_name, const double *const>(&BasicClass::double_ptr_member);
         ASSERT_EQ(Class::initialize(), 0);
     }

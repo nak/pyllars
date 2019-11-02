@@ -282,10 +282,12 @@ namespace __pyllars_internal {
         }
         _unaryOperatorsConst() = Basic::_unaryOperatorsConst();
 
-        static std::map<std::string, unaryfunc *> unary_mapping =
-                {{std::string(OP_UNARY_INV), &Type.tp_as_number->nb_invert},
-                 {std::string(OP_UNARY_NEG), &Type.tp_as_number->nb_negative},
-                 {std::string(OP_UNARY_POS), &Type.tp_as_number->nb_positive}};
+        static  std::map<OpUnaryEnum, unaryfunc *> unary_mapping = {
+                {OpUnaryEnum::INV, &Type.tp_as_number->nb_invert},
+                {OpUnaryEnum::NEG, &Type.tp_as_number->nb_negative},
+                {OpUnaryEnum::POS, &Type.tp_as_number->nb_positive}
+        };
+
         for (auto const&[name_, func]: _unaryOperators()) {
             if (unary_mapping.count(name_) == 0) {
                return -1;
@@ -303,27 +305,27 @@ namespace __pyllars_internal {
         }
         _binaryOperatorsConst() = Basic::_binaryOperatorsConst();
 
-        static std::map<std::string, binaryfunc *> binary_mapping =
-                {{OP_BINARY_ADD,     &Type.tp_as_number->nb_add},
-                 {OP_BINARY_AND,     &Type.tp_as_number->nb_and},
-                 {OP_BINARY_OR,      &Type.tp_as_number->nb_or},
-                 {OP_BINARY_XOR,     &Type.tp_as_number->nb_xor},
-                 {OP_BINARY_DIV,     &Type.tp_as_number->nb_true_divide},
-                 {OP_BINARY_MOD,     &Type.tp_as_number->nb_remainder},
-                 {OP_BINARY_MUL,     &Type.tp_as_number->nb_multiply},
-                 {OP_BINARY_LSHIFT,  &Type.tp_as_number->nb_lshift},
-                 {OP_BINARY_RSHIFT,  &Type.tp_as_number->nb_rshift},
-                 {OP_BINARY_SUB,     &Type.tp_as_number->nb_subtract},
-                 {OP_BINARY_IADD,    &Type.tp_as_number->nb_inplace_add},
-                 {OP_BINARY_IAND,    &Type.tp_as_number->nb_inplace_and},
-                 {OP_BINARY_IOR,     &Type.tp_as_number->nb_inplace_or},
-                 {OP_BINARY_IXOR,    &Type.tp_as_number->nb_inplace_xor},
-                 {OP_BINARY_IDIV,    &Type.tp_as_number->nb_inplace_true_divide},
-                 {OP_BINARY_IMOD,    &Type.tp_as_number->nb_inplace_remainder},
-                 {OP_BINARY_IMUL,    &Type.tp_as_number->nb_inplace_multiply},
-                 {OP_BINARY_ILSHIFT, &Type.tp_as_number->nb_inplace_lshift},
-                 {OP_BINARY_IRSHIFT, &Type.tp_as_number->nb_inplace_rshift},
-                 {OP_BINARY_ISUB,    &Type.tp_as_number->nb_inplace_subtract},
+        static std::map<OpBinaryEnum , binaryfunc *> binary_mapping =
+                {{OpBinaryEnum::ADD,     &Type.tp_as_number->nb_add},
+                 {OpBinaryEnum::AND,     &Type.tp_as_number->nb_and},
+                 {OpBinaryEnum::OR,      &Type.tp_as_number->nb_or},
+                 {OpBinaryEnum::XOR,     &Type.tp_as_number->nb_xor},
+                 {OpBinaryEnum::DIV,     &Type.tp_as_number->nb_true_divide},
+                 {OpBinaryEnum::MOD,     &Type.tp_as_number->nb_remainder},
+                 {OpBinaryEnum::MUL,     &Type.tp_as_number->nb_multiply},
+                 {OpBinaryEnum::LSHIFT,  &Type.tp_as_number->nb_lshift},
+                 {OpBinaryEnum::RSHIFT,  &Type.tp_as_number->nb_rshift},
+                 {OpBinaryEnum::SUB,     &Type.tp_as_number->nb_subtract},
+                 {OpBinaryEnum::IADD,    &Type.tp_as_number->nb_inplace_add},
+                 {OpBinaryEnum::IAND,    &Type.tp_as_number->nb_inplace_and},
+                 {OpBinaryEnum::IOR,     &Type.tp_as_number->nb_inplace_or},
+                 {OpBinaryEnum::IXOR,    &Type.tp_as_number->nb_inplace_xor},
+                 {OpBinaryEnum::IDIV,    &Type.tp_as_number->nb_inplace_true_divide},
+                 {OpBinaryEnum::IMOD,    &Type.tp_as_number->nb_inplace_remainder},
+                 {OpBinaryEnum::IMUL,    &Type.tp_as_number->nb_inplace_multiply},
+                 {OpBinaryEnum::ILSHIFT, &Type.tp_as_number->nb_inplace_lshift},
+                 {OpBinaryEnum::IRSHIFT, &Type.tp_as_number->nb_inplace_rshift},
+                 {OpBinaryEnum::ISUB,    &Type.tp_as_number->nb_inplace_subtract},
 
                 };
         for (auto const&[name_, func]: _binaryOperators()) {
@@ -434,7 +436,7 @@ namespace __pyllars_internal {
                 break;
             }
         }
-        return value;
+        return value?value:Py_None;
     }
 
 
@@ -464,107 +466,6 @@ namespace __pyllars_internal {
         return status;
     }
 
-
-
-#include <functional>
-
-    template<typename T>
-    template<const char *const kwlist[2],  typename KeyType, typename ValueType, typename method_t, method_t method>
-    void PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::
-    _addMapOperatorMethod() {
-        constexpr bool method_is_const = func_traits<method_t>::is_const_method;
-        std::function<PyObject *(PyObject *, PyObject *)> getter = [](PyObject *self, PyObject *item) -> PyObject * {
-            PythonClassWrapper *self_ = (PythonClassWrapper *) self;
-            try {
-                auto c_key = __pyllars_internal::toCArgument<KeyType>(*item);
-                return toPyObject<ValueType>((self_->get_CObject()->*method)(c_key.value()), 1);
-            } catch (PyllarsException &e) {
-                e.raise();
-                return nullptr;
-            } catch(std::exception const & e) {
-                PyllarsException::raise_internal_cpp(e.what());
-                return nullptr;
-            } catch (...){
-                PyllarsException::raise_internal_cpp();
-                return nullptr;
-            }
-        };
-        // since elements can be mutable, even const map operators must allow for setters
-        std::function<int(bool, PyObject *, PyObject *, PyObject *)> setter =
-                [](bool obj_is_const, PyObject *self, PyObject *item, PyObject *value) -> int {
-            PythonClassWrapper *self_ = (PythonClassWrapper *) self;
-            auto cobj = self_->get_CObject();
-            if (!cobj){
-                PyErr_SetString(PyExc_TypeError, "Cannot operate on nullptr");
-                return -1;
-            }
-            try {
-                if constexpr (std::is_reference<ValueType>::value) {
-                    //the value here is something we will be assigning TO and NOT FROM.  So make const
-                    //in order to avoid type conversion issue as is it not really an argument to a function call
-                    typedef typename to_const<ValueType>::type safe_value_type;
-                    argument_capture<safe_value_type > c_value = __pyllars_internal::template toCArgument<safe_value_type >(*value);
-                    argument_capture<KeyType> c_key = __pyllars_internal::template toCArgument<KeyType>(*item);
-                    if (obj_is_const){
-                        if constexpr(method_is_const) {
-                            //mutable fields are still settable against const-ness of owning object
-                            //NOTE: we re-use this std::function for PythonClassWrapper<const T>, so need
-                            //   to get const bool to determine if this really should be a const-C object
-                            auto const_cobj = reinterpret_cast<const T_NoRef *>(cobj);
-                            try {
-                                Assignment<ValueType>::assign((const_cobj->*method)(c_key.value()), c_value.value());
-                            } catch (PyllarsException &e) {
-                                e.raise();
-                                return -1;
-                            } catch(std::exception const & e) {
-                                PyllarsException::raise_internal_cpp(e.what());
-                                return -1;
-                            } catch (...){
-                                PyllarsException::raise_internal_cpp();
-                                return -1;
-                            }
-                        } else {
-
-                            PyErr_SetString(PyExc_TypeError, "Cannot call non-const method with const this");
-                            return -1;
-                        }
-                    } else {
-                        try{
-                            Assignment<ValueType>::assign((cobj->*method)(c_key.value()), c_value.value());
-                        } catch (PyllarsException &e){
-                            e.raise();
-                            return -1;
-                        } catch(std::exception const & e) {
-                            PyllarsException::raise_internal_cpp(e.what());
-                            return -1;
-                        } catch (...){
-                            PyllarsException::raise_internal_cpp();
-                            return -1;
-                        }
-                    }
-                } else {
-                    PyErr_SetString(PyExc_TypeError, "Cannot set non-reference returned item");
-                    return -1;
-                }
-            } catch (PyllarsException &e) {
-                e.raise();
-                return -1;
-            } catch(std::exception const & e) {
-                PyllarsException::raise_internal_cpp(e.what());
-                return -1;
-            } catch (...){
-                PyllarsException::raise_internal_cpp();
-                return -1;
-            }
-            return 0;
-        };
-
-        const std::string name = type_name<ValueType>() + std::string(":") + type_name<KeyType>();
-        _mapMethodCollection[name] = std::pair<std::function<PyObject *(PyObject *, PyObject *)>,
-                std::function<int(bool, PyObject *, PyObject *, PyObject *)>
-        >(getter, setter);
-
-    }
 
 
     template<typename T>
@@ -738,7 +639,8 @@ namespace __pyllars_internal {
         return (PyObject *) self;
     }
 
-    template<typename T>
+
+            template<typename T>
     void PythonClassWrapper<T,
             typename std::enable_if<is_rich_class<T>::value>::type>::
     _free(void *self_) {

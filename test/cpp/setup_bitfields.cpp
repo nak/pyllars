@@ -32,7 +32,7 @@ typedef const char c_string[];
 constexpr c_string bit_name = "bit";
 
 template<>
-const char* const __pyllars_internal::_Types<BitFieldContainerClass>::type_name = "BitFieldContainer";
+const char* const __pyllars_internal::TypeInfo<BitFieldContainerClass>::type_name = "BitFieldContainer";
 
 void
 SetupBitfields::SetUpTestSuite() {

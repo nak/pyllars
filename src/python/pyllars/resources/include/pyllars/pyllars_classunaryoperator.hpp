@@ -32,22 +32,22 @@ namespace pyllars{
 namespace __pyllars_internal {
 
     template<typename T>
-    template<const char* const name, typename ReturnType, ReturnType( core_type<T>::type::*method)()>
+    template<OpUnaryEnum kind, typename ReturnType, ReturnType( core_type<T>::type::*method)()>
     void PythonClassWrapper<T,
             typename std::enable_if<is_rich_class<T>::value>::type>::
-    template Op<name, ReturnType( core_type<T>::type::*)(), method>::addUnaryOperator() {
+    template Op<kind, ReturnType( core_type<T>::type::*)(), method>::addUnaryOperator() {
         static const char* const kwlist[1] = {nullptr};
-        PythonClassWrapper<T>::_unaryOperators[name] = (unaryfunc) MethodContainer<kwlist, ReturnType(T::*)(), method>::callAsUnaryFunc;
+        PythonClassWrapper<T>::_unaryOperators[kind] = (unaryfunc) MethodContainer<kwlist, ReturnType(T::*)(), method>::callAsUnaryFunc;
     }
 
 
     template<typename T>
-    template<const char* const name, typename ReturnType, ReturnType(core_type<T>::type::*method)() const>
+    template<OpUnaryEnum kind, typename ReturnType, ReturnType(core_type<T>::type::*method)() const>
     void PythonClassWrapper<T,
             typename std::enable_if<is_rich_class<T>::value>::type>::
-    Op<name, ReturnType(core_type<T>::type::*)() const, method>::addUnaryOperator() {
+    Op<kind, ReturnType(core_type<T>::type::*)() const, method>::addUnaryOperator() {
         static const char* const kwlist[1] = {nullptr};
-        PythonClassWrapper<T>::_unaryOperatorsConst()[name] = (unaryfunc) MethodContainer<kwlist, ReturnType(CClass::*)() const, method>::callAsUnaryFunc;
+        PythonClassWrapper<T>::_unaryOperatorsConst()[kind] = (unaryfunc) MethodContainer<kwlist, ReturnType(CClass::*)() const, method>::callAsUnaryFunc;
     }
 
 }

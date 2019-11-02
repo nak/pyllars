@@ -27,32 +27,6 @@ typedef const char cstring[];
 static constexpr cstring operatormapname = "operator[]";
 static constexpr cstring operatormapnameconst = "operator[]const";
 
-static constexpr cstring OP_UNARY_INV = "__invert__";
-static constexpr cstring OP_UNARY_POS = "__pos__";
-static constexpr cstring OP_UNARY_NEG = "__neg__";
-
-static constexpr cstring OP_BINARY_ADD = "__add__";
-static constexpr cstring OP_BINARY_SUB = "__sub__";
-static constexpr cstring OP_BINARY_MUL = "__mul__";
-static constexpr cstring OP_BINARY_DIV = "__div__";
-static constexpr cstring OP_BINARY_AND = "__and__";
-static constexpr cstring OP_BINARY_OR  = "__or__";
-static constexpr cstring OP_BINARY_XOR = "__xor__";
-static constexpr cstring OP_BINARY_MOD = "__mod__";
-static constexpr cstring OP_BINARY_LSHIFT = "__lshift__";
-static constexpr cstring OP_BINARY_RSHIFT = "__rshift__";
-
-static constexpr cstring OP_BINARY_IADD = "__iadd__";
-static constexpr cstring OP_BINARY_ISUB = "__isub__";
-static constexpr cstring OP_BINARY_IMUL = "__imul__";
-static constexpr cstring OP_BINARY_IDIV = "__idiv__";
-static constexpr cstring OP_BINARY_IAND = "__iand__";
-static constexpr cstring OP_BINARY_IOR  = "__ior__";
-static constexpr cstring OP_BINARY_IXOR = "__ixor__";
-static constexpr cstring OP_BINARY_IMOD = "__imod__";
-static constexpr cstring OP_BINARY_ILSHIFT = "__ilshift__";
-static constexpr cstring OP_BINARY_IRSHIFT = "__irshift__";
-
 static const char* const emptylist[] = {nullptr};
 
 namespace pyllars{
@@ -60,6 +34,37 @@ namespace pyllars{
 }
 
 namespace __pyllars_internal {
+
+
+    enum class OpUnaryEnum {
+        INV,
+        POS,
+        NEG
+    };
+
+    enum class OpBinaryEnum{
+        ADD = 3,
+        SUB,
+        MUL,
+        DIV,
+        AND,
+        OR,
+        XOR,
+        MOD,
+        LSHIFT,
+        RSHIFT,
+
+        IADD,
+        ISUB,
+        IMUL,
+        IDIV,
+        IAND,
+        IOR,
+        IXOR,
+        IMOD,
+        ILSHIFT,
+        IRSHIFT
+    };
 
     typedef int (*_setattrfunc)(PyObject*, PyObject*, void*);
     typedef PyObject* (*_getattrfunc)(PyObject*, void*);
@@ -116,13 +121,13 @@ namespace __pyllars_internal {
         static status_t ready(){
             int status = 0;
             typedef int(*ready_f)();
-            for (const ready_f ready_fnctn: _childrenReadyFunctions){
-                status |= ready_fnctn();
+            for (const auto& ready_fnctn: _childrenReadyFunctions()){
+                status |= (ready_fnctn() == nullptr);
             }
             if constexpr(std::is_base_of<pyllars::CommonNamespaceWrapper, Parent>::value){
-                return PyModule_AddObject(Parent::module(), Types<typename Parent::WrappedType>::type_name(), (PyObject*) getPyType());
+                return PyModule_AddObject(Parent::module(), Types<T>::type_name(), (PyObject*) getPyType());
             } else {
-                return PyObject_SetAttrString((PyObject*) Parent::getPyType(), Types<typename Parent::WrappedType>::type_name(), (PyObject*) getPyType());
+                return PyObject_SetAttrString((PyObject*) Parent::getPyType(), Types<T>::type_name(), (PyObject*) getPyType());
             }
             return status;
         }
@@ -209,114 +214,114 @@ namespace __pyllars_internal {
         template<const char *const name, const char* const kwlist[], typename method_t, method_t method>
         static void addMethod();
 
-        template<const char* const name, typename method_t, method_t method>
+        template<OpUnaryEnum kind, typename method_t, method_t method>
         static void addUnaryOperator(){
-            Op<name, method_t, method>::addUnaryOperator();
+            Op<kind, method_t, method>::addUnaryOperator();
         }
 
 
         template<typename method_t, method_t method>
         static void addInvOperator(){
-            Op<OP_UNARY_INV, method_t, method>::addUnaryOperator();
+            Op<OpUnaryEnum::INV, method_t, method>::addUnaryOperator();
         }
 
         template<typename method_t, method_t method>
         static void addPosOperator()
-        { Op<OP_UNARY_POS, method_t, method>::addUnaryOperator();}
+        { Op<OpUnaryEnum::POS, method_t, method>::addUnaryOperator();}
 
         template<typename method_t, method_t method>
         static void addNegOperator()
-        { Op<OP_UNARY_NEG, method_t, method>::addUnaryOperator();}
+        { Op<OpUnaryEnum::NEG, method_t, method>::addUnaryOperator();}
 
         template<const char* const kwlist[2],typename method_t, method_t method>
         static void addAddOperator(){
-            BinaryOp<OP_BINARY_ADD, kwlist, method_t, method>::addBinaryOperator();
+            BinaryOp<OpBinaryEnum::ADD, kwlist, method_t, method>::addBinaryOperator();
         }
 
         template<const char* const kwlist[2],typename method_t, method_t method>
         static void addSubOperator(){
-            BinaryOp<OP_BINARY_SUB, kwlist, method_t, method>::addBinaryOperator();
+            BinaryOp<OpBinaryEnum::SUB, kwlist, method_t, method>::addBinaryOperator();
         }
 
         template<const char* const kwlist[2],typename method_t, method_t method>
         static void addMulOperator(){
-            BinaryOp<OP_BINARY_MUL, kwlist,method_t, method>::addBinaryOperator();}
+            BinaryOp<OpBinaryEnum::MUL, kwlist,method_t, method>::addBinaryOperator();}
 
         template<const char* const kwlist[2],typename method_t, method_t method>
         static void addDivOperator(){
-            BinaryOp<OP_BINARY_DIV, kwlist,method_t, method>::addBinaryOperator();}
+            BinaryOp<OpBinaryEnum::DIV, kwlist,method_t, method>::addBinaryOperator();}
 
         template<const char* const kwlist[2],typename method_t, method_t method>
         static void addAndOperator(){
-            BinaryOp<OP_BINARY_AND, kwlist,method_t, method>::addBinaryOperator();}
+            BinaryOp<OpBinaryEnum::AND, kwlist,method_t, method>::addBinaryOperator();}
 
         template<const char* const kwlist[2],typename method_t, method_t method>
         static void addOrOperator(){
-            BinaryOp<OP_BINARY_OR, kwlist,method_t, method>::addBinaryOperator();}
+            BinaryOp<OpBinaryEnum::OR, kwlist,method_t, method>::addBinaryOperator();}
 
         template<const char* const kwlist[2],typename method_t, method_t method>
         static void addXorOperator(){
-            BinaryOp<OP_BINARY_XOR, kwlist,method_t, method>::addBinaryOperator();}
+            BinaryOp<OpBinaryEnum::XOR, kwlist,method_t, method>::addBinaryOperator();}
 
         template<const char* const kwlist[2],typename method_t, method_t method>
         static void addLshiftOperator(){
-            BinaryOp<OP_BINARY_LSHIFT, kwlist,method_t, method>::addBinaryOperator();}
+            BinaryOp<OpBinaryEnum::LSHIFT, kwlist,method_t, method>::addBinaryOperator();}
 
         template<const char* const kwlist[2],typename method_t, method_t method>
         static void addRshiftOperator(){
-            BinaryOp<OP_BINARY_RSHIFT, kwlist,method_t, method>::addBinaryOperator();}
+            BinaryOp<OpBinaryEnum::RSHIFT, kwlist,method_t, method>::addBinaryOperator();}
 
         template<const char* const kwlist[2],typename method_t, method_t method>
         static void addModOperator(){
-            BinaryOp<OP_BINARY_MOD, kwlist,method_t, method>::addBinaryOperator();}
+            BinaryOp<OpBinaryEnum::MOD, kwlist,method_t, method>::addBinaryOperator();}
 
         template<const char* const kwlist[2],typename method_t, method_t method>
         static void addInplaceAddOperator(){
-            BinaryOp<OP_BINARY_IADD, kwlist,method_t, method>::addBinaryOperator();}
+            BinaryOp<OpBinaryEnum::IADD, kwlist,method_t, method>::addBinaryOperator();}
 
         template<const char* const kwlist[2],typename method_t, method_t method>
         static void addInplaceSubOperator(){
-            BinaryOp<OP_BINARY_ISUB, kwlist,method_t, method>::addBinaryOperator();}
+            BinaryOp<OpBinaryEnum::ISUB, kwlist,method_t, method>::addBinaryOperator();}
 
         template<const char* const kwlist[2],typename method_t, method_t method>
         static void addInplaceMulOperator(){
-            BinaryOp<OP_BINARY_IMUL, kwlist,method_t, method>::addBinaryOperator();}
+            BinaryOp<OpBinaryEnum::IMUL, kwlist,method_t, method>::addBinaryOperator();}
 
         template<const char* const kwlist[2],typename method_t, method_t method>
         static void addInplaceModOperator(){
-            BinaryOp<OP_BINARY_IMOD, kwlist,method_t, method>::addBinaryOperator();}
+            BinaryOp<OpBinaryEnum::IMOD, kwlist,method_t, method>::addBinaryOperator();}
 
         template<const char* const kwlist[2],typename method_t, method_t method>
         static void addInplaceLshiftOperator(){
-            BinaryOp<OP_BINARY_ILSHIFT, kwlist,method_t, method>::addBinaryOperator();}
+            BinaryOp<OpBinaryEnum::ILSHIFT, kwlist,method_t, method>::addBinaryOperator();}
 
         template<const char* const kwlist[2],typename method_t, method_t method>
         static void addInplaceRshiftOperator(){
-            BinaryOp<OP_BINARY_IRSHIFT, kwlist,method_t, method>::addBinaryOperator();}
+            BinaryOp<OpBinaryEnum::IRSHIFT, kwlist,method_t, method>::addBinaryOperator();}
 
         template<const char* const kwlist[2],typename method_t, method_t method>
         static void addInplaceAndOperator(){
-            BinaryOp<OP_BINARY_IAND, kwlist,method_t, method>::addBinaryOperator();}
+            BinaryOp<OpBinaryEnum::IAND, kwlist,method_t, method>::addBinaryOperator();}
 
         template<const char* const kwlist[2],typename method_t, method_t method>
         static void addInplaceOrOperator(){
-            BinaryOp<OP_BINARY_IOR, kwlist,method_t, method>::addBinaryOperator();}
+            BinaryOp<OpBinaryEnum::IOR, kwlist,method_t, method>::addBinaryOperator();}
 
         template<const char* const kwlist[2],typename method_t, method_t method>
         static void addInplaceXorOperator(){
-            BinaryOp<OP_BINARY_IXOR, kwlist,method_t, method>::addBinaryOperator();}
+            BinaryOp<OpBinaryEnum::IXOR, kwlist,method_t, method>::addBinaryOperator();}
 
         template<const char* const kwlist[2],typename method_t, method_t method>
         static void addInplaceDivOperator(){
-            BinaryOp<OP_BINARY_IDIV, kwlist,method_t, method>::addBinaryOperator();}
+            BinaryOp<OpBinaryEnum::IDIV, kwlist,method_t, method>::addBinaryOperator();}
 
-        template<const char* const kwlist[2], typename KeyType, typename method_t, method_t method>
+        template<typename KeyType, typename method_t, method_t method>
         static void addMapOperator(){
             typedef typename func_traits<method_t>::ReturnType ValueType;
             if constexpr(func_traits<method_t>::is_const_method) {
-                _addMapOperatorMethod < kwlist, KeyType, ValueType, ValueType(CClass::*)(KeyType) const, method > ();
+                _addMapOperatorMethod <KeyType, ValueType, ValueType(CClass::*)(KeyType) const, method > ();
             } else {
-                _addMapOperatorMethod < kwlist, KeyType, ValueType, ValueType(CClass::*)(KeyType), method > ();
+                _addMapOperatorMethod <KeyType, ValueType, ValueType(CClass::*)(KeyType), method > ();
             }
         }
 
@@ -392,32 +397,32 @@ namespace __pyllars_internal {
                 _member_setters()["this"] = _pyAssign;
             _assigners().push_back(func);
         }
-        template<const char* const kwlist[2], typename KeyType, typename ValueType, typename method_t, method_t method>
+        template<typename KeyType, typename ValueType, typename method_t, method_t method>
         static void _addMapOperatorMethod();
 
-        template<const char* const, typename method_t, method_t method>
+        template<OpUnaryEnum , typename method_t, method_t method>
         struct Op;
 
-        template<const char* const name, typename ReturnType, ReturnType(CClass::*method)()>
-        struct Op<name, ReturnType(CClass::*)(), method>{
+        template<OpUnaryEnum kind, typename ReturnType, ReturnType(CClass::*method)()>
+        struct Op<kind, ReturnType(CClass::*)(), method>{
             static void addUnaryOperator();
         };
 
-        template<const char* const name, typename ReturnType, ReturnType(CClass::*method)() const>
-        struct Op<name, ReturnType(CClass::*)() const, method>{
+        template<OpUnaryEnum kind, typename ReturnType, ReturnType(CClass::*method)() const>
+        struct Op<kind, ReturnType(CClass::*)() const, method>{
             static void addUnaryOperator();
         };
 
-        template<const char *const name, const char* const kwlist[2], typename method_t, method_t method>
+        template<OpBinaryEnum kind, const char* const kwlist[2], typename method_t, method_t method>
         struct BinaryOp;
 
-        template<const char *const name, const char* const kwlist[2], typename ReturnType, typename ArgType, ReturnType(CClass::*method)(ArgType)>
-        struct BinaryOp<name, kwlist, ReturnType(CClass::*)(ArgType), method>{
+        template<OpBinaryEnum kind, const char* const kwlist[2], typename ReturnType, typename ArgType, ReturnType(CClass::*method)(ArgType)>
+        struct BinaryOp<kind, kwlist, ReturnType(CClass::*)(ArgType), method>{
             static void addBinaryOperator();
         };
 
-        template<const char *const name, const char* const kwlist[2], typename ReturnType, typename ArgType, ReturnType(CClass::*method)(ArgType) const>
-        struct BinaryOp<name, kwlist, ReturnType(CClass::*)(ArgType) const, method>{
+        template<OpBinaryEnum kind, const char* const kwlist[2], typename ReturnType, typename ArgType, ReturnType(CClass::*method)(ArgType) const>
+        struct BinaryOp<kind, kwlist, ReturnType(CClass::*)(ArgType) const, method>{
             static void addBinaryOperator();
         };
 
@@ -541,20 +546,20 @@ namespace __pyllars_internal {
             static std::map<std::string, const typename std::remove_cv<T_NoRef>::type*> container;
             return container;
         }
-        static std::map<std::string, unaryfunc>& _unaryOperators(){
-            static std::map<std::string, unaryfunc> container;
+        static std::map<OpUnaryEnum, unaryfunc>& _unaryOperators(){
+            static std::map<OpUnaryEnum , unaryfunc> container;
             return container;
         }
-        static std::map<std::string, unaryfunc>& _unaryOperatorsConst(){
-            static std::map<std::string, unaryfunc> container;
+        static std::map<OpUnaryEnum, unaryfunc>& _unaryOperatorsConst(){
+            static std::map<OpUnaryEnum , unaryfunc> container;
             return container;
         }
-        static std::map<std::string, binaryfunc>& _binaryOperators(){
-            static std::map<std::string, binaryfunc> container;
+        static std::map<OpBinaryEnum, binaryfunc>& _binaryOperators(){
+            static std::map<OpBinaryEnum, binaryfunc> container;
             return container;
         }
-        static std::map<std::string, binaryfunc>& _binaryOperatorsConst(){
-            static std::map<std::string, binaryfunc> container;
+        static std::map<OpBinaryEnum, binaryfunc>& _binaryOperatorsConst(){
+            static std::map<OpBinaryEnum , binaryfunc> container;
             return container;
         }
 

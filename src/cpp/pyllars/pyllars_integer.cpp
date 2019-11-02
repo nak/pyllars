@@ -795,18 +795,20 @@ namespace __pyllars_internal {
 namespace pyllars{
 
 
-
     template
     class PyllarsClass<bool, GlobalNamespace>;
 
     template
     class PyllarsClass<const bool, GlobalNamespace>;
 
+
     template
     class PyllarsClass<volatile bool, GlobalNamespace>;
 
+
     template
     class PyllarsClass<const volatile bool, GlobalNamespace>;
+
 
     template
     class PyllarsClass<char, GlobalNamespace>;

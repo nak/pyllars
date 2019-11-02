@@ -71,10 +71,10 @@ class CXXRecordDeclGenerator(Generator):
                 body_stream.write(f"""
                 namespace __pyllars_internal{{
                     template<>
-                    struct _Types<{typename}>{{
+                    struct TypeInfo<{typename}>{{
                         static const char* const type_name;
                     }};
-                    const char* const _Types<{typename}>::type_name =  "{name}";
+                    const char* const TypeInfo<{typename}>::type_name =  "{name}";
                 }}
             """)
             class_full_name = self._node.full_cpp_name if self._node.name else None

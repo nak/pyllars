@@ -26,72 +26,72 @@ namespace __pyllars_internal {
 
 
     template<typename T>
-    struct _Types {
-        static const char* type_name;
+    struct TypeInfo {
+        static const char* const type_name;
     };
 
     template<>
-    struct _Types<double> {
+    struct TypeInfo<double> {
         static constexpr cstring type_name = "c_double";
     };
 
     template<>
-    struct _Types<float> {
+    struct TypeInfo<float> {
         static constexpr cstring type_name = "c_float";
     };
 
     template<>
-    struct _Types<signed char> {
+    struct TypeInfo<signed char> {
         static constexpr cstring type_name = "c_signed_char";
     };
 
     template<>
-    struct _Types<char> {
+    struct TypeInfo<char> {
         static constexpr cstring type_name = "c_char";
     };
 
     template<>
-    struct _Types<short> {
+    struct TypeInfo<short> {
         static constexpr cstring type_name = "c_short";
     };
 
     template<>
-    struct _Types<int> {
+    struct TypeInfo<int> {
         static constexpr cstring type_name = "c_int";
     };
 
     template<>
-    struct _Types<long> {
+    struct TypeInfo<long> {
         static constexpr cstring type_name = "c_long";
     };
 
     template<>
-    struct _Types<long long> {
+    struct TypeInfo<long long> {
         static constexpr cstring type_name = "c_long_long";
     };
 
     template<>
-    struct _Types<unsigned char> {
+    struct TypeInfo<unsigned char> {
         static constexpr cstring type_name = "c_unsigned_char";
     };
 
     template<>
-    struct _Types<unsigned short> {
+    struct TypeInfo<unsigned short> {
         static constexpr cstring type_name = "c_unsigned_short";
     };
 
     template<>
-    struct _Types<unsigned int> {
+    struct TypeInfo<unsigned int> {
         static constexpr cstring type_name = "c_unsigned_int";
     };
 
     template<>
-    struct _Types<unsigned long> {
+    struct TypeInfo<unsigned long> {
         static constexpr cstring type_name = "c_unsigned_long";
     };
 
     template<>
-    struct _Types<unsigned long long> {
+    struct TypeInfo<unsigned long long> {
         static constexpr cstring type_name = "c_unsigned_long_long";
     };
 
@@ -102,7 +102,7 @@ namespace __pyllars_internal {
                 static const char* const name = "<function>";
                 return name;
             } else {
-                return _Types<T>::type_name;
+                return TypeInfo<T>::type_name;
             }
         }
     };

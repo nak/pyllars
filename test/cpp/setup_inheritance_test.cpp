@@ -29,10 +29,10 @@
 constexpr c_string new_method_name = "new_method";
 
 template<>
-const char* const __pyllars_internal::_Types<InheritanceClass>::type_name = "InheritanceClass";
+const char* const __pyllars_internal::TypeInfo<InheritanceClass>::type_name = "InheritanceClass";
 
 template<>
-const char* const __pyllars_internal::_Types<MultiInheritanceClass>::type_name ="MultiInheritanceClass";
+const char* const __pyllars_internal::TypeInfo<MultiInheritanceClass>::type_name ="MultiInheritanceClass";
 
 
 void

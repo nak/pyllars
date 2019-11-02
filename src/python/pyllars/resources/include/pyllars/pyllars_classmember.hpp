@@ -8,14 +8,15 @@
 
 namespace pyllars{
 
-    template<const char *const name, typename Class, typename AttrType, typename __pyllars_internal::MemberContainer<name, Class, AttrType>::member_t attr>
+
+    template<const char *const name, typename Class, typename AttrType,typename __pyllars_internal::MemberContainer<name, Class, AttrType>::member_t attr>
     class PyllarsClassMember{
     private:
         class Initializer{
         public:
             Initializer(){
                 using namespace __pyllars_internal;
-                PythonClassWrapper<Class>::template addAttribute<name, AttrType>(name, attr);
+                PythonClassWrapper<Class>::template addAttribute<name, AttrType>(attr);
             }
         };
 

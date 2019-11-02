@@ -17,9 +17,9 @@
 
 
 template<>
-const char* const __pyllars_internal::_Types<SingleTypeTemplateClassInt >::type_name = "SingleTypeTemplateClass<int>";
+const char* const __pyllars_internal::TypeInfo<SingleTypeTemplateClassInt >::type_name = "SingleTypeTemplateClass<int>";
 template<>
-const char* const __pyllars_internal::_Types<SingleTypeTemplateClassCharPtr >::type_name = "SingleTypeTemplateClass<const char*>";
+const char* const __pyllars_internal::TypeInfo<SingleTypeTemplateClassCharPtr >::type_name = "SingleTypeTemplateClass<const char*>";
 
 
 template

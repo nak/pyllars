@@ -85,14 +85,14 @@ enum {ONE, TWO, THREE};
 
 
 template<>
-const char* const __pyllars_internal::_Types<A>::type_name = "A";
+const char* const __pyllars_internal::TypeInfo<A>::type_name = "A";
 
 
 template<>
-const char* const __pyllars_internal::_Types<DisparateType>::type_name = "DisparateType";
+const char* const __pyllars_internal::TypeInfo<DisparateType>::type_name = "DisparateType";
 
 template<>
-const char* const __pyllars_internal::_Types<decltype(ONE)>::type_name = "anon_enum";
+const char* const __pyllars_internal::TypeInfo<decltype(ONE)>::type_name = "anon_enum";
 
 template<typename T>
 struct Assertion {

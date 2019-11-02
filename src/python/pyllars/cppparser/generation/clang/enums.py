@@ -44,10 +44,10 @@ class EnumDeclGenerator(Generator):
             body_stream.write(f"""
                     namespace __pyllars_internal{{
                         template<>
-                        struct _Types<{full_cpp_name}>{{
+                        struct TypeInfo<{full_cpp_name}>{{
                             static const char* const type_name;
                         }};
-                        const char* const _Types<{full_cpp_name}>::type_name =  "{name}";
+                        const char* const TypeInfo<{full_cpp_name}>::type_name =  "{name}";
                     }}
             """)
 
