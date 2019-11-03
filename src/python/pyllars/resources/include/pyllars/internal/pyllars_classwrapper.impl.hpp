@@ -9,8 +9,6 @@
 #include "pyllars_utils.hpp"
 
 #include "pyllars_staticfunctionsemantics.impl.hpp"
-#include "pyllars/internal/pyllars_classmembersemantics.impl.hpp"
-#include "pyllars_methodcallsemantics.impl.hpp"
 #include "pyllars_conversions.impl.hpp"
 #include "pyllars_namespacewrapper.hpp"
 

@@ -9,13 +9,13 @@
 namespace pyllars{
 
     template<const char *const name, typename EnumClass, EnumClass value>
-    class PyllarsClassEnumClass{
+    class PyllarsClassEnumClassValue{
     private:
         class Initializer{
         public:
             Initializer(){
                 using namespace __pyllars_internal;
-                PythonClassWrapper<EnumClass>::template addEnumClassValue(name, value);
+                PythonClassWrapper<EnumClass>::addEnumClassValue(name, value);
             }
         };
 
@@ -23,16 +23,15 @@ namespace pyllars{
     };
 
     template<const char *const name, typename EnumClass, EnumClass value>
-    typename PyllarsClassEnumClass<name, EnumClass, value>::Initializer * const
-            PyllarsClassEnumClass<name, EnumClass, value>::initializer = new
-                    PyllarsClassEnumClass<name, EnumClass, value>::Initializer();
+    typename PyllarsClassEnumClassValue<name, EnumClass, value>::Initializer * const
+            PyllarsClassEnumClassValue<name, EnumClass, value>::initializer = new
+                    PyllarsClassEnumClassValue<name, EnumClass, value>::Initializer();
 
 }
 
 namespace __pyllars_internal {
     template<typename T>
-    int PythonClassWrapper<T,
-            typename std::enable_if<is_rich_class<T>::value>::type>::
+    int PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::
     addEnumClassValue( const char* const name, const T value){
         if constexpr (std::is_constructible<T>::value) {
             _classEnumValues()[name] = new T(value);

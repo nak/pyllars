@@ -2,6 +2,7 @@
 // Created by jrusnak on 10/13/19.
 //
 #include "pyllars/internal/pyllars_classwrapper.hpp"
+#include "pyllars/internal/pyllars_classmembersemantics.impl.hpp"
 
 #ifndef PYLLARS_PYLLARS_CLASSSTATICMEMBER_HPP
 #define PYLLARS_PYLLARS_CLASSSTATICMEMBER_HPP
@@ -15,7 +16,7 @@ namespace pyllars{
         public:
             Initializer(){
                 using namespace __pyllars_internal;
-                PythonClassWrapper<T>::template addClassAttribute<name, Attr>(name, attr);
+                PythonClassWrapper<T>::template addClassAttribute<name, Attr>(attr);
             }
         };
 
