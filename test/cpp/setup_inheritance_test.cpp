@@ -19,11 +19,10 @@
 #include "pyllars/pyllars_classconstructor.hpp"
 #include "pyllars/pyllars_classenum.hpp"
 #include "pyllars/pyllars_classenumclass.hpp"
-#include "pyllars/internal/pyllars_classbinaryoperator.hpp"
-#include "pyllars/pyllars_classunaryoperator.hpp"
+#include "pyllars/pyllars_classoperator.hpp"
 #include "pyllars/pyllars_classstaticmember.hpp"
 #include "pyllars/pyllars_classmember.hpp"
-#include "pyllars/internal/pyllars_classbitfield.hpp"
+#include "pyllars/pyllars_classbitfield.hpp"
 #include "pyllars/pyllars_class.hpp"
 
 constexpr c_string new_method_name = "new_method";
