@@ -652,6 +652,7 @@ namespace __pyllars_internal {
         comparison_func_t compare;
         hash_t hash;
 
+
         static PyTypeObject* getPyType(){return &_BaseType;}
 
         struct Base{

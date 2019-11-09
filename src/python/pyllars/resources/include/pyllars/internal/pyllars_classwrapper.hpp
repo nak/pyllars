@@ -13,12 +13,12 @@
 #include <Python.h>
 #include <tupleobject.h>
 
-#include "pyllars_namespacewrapper.hpp"
+#include "pyllars/pyllars_namespacewrapper.hpp"
+#include "pyllars/pyllars.hpp"
 #include "pyllars_type_traits.hpp"
-#include "pyllars.hpp"
 #include "pyllars_defns.hpp"
 #include "pyllars_staticfunctionsemantics.hpp"
-#include "pyllars/internal/pyllars_classmembersemantics.hpp"
+#include "pyllars_classmembersemantics.hpp"
 #include "pyllars_membersemantics.hpp"
 #include "pyllars_methodcallsemantics.hpp"
 #include "pyllars_containment.hpp"
@@ -120,14 +120,13 @@ namespace __pyllars_internal {
         template<typename Parent, bool enabled = std::is_base_of<CommonBaseWrapper, Parent>::value>
         static status_t ready(){
             int status = 0;
-            typedef int(*ready_f)();
             for (const auto& ready_fnctn: _childrenReadyFunctions()){
                 status |= (ready_fnctn() == nullptr);
             }
             if constexpr(std::is_base_of<pyllars::CommonNamespaceWrapper, Parent>::value){
                 return PyModule_AddObject(Parent::module(), Types<T>::type_name(), (PyObject*) getPyType());
             } else {
-                return PyObject_SetAttrString((PyObject*) Parent::getPyType(), Types<T>::type_name(), (PyObject*) getPyType());
+                return PyObject_SetAttrString((PyObject*) PythonClassWrapper<Parent>::getPyType(), Types<T>::type_name(), (PyObject*) getPyType());
             }
             return status;
         }
@@ -286,11 +285,6 @@ namespace __pyllars_internal {
         };
 
     protected:
-        typedef status_t (*readyImpl_t)();
-        static readyImpl_t&  readyImpl(){
-            static readyImpl_t impl = nullptr;
-            return impl;
-        }
 
         PythonClassWrapper();// never invoked as Python allocates memory directly
 

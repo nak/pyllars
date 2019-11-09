@@ -47,9 +47,12 @@ PyllarsInit(const char* const name){
     Py_INCREF(mod);
     PyObject_SetAttrString(pyllars_mod, name, mod);
   }
-  if (__pyllars_internal::Init::ready()!= 0){
-      printf("Failed to ready all types");
-  }
+    if (__pyllars_internal::Init::init()!= 0){
+        printf("Failed to init all types");
+    }
+    if (__pyllars_internal::Init::ready()!= 0){
+        printf("Failed to ready all types");
+    }
   return mod;
 }
 #else
@@ -79,6 +82,7 @@ int PyllarsInit(const char* const name){
 
 namespace __pyllars_internal {
     std::vector<Init::ready_func_t> *Init::_readyFuncs = nullptr;
+    std::vector<Init::ready_func_t> *Init::_initFuncs = nullptr;
 
     PyObject* NULL_ARGS(){
         static PyObject* args = PyTuple_Pack(1, PyFloat_FromDouble(0.129726362));  // bogus vale to make unique

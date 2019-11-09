@@ -13,8 +13,6 @@ class CXXRecordDeclGenerator(Generator):
             return None, None
 
         name = self._node.name or "anonymous_%s" % self._node.node_id
-        parent = self._node.parent
-        parent_name = parent.name if parent else "pyllars"
         typename_qualifier = "typename" if 'union' not in self._node.qualifiers else ""
 
         if self._node.name:
@@ -38,126 +36,45 @@ class CXXRecordDeclGenerator(Generator):
                              encoding='utf-8')
         body_stream = open(os.path.join(self.my_root_dir, self._source_path_root, name+'.cpp'), 'w',
                            encoding='utf-8')
+
+
         try:
+            parent = self._node.parent
+            if parent and parent.name:
+                header_stream.write(f"#include \"../{parent.name}.hpp\"\n\n")
+
+            # generat body
+
+            body_stream.write(f"#include <pyllars/pyllars_class.hpp>\n")
+            body_stream.write(f"#include <{self.source_path}>\n")
+            if parent and parent.name:
+                body_stream.write(f"#include \"../{parent.name}.hpp\"\n\n")
             if self._node.name:
-                add_pyobject_code = f"PyObject_SetAttrString((PyObject*)__pyllars_internal::PythonClassWrapper< {typename}>::getPyType(), name, pyobj)"
-            else:
-                parent_name = self._node.parent.name or "anonymous_%s" % self._node.node_id
-                add_pyobject_code = f"{parent_name}_addPyObject(name, pyobj)"
+                body_stream.write(f"#include \"{self._node.name}.hpp\"\n\n")
+            body_stream.write("using namespace pyllars;\n")
+            body_stream.write("using namespace __pyllars_internal;\n")
 
-            # generate header
-            header_stream.write(Generator.COMMON_HEADER)
-            header_stream.write(self._wrap_in_namespaces(f"""
-               /**
-                * Register a subcomponent for initialization
-                **/
-               status_t {name}_register(::pyllars::Initializer*);
-               
-               /**
-                * add a child object
-                **/
-               status_t {name}_addPyObject(const char* const name, PyObject* pyobj);
-               
-            """, True))
+            def namespace_wrapper(node):
+                if node is None:
+                    return "GlobalNamespace"
+                if isinstance(node, NodeType.NamespaceDecl):
+                    if not node or not node.name:
+                        return "GlobalNameSpace"
+                    return f"PyllarsNamespace< names::{node.full_cpp_name}::Tag_{node.name}, {namespace_wrapper(node.parent)} > "
+                else:
+                    return node.full_cpp_name
 
-            #generate body
-            body_stream.write(f"""\n#include "{self.source_path}" 
-#include \"{name}.hpp"
-#include <pyllars/pyllars_classwrapper.impl.hpp>
-            """)
-            if self._node.parent:
-                body_stream.write(f"\n#include \"..{os.sep}{parent_name}.hpp\"\n")
-            if typename:
-                body_stream.write(f"""
-                namespace __pyllars_internal{{
-                    template<>
-                    struct TypeInfo<{typename}>{{
-                        static const char* const type_name;
-                    }};
-                    const char* const TypeInfo<{typename}>::type_name =  "{name}";
-                }}
-            """)
-            class_full_name = self._node.full_cpp_name if self._node.name else None
-            inheritance_code = ""
-            ready_code = ""
-            if typename:
-                for base in self._node.bases or []:
-                    base_class_name = base.full_name
-                    inheritance_code += f"""
-                        status |= pyllars::{base.full_name}_set_up();
-                        __pyllars_internal::PythonClassWrapper< {typename_qualifier} ::{class_full_name}>::addBaseClass<::{base_class_name}>();
+            body_stream.write(f"template class PyllarsClass<{typename}, {namespace_wrapper(self._node.parent)}>;\n")
+            body_stream.write(f"""
+
+namespace __pyllars_internal{{
     
-                    """
-                for base in self._node.bases or []:
-                    ready_code += f"""
-                        pyllars::{base.full_name}_ready(top_level_mod);
-                    """
-                for base in self._node.bases or []:
-                    hierarchy = base.full_name.split('::')[:-1]
-                    text = "// Difficult to get header location as source of inheritance class, so declase set_up & ready explicitly here\n" \
-                        "namespace pyllars{\n" +"\n".join([f"namespace {name}{{" for name in hierarchy])
-                    text += f"\nstatus_t {base.name}_set_up();\n"
-                    text += f"\nstatus_t {base.name}_ready(PyObject*);\n"
-                    text += "}\n"*(len(hierarchy) + 1)
-                    body_stream.write(text + "\n\n")
-            if not self._node.name:
-                add_myobject_code = ""
-            else:
-                add_myobject_code = f"status |= {parent_name}_addPyObject(\"{name}\", (PyObject*)__pyllars_internal::PythonClassWrapper<{typename}>::getPyType())"
-            initializer_code = f"status |= __pyllars_internal::PythonClassWrapper< {typename} >::initialize();" if typename else ""
-            body_stream.write(self._wrap_in_namespaces(f"""
-            status_t {name}_addPyObject(const char* const name, PyObject* pyobj){{
-               return {add_pyobject_code};
-            }}             
-                
-            namespace {{
-                //From: CXXRecordDeclGenerator.generate
-                class Initializer_{name}: public pyllars::Initializer{{
-                public:
-                    Initializer_{name}():pyllars::Initializer(){{
-                        {parent_name}_register(this);
-                        int status = 0;
-                        {inheritance_code}
-                        if (status != 0){{
-                            PyErr_SetString(PyExc_SystemError, "Internal error when adding method/constructor");
-                        }}                          
-                    }}
-
-                    int set_up() override{{
-                        return 0;
-                    }}
-
-                    int ready(PyObject * const top_level_mod) override{{
-                       int status = 0;
-                       {initializer_code}
-                       {ready_code}
-                     
-                       {add_myobject_code};
-                     
-                       return status;
-                    }}
-                    
-                    static Initializer_{name}* initializer;
-                    
-                    static Initializer_{name} *singleton(){{
-                        static  Initializer_{name} _initializer;
-                        return &_initializer;
-                    }}
-                 }};
-                 
-            }}
-            
-            //ensure instance is created on global static initialization, otherwise this
-            //element would never be reigstered and picked up
-            Initializer_{name} * Initializer_{name}::initializer = singleton();
-                 
-            status_t {name}_register(::pyllars::Initializer* const init){{
-                return Initializer_{name}::initializer->register_init(init);
-            }}
-        
+    template<>
+    const char* const TypeInfo<{typename}>::type_name = \"{self._node.name if self._node.name else "<<anonymous type>>"}\";
     
-                """, True))
+}}
 
+            """)
         finally:
             header_stream.close()
             body_stream.close()
@@ -179,7 +96,6 @@ class DefaultConstructorGenerator(Generator):
             return None, None
         if 'default_is_constexpr' in self._node.classifiers:
             return None, None
-        class_full_cpp_name = self._node.parent.parent.full_cpp_name
 
         while parent and not parent.name and isinstance(parent, NodeType.CXXRecordDecl):
             parent = parent.parent
@@ -190,53 +106,15 @@ class DefaultConstructorGenerator(Generator):
             encoding='utf-8')
 
         try:
-            parent_name = parent.name
-            parent_header_path = os.path.join("..", parent_name)
             # generate body
             body_stream.write(f"""\n#include \"{self.source_path}\" 
-#include \"{parent_header_path}.hpp\"
-#include <pyllars/pyllars_classwrapper.impl.hpp>
+#include <pyllars/pyllars_classconstructor.hpp>
+
                     """)
-            name = class_name + "_default_constructor"
-            body_stream.write(self._wrap_in_namespaces(f"""
-            
-                    namespace {{
-                        //From: DefaultConstructorDeclGenerator.generate
-
-                        class Initializer_{name}: public pyllars::Initializer{{
-                        public:
-                            Initializer_{name}():pyllars::Initializer(){{
-                                {parent_name}_register(this);                          
-                                static const char* const kwlist[] = {{}};
-                                int status = __pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name} >::addConstructor<>(kwlist);
-                                if (status != 0){{
-                                    PyErr_SetString(PyExc_SystemError, "Internal error when adding method/constructor");
-                                }}
-                            }}
-
-                            int set_up() override{{
-                               return 0;
-                            }}
-
-                            int ready(PyObject * const top_level_mod) override{{
-                               return 0; //nothing to do on  ready                               
-                            }}
-
-                            static Initializer_{name}* initializer;
-
-                            static Initializer_{name} *singleton(){{
-                                static  Initializer_{name} _initializer;
-                                return &_initializer;
-                            }}
-                         }};
-
-
-                        //ensure instance is created on global static initialization, otherwise this
-                        //element would never be reigstered and picked up
-                        Initializer_{name} * Initializer_{name}::initializer = singleton();
-
-                    }}
-                """, True))
+            body_stream.write("namespace {\n")
+            body_stream.write("   static const char* const empty_list[] = {nullptr};\n")
+            body_stream.write("}\n")
+            body_stream.write(f"template class pyllars::PyllarsClassConstructor<empty_list, {self._node.parent.parent.full_cpp_name}>;")
         finally:
             body_stream.close()
         return None, body_stream.name
@@ -265,48 +143,13 @@ class CopyConstructorGenerator(Generator):
             # generate body
             body_stream.write(f"""\n#include \"{self.source_path}\" 
 #include \"{parent_header_path}.hpp\"
-#include <pyllars/pyllars_classwrapper.impl.hpp>
+#include <pyllars/pyllars_classconstructor.hpp>
                     """)
-            name = class_name + "_default_copy_constructor"
-            body_stream.write(self._wrap_in_namespaces(f"""
+            body_stream.write("using namespace pyllars;\nnamespace{\n")
+            body_stream.write("   const char* const kwlist[] = {\"object\", nullptr};")
+            body_stream.write("}\n\n")
+            body_stream.write(f"template class PyllarsClassConstructor<kwlist, {class_full_cpp_name}, const {class_full_cpp_name}&>;")
 
-                    namespace {{
-                        //From: DefaultConstructorDeclGenerator.generate
-
-                        class Initializer_{name}: public pyllars::Initializer{{
-                        public:
-                            Initializer_{name}():pyllars::Initializer(){{
-                                {parent_name}_register(this);                          
-                               static const char* const kwlist[] = {{"object"}};
-                               int status = __pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name} >::addConstructor<const ::{class_full_cpp_name}&>(kwlist);
-                               if (status != 0){{
-                                    PyErr_SetString(PyExc_SystemError, "Internal error when adding method/constructor");
-                               }}
-                            }}
-
-                            int set_up() override{{
-                               return 0;
-                            }}
-
-                            int ready(PyObject * const top_level_mod) override{{
-                                return 0; //nothing to do on ready
-                            }}
-
-                            static Initializer_{name}* initializer;
-
-                            static Initializer_{name} *singleton(){{
-                                static  Initializer_{name} _initializer;
-                                return &_initializer;
-                            }}
-                         }};
-
-
-                        //ensure instance is created on global static initialization, otherwise this
-                        //element would never be reigstered and picked up
-                        Initializer_{name} * Initializer_{name}::initializer = singleton();
-
-                    }}
-                """, True))
         finally:
             body_stream.close()
         return None, body_stream.name
@@ -334,49 +177,14 @@ class MoveConstructorGenerator(Generator):
             parent_header_path = os.path.join("..", parent_name)
             # generate body
             body_stream.write(f"""\n#include \"{self.source_path}\" 
-#include \"{parent_header_path}.hpp\"
-#include <pyllars/pyllars_classwrapper.impl.hpp>
-                    """)
-            name = class_name + "_default_move_constructor"
-            body_stream.write(self._wrap_in_namespaces(f"""
-
-                    namespace {{
-                        //From: DefaultConstructorDeclGenerator.generate
-
-                        class Initializer_{name}: public pyllars::Initializer{{
-                        public:
-                            Initializer_{name}():pyllars::Initializer(){{
-                                {parent_name}_register(this);                          
-                                static const char* const kwlist[] = {{"object"}};
-                                int status = __pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name} >::addConstructor<const ::{class_full_cpp_name}&&>(kwlist);
-                                if (status != 0){{
-                                    PyErr_SetString(PyExc_SystemError, "Internal error when adding method/constructor");
-                                }}
-                            }}
-
-                            int set_up() override{{
-                                return 0;
-                            }}
-
-                            int ready(PyObject * const top_level_mod) override{{
-                                return 0; //nothing to do on ready
-                            }}
-
-                            static Initializer_{name}* initializer;
-
-                            static Initializer_{name} *singleton(){{
-                                static  Initializer_{name} _initializer;
-                                return &_initializer;
-                            }}
-                         }};
-
-
-                        //ensure instance is created on global static initialization, otherwise this
-                        //element would never be reigstered and picked up
-                        Initializer_{name} * Initializer_{name}::initializer = singleton();
-
-                    }}
-                """, True))
+            #include \"{parent_header_path}.hpp\"
+            #include <pyllars/pyllars_classconstructor.hpp>
+                                """)
+            body_stream.write("using namespace pyllars;\nnamespace{\n")
+            body_stream.write("   const char* const kwlist[] = {\"object\", nullptr};")
+            body_stream.write("}\n\n")
+            body_stream.write(
+                f"template class PyllarsClassConstructor<kwlist, {class_full_cpp_name}, const {class_full_cpp_name}&&>;")
         finally:
             body_stream.close()
         return None, body_stream.name
@@ -407,12 +215,12 @@ class CopyAssignmentGenerator(Generator):
 #include \"{parent_header_path}.hpp\"
 #include <cstddef>
 #include <type_traits>
-#include <pyllars/pyllars_classwrapper.impl.hpp>
+#include <pyllars/pyllars_classmethod.hpp>
 
                     """)
-            name = class_name + "_default_copy_assignment"
-            body_stream.write(self._wrap_in_namespaces(f"""
 
+            body_stream.write(f"""
+                    using namespace pyllars;
                     namespace {{
                         //From: DefaultConstructorDeclGenerator.generate
 
@@ -424,48 +232,17 @@ class CopyAssignmentGenerator(Generator):
                         static int template_set_up(){{
                             if constexpr (std::is_copy_assignable<T>::value){{
                                typedef T& (T::*method_t)(const T&);
-                               __pyllars_internal::PythonClassWrapper<T>::template addMethod<name, kwlist, method_t, &T::operator= >();	
+                               PyllarsClassMethod<name, kwlist, method_t, &T::operator= >();
                             }}
                             return 0;
                         }}
-
-                       typedef const char* const kwlist_t[2];
-                       constexpr kwlist_t kwlist = {{"assign_to", nullptr}};
-                       constexpr cstring this_name = "this";
-                       
-                        class Initializer_{name}: public pyllars::Initializer{{
-                        public:
-                            Initializer_{name}():pyllars::Initializer(){{
-
-                                {parent_name}_register(this);                          
-                                if (template_set_up<this_name, kwlist, ::{class_full_cpp_name}>()! = 0){{
-                                    PyErr_SetString(PyExc_SystemError, "Internal error when adding method/constructor");                                 
-                                }}
-                            }}
-
-                            int set_up() override{{
-                                return 0;
-                            }}
-
-                            int ready(PyObject * const top_level_mod) override{{
-                                return 0; //nothing to do on ready
-                            }}
-
-                            static Initializer_{name}* initializer;
-
-                            static Initializer_{name} *singleton(){{
-                                static  Initializer_{name} _initializer;
-                                return &_initializer;
-                            }}
-                         }};
-
-
-                        //ensure instance is created on global static initialization, otherwise this
-                        //element would never be reigstered and picked up
-                        Initializer_{name} * Initializer_{name}::initializer = singleton();
-
+                        
+                        typedef const char* const kwlist_t[2];
+                        constexpr kwlist_t kwlist = {{"assign_to", nullptr}};
+                        constexpr cstring this_name = "this";
+                        const int status =  template_set_up<this_name, kwlist, {class_full_cpp_name}>();
                     }}
-                """, True))
+                """)
         finally:
             body_stream.close()
         return None, body_stream.name
@@ -583,7 +360,7 @@ class CXXMethodDeclGenerator(Generator):
         if '...' in self._node.signature:
             params.append("...")
         params = ", ".join(params)
-        class_qualifier = f"(::{self._node.parent.full_cpp_name}::*method_t)" if not is_static else "(method_t)"
+        class_qualifier = f"(::{self._node.parent.full_cpp_name}::*)" if not is_static else "(method_t)"
         return f"{ret_type} {class_qualifier}({params}) {qualifiers}"
 
     def generate(self):
@@ -592,7 +369,6 @@ class CXXMethodDeclGenerator(Generator):
         if self._node.name.startswith("operator"):
             return self.generate_operator()
         class_name = self._node.parent.name
-        class_full_cpp_name = self._node.parent.full_cpp_name
         parent = self._node.parent
         while parent and not parent.name and isinstance(parent, NodeType.CXXRecordDecl):
             parent = parent.parent
@@ -603,15 +379,21 @@ class CXXMethodDeclGenerator(Generator):
             encoding='utf-8')
         try:
             parent_name = parent.name
-            parent_header_path = os.path.join("..", parent_name)
             # generate body
-            body_stream.write(f"""\n#include \"{self.source_path}\" 
-#include \"{parent_header_path}.hpp\"
-#include <{self.source_path}>
-#include <pyllars/pyllars_classwrapper.impl.hpp>
+            if 'static' in self._node.qualifiers:
+                method_qualifier = "Static"
+                class_param = f"{self._node.full_cpp_name}, "
+                body_stream.write(f"""\n#include \"{self.source_path}\" 
+#include <pyllars/pyllars_classstaticmethod.hpp>
                             """)
+            else:
+                method_qualifier = ""
+                class_param = ""
+                body_stream.write(f"""\n#include \"{self.source_path}\" 
+#include <pyllars/pyllars_classmethod.hpp>
+                            """)
+
             name = self._node.name
-            method_qualifier = "Class" if 'static' in self._node.qualifiers else ""
             signature = self._full_signature()
             kwlist = []
             for c in reversed([c for c in self._node.children if isinstance(c, NodeType.ParmVarDecl)]):
@@ -619,49 +401,11 @@ class CXXMethodDeclGenerator(Generator):
                     break
                 kwlist.insert(0, f"\"{c.name}\"")
             kwlist_items = ", ".join(kwlist + ["nullptr"])
-            body_stream.write(self._wrap_in_namespaces(f"""
-
-                            namespace {{
-                               //From: CXXMethodDeclGenerator.generate
-
-                               typedef const char* const kwlist_t[{len(kwlist)+1}];
-                               constexpr kwlist_t kwlist = {{{kwlist_items}}};
-                               constexpr cstring this_name = "{name}";
-
-                                class Initializer_{name}: public pyllars::Initializer{{
-                                public:
-                                    Initializer_{name}():pyllars::Initializer(){{
-                                        {parent_name}_register(this);                          
-                                       if (__pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name} >::add{method_qualifier}Method<this_name, kwlist, 
-                                           method_t,
-                                           &::{class_full_cpp_name}::{name} >()!= 0){{
-                                           PyErr_SetString(PyExc_SystemError, "Internal error when adding method/constructor");                                                                                                               
-                                        }}
-                                   }}
-
-                                    int set_up() override{{
-                                        return 0;
-                                    }}
-                                    typedef {signature};
-                                    int ready(PyObject * const top_level_mod) override{{
-                                        return 0; //nothing to do on ready
-                                    }}
-
-                                    static Initializer_{name}* initializer;
-
-                                    static Initializer_{name} *singleton(){{
-                                        static  Initializer_{name} _initializer;
-                                        return &_initializer;
-                                    }}
-                                 }};
-
-
-                                //ensure instance is created on global static initialization, otherwise this
-                                //element would never be reigstered and picked up
-                                Initializer_{name} * Initializer_{name}::initializer = singleton();
-
-                            }}
-                        """, True))
+            body_stream.write("namespace{\n")
+            body_stream.write(f"    static const char* const kwlist[] = {{{kwlist_items}}};\n")
+            body_stream.write(f"    constexpr cstring name = \"{name}\";\n")
+            body_stream.write("}\n\n")
+            body_stream.write(f"template class pyllars::PyllarsClass{method_qualifier}Method<name, kwlist, {class_param}{signature}, &{self._node.full_cpp_name}>;")
         finally:
             body_stream.close()
         return None, body_stream.name
@@ -687,7 +431,7 @@ class CXXMethodDeclGenerator(Generator):
             body_stream.write(f"""\n#include \"{self.source_path}\" 
 #include \"{parent_header_path}.hpp\"
 #include <{self.source_path}>
-#include <pyllars/pyllars_classwrapper.impl.hpp>
+#include <pyllars/pyllars_classmethod.hpp>
                             """)
             name = "this"
             signature = self._full_signature()
@@ -699,81 +443,42 @@ class CXXMethodDeclGenerator(Generator):
             if len(kwlist) == 1:
                 kwlist = ["assign_to"]
             kwlist_items = ", ".join(kwlist + ["nullptr"])
-            body_stream.write(self._wrap_in_namespaces(f"""
-
-                            namespace {{
-                               //From: CXXMethodDeclGenerator.generate
-
-                               typedef const char* const kwlist_t[{len(kwlist)+1}];
-                               constexpr kwlist_t kwlist = {{{kwlist_items}}};
-                               constexpr cstring this_name = "this";
-
-                                class Initializer_{name}: public pyllars::Initializer{{
-                                public:
-                                    Initializer_{name}():pyllars::Initializer(){{
-                                        {parent_name}_register(this);                     
-                                        typedef {signature};
-                                        if (__pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name}  >::addMethod<this_name, kwlist, 
-                                              method_t,
-                                              &::{class_full_cpp_name}::operator= >()!= 0){{
-                                            PyErr_SetString(PyExc_SystemError, "Internal error when adding method/constructor");                                                                                                          
-                                        }}
-                                    }}
-
-                                    int set_up() override{{
-                                       return 0;
-                                    }}
-
-                                    int ready(PyObject * const top_level_mod) override{{
-                                        return 0; //nothing to do on setup
-                                    }}
-
-                                    static Initializer_{name}* initializer;
-
-                                    static Initializer_{name} *singleton(){{
-                                        static  Initializer_{name} _initializer;
-                                        return &_initializer;
-                                    }}
-                                 }};
-
-
-                                //ensure instance is created on global static initialization, otherwise this
-                                //element would never be reigstered and picked up
-                                Initializer_{name} * Initializer_{name}::initializer = singleton();
-
-                            }}
-                        """, True))
+            body_stream.write("namespace{\n")
+            body_stream.write(f"    static const char* const kwlist[] = {{{kwlist_items}}};\n")
+            body_stream.write(f"    constexpr cstring name = \"{name}\";\n")
+            body_stream.write("}\n\n")
+            body_stream.write(f"template class pyllars::PyllarsClassMethod<name, kwlist, {signature},  &::{class_full_cpp_name}::operator= >;")
         finally:
             body_stream.close()
         return None, body_stream.name
 
     def generate_operator(self):
         unary_mapping = {
-            '~' : 'Inv',
-            '+' : 'Pos',
-            '-' : 'Neg',
+            '~' : 'INV',
+            '+' : 'POS',
+            '-' : 'NEG',
         }
         binary_mapping = {
-            '+': 'Add',
-            '-': 'Sub',
-            '*': 'Mul',
-            '/': 'Div',
-            '&': 'And',
-            '|': 'Or',
-            '^': 'Xor',
-            '<<': 'Lshift',
-            '>>': 'Rshift',
-            '%': 'Mod',
-            '+=': 'InplaceAdd',
-            '-=': 'InplaceSub',
-            '*=': 'InplaceMul',
-            '/=': 'InplaceDiv',
-            '&=': 'InplaceAnd',
-            '|=': 'InplaceOr',
-            '^=': 'InplaceXor',
-            '<<=': 'InplaceLshift',
-            '>>=': 'InplaceRshift',
-            '%=': 'InplaceMod',
+            '+': 'ADD',
+            '-': 'SUB',
+            '*': 'MUL',
+            '/': 'DIV',
+            '&': 'AND',
+            '|': 'OR',
+            '^': 'XOR',
+            '<<': 'LSHIFT',
+            '>>': 'RSHIFT',
+            '%': 'MOD',
+            '+=': 'IADD',
+            '-=': 'ISUB',
+            '*=': 'IMUL',
+            '/=': 'IDIV',
+            '&=': 'IAND',
+            '|=': 'IOR',
+            '^=': 'IXOR',
+            '<<=': 'ILSHIFT',
+            '>>=': 'IRSHIFT',
+            '%=': 'IMOD',
             '[]': 'Map'
         }
         if 'default_delete' in self._node.qualifiers:
@@ -985,67 +690,27 @@ class FieldDeclGenerator(Generator):
             os.path.join(self.my_root_dir, self._source_path_root,  (parent.name or f"anon_{parent.node_id}") + '::' + (self._node.name or "anon_" + self._node.node_id) + '.cpp'), 'w',
             encoding='utf-8')
         try:
-            parent = self._node.parent
-            while parent and not parent.name and isinstance(parent, NodeType.CXXRecordDecl):
-                parent = parent.parent
-                if not parent:
-                    return None, None
             parent_name = parent.name
             parent_header_path = os.path.join("..", parent_name)
             # generate body
             body_stream.write(f"""\n#include \"{self.source_path}\" 
 #include \"{parent_header_path}.hpp\"
-#include <{self.source_path}>
-#include <pyllars/pyllars_classwrapper.impl.hpp>
-#include <pyllars/pyllars_membersemantics.impl.hpp>
+#include <pyllars/pyllars_classmember.hpp>
                                     """)
             name = self._node.name or f"anon_{self._node.node_id}"
             if not self._node.name:
                 return None, None
             wrapper, parent_type_name, attribute_type_name, attribute_full_cpp_name = _parent_wrapper_name(self._node)
-            member_qualifier = "Class" if 'static' in self._node.qualifiers else ""
-            body_stream.write(self._wrap_in_namespaces(f"""
-
-                                    namespace {{
-                                       //From: FieldDeclGenerator.generate
-
-                                       constexpr cstring this_name = "{name}";
-
-                                        class Initializer_{name}: public pyllars::Initializer{{
-                                        public:
-                                            Initializer_{name}():pyllars::Initializer(){{
-                                                {parent_name}_register(this);                          
-                                                if ({wrapper}::template add{member_qualifier}Attribute<this_name, 
-                                                      {attribute_type_name}>(&{attribute_full_cpp_name}) != 0){{
-                                                    PyErr_SetString(PyExc_SystemError, "Internal error when adding method/constructor");
-                                                }}
-                                            }}
-
-                                            int set_up() override{{
-                                               return 0;
-                                            }}
-                                            
-                                            int ready(PyObject * const top_level_mod) override{{
-                                                int status = {wrapper}::initialize();
-                                                status |= __pyllars_internal::PythonClassWrapper<{attribute_type_name}>::initialize();
-                                                return status;
-                                            }}
-
-                                            static Initializer_{name}* initializer;
-
-                                            static Initializer_{name} *singleton(){{
-                                                static  Initializer_{name} _initializer;
-                                                return &_initializer;
-                                            }}
-                                         }};
-
-
-                                        //ensure instance is created on global static initialization, otherwise this
-                                        //element would never be reigstered and picked up
-                                        Initializer_{name} * Initializer_{name}::initializer = singleton();
-
-                                    }}
-                                """, True))
+            if 'static' in self._node.qualifiers:
+                class_arg = f"{self._node.parent.full_cpp_name}, "
+                member_qualifier = "Static"
+            else:
+                class_arg = ""
+                member_qualifier = ""
+            body_stream.write("using namespace pyllars;\n\nnamespace{\n")
+            body_stream.write(f"    constexpr cstring name = \"{self._node.name}\";\n")
+            body_stream.write("}\n\n")
+            body_stream.write(f"template class PyllarsClass{member_qualifier}Member<name, {parent.full_cpp_name}, {class_arg}{attribute_type_name}, &{attribute_full_cpp_name}>;")
         finally:
             body_stream.close()
         return None, body_stream.name
@@ -1073,58 +738,29 @@ class FieldDeclGenerator(Generator):
             body_stream.write(f"""\n#include \"{self.source_path}\" 
 #include \"{parent_header_path}.hpp\"
 #include <{self.source_path}>
-#include <pyllars/pyllars_classwrapper.impl.hpp>
-#include <pyllars/pyllars_membersemantics.impl.hpp>
-                                    """)
+#include <pyllars/pyllars_classbitfield.hpp>
+            """)
+
             name = self._node.name
+            if not name:
+                return None, None
             typename = self._scoped_type_name(self._node.type_text)
             const_typename = 'const ' + typename if 'const' not in typename.split() else typename
             setter = "" if is_const else f"static std::function<{typename}({parent_type_name}&, {const_typename}&)> setter = []({parent_type_name} & obj, {const_typename}& value)->{typename}{{obj.{name} = value; return value;}};"
-            setter_value = "nullptr" if is_const else "&setter"
-            body_stream.write(self._wrap_in_namespaces(f"""
+            body_stream.write(f"""
+namespace{{
+    extern const char name[] = "{name}";
+    static std::function<{typename}(const {parent_type_name}&)> getter = [](const {parent_type_name} & obj)->{typename}{{return  obj.{name};}};
+    constexpr std::function<{typename}(const {parent_type_name}&)>* getter_p = &getter;
+""")
+            if setter:
+                body_stream.write(f"""
+    {setter}
+    constexpr std::function<{typename}({parent_type_name}&, {const_typename}&)>* setter_p = &setter;
+""")
+            body_stream.write("}\n\n")
+            body_stream.write(f"""template class pyllars::PyllarsClassBitField<name, {parent_type_name}, {typename}, {size}, getter_p, {"setter_p" if setter else "nullptr"}>;""")
 
-                                    namespace {{
-                                       //From: CXXMethodDeclGenerator.generate
-
-                                       constexpr cstring this_name = "{name}";
-
-                                        class Initializer_{name}: public pyllars::Initializer{{
-                                        public:
-                                            Initializer_{name}():pyllars::Initializer(){{
-                                                {parent_name}_register(this);                          
-                                               static std::function<{typename}(const {parent_type_name}&)> getter = [](const {parent_type_name} & obj)->{typename}{{return  obj.{name};}};
-                                               {setter}
-                                               if ({wrapper}::template addBitField<this_name, 
-                                                     {typename}, {size}>(getter, {setter_value}) != 0){{
-                                                    PyErr_SetString(PyExc_SystemError, "Internal error when adding method/constructor");
-                                                }}
-                                            }}
-
-                                            status_t ready(PyObject * const top_level_mod) override{{
-                                                int status = {wrapper}::initialize();
-                                                status |= __pyllars_internal::PythonClassWrapper<{attribute_type_name}>::initialize();
-                                                return status;
-                                            }}
-                                            
-                                            status_t set_up() override{{
-                                               return 0;
-                                            }}
-
-                                            static Initializer_{name}* initializer;
-
-                                            static Initializer_{name} *singleton(){{
-                                                static  Initializer_{name} _initializer;
-                                                return &_initializer;
-                                            }}
-                                         }};
-
-
-                                        //ensure instance is created on global static initialization, otherwise this
-                                        //element would never be reigstered and picked up
-                                        Initializer_{name} * Initializer_{name}::initializer = singleton();
-
-                                    }}
-                                """, True))
         finally:
             body_stream.close()
         return None, body_stream.name

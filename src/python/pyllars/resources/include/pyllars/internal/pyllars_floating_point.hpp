@@ -2,6 +2,7 @@
 #define __PYLLARS__FLOATING_POINT_H__
 
 #include "pyllars/internal/pyllars_classwrapper.hpp"
+#include "pyllars/pyllars_namespacewrapper.hpp"
 
 namespace __pyllars_internal{
 
@@ -58,16 +59,17 @@ namespace __pyllars_internal{
 
         template<typename Parent, bool enabled = std::is_base_of<CommonBaseWrapper, Parent>::value>
         static status_t ready() {
-            _initialize(_Type);
+            return _initialize(_Type);
         }
 
         static status_t preinit(){
+  	     Py_Initialize();
             static int rc = -1;
             static bool inited = false;
             if (inited) {
                 return rc;
             }
-            static PyObject *module = PyImport_ImportModule("pyllars");
+            static PyObject *module = pyllars::GlobalNamespace::module();
             rc = PyType_Ready(CommonBaseWrapper::getPyType()) |
                  PyType_Ready(&PyFloatingPtCustomBase::_Type) |
                  PyType_Ready(&PyFloatingPtCustomObject::_Type);

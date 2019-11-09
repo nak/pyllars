@@ -12,7 +12,7 @@
 #include "anon_enum_defns.h"
 #include "setup_anon_enums.hpp"
 
-#include "pyllars/pyllars_classenum.hpp"
+#include "pyllars/pyllars_enum.hpp"
 #include "pyllars/pyllars_classenumclass.hpp"
 
 template<>

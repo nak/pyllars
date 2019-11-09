@@ -5,7 +5,7 @@
 #ifndef __PYLLARS_INTERNAL__POINTER_CPP_
 #define __PYLLARS_INTERNAL__POINTER_CPP_
 
-#include "pyllars.hpp"
+#include "pyllars/pyllars.hpp"
 #include "pyllars_pointer.hpp"
 #include "pyllars/internal/pyllars_floating_point.hpp"
 #include "pyllars/internal/pyllars_integer.hpp"

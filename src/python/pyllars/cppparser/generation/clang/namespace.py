@@ -1,4 +1,6 @@
 import os
+
+from pyllars.cppparser.parser.clang_translator import NodeType
 from .generator import Generator
 
 
@@ -10,101 +12,39 @@ class NamespaceDeclGenerator(Generator):
         body_stream = open(os.path.join(self.my_root_dir, self._source_path_root, self._node.name+'.cpp'), 'w',
                            encoding='utf-8')
         try:
-            # generate header
-            header_stream.write(Generator.COMMON_HEADER)
             parent = self._node.parent
-            code = f"""
-            PyObject *{self._node.name}_module(); 
-            
-            /**
-             * static initializer method to register initialization routine
-             **/
-            status_t {self._node.name}_register(::pyllars::Initializer* const);
-            
-            /**
-             * called back on initialization to initialize Python wrapper for this C construct
-             * @param top_level_mod:  mod to which the wrapper Python object should belong
-             **/
-            status_t {self._node.name}_ready(PyObject * const top_level_mod);
-            
-            /**
-             * add child object
-             **/
-            status_t {self._node.name}_addPyObject(const char* const name, PyObject* pyobj);
-            """
-            header_stream.write(self._wrap_in_namespaces(code, True))
-            # generate body
-            parent_mod = f"::pyllars::{parent.full_cpp_name}_module()" if parent else "parent_mod"
-            hash = "#"
-            code = f"""
-            
-                    PyObject * {self._node.name}_module(){{
-                        static PyObject* {self._node.name}_mod = nullptr;
-                        if (!{self._node.name}_mod){{
-                            {hash}if PY_MAJOR_VERSION==3
-        
-                                // Initialize Python3 module associated with this namespace
-                                static PyModuleDef {self._node.name}_moddef = {{
-                                    PyModuleDef_HEAD_INIT,
-                                    "{self._node.name}",
-                                    "Example module that creates an extension type.",
-                                    -1,
-                                    NULL, NULL, NULL, NULL, NULL
-                                }};
-                                {self._node.name}_mod = PyModule_Create(&{self._node.name}_moddef);
-        
-                            {hash}else
-        
-                                // Initialize Python2 module associated with this namespace
-                                {self._node.name}_mod = Py_InitModule3("{self._node.name}", nullptr,
-                                                              "Module corresponding to C++ namespace {self._node.name}");
-        
-                            {hash}endif
-                        }}
-                        return {self._node.name}_mod;
-                    }}
-            
-                    
-                    status_t {self._node.name}_ready(PyObject* parent_mod){{
-                        static bool inited = false;
-                        if (inited) return 0;// if already initialized
-                        inited = true;
-                        int status = 0;
-                        
-                        //overwrite for namespace as they should all belong to "global pyllars" module
-                        parent_mod = PyImport_ImportModule("pyllars");
-    
-                        if (!{parent_mod} || !{self._node.name}_module()){{
-                            status = -2;
-                        }} else {{
-                            PyModule_AddObject( {parent_mod}, "{self._node.name}", {self._node.name}_module());
-                        }}
-                        return status;
-                    }}
-                    
-                    status_t {self._node.name}_set_up(){{
-                        return {self._node.name}_module()?0:-2;
-                    }} // end init
-                    
-                    status_t {self._node.name}_addPyObject(const char* const name, PyObject* pyobj){{
-                        return PyModule_AddObject(::pyllars::{self._node.full_cpp_name}_module(), name, pyobj);
-                    }}
-            """
-            code += self.INITIALIZER_CODE % {
-                'name': self._node.name,
-                'parent_name': self._node.parent.full_cpp_name if self._node.parent else "pyllars"
-            }
-            code += self.INITIALIZER_INSTANTIATION_CODE % {
-                'name': self._node.name,
-            }
-            code += self.REGISTRATION_CODE % {
-                'name': self._node.name,
-            }
-            body_stream.write(f"#include \"{self._node.name}.hpp\"\n")
-            if self._node.parent:
-                body_stream.write(f"#include \"../{self._node.parent.name}.hpp\"\n")
-            body_stream.write(self._wrap_in_namespaces(code, True))
+            header_stream.write(f"#ifndef _{self._node.full_cpp_name.replace('::', '__')}\n")
+            header_stream.write(f"#define _{self._node.full_cpp_name.replace('::', '__')}\n")
+            if parent and parent.name:
+                header_stream.write(f"#include \"../{parent.name}.hpp\"\n\n")
+            header_stream.write("namespace __pyllars_internal{\n")
+            header_stream.write("    namespace names{\n")
+            header_stream.write(self._wrap_in_namespaces(f"""
 
+            namespace {self._node.name}{{
+                    struct Tag_{self._node.name}{{
+                        typedef const char* const cstring;
+                        static constexpr cstring name = \"{self._node.name}\";
+                    }};
+            }}
+            \n""", False))
+            header_stream.write("    }\n")
+            header_stream.write("}\n")
+            header_stream.write("#endif")
+
+            # generate body
+            body_stream.write('#include <pyllars/pyllars_namespacewrapper.hpp>\n')
+            body_stream.write(f"#include <{self.source_path}>\n\n")
+            body_stream.write(f"#include \"{self._node.name}.hpp\"\n\n")
+            body_stream.write("using namespace pyllars;\n")
+
+            def namespace_wrapper(node: NodeType.Node):
+                if not node or not node.name:
+                    return "GlobalNamespace"
+                return f"PyllarsNamespace< __pyllars_internal::names::{node.full_cpp_name}::Tag_{node.name}, {namespace_wrapper(node.parent)} > " if \
+                    node.parent and node.parent.name else "GlobalNamespace"
+
+            body_stream.write(f"template class pyllars::PyllarsNamespace<__pyllars_internal::names::{self._node.full_cpp_name}::Tag_{self._node.name}, {namespace_wrapper(self._node.parent)}>;\n")
         finally:
             body_stream.close()
             header_stream.close()

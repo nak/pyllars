@@ -16,9 +16,14 @@ namespace pyllars{
         class Initializer{
         public:
             Initializer(){
+                __pyllars_internal::Init::registerInit(init);
+            }
+
+            static status_t init(){
                 using namespace __pyllars_internal;
                 typedef ValueType (Class::*method_t)(KeyType);
                 PythonClassWrapper<Class>::template addMapOperator<KeyType, method_t, method>();
+                return 0;
             }
         };
 
@@ -38,9 +43,14 @@ namespace pyllars{
         class Initializer{
         public:
             Initializer(){
+                __pyllars_internal::Init::registerInit(init);
+            }
+
+            static status_t init(){
                 using namespace __pyllars_internal;
                 typedef ValueType (Class::*method_t)(KeyType) const;
                 PythonClassWrapper<Class>::template addMapOperator<KeyType, method_t, method>();
+                return 0;
             }
         };
 

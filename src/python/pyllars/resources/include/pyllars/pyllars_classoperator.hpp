@@ -47,8 +47,13 @@ namespace pyllars{
         class Initializer{
         public:
             Initializer(){
+                __pyllars_internal::Init::registerInit(init);
+            }
+
+            static status_t init(){
                 using namespace __pyllars_internal;
                 PythonClassWrapper<Class>::template Op<kind,  ReturnType(Class::*)(), method>::addUnaryOperator();
+                return 0;
             }
         };
 
@@ -69,8 +74,13 @@ namespace pyllars{
         class Initializer{
         public:
             Initializer(){
+                __pyllars_internal::Init::registerInit(init);
+            }
+
+            static status_t init(){
                 using namespace __pyllars_internal;
                 PythonClassWrapper<Class>::template Op<kind,  ReturnType(Class::*)() const, method>::addUnaryOperator();
+                return 0;
             }
         };
 
@@ -91,8 +101,13 @@ namespace pyllars{
         class Initializer{
         public:
             Initializer(){
+                __pyllars_internal::Init::registerInit(init);
+            }
+
+            static status_t init(){
                 using namespace __pyllars_internal;
                 PythonClassWrapper<Class>::template BinaryOp<kind,  ReturnType(Class::*)(ArgType), method>::addBinaryOperator();
+                return 0;
             }
         };
 
@@ -113,8 +128,13 @@ namespace pyllars{
         class Initializer{
         public:
             Initializer(){
+                __pyllars_internal::Init::registerInit(init);
+            }
+
+            static status_t init(){
                 using namespace __pyllars_internal;
                 PythonClassWrapper<Class>::template BinaryOp<kind,  ReturnType(Class::*)(ArgType) const, method>::addBinaryOperator();
+                return 0;
             }
         };
 

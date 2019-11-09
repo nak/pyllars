@@ -45,83 +45,44 @@ class FunctionDeclGenerator(Generator):
         return f"{ret_type} ({params}) {qualifiers}"
 
     def generate(self):
+        if 'implicit' in self._node.prequalifiers:
+            return None, None
         header_stream = open(os.path.join(self.my_root_dir, self._node.name + '.hpp'), 'w',
                              encoding='utf-8')
         body_stream = open(os.path.join(self.my_root_dir, self._source_path_root, self._node.name + '.cpp'), 'w',
                            encoding='utf-8')
 
         parent = self._node.parent
-        parent_name = parent.name if parent else "pyllars"
-        parent_full_name = parent.full_cpp_name if parent else "pyllars"
         name = self._node.name
-        full_cpp_name = self._node.full_cpp_name
         try:
-            # generate header
-            header_stream.write(Generator.COMMON_HEADER)
-            header_stream.write(self._wrap_in_namespaces(f"""
-            """, True))
-
             # generate body
             body_stream.write(f"""\n
-#include <pyllars/pyllars_function_wrapper.hpp>
-#include <pyllars/pyllars_staticfunctionsemantics.impl.hpp>
+#include <pyllars/pyllars_function.hpp>
 #include "{self.source_path}" 
-#include \"{self._node.name}.hpp"
+
             """)
-            if self._node.parent:
-                body_stream.write(f"\n#include \"..{os.sep}{parent_name}.hpp\"\n")
+
+            def namespace_wrapper(node: NodeType.Node):
+                if not node or not node.name:
+                    return "GlobalNamespace"
+                return f"PyllarsNamsepace< {node.name}_ name, {namespace_wrapper(node.parent)} > "
+
+            names = []
+            while n and n.name:
+                if n.name not in names:
+                    names.append(n.name)
+                    body_stream.write(f"    constexpr cstring {n.name}_name = \"{n.name}\";\n")
+                n = n.parent
+            body_stream.write("}\n")
+            body_stream.write("using namespace pyllars;\n")
+
             params = [c for c in self._node.children if isinstance(c, NodeType.ParmVarDecl)]
-            param_count = len(params)
             param_list = ",".join([f"\"{p.name}\"" for p in params] + ["nullptr"])
             full_signature = self._full_signature()
-            namec = name.replace(' ', '______').replace('[]', '_____array')
-            if not parent or not parent.name:
-                addobj_code = f"""
-                    PyObject *pyllars_mod = PyImport_ImportModule("pyllars");
-                    status |= PyModule_AddObject(top_level_mod, "{name}", pyobj);
-                    status |= PyModule_AddObject(pyllars_mod, "{name}", pyobj);
-                """
-            else:
-                addobj_code = f"status |= pyllars::{parent_full_name}_addPyObject(\"{name}\", pyobj);"
-            body_stream.write(self._wrap_in_namespaces(f"""
-            namespace {{
-                //From: FunctionDeclGenerator.generate
-                typedef const char* const kwlist_t[{param_count+1}];
-                static constexpr kwlist_t kwlist = {{{param_list}}};
-                class Initializer_{namec}: public pyllars::Initializer{{
-                public:
-                    Initializer_{namec}():pyllars::Initializer(){{
-
-                        pyllars::{parent_full_name}_register(this);                          
-                    }}
-
-                    int set_up() override{{
-                        return 0;
-                    }}
-
-                    int ready(PyObject * const top_level_mod) override{{
-                        int status = pyllars::Initializer::ready(top_level_mod);
-                        PyObject* pyobj = (PyObject*)__pyllars_internal::PythonFunctionWrapper<{full_signature}>::createPy<kwlist, ::{full_cpp_name}>("{name}"); 
-                        {addobj_code}
-                        return status;
-                    }}
-
-                    static Initializer_{namec}* initializer;
-
-                    static Initializer_{namec} *singleton(){{
-                        static  Initializer_{namec} _initializer;
-                        return &_initializer;
-                    }}
-                 }};
-
-
-                //ensure instance is created on global static initialization, otherwise this
-                //element would never be reigstered and picked up
-                Initializer_{namec} * Initializer_{namec}::initializer = singleton();
-
-            }}
-                """, True))
-
+            body_stream.write("using namespace pyllars;\n")
+            body_stream.write(f"static const char* kwlist[{len(params) +1}] = {{{param_list}}};\n")
+            body_stream.write(f"constexpr cstring fname = \"{self._node.name}\";\n")
+            body_stream.write(f"template class PyllarsFunction<fname, kwlist, {full_signature}, &{self._node.full_cpp_name}, {namespace_wrapper(self._node.parent)}>;\n")
         finally:
             header_stream.close()
             body_stream.close()

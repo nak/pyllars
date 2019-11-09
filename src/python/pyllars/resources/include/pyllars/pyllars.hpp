@@ -3,6 +3,7 @@
  */
 #ifndef PYLLARS
 #define PYLLARS
+
 #include <vector>
 #include <cstddef>
 #include <Python.h>
@@ -22,10 +23,6 @@ PyMODINIT_FUNC
 PyllarsInit(const char *name);
 
 
-#include <pyllars/internal/pyllars_classwrapper.hpp>
-#include <pyllars/internal/pyllars_pointer.hpp>
-#include <pyllars/internal/pyllars_integer.hpp>
-#include <pyllars/internal/pyllars_floating_point.hpp>
 namespace __pyllars_internal {
     class Init {
     public:
@@ -35,6 +32,12 @@ namespace __pyllars_internal {
             static std::vector<ready_func_t> _funcs;
             _readyFuncs = &_funcs;
             if (func) _readyFuncs->push_back(func);
+        }
+
+        static void registerInit(ready_func_t func){
+            static std::vector<ready_func_t> _funcs;
+            _initFuncs = &_funcs;
+            if (func) _initFuncs->push_back(func);
         }
 
         static status_t ready(){
@@ -50,6 +53,20 @@ namespace __pyllars_internal {
             return status;
         }
 
+        static status_t init(){
+            static status_t status = 0;
+            static bool inited = false;
+            if (inited) return status;
+            inited = true;
+            if(_initFuncs) {
+                for (auto &func: *_initFuncs) {
+                    if(func) {status |= func();}
+                }
+            }
+            return status;
+        }
+
+        static std::vector<ready_func_t> *_initFuncs;
         static std::vector<ready_func_t> *_readyFuncs;
 
     };

@@ -18,8 +18,13 @@ namespace pyllars{
         public:
             typedef ReturnType(Class::*method_t)(Args...);
             Initializer(){
+                __pyllars_internal::Init::registerInit(init);
+            }
+
+            static status_t init(){
                 using namespace __pyllars_internal;
                 PythonClassWrapper<Class>::template addMethod<name, kwlist, method_t, method>();
+                return  0;
             }
         };
 
@@ -40,8 +45,13 @@ namespace pyllars{
         public:
             typedef ReturnType(Class::*method_t)(Args...) const;
             Initializer(){
+                __pyllars_internal::Init::registerInit(init);
+            }
+
+            static status_t init(){
                 using namespace __pyllars_internal;
                 PythonClassWrapper<Class>::template addMethod<name, kwlist, method_t, method>();
+                return 0;
             }
         };
 

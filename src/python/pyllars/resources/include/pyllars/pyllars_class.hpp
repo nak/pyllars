@@ -11,7 +11,8 @@ namespace pyllars {
 
 
 
-    template<typename Class, typename Parent, typename Z = typename std::enable_if<std::is_base_of<__pyllars_internal::CommonBaseWrapper, Parent>::value>::type>
+    template<typename Class, typename Parent, typename Z = typename std::enable_if<std::is_base_of<__pyllars_internal::CommonBaseWrapper, Parent>::value ||
+            __pyllars_internal::is_rich_class<Class>::value>::type>
     class PyllarsClass{
     public:
     private:
@@ -19,7 +20,7 @@ namespace pyllars {
         public:
             explicit Initializer() {
                 using namespace __pyllars_internal;
-                PythonClassWrapper<Class>::preinit();
+                __pyllars_internal::Init::registerInit(PythonClassWrapper<Class>::preinit);
                 __pyllars_internal::Init::registerReady( PythonClassWrapper<Class>::template ready<Parent>);
             }
         };

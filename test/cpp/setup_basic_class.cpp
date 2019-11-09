@@ -8,7 +8,7 @@
 #include "pyllars/pyllars_classstaticmethod.hpp"
 #include "pyllars/pyllars_classmember.hpp"
 #include "pyllars/pyllars_classstaticmember.hpp"
-#include "pyllars/pyllars_classenum.hpp"
+#include "pyllars/pyllars_enum.hpp"
 #include "pyllars/pyllars_classenumclass.hpp"
 #include "pyllars/pyllars_classconstructor.hpp"
 #include "pyllars/pyllars_classoperator.hpp"
@@ -108,7 +108,9 @@ template class pyllars::PyllarsClassStaticMethod<enum_convert_name, kwlist2, Enu
 
 constexpr cstring E_ONE_NAME = "E_ONE";
 
-template class pyllars::PyllarsClassEnumClassValue<E_ONE_NAME, EnumClass , EnumClass::E_ONE>;
+template class pyllars::PyllarsClassEnumClassValue<E_ONE_NAME, EnumClass, pyllars::GlobalNamespace >;
+
+template class pyllars::PyllarsClassEnumClassValue<E_ONE_NAME, EnumClass, pyllars::GlobalNamespace >::template Value<EnumClass::E_ONE>;
 
 void
 SetupBasicClass::SetUpTestSuite() {

@@ -152,7 +152,7 @@ extern "C"{
         with tempfile.NamedTemporaryFile(mode='wb', suffix='.cpp') as f:
             f.write(code)
             f.flush()
-            cmd = "%(cxx)s -shared -O2 -fPIC -std=c++1z %(cxxflags)s -I%(python_include)s -shared -o %(objfile)s  %(codefile)s -I%(pyllars_include)s" % {
+            cmd = "%(cxx)s -O2 -fPIC -std=c++1z %(cxxflags)s -I%(python_include)s -shared -o %(objfile)s  %(codefile)s -I%(pyllars_include)s" % {
                       'cxx': Compiler.LDCXXSHARED,
                       'cxxflags': Compiler.CFLAGS + " " + " ".join(self._compiler_flags),
                       'pyllars_include': PYLLARS_INCLUDE_DIR,
@@ -179,7 +179,7 @@ extern "C"{
             python_lib_name = os.path.join(Compiler.LIBDIR, Compiler.LDLIBRARY)
 
             cmd2 = f"{cxx} -fPIC -std=c++1z {cxxflags} -I{Compiler.PYINCLUDE} -o {output_module_path}/{module_name}.so "\
-                  f"{objs} {python_lib_name} {linker_flags} -Wl,--no-undefined -Wl,-R,'$ORIGIN' -lpthread -lffi -I{PYLLARS_INCLUDE_DIR} {f.name}"
+                  f"{objs} {python_lib_name} {linker_flags} -Wl,--no-undefined -Wl,-R,'$ORIGIN' -lpthread -lffi -I{PYLLARS_INCLUDE_DIR} {f.name}.o"
             cmd2 = cmd2.replace("-O2", self._optimization_level)
             cmd2 = cmd2.replace("-O3", self._optimization_level)
             print(cmd2)

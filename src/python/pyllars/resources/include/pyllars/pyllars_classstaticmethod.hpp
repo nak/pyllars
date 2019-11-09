@@ -14,8 +14,13 @@ namespace pyllars{
         class Initializer{
         public:
             Initializer(){
+                __pyllars_internal::Init::registerInit(init);
+            }
+
+            static status_t init(){
                 using namespace __pyllars_internal;
                 PythonClassWrapper<Class>::template addClassMethod<name, kwlist, function_t, function>();
+                return 0;
             }
         };
 

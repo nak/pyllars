@@ -9,24 +9,29 @@
 
 namespace pyllars{
 
-    template<const char *const name, typename T, typename Attr, Attr* attr>
+    template<const char *const name, typename Class, typename Attr, Attr* attr>
     class PyllarsClassStaticMember{
     private:
         class Initializer{
         public:
             Initializer(){
+                __pyllars_internal::Init::registerInit(init);
+            }
+
+            static status_t init(){
                 using namespace __pyllars_internal;
-                PythonClassWrapper<T>::template addClassAttribute<name, Attr>(attr);
+                PythonClassWrapper<Class>::template addClassAttribute<name, Attr>(attr);
+                return 0;
             }
         };
 
         static Initializer* const initializer;
     };
 
-    template<const char *const name, typename T, typename Attr, Attr* attr>
-    typename PyllarsClassStaticMember<name, T, Attr, attr>::Initializer * const
-            PyllarsClassStaticMember<name, T, Attr, attr>::initializer = new
-                    PyllarsClassStaticMember<name, T, Attr, attr>::Initializer();
+    template<const char *const name, typename Class, typename Attr, Attr* attr>
+    typename PyllarsClassStaticMember<name, Class, Attr, attr>::Initializer * const
+            PyllarsClassStaticMember<name, Class, Attr, attr>::initializer = new
+                    PyllarsClassStaticMember<name, Class, Attr, attr>::Initializer();
 }
 
 namespace __pyllars_internal {
@@ -34,10 +39,10 @@ namespace __pyllars_internal {
 
 
 
-    template<typename T>
+    template<typename Class>
     template<const char *const name, typename FieldType>
-    void PythonClassWrapper<T,
-            typename std::enable_if<is_rich_class<T>::value>::type>::
+    void PythonClassWrapper<Class,
+            typename std::enable_if<is_rich_class<Class>::value>::type>::
     addClassAttribute(FieldType *member) {
 
         static const char *const doc = "Get attribute ";

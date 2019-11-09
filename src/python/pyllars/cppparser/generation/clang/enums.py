@@ -35,21 +35,33 @@ class EnumDeclGenerator(Generator):
 
             # generate body
             body_stream.write(f"""\n
-#include <pyllars/pyllars_classwrapper.impl.hpp>
+#include <pyllars/pyllars_enum.hpp>
 #include "{self.source_path}" 
 #include \"{name}.hpp"
             """)
             if self._node.parent and parent_name != 'pyllars':
                 body_stream.write(f"\n#include \"..{os.sep}{parent_name}.hpp\"\n")
             body_stream.write(f"""
-                    namespace __pyllars_internal{{
-                        template<>
-                        struct TypeInfo<{full_cpp_name}>{{
-                            static const char* const type_name;
-                        }};
-                        const char* const TypeInfo<{full_cpp_name}>::type_name =  "{name}";
-                    }}
+namespace __pyllars_internal{{
+                          
+    template<>
+    const char* const TypeInfo<{full_cpp_name}>::type_name = \"{name}\";
+    
+}}
             """)
+            body_stream.write("using namespace pyllars;\n")
+            body_stream.write("using namespace __pyllars_internal;\n")
+
+            def namespace_wrapper(node):
+                if node is None:
+                    return "GlobalNamespace"
+                if isinstance(node, NodeType.NamespaceDecl):
+                    if not node or not node.name:
+                        return "GlobalNameSpace"
+                    return f"PyllarsNamespace< names::{node.full_cpp_name}::Tag_{node.name}, {namespace_wrapper(node.parent)} > "
+                else:
+                    return f"PyllarsClass< {node.full_cpp_name}, {namespace_wrapper(node.parent)} >;\n"
+
 
             if not self._node.name or 'definition' in self._node.qualifiers or 'implicit' in self._node.qualifiers:
                 return header_stream.name, body_stream.name
@@ -58,86 +70,24 @@ class EnumDeclGenerator(Generator):
                 named_parent = named_parent.parent
                 if isinstance(named_parent, NodeType.TranslationUnitDecl):
                     named_parent = None
+            if hasattr(self._node, "name") and self._node.name:
+                body_stream.write(f"""
+namespace{{
+    extern const char* const enum_type_name = "{self._node.name}";
+}}
+""")
+                if not named_parent or isinstance(named_parent, NodeType.TranslationUnitDecl):
+                    template_instantiation = f"template class pyllars::PyllarsEnum<enum_type_name, {self._node.full_cpp_name}, pyllars::GlobalNamespace>"
 
-            if named_parent:
-                parent_full_name = named_parent.full_cpp_name
-                add_pyobject_code = f"""
-                                       status |= ::pyllars::{parent_full_name}_addPyObject("{name}", 
-                                                    (PyObject*) __pyllars_internal::PythonClassWrapper< typename ::{full_cpp_name} >::getPyType());
-
-"""
-            else:
-                parent_full_name = ""
-                add_pyobject_code = f"""
-                                      PyObject *pyllars_mod = PyImport_ImportModule("pyllars");
-                                      status |= PyModule_AddObject(top_level_mod, "{name}",
-                                         (PyObject*) __pyllars_internal::PythonClassWrapper< typename ::{full_cpp_name} >::getPyType());
-                                      if (pyllars_mod){{
-                                         status |= PyModule_AddObject(pyllars_mod, "{name}",
-                                            (PyObject*) __pyllars_internal::PythonClassWrapper< typename ::{full_cpp_name} >::getPyType());
-                                      }}
-
-"""
-            setup_code = ""
-            for elem in elements:
-                if name:
-                    setup_code += f"""
-                       status |= __pyllars_internal::PythonClassWrapper<  ::{full_cpp_name} >::addEnumValue("{elem.name}", ::{c_scope}{self._node.name}{"::" if self._node.name else ""}{elem.name});
-                   """
-                elif named_parent and not isinstance(named_parent, NodeType.NamespaceDecl):
-                    setup_code += f"""
-                    status |= __pyllars_internal::PythonClassWrapper<  ::{named_parent.full_cpp_name} >::addEnumValue("{elem.name}", ::{c_scope}{self._node.name}{"::" if self._node.name else ""}{elem.name});
-                """
-                elif named_parent:
-                    setup_code += f"""
-                    status |=  PyModule_AddObject(pyllars::{named_parent.full_cpp_name}_module(), "{name}",   __pyllars_internal::toPyObject(::{c_scope}{self._node.name}{"::" if self._node.name else ""}{elem.name}, 1));
-                """
+                elif isinstance(named_parent, NodeType.NamespaceDecl):
+                    template_instantiation = f"template class pyllars::PyllarsEnum<enum_type_name>, {self._node.full_cpp_name}, {namespace_wrapper(parent)}>"
                 else:
-                    setup_code += f"""
-                     status |= PyModule_AddObject(top_level_mod, "{name}", __pyllars_internal::toPyObject( ::{c_scope}{self._node.name}{"::" if self._node.name else ""}{elem.name}, 1));
-                """
-            body_stream.write(self._wrap_in_namespaces(f"""
-            namespace {{
-                //From: EnumDeclGenerator.generate
+                    template_instantiation = f"template class pyllars::PyllarsEnum<enum_type_name, {self._node.full_cpp_name}, {parent.full_cpp_name}>"
 
-                class Initializer_{name}: public pyllars::Initializer{{
-                public:
-                    Initializer_{name}():pyllars::Initializer(){{
-                        pyllars::{parent_full_name or "pyllars"}_register(this);
-                        if (__pyllars_internal::PythonClassWrapper< ::{full_cpp_name} >::initialize() != 0){{
-                            PyErr_SetString(PyExc_SystemError, "Internal error when adding method/constructor");
-                        }}                           
-                    }}
-
-                    int set_up() override{{
-                        return 0;
-                    }}
-
-                    int ready(PyObject * const top_level_mod) override{{
-                       static int status = 0;
-                       static bool readied = false;
-                       if (readied){{ return status; }}
-                       readied = true; 
-                       {add_pyobject_code}
-                       {setup_code}
-                       return status;
-                    }}
-
-                    static Initializer_{name}* initializer;
-
-                    static Initializer_{name} *singleton(){{
-                        static  Initializer_{name} _initializer;
-                        return &_initializer;
-                    }}
-                 }};
-
-
-                //ensure instance is created on global static initialization, otherwise this
-                //element would never be reigstered and picked up
-                Initializer_{name} * Initializer_{name}::initializer = singleton();
-
-            }}
-                """, True))
+                body_stream.write(f"{template_instantiation};")
+                body_stream.write(f"using EnumWrapper = {template_instantiation};")
+            for elem in elements:
+                body_stream.write(f"template EnumWrapper::template Value<{elem.name}>;")
 
         finally:
             header_stream.close()

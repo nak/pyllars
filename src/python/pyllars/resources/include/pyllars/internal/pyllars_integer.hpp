@@ -7,6 +7,7 @@
 
 #include "pyllars/internal/pyllars_defns.hpp"
 #include "pyllars/internal/pyllars_classwrapper.hpp"
+#include "pyllars/pyllars_namespacewrapper.hpp"
 
 namespace  __pyllars_internal {
 
@@ -297,12 +298,12 @@ namespace  __pyllars_internal {
 
         template<typename Parent, bool enabled = std::is_base_of<CommonBaseWrapper, Parent>::value>
         static status_t ready() {
-            _initialize(_Type);
+            return _initialize(_Type);
         }
 
         static status_t preinit(){
             Py_Initialize();
-            static PyObject *module = PyImport_ImportModule("pyllars");
+            static PyObject *module = pyllars::GlobalNamespace::module();
             static bool inited = false;
             static int rc = -1;
             if (inited) return rc;

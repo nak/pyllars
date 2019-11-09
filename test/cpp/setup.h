@@ -11,6 +11,10 @@
 #include "gtest/gtest.h"
 #include "pyllars_namespacewrapper.hpp"
 
+
+#include <pyllars/internal/pyllars_integer.hpp>
+#include <pyllars/internal/pyllars_floating_point.hpp>
+
 class PythonBased: public ::testing::Test{
 public:
 
