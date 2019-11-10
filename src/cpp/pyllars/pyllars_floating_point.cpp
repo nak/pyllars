@@ -726,27 +726,27 @@ namespace __pyllars_internal {
 namespace pyllars{
 
     template
-    class PyllarsClass<float, GlobalNamespace >;
+    class PyllarsClass<float, GlobalNS >;
 
     template
-    class PyllarsClass<double, GlobalNamespace >;
+    class PyllarsClass<double, GlobalNS >;
 
     template
-    class PyllarsClass<const float, GlobalNamespace >;
+    class PyllarsClass<const float, GlobalNS >;
 
     template
-    class PyllarsClass<const double, GlobalNamespace >;
+    class PyllarsClass<const double, GlobalNS >;
 
     template
-    class PyllarsClass<volatile float, GlobalNamespace >;
+    class PyllarsClass<volatile float, GlobalNS >;
 
     template
-    class PyllarsClass<volatile double, GlobalNamespace >;
+    class PyllarsClass<volatile double, GlobalNS >;
 
     template
-    class PyllarsClass<const volatile float, GlobalNamespace >;
+    class PyllarsClass<const volatile float, GlobalNS >;
 
     template
-    class PyllarsClass<const volatile double, GlobalNamespace >;
+    class PyllarsClass<const volatile double, GlobalNS >;
 
 }

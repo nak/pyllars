@@ -117,16 +117,23 @@ namespace __pyllars_internal {
          **/
         static int initialize(){return _initialize(_Type);}
 
-        template<typename Parent, bool enabled = std::is_base_of<CommonBaseWrapper, Parent>::value>
+        template<typename Parent>
         static status_t ready(){
             int status = 0;
             for (const auto& ready_fnctn: _childrenReadyFunctions()){
                 status |= (ready_fnctn() == nullptr);
             }
-            if constexpr(std::is_base_of<pyllars::CommonNamespaceWrapper, Parent>::value){
-                return PyModule_AddObject(Parent::module(), Types<T>::type_name(), (PyObject*) getPyType());
+            if constexpr(is_complete<Parent>::value) {
+                //for incomplete types the following will be evaled and cause compile errors if included in if constexpr above
+                if constexpr(std::is_base_of<pyllars::NSInfoBase, Parent>::value) {
+                    return PyModule_AddObject(Parent::module(), Types<T>::type_name(), (PyObject *) getPyType());
+                } else {
+                    return PyObject_SetAttrString((PyObject *) PythonClassWrapper<Parent>::getPyType(),
+                                                  Types<T>::type_name(), (PyObject *) getPyType());
+                }
             } else {
-                return PyObject_SetAttrString((PyObject*) PythonClassWrapper<Parent>::getPyType(), Types<T>::type_name(), (PyObject*) getPyType());
+                return PyObject_SetAttrString((PyObject *) PythonClassWrapper<Parent>::getPyType(),
+                                              Types<T>::type_name(), (PyObject *) getPyType());
             }
             return status;
         }
@@ -171,7 +178,7 @@ namespace __pyllars_internal {
          * @param method: the pointer to the metho to be added
          * @param kwlist: list of keyword names of araguments
          **/
-        template<const char *const name, const char *const kwlist[], typename func_type, func_type *method>
+        template<const char *const name, const char *const kwlist[], typename func_type, func_type method>
         static void addClassMethod();
 
         /**

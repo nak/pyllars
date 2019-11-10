@@ -62,6 +62,62 @@ namespace pyllars{
     typename PyllarsClassMethod<name, kwlist, ReturnType(Class::*)(Args...) const, method>::Initializer * const
             PyllarsClassMethod<name, kwlist, ReturnType(Class::*)(Args...) const, method>::initializer = new
                     PyllarsClassMethod<name, kwlist, ReturnType(Class::*)(Args...) const, method>::Initializer();
+
+
+
+
+
+    template<const char *const name, const char* const kwlist[], typename Class, typename ReturnType, typename ...Args,  ReturnType(Class::*method)(Args..., ...)>
+    class PyllarsClassMethod<name, kwlist, ReturnType(Class::*)(Args..., ...), method>{
+    private:
+        class Initializer{
+        public:
+            typedef ReturnType(Class::*method_t)(Args..., ...);
+            Initializer(){
+                __pyllars_internal::Init::registerInit(init);
+            }
+
+            static status_t init(){
+                using namespace __pyllars_internal;
+                PythonClassWrapper<Class>::template addMethod<name, kwlist, method_t, method>();
+                return  0;
+            }
+        };
+
+        static Initializer* const initializer;
+    };
+
+    template<const char *const name, const char* const kwlist[], typename Class, typename ReturnType, typename ...Args,  ReturnType(Class::*method)(Args..., ...)>
+    typename PyllarsClassMethod<name, kwlist, ReturnType(Class::*)(Args..., ...), method>::Initializer * const
+            PyllarsClassMethod<name, kwlist, ReturnType(Class::*)(Args..., ...), method>::initializer = new
+                    PyllarsClassMethod<name, kwlist, ReturnType(Class::*)(Args..., ...), method>::Initializer();
+
+
+
+    template<const char *const name, const char* const kwlist[], typename Class, typename ReturnType, typename ...Args,  ReturnType(Class::*method)(Args..., ...) const>
+    class PyllarsClassMethod<name, kwlist, ReturnType(Class::*)(Args..., ...) const, method>{
+    private:
+        class Initializer{
+        public:
+            typedef ReturnType(Class::*method_t)(Args..., ...) const;
+            Initializer(){
+                __pyllars_internal::Init::registerInit(init);
+            }
+
+            static status_t init(){
+                using namespace __pyllars_internal;
+                PythonClassWrapper<Class>::template addMethod<name, kwlist, method_t, method>();
+                return 0;
+            }
+        };
+
+        static Initializer* const initializer;
+    };
+
+    template<const char *const name, const char* const kwlist[], typename Class, typename ReturnType, typename ...Args,  ReturnType(Class::*method)(Args..., ...) const>
+    typename PyllarsClassMethod<name, kwlist, ReturnType(Class::*)(Args..., ...) const, method>::Initializer * const
+            PyllarsClassMethod<name, kwlist, ReturnType(Class::*)(Args..., ...) const, method>::initializer = new
+                    PyllarsClassMethod<name, kwlist, ReturnType(Class::*)(Args..., ...) const, method>::Initializer();
 }
 
 namespace __pyllars_internal {

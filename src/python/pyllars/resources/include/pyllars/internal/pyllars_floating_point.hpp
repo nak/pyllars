@@ -69,7 +69,7 @@ namespace __pyllars_internal{
             if (inited) {
                 return rc;
             }
-            static PyObject *module = pyllars::GlobalNamespace::module();
+            static PyObject *module = pyllars::GlobalNS::module();
             rc = PyType_Ready(CommonBaseWrapper::getPyType()) |
                  PyType_Ready(&PyFloatingPtCustomBase::_Type) |
                  PyType_Ready(&PyFloatingPtCustomObject::_Type);

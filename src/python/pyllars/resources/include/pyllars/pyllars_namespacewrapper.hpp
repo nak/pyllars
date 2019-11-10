@@ -10,25 +10,28 @@
 
 namespace pyllars{
 
-    //global ns tag
-    struct Tag_GlobalNS{
-        typedef const char* const cstring;
-        static constexpr cstring name = nullptr;
-    };
+    struct NSInfoBase{};
 
-    class CommonNamespaceWrapper: public __pyllars_internal::CommonBaseWrapper{
-    };
-
-    template<typename NSTag, typename Parent, typename Z = void>
-    class PyllarsNamespace;
-
-    template<typename NSTag, typename Parent>
-    class PyllarsNamespace<NSTag, Parent, std::enable_if_t<std::is_base_of<CommonNamespaceWrapper, Parent>::value || std::is_void<Parent>::value> >: public CommonNamespaceWrapper{
-    public:
-        static const char* const name;
+    template <const char* const fully_qualified_name>
+    struct NSInfo: public NSInfoBase{
+        static const char * nsname(){
+            static const char* name = nullptr;
+            if (!name) {
+                if constexpr (!fully_qualified_name) {
+                    static const char *const pyllars_name = "";
+                    name = pyllars_name;
+                } else {
+                    std::string qname = fully_qualified_name;
+                    const size_t pos = qname.rfind("::");
+                    static std::string sname = pos == std::string::npos ? qname : qname.substr(pos + 2);
+                    name = sname.data();
+                }
+            }
+            return name;
+        }
 
         static PyObject* module(){
-            if constexpr(std::is_same<Tag_GlobalNS, NSTag>::value){
+            if constexpr(fully_qualified_name == nullptr){
                 static PyObject* module = PyImport_ImportModule("pyllars");
                 return module;
             } else {
@@ -38,7 +41,7 @@ namespace pyllars{
                         static std::string text;
                         if (text.empty()) {
                             std::ostringstream strstream;
-                            strstream << "Module corresponding to C++ namespace " << name;
+                            strstream << "Module corresponding to C++ namespace " << fully_qualified_name;
                             text = strstream.str();
                         }
                         return text.data();
@@ -48,7 +51,7 @@ namespace pyllars{
                     // Initialize Python3 module associated with this namespace
                     static PyModuleDef moddef = {
                             PyModuleDef_HEAD_INIT,
-                            name,
+                            nsname(),
                             docs().data(),
                             -1,
                             NULL, NULL, NULL, NULL, NULL
@@ -56,11 +59,26 @@ namespace pyllars{
                     mod = PyModule_Create(&moddef);
 #else
                     // Initialize Python2 module associated with this namespace
-                mod = Py_InitModule3(name, nullptr, docs().data());
+                    mod = Py_InitModule3(name, nullptr, docs().data());
 #endif
                 }
                 return mod;
             }
+        }
+
+    };
+
+    using GlobalNS = NSInfo<nullptr>;
+
+
+    template<typename NSTag, typename Parent, typename Z = void>
+    class PyllarsNamespace;
+
+    template<typename NS, typename Parent>
+    class PyllarsNamespace<NS, Parent, std::enable_if_t<std::is_base_of<NSInfoBase, NS>::value && (std::is_base_of<NSInfoBase, Parent>::value|| std::is_void<Parent>::value)> >{
+    public:
+        static PyObject* module() {
+            return NS::module();
         }
 
     private:
@@ -74,11 +92,10 @@ namespace pyllars{
             static status_t init(){
                 static int status = 0;
                 if constexpr (!std::is_void<Parent>::value){
-                    if (!PyllarsNamespace<NSTag, Parent>::module() || !Parent::module()) {
+                    if (!NS::module() || !Parent::module()) {
                         status = __pyllars_internal::ERR_PYLLARS_ON_CREATE;
                     } else {
-                        PyModule_AddObject(Parent::module(), name,
-                                           PyllarsNamespace<NSTag, Parent>::module());
+                        PyModule_AddObject(Parent::module(), NS::nsname(), NS::module());
                     }
                 } else {
                     if (!module()){
@@ -95,22 +112,11 @@ namespace pyllars{
 
     };
 
-    template<typename NSTag, typename Parent>
-    typename PyllarsNamespace<NSTag, Parent, std::enable_if_t<std::is_base_of<CommonNamespaceWrapper, Parent>::value || std::is_void<Parent>::value >  >::Initializer* const
-            PyllarsNamespace<NSTag, Parent, std::enable_if_t<std::is_base_of<CommonNamespaceWrapper, Parent>::value|| std::is_void<Parent>::value > >::initializer =
-            new typename PyllarsNamespace<NSTag, Parent, std::enable_if_t<std::is_base_of<CommonNamespaceWrapper, Parent>::value|| std::is_void<Parent>::value > >::Initializer();
-    template<typename NSTag, typename Parent>
-    const char* const
-            PyllarsNamespace<NSTag, Parent, std::enable_if_t<std::is_base_of<CommonNamespaceWrapper, Parent>::value|| std::is_void<Parent>::value > >::name = NSTag::name;
+    template<typename NS, typename Parent>
+    typename PyllarsNamespace<NS, Parent, std::enable_if_t<std::is_base_of<NSInfoBase, NS>::value && (std::is_base_of<NSInfoBase, Parent>::value|| std::is_void<Parent>::value)> >::Initializer* const
+            PyllarsNamespace<NS, Parent, std::enable_if_t<std::is_base_of<NSInfoBase, NS>::value && (std::is_base_of<NSInfoBase, Parent>::value|| std::is_void<Parent>::value)> >::initializer =
+            new typename PyllarsNamespace<NS, Parent, std::enable_if_t<std::is_base_of<NSInfoBase, NS>::value && (std::is_base_of<NSInfoBase, Parent>::value|| std::is_void<Parent>::value)> >::Initializer();
 
-    /**
-     * specialization for global namespace
-     */
-    template
-    class PyllarsNamespace<Tag_GlobalNS, void, void>;
-
-    using GlobalNamespace = PyllarsNamespace<Tag_GlobalNS, void>;
-    
 }
 
 #endif //PYLLARS_PYLLARS_NAMESPACEWRAPPER_HPP

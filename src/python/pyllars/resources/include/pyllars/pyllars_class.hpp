@@ -10,27 +10,39 @@
 namespace pyllars {
 
 
+    using namespace __pyllars_internal;
 
-    template<typename Class, typename Parent, typename Z = typename std::enable_if<std::is_base_of<__pyllars_internal::CommonBaseWrapper, Parent>::value ||
-            __pyllars_internal::is_rich_class<Class>::value>::type>
+    template<typename Class, typename Parent, typename ...BaseClass>
     class PyllarsClass{
     public:
     private:
+        static_assert(!is_complete<Parent>::value
+        || is_base_of<pyllars::NSInfoBase, Parent>::value
+        || is_rich_class<Parent>::value);
+
         class Initializer {
         public:
             explicit Initializer() {
                 using namespace __pyllars_internal;
-                __pyllars_internal::Init::registerInit(PythonClassWrapper<Class>::preinit);
-                __pyllars_internal::Init::registerReady( PythonClassWrapper<Class>::template ready<Parent>);
+                Init::registerInit(PythonClassWrapper<Class>::preinit);
+                Init::registerReady(ready);
+            }
+
+            static status_t ready(){
+                using namespace __pyllars_internal;
+                if constexpr (sizeof...(BaseClass) > 0){
+                    PythonClassWrapper<Class>::template addBaseClass<BaseClass...>();
+                }
+                return PythonClassWrapper<Class>::template ready<Parent>();
             }
         };
 
         static Initializer *const initializer;
     };
 
-    template< typename Class, typename Parent, typename e>
-    typename PyllarsClass<Class, Parent, e>::Initializer *const
-            PyllarsClass<Class, Parent, e>::initializer = new PyllarsClass<Class, Parent, e>::Initializer();
+    template< typename Class, typename Parent, typename ...BaseClass>
+    typename PyllarsClass<Class, Parent, BaseClass...>::Initializer *const
+            PyllarsClass<Class, Parent, BaseClass...>::initializer = new PyllarsClass<Class, Parent, BaseClass...>::Initializer();
 
 
 }

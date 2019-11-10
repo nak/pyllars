@@ -839,10 +839,11 @@ class NodeType:
                 self.name = ""
                 self.type_text = args[0]
             elif len(args) >= 2:
-                self.name = args[0]
-                self.type_text = args[1]
+                self.name = args[1]
+                self.type_text = args[2]
             if len(args) == 3:
                 self.base_type_text = args[2]
+            assert self.name != 'used'
             super().__init__(node_id)
             self.col_span_loc = col_span_loc
             self.col_loc = col_loc

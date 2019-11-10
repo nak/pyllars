@@ -33,8 +33,8 @@ static void _pyllars_import_to_top(PyObject* pyllars_mod, PyObject* module){
 PyObject*
 PyllarsInit(const char* const name){
   static PyObject *const pyllars_mod = PyImport_ImportModule("pyllars");
-  static const char* const doc = "Pyllars top-level module";
-  static PyModuleDef moduleDef = {
+  const char* const doc = "Pyllars top-level module";
+  PyModuleDef moduleDef = {
     PyModuleDef_HEAD_INIT,
     name,
     doc,

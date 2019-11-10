@@ -253,7 +253,7 @@ namespace __pyllars_internal{
         }
     }
 
-    template<const char* const kwlist[], typename func_type, func_type *function>
+    template<const char* const kwlist[], typename func_type, func_type function>
     PyObject *
     StaticFunctionContainer<kwlist, func_type, function>::call(PyObject *cls, PyObject *args, PyObject *kwds) {
         (void) cls;

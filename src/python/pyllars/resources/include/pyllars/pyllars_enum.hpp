@@ -22,7 +22,7 @@ namespace pyllars{
 
                 static status_t init(){
                     using namespace __pyllars_internal;
-                    if constexpr (std::is_base_of<pyllars::CommonNamespaceWrapper, Parent>::value){
+                    if constexpr (std::is_base_of<pyllars::NSInfoBase, Parent>::value){
                         PyModule_AddObject(Parent::module(), name, toPyObject(value));
                     } else {
                         PythonClassWrapper<Parent>::template addEnumValue<EnumType>(name, value);
@@ -46,7 +46,7 @@ namespace pyllars{
             static status_t ready(){
                 using namespace __pyllars_internal;
                 if constexpr(name != nullptr) {
-                    if constexpr (std::is_base_of<pyllars::CommonNamespaceWrapper, Parent>::value) {
+                    if constexpr (is_base_of<pyllars::NSInfoBase, Parent>::value) {
                         PyModule_AddObject(Parent::module(), name, (PyObject*) PythonClassWrapper<EnumType>::getPyType());
                     } else {
                         PyObject_SetAttrString((PyObject*) PythonClassWrapper<Parent>::getPyType(), name, (PyObject*) PythonClassWrapper<EnumType>::getPyType());

@@ -651,7 +651,7 @@ namespace __pyllars_internal {
 
 
     template<typename T>
-    template<const char *const name, const char *const kwlist[], typename func_type, func_type *method>
+    template<const char *const name, const char *const kwlist[], typename func_type, func_type method>
     void PythonClassWrapper<T,
             typename std::enable_if<is_rich_class<T>::value>::type>::
     addClassMethod() {

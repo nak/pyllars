@@ -796,196 +796,196 @@ namespace pyllars{
 
 
     template
-    class PyllarsClass<bool, GlobalNamespace>;
+    class PyllarsClass<bool, GlobalNS>;
 
     template
-    class PyllarsClass<const bool, GlobalNamespace>;
-
-
-    template
-    class PyllarsClass<volatile bool, GlobalNamespace>;
+    class PyllarsClass<const bool, GlobalNS>;
 
 
     template
-    class PyllarsClass<const volatile bool, GlobalNamespace>;
+    class PyllarsClass<volatile bool, GlobalNS>;
 
 
     template
-    class PyllarsClass<char, GlobalNamespace>;
+    class PyllarsClass<const volatile bool, GlobalNS>;
 
 
     template
-    class PyllarsClass<unsigned char, GlobalNamespace >;
+    class PyllarsClass<char, GlobalNS>;
 
 
     template
-    class PyllarsClass<signed char, GlobalNamespace >;
+    class PyllarsClass<unsigned char, GlobalNS >;
 
 
     template
-    class PyllarsClass<short, GlobalNamespace>;
+    class PyllarsClass<signed char, GlobalNS >;
 
 
     template
-    class PyllarsClass<unsigned short, GlobalNamespace>;
+    class PyllarsClass<short, GlobalNS>;
 
 
     template
-    class PyllarsClass<int, GlobalNamespace >;
+    class PyllarsClass<unsigned short, GlobalNS>;
 
 
     template
-    class PyllarsClass<unsigned int, GlobalNamespace >;
+    class PyllarsClass<int, GlobalNS >;
 
 
     template
-    class PyllarsClass<long, GlobalNamespace >;
+    class PyllarsClass<unsigned int, GlobalNS >;
 
 
     template
-    class PyllarsClass<unsigned long, GlobalNamespace >;
+    class PyllarsClass<long, GlobalNS >;
 
 
     template
-    class PyllarsClass<long long, GlobalNamespace >;
+    class PyllarsClass<unsigned long, GlobalNS >;
 
 
     template
-    class PyllarsClass<unsigned long long, GlobalNamespace >;
+    class PyllarsClass<long long, GlobalNS >;
+
+
+    template
+    class PyllarsClass<unsigned long long, GlobalNS >;
 
     ///////////////////
 
     template
-    class PyllarsClass<const char, GlobalNamespace >;
+    class PyllarsClass<const char, GlobalNS >;
 
 
     template
-    class PyllarsClass<const unsigned char, GlobalNamespace >;
+    class PyllarsClass<const unsigned char, GlobalNS >;
 
 
     template
-    class PyllarsClass<const signed char, GlobalNamespace >;
+    class PyllarsClass<const signed char, GlobalNS >;
 
 
     template
-    class PyllarsClass<const short, GlobalNamespace >;
+    class PyllarsClass<const short, GlobalNS >;
 
 
     template
-    class PyllarsClass<const unsigned short, GlobalNamespace >;
+    class PyllarsClass<const unsigned short, GlobalNS >;
 
 
     template
-    class PyllarsClass<const int, GlobalNamespace >;
+    class PyllarsClass<const int, GlobalNS >;
 
 
     template
-    class PyllarsClass<const unsigned int, GlobalNamespace >;
+    class PyllarsClass<const unsigned int, GlobalNS >;
 
 
     template
-    class PyllarsClass<const long, GlobalNamespace >;
+    class PyllarsClass<const long, GlobalNS >;
 
 
     template
-    class PyllarsClass<const unsigned long, GlobalNamespace >;
+    class PyllarsClass<const unsigned long, GlobalNS >;
 
 
     template
-    class PyllarsClass<const long long, GlobalNamespace >;
+    class PyllarsClass<const long long, GlobalNS >;
 
 
     template
-    class PyllarsClass<const unsigned long long, GlobalNamespace >;
+    class PyllarsClass<const unsigned long long, GlobalNS >;
 
    ////////////////////
 
     template
-    class PyllarsClass<volatile char, GlobalNamespace >;
+    class PyllarsClass<volatile char, GlobalNS >;
 
 
     template
-    class PyllarsClass<volatile unsigned char, GlobalNamespace >;
+    class PyllarsClass<volatile unsigned char, GlobalNS >;
 
 
     template
-    class PyllarsClass<volatile signed char, GlobalNamespace >;
+    class PyllarsClass<volatile signed char, GlobalNS >;
 
 
     template
-    class PyllarsClass<volatile short, GlobalNamespace >;
+    class PyllarsClass<volatile short, GlobalNS >;
 
 
     template
-    class PyllarsClass<volatile unsigned short, GlobalNamespace >;
+    class PyllarsClass<volatile unsigned short, GlobalNS >;
 
 
     template
-    class PyllarsClass<volatile int, GlobalNamespace >;
+    class PyllarsClass<volatile int, GlobalNS >;
 
 
     template
-    class PyllarsClass<volatile unsigned int, GlobalNamespace >;
+    class PyllarsClass<volatile unsigned int, GlobalNS >;
 
 
     template
-    class PyllarsClass<volatile long, GlobalNamespace >;
+    class PyllarsClass<volatile long, GlobalNS >;
 
 
     template
-    class PyllarsClass<volatile unsigned long, GlobalNamespace >;
+    class PyllarsClass<volatile unsigned long, GlobalNS >;
 
 
     template
-    class PyllarsClass<volatile long long, GlobalNamespace >;
+    class PyllarsClass<volatile long long, GlobalNS >;
 
 
     template
-    class PyllarsClass<volatile unsigned long long, GlobalNamespace >;
+    class PyllarsClass<volatile unsigned long long, GlobalNS >;
 
     //////////
 
     template
-    class PyllarsClass<const volatile char, GlobalNamespace >;
+    class PyllarsClass<const volatile char, GlobalNS >;
 
 
     template
-    class PyllarsClass<const volatile unsigned char, GlobalNamespace >;
+    class PyllarsClass<const volatile unsigned char, GlobalNS >;
 
 
     template
-    class PyllarsClass<const volatile signed char, GlobalNamespace >;
+    class PyllarsClass<const volatile signed char, GlobalNS >;
 
 
     template
-    class PyllarsClass<const volatile short, GlobalNamespace >;
+    class PyllarsClass<const volatile short, GlobalNS >;
 
 
     template
-    class PyllarsClass<const volatile unsigned short, GlobalNamespace >;
+    class PyllarsClass<const volatile unsigned short, GlobalNS >;
 
 
     template
-    class PyllarsClass<const volatile int, GlobalNamespace >;
+    class PyllarsClass<const volatile int, GlobalNS >;
 
 
     template
-    class PyllarsClass<const volatile unsigned int, GlobalNamespace >;
+    class PyllarsClass<const volatile unsigned int, GlobalNS >;
 
 
     template
-    class PyllarsClass<const volatile long, GlobalNamespace >;
+    class PyllarsClass<const volatile long, GlobalNS >;
 
 
     template
-    class PyllarsClass<const volatile unsigned long, GlobalNamespace >;
+    class PyllarsClass<const volatile unsigned long, GlobalNS >;
 
 
     template
-    class PyllarsClass<const volatile long long, GlobalNamespace >;
+    class PyllarsClass<const volatile long long, GlobalNS >;
 
 
     template
-    class PyllarsClass<const volatile unsigned long long, GlobalNamespace >;
+    class PyllarsClass<const volatile unsigned long long, GlobalNS >;
 
 }

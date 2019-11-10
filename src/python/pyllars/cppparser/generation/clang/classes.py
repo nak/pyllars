@@ -15,21 +15,29 @@ class CXXRecordDeclGenerator(Generator):
         name = self._node.name or "anonymous_%s" % self._node.node_id
         typename_qualifier = "typename" if 'union' not in self._node.qualifiers else ""
 
-        if self._node.name:
-            typename = f"{typename_qualifier} ::{self._node.full_cpp_name}"
-        elif not self._node.parent:
-            typename = None
-        else:
-            index = self._node.parent.children.index(self._node)
-            if index < 0:
-                raise Exception("invalid code structure encountered")
-            if len(self._node.parent.children) > index + 1 and isinstance(self._node.parent.children[index + 1],
-                                                                          NodeType.FieldDecl):
-                field = self._node.parent.children[index + 1]
-                field_name = field.full_cpp_name
-                typename = f"decltype(::{field_name})" if field.name else None
-            else:
+        def find_typename(node: NodeType.Node, recurse: bool=False):
+            if node is None:
+                return None
+            if self._node.name:
+                typename = f"{typename_qualifier} ::{self._node.full_cpp_name}"
+            elif not self._node.parent:
                 typename = None
+            else:
+                index = self._node.parent.children.index(self._node)
+                if index < 0:
+                    raise Exception("invalid code structure encountered")
+                if len(self._node.parent.children) > index + 1 and isinstance(self._node.parent.children[index + 1],
+                                                                              NodeType.FieldDecl):
+                    field = self._node.parent.children[index + 1]
+                    field_name = field.full_cpp_name
+                    typename = f"decltype(::{field_name})" if field.name else None
+                elif recurse and node.parent and not isinstance(node.parent, NodeType.NamespaceDecl):
+                    return find_typename(node.parent, recurse)
+                else:
+                    typename = None
+            return typename
+
+        typename = find_typename(self._node)
         if not typename:
             return None, None
         header_stream = open(os.path.join(self.my_root_dir, name+'.hpp'), 'w',
@@ -40,31 +48,31 @@ class CXXRecordDeclGenerator(Generator):
 
         try:
             parent = self._node.parent
-            if parent and parent.name:
-                header_stream.write(f"#include \"../{parent.name}.hpp\"\n\n")
 
-            # generat body
+            # generate body
 
             body_stream.write(f"#include <pyllars/pyllars_class.hpp>\n")
             body_stream.write(f"#include <{self.source_path}>\n")
-            if parent and parent.name:
-                body_stream.write(f"#include \"../{parent.name}.hpp\"\n\n")
             if self._node.name:
                 body_stream.write(f"#include \"{self._node.name}.hpp\"\n\n")
-            body_stream.write("using namespace pyllars;\n")
-            body_stream.write("using namespace __pyllars_internal;\n")
-
-            def namespace_wrapper(node):
-                if node is None:
-                    return "GlobalNamespace"
-                if isinstance(node, NodeType.NamespaceDecl):
-                    if not node or not node.name:
-                        return "GlobalNameSpace"
-                    return f"PyllarsNamespace< names::{node.full_cpp_name}::Tag_{node.name}, {namespace_wrapper(node.parent)} > "
+            body_stream.write("namespace {\n")
+            if isinstance(parent, NodeType.NamespaceDecl):
+                if parent:
+                    body_stream.write(f"""
+        extern const char parent_fullnsname[] = "{parent.full_cpp_name}"; 
+        using Parent = pyllars::NSInfo<parent_fullnsname>;
+                    """)
                 else:
-                    return node.full_cpp_name
+                    body_stream.write("using Parent = pyllars:GlobalNS;\n")
+            else:
+                body_stream.write(f"using Parent = {find_typename(self._node.parent, True)};\n")
 
-            body_stream.write(f"template class PyllarsClass<{typename}, {namespace_wrapper(self._node.parent)}>;\n")
+            if self._node.bases:
+                bases = ", " + ", ".join([c.full_name for c in self._node.bases])
+            else:
+                bases = ""
+            body_stream.write("}\n\n")
+            body_stream.write(f"template class pyllars::PyllarsClass<{typename}, Parent{bases}>;\n")
             body_stream.write(f"""
 
 namespace __pyllars_internal{{
@@ -360,7 +368,7 @@ class CXXMethodDeclGenerator(Generator):
         if '...' in self._node.signature:
             params.append("...")
         params = ", ".join(params)
-        class_qualifier = f"(::{self._node.parent.full_cpp_name}::*)" if not is_static else "(method_t)"
+        class_qualifier = f"(::{self._node.parent.full_cpp_name}::*)" if not is_static else "(*)"
         return f"{ret_type} {class_qualifier}({params}) {qualifiers}"
 
     def generate(self):
@@ -382,7 +390,7 @@ class CXXMethodDeclGenerator(Generator):
             # generate body
             if 'static' in self._node.qualifiers:
                 method_qualifier = "Static"
-                class_param = f"{self._node.full_cpp_name}, "
+                class_param = f"{self._node.parent.full_cpp_name}, "
                 body_stream.write(f"""\n#include \"{self.source_path}\" 
 #include <pyllars/pyllars_classstaticmethod.hpp>
                             """)
@@ -391,7 +399,7 @@ class CXXMethodDeclGenerator(Generator):
                 class_param = ""
                 body_stream.write(f"""\n#include \"{self.source_path}\" 
 #include <pyllars/pyllars_classmethod.hpp>
-                            """)
+                            \n""")
 
             name = self._node.name
             signature = self._full_signature()

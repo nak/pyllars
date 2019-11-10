@@ -72,7 +72,7 @@ namespace __pyllars_internal {
       * @tparam func_type: the function type (signature), typically specified in form ReturnType(Args...)
       * @tparam function: the instance of the function this instantiation is associated with
      **/
-    template<const char* const kwlist[], typename func_type, func_type* function>
+    template<const char* const kwlist[], typename func_type, func_type function>
     class StaticFunctionContainer{
     public:
         static PyObject *call(PyObject *cls, PyObject *args, PyObject *kwds);

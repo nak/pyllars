@@ -92,7 +92,7 @@ namespace __pyllars_internal {
 
         for (size_t i = sizeof...(Args) + 1; i < sizeof...(Args) + extra_args_size + 1; ++i) {
             PyObject *const nextArg = PyTuple_GetItem(extra_args, i - sizeof...(Args));
-            const int subtype = getType(nextArg, arg_types[i]);
+            //const int subtype = getType(nextArg, arg_types[i]);
             arg_values[i] = toFFI(nextArg);
         }
 

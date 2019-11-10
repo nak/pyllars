@@ -40,7 +40,7 @@ long long convertEnum(const EnumClass &val){
 
 const char *const empty_list[] = {nullptr};
 
-template class pyllars::PyllarsClass<BasicClass const, pyllars::GlobalNamespace >;
+template class pyllars::PyllarsClass<BasicClass const, pyllars::GlobalNS >;
 
 template class pyllars::PyllarsClassConstructor<empty_list, BasicClass>;
 
@@ -86,17 +86,17 @@ template class pyllars::PyllarsClassMember<int_array_member_name, BasicClass, in
 
 template class pyllars::PyllarsClassMember<dbl_ptr_member_name, BasicClass, const double *const, &BasicClass::double_ptr_member>;
 
-template class pyllars::PyllarsClass<BasicClass2, pyllars::GlobalNamespace >;
+template class pyllars::PyllarsClass<BasicClass2, pyllars::GlobalNS >;
 
 template class pyllars::PyllarsClassMethod<create_bclass_method_name, kwlist, BasicClass(BasicClass2::*)(), &BasicClass2::createBasicClass>;
 
 template class pyllars::PyllarsClassStaticMethod<create_method_name, empty_list, NonDestructible, NonDestructible *(), &NonDestructible::create>;
 
-template class pyllars::PyllarsClass<NonDestructible, pyllars::GlobalNamespace >;
+template class pyllars::PyllarsClass<NonDestructible, pyllars::GlobalNS >;
 
 template class pyllars::PyllarsClassStaticMethod<create_const_method_name, empty_list, NonDestructible, const NonDestructible *(), &NonDestructible::create_const>;
 
-template class pyllars::PyllarsClass<EnumClass, pyllars::GlobalNamespace >;
+template class pyllars::PyllarsClass<EnumClass, pyllars::GlobalNS >;
 
 template class pyllars::PyllarsClassConstructor<empty_list, EnumClass>;
 
@@ -108,9 +108,9 @@ template class pyllars::PyllarsClassStaticMethod<enum_convert_name, kwlist2, Enu
 
 constexpr cstring E_ONE_NAME = "E_ONE";
 
-template class pyllars::PyllarsClassEnumClassValue<E_ONE_NAME, EnumClass, pyllars::GlobalNamespace >;
+template class pyllars::PyllarsClassEnumClassValue<E_ONE_NAME, EnumClass, pyllars::GlobalNS >;
 
-template class pyllars::PyllarsClassEnumClassValue<E_ONE_NAME, EnumClass, pyllars::GlobalNamespace >::template Value<EnumClass::E_ONE>;
+template class pyllars::PyllarsClassEnumClassValue<E_ONE_NAME, EnumClass, pyllars::GlobalNS >::template Value<EnumClass::E_ONE>;
 
 void
 SetupBasicClass::SetUpTestSuite() {

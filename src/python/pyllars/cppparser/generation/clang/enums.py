@@ -77,7 +77,7 @@ namespace{{
 }}
 """)
                 if not named_parent or isinstance(named_parent, NodeType.TranslationUnitDecl):
-                    template_instantiation = f"template class pyllars::PyllarsEnum<enum_type_name, {self._node.full_cpp_name}, pyllars::GlobalNamespace>"
+                    template_instantiation = f"template class pyllars::PyllarsEnum<enum_type_name, {self._node.full_cpp_name}, pyllars::GlobalNS>"
 
                 elif isinstance(named_parent, NodeType.NamespaceDecl):
                     template_instantiation = f"template class pyllars::PyllarsEnum<enum_type_name>, {self._node.full_cpp_name}, {namespace_wrapper(parent)}>"
@@ -85,9 +85,9 @@ namespace{{
                     template_instantiation = f"template class pyllars::PyllarsEnum<enum_type_name, {self._node.full_cpp_name}, {parent.full_cpp_name}>"
 
                 body_stream.write(f"{template_instantiation};")
-                body_stream.write(f"using EnumWrapper = {template_instantiation};")
+                body_stream.write(f"using EnumWrapper = {template_instantiation};\n")
             for elem in elements:
-                body_stream.write(f"template EnumWrapper::template Value<{elem.name}>;")
+                body_stream.write(f"template EnumWrapper::template Value<{elem.name}>;\n")
 
         finally:
             header_stream.close()

@@ -130,6 +130,22 @@ namespace __pyllars_internal {
         };
     };
 
+    template <typename Base, typename T, typename Z= void>
+    struct is_base_of;
+
+    template<typename Base, typename T>
+    struct is_base_of<Base, T, std::enable_if_t<is_complete<T>::value > >{
+        static constexpr bool value = std::is_base_of<Base, T>::value;
+    };
+
+    template<typename Base, typename T>
+    struct is_base_of<Base, T, std::enable_if_t<!is_complete<T>::value > >{
+        static constexpr bool value = false;
+    };
+
+
+
+
     template<typename T>
     struct ArraySize {
         static constexpr ssize_t size = -1;
@@ -234,6 +250,20 @@ namespace __pyllars_internal {
     struct func_traits;
 
     template<typename RType, typename ...Args>
+    struct func_traits<RType(*)(Args...)>{
+        constexpr static bool has_ellipsis = false;
+        constexpr static ssize_t argsize = sizeof...(Args);
+
+
+        typedef RType(*type)(Args...);
+        typedef RType ReturnType;
+
+        const static std::string type_name(){
+            return __pyllars_internal::type_name<RType(Args...)>();
+        }
+
+    };
+    template<typename RType, typename ...Args>
     struct func_traits<RType(Args...)>{
         constexpr static bool has_ellipsis = false;
         constexpr static ssize_t argsize = sizeof...(Args);
@@ -264,6 +294,21 @@ namespace __pyllars_internal {
     };
 
     template<typename RType, typename ...Args>
+    struct func_traits<RType(*)(Args...) noexcept>{
+        constexpr static bool has_ellipsis = false;
+        constexpr static ssize_t argsize = sizeof...(Args);
+
+
+        typedef RType(*type)(Args...) noexcept;
+        typedef RType ReturnType;
+
+        const static std::string type_name(){
+            return __pyllars_internal::type_name<RType(Args...)>();
+        }
+
+    };
+
+    template<typename RType, typename ...Args>
     struct func_traits<RType(Args..., ...)>{
         constexpr static bool has_ellipsis = true;
         constexpr static ssize_t argsize = sizeof...(Args);
@@ -271,7 +316,20 @@ namespace __pyllars_internal {
         typedef RType(*type)(Args..., ...);
         typedef RType ReturnType;
         const static std::string type_name(){
-           return __pyllars_internal::type_name<RType(Args..., ...)>();
+            return __pyllars_internal::type_name<RType(Args..., ...)>();
+        }
+
+    };
+
+    template<typename RType, typename ...Args>
+    struct func_traits<RType(*)(Args..., ...)>{
+        constexpr static bool has_ellipsis = true;
+        constexpr static ssize_t argsize = sizeof...(Args);
+
+        typedef RType(*type)(Args..., ...);
+        typedef RType ReturnType;
+        const static std::string type_name(){
+            return __pyllars_internal::type_name<RType(Args..., ...)>();
         }
 
     };
@@ -284,7 +342,20 @@ namespace __pyllars_internal {
         typedef RType(*type)(Args..., ...) noexcept;
         typedef RType ReturnType;
         const static std::string type_name(){
-           return __pyllars_internal::type_name<RType(Args..., ...)>();
+            return __pyllars_internal::type_name<RType(Args..., ...)>();
+        }
+
+    };
+
+    template<typename RType, typename ...Args>
+    struct func_traits<RType(*)(Args..., ...) noexcept>{
+        constexpr static bool has_ellipsis = true;
+        constexpr static ssize_t argsize = sizeof...(Args);
+
+        typedef RType(*type)(Args..., ...) noexcept;
+        typedef RType ReturnType;
+        const static std::string type_name(){
+            return __pyllars_internal::type_name<RType(Args..., ...)>();
         }
 
     };
