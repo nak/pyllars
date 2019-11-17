@@ -8,6 +8,15 @@
 
 namespace pyllars{
 
+    /**
+     * Explicitly instantiate to map a C++ static class method to a Python construct
+     *
+     * @tparam name  the name of the static method
+     * @tparam kwlist  nullptr-terminated list of keywords in 1-to-1 association with arguments
+     * @tparam Class  the class to which the static method belongs
+     * @tparam function_t  the signature of the static method
+     * @tparam function   pointer to the static method
+     */
     template<const char *const name, const char* const kwlist[], typename Class, typename function_t, function_t function>
     class PyllarsClassStaticMethod{
     private:
@@ -19,7 +28,7 @@ namespace pyllars{
 
             static status_t init(){
                 using namespace __pyllars_internal;
-                PythonClassWrapper<Class>::template addClassMethod<name, kwlist, function_t, function>();
+                PythonClassWrapper<Class>::template addStaticMethod<name, kwlist, function_t, function>();
                 return 0;
             }
         };

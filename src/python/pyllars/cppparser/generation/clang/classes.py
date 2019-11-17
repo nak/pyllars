@@ -65,7 +65,7 @@ class CXXRecordDeclGenerator(Generator):
                 else:
                     body_stream.write("using Parent = pyllars:GlobalNS;\n")
             else:
-                body_stream.write(f"using Parent = {find_typename(self._node.parent, True)};\n")
+                body_stream.write(f"using Parent = {find_typename(self._node.parent, True) or 'pyllars::GlobalNS'};\n")
 
             if self._node.bases:
                 bases = ", " + ", ".join([c.full_name for c in self._node.bases])
@@ -122,7 +122,8 @@ class DefaultConstructorGenerator(Generator):
             body_stream.write("namespace {\n")
             body_stream.write("   static const char* const empty_list[] = {nullptr};\n")
             body_stream.write("}\n")
-            body_stream.write(f"template class pyllars::PyllarsClassConstructor<empty_list, {self._node.parent.parent.full_cpp_name}>;")
+            body_stream.write(f"template class pyllars::PyllarsClassConstructor<empty_list, "
+                              f"{self._node.parent.parent.full_cpp_name}>;")
         finally:
             body_stream.close()
         return None, body_stream.name
@@ -264,7 +265,6 @@ class MoveAssignmentGenerator(Generator):
             return None, None
         if 'user_declared' in self._node.classifiers or not self._node.classifiers:
             return None, None
-        class_name = self._node.parent.parent.name
         class_full_cpp_name = self._node.parent.parent.full_cpp_name
         parent = self._node.parent.parent
         while parent and not parent.name and isinstance(parent, NodeType.CXXRecordDecl):
@@ -272,7 +272,7 @@ class MoveAssignmentGenerator(Generator):
             if not parent:
                 return None, None
         body_stream = open(
-            os.path.join(self.my_root_dir, self._source_path_root, class_name + ' default_move_assignment.cpp'), 'w',
+            os.path.join(self.my_root_dir, self._source_path_root, class_name + ' default_copy_assignment.cpp'), 'w',
             encoding='utf-8')
         try:
             parent_name = parent.name
@@ -281,53 +281,112 @@ class MoveAssignmentGenerator(Generator):
             body_stream.write(f"""\n#include \"{self.source_path}\" 
 #include \"{parent_header_path}.hpp\"
 #include <cstddef>
-#include <pyllars/pyllars_classwrapper.impl.hpp>
-                    """)
-            name = class_name + "_default_move_assignment"
-            body_stream.write(self._wrap_in_namespaces(f"""
+#include <type_traits>
+#include <pyllars/pyllars_classmethod.hpp>
 
+                    """)
+
+            body_stream.write(f"""
+                    using namespace pyllars;
                     namespace {{
                         //From: DefaultConstructorDeclGenerator.generate
 
-                       typedef const char* const kwlist_t[2];
-                       constexpr kwlist_t kwlist = {{"assign_to", nullptr}};
-                       constexpr cstring this_name = "this";
-                       
-                        class Initializer_{name}: public pyllars::Initializer{{
-                        public:
-                            Initializer_{name}():pyllars::Initializer(){{
-
-                                {parent_name}_register(this);                          
-                                if (__pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name} >::addMethod<this_name, kwlist, 
-                                   ::{class_full_cpp_name}& (::{class_full_cpp_name}::*)(const ::{class_full_cpp_name}&&),
-                                   &::{class_full_cpp_name}::operator= >() != 0){{
-                                    PyErr_SetString(PyExc_SystemError, "Internal error when adding method/constructor");                                                                    
-                                }}
+                        /**
+                        * clang does not properly delete default assignment operator, so must use compile-time check
+                        * instead to prevent compiler error from generated code that shouldn't be
+                        */
+                        template<const char* const name, const char* const kwlist[], typename T>
+                        static int template_set_up(){{
+                            if constexpr (std::is_copy_assignable<T>::value){{
+                               typedef T& (T::*method_t)(const T&&);
+                               PyllarsClassMethod<name, kwlist, method_t, &T::operator= >();
                             }}
-
-                            int set_up() override{{
-                               return 0;
-                            }}
-
-                            int ready(PyObject * const top_level_mod) override{{
-                                return 0; //nothing to do on ready
-                            }}
-
-                            static Initializer_{name}* initializer;
-
-                            static Initializer_{name} *singleton(){{
-                                static  Initializer_{name} _initializer;
-                                return &_initializer;
-                            }}
-                         }};
-
-
-                        //ensure instance is created on global static initialization, otherwise this
-                        //element would never be reigstered and picked up
-                        Initializer_{name} * Initializer_{name}::initializer = singleton();
-
+                            return 0;
+                        }}
+                        
+                        typedef const char* const kwlist_t[2];
+                        constexpr kwlist_t kwlist = {{"assign_to", nullptr}};
+                        constexpr cstring this_name = "this";
+                        const int status =  template_set_up<this_name, kwlist, {class_full_cpp_name}>();
                     }}
-                """, True))
+                """)
+        finally:
+            body_stream.close()
+        return None, body_stream.name
+
+
+class CXXConstructorDeclGenerator(Generator):
+
+    def _scoped_type_name(self, typ):
+        parts = typ.strip().split(' ')
+
+        def full_name(t):
+            if "::" in t:
+                first, rest = t.split("::", maxsplit=1)
+            else:
+                first, rest = t, ""
+            # search upward for enclosing definition
+            parent = self._node
+            while parent:
+                if hasattr(parent, 'name') and parent.name == first:
+                    return "::" + ("::".join([parent.full_cpp_name, rest]) if rest else parent.full_cpp_name)
+                parent = parent.parent
+            # possibly an internally defined class or type:
+            for child in self._node.parent.children:
+                if hasattr(child, 'name') and child.name == t:
+                    return '::' + child.full_cpp_name
+            return t
+
+        for index, typ in enumerate(parts):
+            if not typ in self.KEYWORDS:
+                parts[index] = full_name(typ)
+        return ' '.join(parts)
+
+    def _full_signature(self):
+        qualifiers = self._node.signature.rsplit(')', maxsplit=1)[-1]
+        params = [self._scoped_type_name(p.type_text) for p in self._node.children if isinstance(p, NodeType.ParmVarDecl)]
+        if '...' in self._node.signature:
+            params.append("...")
+        params = ", ".join(params)
+        class_qualifier = f"(::{self._node.parent.full_cpp_name}::*)"
+        return f"{class_qualifier}({params}) {qualifiers}"
+
+    def generate(self):
+        class_name = self._node.parent.name
+        parent = self._node.parent
+        body_stream = open(
+            os.path.join(self.my_root_dir, self._source_path_root, class_name + '::' + self._node.name.replace("/", " div") + self._node.signature + '.cpp'), 'w',
+            encoding='utf-8')
+        body_stream.write(f"""\n#include \"{self.source_path}\"\n\n""")
+        #grand_parent = parent
+        #while grand_parent and grand_parent.name:
+        #    if isinstance(grand_parent, NodeType.NamespaceDecl):
+        #        body_stream.write(f"using namespace {grand_parent.full_cpp_name};\n")
+        #    grand_parent = grand_parent.parent
+        try:
+            #parent_name = parent.name
+            # generate body
+            body_stream.write(f"""\n#include \"{self.source_path}\" 
+#include <pyllars/pyllars_classconstructor.hpp>
+                            \n""")
+
+            name = self._node.name
+            signature = self._full_signature()
+            kwlist = []
+            args = []
+            for c in reversed([c for c in self._node.children if isinstance(c, NodeType.ParmVarDecl)]):
+                if not c.name:
+                    break
+                kwlist.insert(0, f"\"{c.name}\"")
+                args.append(c.type_text)
+            args = (", " + ", ".join(args)) if args else ""
+            kwlist_items = ", ".join(kwlist + ["nullptr"])
+            body_stream.write("namespace{\n")
+            body_stream.write(f"    static const char* const kwlist[] = {{{kwlist_items}}};\n")
+            body_stream.write(f"    constexpr cstring name = \"{name}\";\n")
+            body_stream.write("}\n\n")
+
+            body_stream.write(f"template class pyllars::PyllarsClassConstructor<kwlist, {self._node.parent.full_cpp_name} {args}>;")
         finally:
             body_stream.close()
         return None, body_stream.name
@@ -372,10 +431,6 @@ class CXXMethodDeclGenerator(Generator):
         return f"{ret_type} {class_qualifier}({params}) {qualifiers}"
 
     def generate(self):
-        if self._node.name == "operator=":
-            return self.generate_assignment()
-        if self._node.name.startswith("operator"):
-            return self.generate_operator()
         class_name = self._node.parent.name
         parent = self._node.parent
         while parent and not parent.name and isinstance(parent, NodeType.CXXRecordDecl):
@@ -383,8 +438,18 @@ class CXXMethodDeclGenerator(Generator):
             if not parent:
                 return None, None
         body_stream = open(
-            os.path.join(self.my_root_dir, self._source_path_root, class_name + '::' + self._node.name + '.cpp'), 'w',
+            os.path.join(self.my_root_dir, self._source_path_root, class_name + '::' + self._node.name.replace("/", " div")  + self._node.signature + '.cpp'), 'w',
             encoding='utf-8')
+        body_stream.write(f"""\n#include \"{self.source_path}\"\n\n""")
+        grand_parent = parent
+        while grand_parent and grand_parent.name:
+            if isinstance(grand_parent, NodeType.NamespaceDecl):
+                body_stream.write(f"using namespace {grand_parent.full_cpp_name};\n")
+            grand_parent = grand_parent.parent
+        if self._node.name == "operator=":
+            return self.generate_assignment(body_stream)
+        if self._node.name.startswith("operator"):
+            return self.generate_operator(body_stream)
         try:
             parent_name = parent.name
             # generate body
@@ -418,14 +483,11 @@ class CXXMethodDeclGenerator(Generator):
             body_stream.close()
         return None, body_stream.name
 
-    def generate_assignment(self):
+    def generate_assignment(self, body_stream):
         if 'default_delete' in self._node.qualifiers:
             return None, None
         class_name = self._node.parent.name
         class_full_cpp_name = self._node.parent.full_cpp_name
-        body_stream = open(
-            os.path.join(self.my_root_dir, self._source_path_root, class_name + '::' + self._node.name + '.cpp'), 'w',
-            encoding='utf-8')
         try:
 
             parent = self._node.parent
@@ -460,33 +522,33 @@ class CXXMethodDeclGenerator(Generator):
             body_stream.close()
         return None, body_stream.name
 
-    def generate_operator(self):
+    def generate_operator(self, body_stream):
         unary_mapping = {
-            '~' : 'INV',
-            '+' : 'POS',
-            '-' : 'NEG',
+            '~' : 'pyllars::OpUnaryEnum::INV',
+            '+' : 'pyllars::OpUnaryEnum::POS',
+            '-' : 'pyllars::OpUnaryEnum::NEG',
         }
         binary_mapping = {
-            '+': 'ADD',
-            '-': 'SUB',
-            '*': 'MUL',
-            '/': 'DIV',
-            '&': 'AND',
-            '|': 'OR',
-            '^': 'XOR',
-            '<<': 'LSHIFT',
-            '>>': 'RSHIFT',
-            '%': 'MOD',
-            '+=': 'IADD',
-            '-=': 'ISUB',
-            '*=': 'IMUL',
-            '/=': 'IDIV',
-            '&=': 'IAND',
-            '|=': 'IOR',
-            '^=': 'IXOR',
-            '<<=': 'ILSHIFT',
-            '>>=': 'IRSHIFT',
-            '%=': 'IMOD',
+            '+': 'pyllars::OpBinaryEnum::ADD',
+            '-': 'pyllars::OpBinaryEnum::SUB',
+            '*': 'pyllars::OpBinaryEnum::MUL',
+            '/': 'pyllars::OpBinaryEnum::DIV',
+            '&': 'pyllars::OpBinaryEnum::AND',
+            '|': 'pyllars::OpBinaryEnum::OR',
+            '^': 'pyllars::OpBinaryEnum::XOR',
+            '<<': 'pyllars::OpBinaryEnum::LSHIFT',
+            '>>': 'pyllars::OpBinaryEnum::RSHIFT',
+            '%': 'pyllars::OpBinaryEnum::MOD',
+            '+=': 'pyllars::OpBinaryEnum::IADD',
+            '-=': 'pyllars::OpBinaryEnum::ISUB',
+            '*=': 'pyllars::OpBinaryEnum::IMUL',
+            '/=': 'pyllars::OpBinaryEnum::IDIV',
+            '&=': 'pyllars::OpBinaryEnum::IAND',
+            '|=': 'pyllars::OpBinaryEnum::IOR',
+            '^=': 'pyllars::OpBinaryEnum::IXOR',
+            '<<=': 'pyllars::OpBinaryEnum::ILSHIFT',
+            '>>=': 'pyllars::OpBinaryEnum::IRSHIFT',
+            '%=': 'pyllars::OpBinaryEnum::IMOD',
             '[]': 'Map'
         }
         if 'default_delete' in self._node.qualifiers:
@@ -501,9 +563,6 @@ class CXXMethodDeclGenerator(Generator):
 
         class_name = self._node.parent.name
         class_full_cpp_name = self._node.parent.full_cpp_name
-        body_stream = open(
-            os.path.join(self.my_root_dir, self._source_path_root, class_name + '::' + self._node.name.replace("/", " div") + '.cpp'), 'w',
-            encoding='utf-8')
         try:
             parent = self._node.parent
             while parent and not parent.name and isinstance(parent, NodeType.CXXRecordDecl):
@@ -515,61 +574,15 @@ class CXXMethodDeclGenerator(Generator):
             # generate body
             body_stream.write(f"""\n#include \"{self.source_path}\" 
 #include \"{parent_header_path}.hpp\"
-#include <{self.source_path}>
-#include <pyllars/pyllars_classwrapper.impl.hpp>
-                            """)
-            name = self._node.name.replace(operator_kind, cpp_op_name)
-            signature = self._full_signature()
-            kwlist = []
-            for index, c in enumerate(params):
-                if not c.name:
-                    kwlist.append(f"\"_{index}\"")
-                else:
-                    kwlist.append(f"\"{c.name}\"")
-            kwlist_items = ", ".join(kwlist + ["nullptr"])
-            kwlist_if = "" if len(params) == 0 else "kwlist,"
-            body_stream.write(self._wrap_in_namespaces(f"""
-
-                            namespace {{
-                               //From: CXXMethodDeclGenerator.generate
-
-                               typedef const char* const kwlist_t[{len(kwlist)+1}];
-                               constexpr kwlist_t kwlist = {{{kwlist_items}}};
-
-                                class Initializer_{name}: public pyllars::Initializer{{
-                                public:
-                                    Initializer_{name}():pyllars::Initializer(){{
-                                        {parent_name}_register(this);                          
-                                        if (__pyllars_internal::PythonClassWrapper< ::{class_full_cpp_name} >::add{cpp_op_name}Operator<{kwlist_if}
-                                              method_t,
-                                              &::{class_full_cpp_name}::{self._node.name} >() != 0){{
-                                            PyErr_SetString(PyExc_SystemError, "Internal error when adding method/constructor");
-                                        }}
-                                    }}
-
-                                    int set_up() override{{
-                                       return 0;
-                                    }}
-                                    typedef {signature};
-                                    int ready(PyObject * const top_level_mod) override{{
-                                        return 0; //nothing to do on setup
-                                    }}
-
-                                    static Initializer_{name}* initializer;
-
-                                    static Initializer_{name} *singleton(){{
-                                        static  Initializer_{name} _initializer;
-                                        return &_initializer;
-                                    }}
-                                 }};
-
-
-                                //ensure instance is created on global static initialization, otherwise this
-                                //element would never be reigstered and picked up
-                                Initializer_{name} * Initializer_{name}::initializer = singleton();
-
-                            }}
-                        """, True))
+#include <{self.source_path}>\n""")
+            if cpp_op_name == 'Map':
+                body_stream.write("#include <pyllars/pyllars_classmapoperator.hpp>\n\n")
+                body_stream.write(f"""template class pyllars::PyllarsClassMapOperator<{self._full_signature()}, 
+                    &{class_full_cpp_name}::{self._node.name}>;""")
+            else:
+                body_stream.write("#include <pyllars/pyllars_classoperator.hpp>\n\n")
+                body_stream.write(f"""template class pyllars::PyllarsClassOperator<{self._full_signature()}, 
+                    &{class_full_cpp_name}::{self._node.name}, {cpp_op_name}>;""")
         finally:
             body_stream.close()
         return None, body_stream.name
@@ -701,24 +714,21 @@ class FieldDeclGenerator(Generator):
             parent_name = parent.name
             parent_header_path = os.path.join("..", parent_name)
             # generate body
+            if 'static' in self._node.qualifiers:
+                member_qualifier = "Static"
+            else:
+                member_qualifier = ""
             body_stream.write(f"""\n#include \"{self.source_path}\" 
 #include \"{parent_header_path}.hpp\"
-#include <pyllars/pyllars_classmember.hpp>
+#include <pyllars/pyllars_class{member_qualifier.lower()}member.hpp>
                                     """)
-            name = self._node.name or f"anon_{self._node.node_id}"
             if not self._node.name:
                 return None, None
             wrapper, parent_type_name, attribute_type_name, attribute_full_cpp_name = _parent_wrapper_name(self._node)
-            if 'static' in self._node.qualifiers:
-                class_arg = f"{self._node.parent.full_cpp_name}, "
-                member_qualifier = "Static"
-            else:
-                class_arg = ""
-                member_qualifier = ""
             body_stream.write("using namespace pyllars;\n\nnamespace{\n")
             body_stream.write(f"    constexpr cstring name = \"{self._node.name}\";\n")
             body_stream.write("}\n\n")
-            body_stream.write(f"template class PyllarsClass{member_qualifier}Member<name, {parent.full_cpp_name}, {class_arg}{attribute_type_name}, &{attribute_full_cpp_name}>;")
+            body_stream.write(f"template class pyllars::PyllarsClass{member_qualifier}Member<name, {parent.full_cpp_name}, {attribute_type_name}, &{attribute_full_cpp_name}>;")
         finally:
             body_stream.close()
         return None, body_stream.name

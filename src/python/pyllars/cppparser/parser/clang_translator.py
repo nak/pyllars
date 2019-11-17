@@ -509,7 +509,7 @@ class NodeType:
             arg_iter = iter(args)
             arg = next(arg_iter, None)
             self.qualifiers = []
-            while arg in ['implicit', 'class', 'struct', 'referenced']:
+            while arg in ['implicit', 'class', 'struct', 'referenced', 'constexpr']:
                 self.qualifiers.append(arg)
                 arg = next(arg_iter, None)
             self.name = arg if arg is not None else ""
@@ -561,7 +561,11 @@ class NodeType:
         def __init__(self, node_id: str, line_loc: str, col_loc: str, *args: str):
             super().__init__(node_id, line_loc, col_loc)
             self.qualifires = []
-            while args and args[0] in ['implicit', 'referenced', 'definition']:
+            if args[0] == 'used':
+                self.qualifires.append(args[0])
+                args = args[1:]
+
+            while args and args[0] in ['implicit', 'referenced', 'definition', 'constexpr']:
                 self.qualifires.append(args[0])
                 args = args[1:]
             self.name = args[0]
@@ -682,7 +686,7 @@ class NodeType:
         def __init__(self, node_id: str, line_loc: str, col_loc: str, *args: str):
             super().__init__(node_id=node_id, line_loc=line_loc, col_loc=col_loc)
             self.qualifires = []
-            while args and args[0] in ['implicit', 'referenced', 'definition']:
+            while args and args[0] in ['implicit', 'referenced', 'definition', 'constexpr']:
                 self.qualifires.append(args[0])
                 args = args[1:]
             self.name = args[0]

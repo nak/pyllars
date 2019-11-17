@@ -41,9 +41,9 @@ namespace __pyllars_internal {
                 n = std::string(__pyllars_internal::type_name<ReturnType>()) + std::string("(*")  +
                     + __pyllars_internal::type_name<CClass>() + std::string(")(");
 
-                std::string arg_names[] = {Types<Args>::type_name()...};
-                for (unsigned int i = 0; i < sizeof...(Args); ++i) {
-                    n += arg_names[i] + std::string(",");
+                std::vector<std::string> arg_names{Types<Args>::type_name() + std::string(",")...};
+                for (auto &name: arg_names){
+                    n += name;
                 }
                 n += std::string(")");
             }
@@ -68,9 +68,9 @@ namespace __pyllars_internal {
                 n = std::string(__pyllars_internal::type_name<ReturnType>()) + std::string("(*")  +
                     + __pyllars_internal::type_name<CClass>() + std::string(")(");
 
-                std::string arg_names[] = {Types<Args>::type_name()...};
-                for (unsigned int i = 0; i < sizeof...(Args); ++i) {
-                    n += arg_names[i] + std::string(",");
+                std::vector<std::string> arg_names{Types<Args>::type_name() + std::string(",")...};
+                for (auto &name: arg_names){
+                    n += name;
                 }
                 n += std::string(" ...)");
             }
@@ -113,9 +113,9 @@ namespace __pyllars_internal {
                 n = std::string(__pyllars_internal::type_name<ReturnType>()) + std::string("(*")  +
                         + __pyllars_internal::type_name<CClass>() + std::string(")(");
 
-                std::string arg_names[] = {Types<Args>::type_name()...};
-                for (int i = 0; i < sizeof...(Args); ++i) {
-                    n += arg_names[i] + std::string(",");
+                std::vector<std::string> arg_names{Types<Args>::type_name() + std::string(",")...};
+                for (auto &name: arg_names){
+                    n += name;
                 }
                 n += std::string(") const");
             }
@@ -148,9 +148,9 @@ namespace __pyllars_internal {
                 n = std::string(__pyllars_internal::type_name<ReturnType>()) + std::string("(*")  +
                     + __pyllars_internal::type_name<CClass>() + std::string(")(");
 
-                std::string arg_names[] = {Types<Args>::type_name()...};
-                for (unsigned int i = 0; i < sizeof...(Args); ++i) {
-                    n += arg_names[i] + std::string(",");
+                std::vector<std::string> arg_names{Types<Args>::type_name() + std::string(",")...};
+                for (auto &name : arg_names){
+                    n += name;
                 }
                 n += std::string(" ...) const");
             }

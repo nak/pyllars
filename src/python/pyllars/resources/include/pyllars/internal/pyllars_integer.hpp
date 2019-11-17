@@ -302,7 +302,6 @@ namespace  __pyllars_internal {
         }
 
         static status_t preinit(){
-            Py_Initialize();
             static PyObject *module = pyllars::GlobalNS::module();
             static bool inited = false;
             static int rc = -1;

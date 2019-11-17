@@ -14,7 +14,7 @@ namespace outside{
 
 namespace trial{
 
-    namespace attributes{
+    namespace attributestesting{
 
         class AttributesClass{
         public:
@@ -24,7 +24,7 @@ namespace trial{
             static constexpr int constexpr_int_val = 42;
             const AttributesClass* ptr;
         private:
-            double private_flost_val;
+            double private_float_val;
         };
 
 
@@ -43,27 +43,45 @@ namespace trial{
 
     }
 
-    namespace inheritance{
+    namespace inheritancetesting{
+
         class BaseA{
         public:
-            attributes::AttributesClass* aMethod(){
-                return new attributes::AttributesClass();
+            BaseA():int_val(0){}
+            BaseA(int val):int_val(val){}
+
+            static void set(BaseA & a, const int val){
+                a.int_val = val;
             }
+
+            attributestesting::AttributesClass* aMethod(){
+                return new attributestesting::AttributesClass();
+            }
+
+            int int_val;
+
         };
     
         class BaseB{
         public:
-            const attributes::BitFieldsClass &bMethod() const{
+            const attributestesting::BitFieldsClass &bMethod() const{
                 return _bitFields;
             };
         private:
-            attributes::BitFieldsClass _bitFields;
+            attributestesting::BitFieldsClass _bitFields;
         };
     
         class Inherited: public BaseA{
+        public:
+            BaseA createBase(const int val){
+                return BaseA(val);
+            }
         };
     
         class MultipleInherited: public BaseA, public BaseB{
+            BaseB createBase(){
+                return BaseB();
+            }
         };
     }
 
@@ -123,77 +141,6 @@ namespace trial{
 
     }
 
-    namespace operators{
-
-        class FullOperatorList{
-        public:
-
-            FullOperatorList(double d=0.134):value(d){}
-
-            FullOperatorList& operator+(){
-                return *this;
-            }
-
-            int operator-() const{
-                return -int(value);
-            }
-
-            FullOperatorList operator~() const{
-                return FullOperatorList(-value - 1.2);
-            }
-
-            FullOperatorList operator+(const int i) const{
-                return FullOperatorList(value + i);
-            }
-            FullOperatorList operator-(const int i) const{
-                return FullOperatorList(value - i);
-            }
-            FullOperatorList operator*(const double factor) const{
-                return FullOperatorList(value * factor);
-            }
-
-            FullOperatorList operator/(const float div) const{
-                return FullOperatorList(value/double(div));
-            }
-
-            FullOperatorList operator&(const int i) const{
-                return FullOperatorList( int(value) & i );
-            }
-
-            FullOperatorList operator|(const int i) const{
-                return FullOperatorList( int(value) | i );
-            }
-
-            FullOperatorList operator^(const int i) const{
-                return FullOperatorList( int(value) ^ i );
-            }
-
-            FullOperatorList operator%(const int i) const{
-                return FullOperatorList( int(value) % i);
-            }
-
-            FullOperatorList operator<<(const int i) const{
-                return FullOperatorList( int(value) << i );
-            }
-
-            FullOperatorList operator>>(const int i){
-                return FullOperatorList( int(value) >> i );
-            }
-
-            FullOperatorList& operator+=(const int i){
-                value += i;
-                return *this;
-            }
-
-            FullOperatorList& operator-(const int i){
-                value -= i;
-                return *this;
-            }
-
-        private:
-            double value;
-        };
-    }
 }
 
 #endif

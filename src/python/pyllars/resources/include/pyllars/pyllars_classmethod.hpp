@@ -3,11 +3,20 @@
 //
 #include "pyllars/internal/pyllars_classwrapper.hpp"
 #include "pyllars/internal/pyllars_methodcallsemantics.impl.hpp"
+#include "pyllars/internal/pyllars_classwrapper-methods.impl.hpp"
 
 #ifndef PYLLARS_PYLLARS_CLASSMETHOD_HPP
 #define PYLLARS_PYLLARS_CLASSMETHOD_HPP
 
 namespace pyllars{
+    /**
+     * Explicitly instatiate to map a C++ class method to a Python construct
+     *
+     * @tparam name  the name of the method
+     * @tparam kwlist  the nullptr-terminate list of names for keywords (1-to-1 with arguments)
+     * @tparam method_t  the class-signature of the method
+     * @tparam method  pointer to the method
+     */
     template<const char *const name, const char* const kwlist[], typename method_t, method_t method>
     class PyllarsClassMethod;
 
@@ -118,41 +127,6 @@ namespace pyllars{
     typename PyllarsClassMethod<name, kwlist, ReturnType(Class::*)(Args..., ...) const, method>::Initializer * const
             PyllarsClassMethod<name, kwlist, ReturnType(Class::*)(Args..., ...) const, method>::initializer = new
                     PyllarsClassMethod<name, kwlist, ReturnType(Class::*)(Args..., ...) const, method>::Initializer();
-}
-
-namespace __pyllars_internal {
-
-    template<typename Class>
-    template<bool is_const>
-    void PythonClassWrapper<Class,
-            typename std::enable_if<is_rich_class<Class>::value>::type>::
-    _addMethod(PyMethodDef method) {
-        //insert at beginning to keep null sentinel at end of list:
-        if constexpr(is_const) {
-            _methodCollectionConst()[method.ml_name] = method;
-        } else {
-            _methodCollection()[method.ml_name] = method;
-        }
-    }
-
-
-    template<typename Class>
-    template<const char *const name, const char* const kwlist[], typename method_t, method_t method>
-    void PythonClassWrapper<Class,
-            typename std::enable_if<is_rich_class<Class>::value>::type>::
-    addMethod() {
-        static const char *const doc = "Call method ";
-        char *doc_string = new char[func_traits<method_t>::type_name().size() + strlen(doc) + 1];
-        snprintf(doc_string, func_traits<method_t>::type_name().size() + strlen(doc) + 1, "%s%s", doc, func_traits<method_t>::type_name().c_str());
-        PyMethodDef pyMeth = {
-                name,
-                (PyCFunction) MethodContainer<kwlist, method_t, method>::call,
-                METH_KEYWORDS | METH_VARARGS,
-                doc_string
-        };
-
-        _addMethod<func_traits<method_t>::is_const_method>(pyMeth);
-    }
 }
 
 #endif

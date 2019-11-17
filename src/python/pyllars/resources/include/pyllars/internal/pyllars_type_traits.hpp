@@ -2,6 +2,8 @@
 #define __PYLLARS__TYPE_TRAITS__
 
 #include <type_traits>
+#include <functional>
+#include <stddef.h>
 
 namespace __pyllars_internal {
     template<typename T>

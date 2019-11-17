@@ -19,7 +19,6 @@
 #include "pyllars/pyllars_classstaticmethod.hpp"
 #include "pyllars/pyllars_classconstructor.hpp"
 #include "pyllars/pyllars_enum.hpp"
-#include "pyllars/pyllars_classenumclass.hpp"
 #include "pyllars/pyllars_classoperator.hpp"
 #include "pyllars/pyllars_classstaticmember.hpp"
 #include "pyllars/pyllars_classmember.hpp"

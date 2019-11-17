@@ -5,7 +5,7 @@
 #include <vector>
 #include <Python.h>
 #include "pyllars/internal/pyllars_classwrapper.hpp"
-
+#include <stddef.h>
 
 
 template<>
@@ -75,12 +75,14 @@ namespace __pyllars_internal{
         PyObject_HEAD
 
         static int _init(TemplateDict* self, PyObject* , PyObject*){
+            return 0;
         }
 
         static PyObject* _new(PyObject* type_, PyObject*, PyObject*){
             PyTypeObject * type = (PyTypeObject*) type_;
             TemplateDict* self = (TemplateDict*)type->tp_alloc(type, 0);
             self->dictionary = new   std::unordered_map<PyObject*, PyObject*, std::hash<PyObject*>, TemplateDict::EqualTo>();
+            return (PyObject*) type;
         }
 
         static Py_ssize_t _mp_lengh(TemplateDict* self){

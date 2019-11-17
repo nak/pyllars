@@ -8,6 +8,12 @@ from .generator import Generator
 class EnumDeclGenerator(Generator):
 
     def generate(self):
+        if 'class' in self._node.qualifiers:
+            prefix = ""
+            scoped = f"{self._node.full_cpp_name}::"
+        else:
+            prefix = ""
+            scoped = self._node.parent.full_cpp_name + "::" if self._node.parent else ""
         elements = [c for c in self._node.children if isinstance(c, NodeType.EnumConstantDecl)]
         if 'implicit' in self._node.qualifiers or not elements:
             return None, None
@@ -35,7 +41,7 @@ class EnumDeclGenerator(Generator):
 
             # generate body
             body_stream.write(f"""\n
-#include <pyllars/pyllars_enum.hpp>
+#include <pyllars/pyllars_enum{prefix.lower()}.hpp>
 #include "{self.source_path}" 
 #include \"{name}.hpp"
             """)
@@ -48,47 +54,61 @@ namespace __pyllars_internal{{
     const char* const TypeInfo<{full_cpp_name}>::type_name = \"{name}\";
     
 }}
-            """)
-            body_stream.write("using namespace pyllars;\n")
-            body_stream.write("using namespace __pyllars_internal;\n")
+            \n\n""")
 
             def namespace_wrapper(node):
                 if node is None:
-                    return "GlobalNamespace"
-                if isinstance(node, NodeType.NamespaceDecl):
-                    if not node or not node.name:
-                        return "GlobalNameSpace"
-                    return f"PyllarsNamespace< names::{node.full_cpp_name}::Tag_{node.name}, {namespace_wrapper(node.parent)} > "
-                else:
-                    return f"PyllarsClass< {node.full_cpp_name}, {namespace_wrapper(node.parent)} >;\n"
+                    return "pyllars::GlobalNS"
+                if not node or not node.name:
+                    return "pyllars::GlobalNS"
+                body_stream.write(f"""
+namespace{{
+extern const char parent_nsname[] = \"{node.full_cpp_name}\";
+}}
+""")
+                return f"pyllars::NSInfo<parent_nsname>"
 
-
-            if not self._node.name or 'definition' in self._node.qualifiers or 'implicit' in self._node.qualifiers:
+            if 'definition' in self._node.qualifiers or 'implicit' in self._node.qualifiers:
                 return header_stream.name, body_stream.name
             named_parent = parent
-            while named_parent and (not hasattr(named_parent, "name'") or not named_parent.name):
+            while named_parent and (not hasattr(named_parent, "name") or not named_parent.name):
                 named_parent = named_parent.parent
                 if isinstance(named_parent, NodeType.TranslationUnitDecl):
                     named_parent = None
             if hasattr(self._node, "name") and self._node.name:
                 body_stream.write(f"""
 namespace{{
-    extern const char* const enum_type_name = "{self._node.name}";
+    extern const char  enum_type_name[] = "{self._node.name}";
 }}
 """)
-                if not named_parent or isinstance(named_parent, NodeType.TranslationUnitDecl):
-                    template_instantiation = f"template class pyllars::PyllarsEnum<enum_type_name, {self._node.full_cpp_name}, pyllars::GlobalNS>"
-
-                elif isinstance(named_parent, NodeType.NamespaceDecl):
-                    template_instantiation = f"template class pyllars::PyllarsEnum<enum_type_name>, {self._node.full_cpp_name}, {namespace_wrapper(parent)}>"
-                else:
-                    template_instantiation = f"template class pyllars::PyllarsEnum<enum_type_name, {self._node.full_cpp_name}, {parent.full_cpp_name}>"
-
-                body_stream.write(f"{template_instantiation};")
-                body_stream.write(f"using EnumWrapper = {template_instantiation};\n")
+                typename = self._node.full_cpp_name
+            else:
+                body_stream.write(f"""
+namespace{{
+    extern const char enum_type_name[] = "<<anon_{self._node.node_id}>>";
+}}
+""")
+                typename = f"decltype({named_parent.full_cpp_name}::{elements[0].name})"
+            vnames = []
+            values = []
             for elem in elements:
-                body_stream.write(f"template EnumWrapper::template Value<{elem.name}>;\n")
+                vnames.append(f"""\"{elem.name}\"""")
+                values.append(f"{scoped}{elem.name}")
+            vnames_str = f"{{{', '.join(vnames)}}}"
+            values_str = f"{', '.join(values)}"
+            body_stream.write("namespace {\n")
+            body_stream.write(f"    constexpr const char* vnames[] = {vnames_str};\n")
+            body_stream.write("}\n\n")
 
+            if not named_parent or isinstance(named_parent, NodeType.TranslationUnitDecl):
+                template_instantiation = f"template class pyllars::PyllarsEnum{prefix}<enum_type_name, {typename}, pyllars::GlobalNS, vnames, {values_str}>"
+
+            elif isinstance(named_parent, NodeType.NamespaceDecl):
+                template_instantiation = f"template class pyllars::PyllarsEnum{prefix}<enum_type_name, {typename}, {namespace_wrapper(parent)}, vnames, {values_str}>"
+            else:
+                template_instantiation = f"template class pyllars::PyllarsEnum{prefix}<enum_type_name, {typename}, {parent.full_cpp_name}, vnames, {values_str}>"
+
+            body_stream.write(f"{template_instantiation};\n")
         finally:
             header_stream.close()
             body_stream.close()

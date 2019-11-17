@@ -63,7 +63,6 @@ namespace __pyllars_internal{
         }
 
         static status_t preinit(){
-  	     Py_Initialize();
             static int rc = -1;
             static bool inited = false;
             if (inited) {

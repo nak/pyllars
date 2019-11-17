@@ -7,6 +7,8 @@
 
 #include "pyllars/internal/pyllars_classmembersemantics.hpp"
 
+#include "pyllars_conversions.hpp"
+
 namespace __pyllars_internal{
 
     template<const char *const name, typename CClass, typename AttrType>

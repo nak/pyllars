@@ -2,6 +2,8 @@
 // Created by jrusnak on 10/13/19.
 //
 #include "pyllars/internal/pyllars_classwrapper.hpp"
+#include "pyllars/internal/pyllars_classwrapper-operators.impl.hpp"
+#include "pyllars/internal/pyllars_methodcallsemantics.impl.hpp"
 
 #ifndef PYLLARS_PYLLARS_CLASSUNARYOPERATOR_HPP
 #define PYLLARS_PYLLARS_CLASSUNARYOPERATOR_HPP
@@ -37,7 +39,14 @@ namespace pyllars{
         typedef OpBinaryEnum OpEnum;
     };
 
-
+    /**
+     * Explicitly instantiate to map a C++ unary or binary operator to a Python Construct
+     *
+     * @tparam method_t  the class signature of the operator
+     * @tparam method  pointer to the operator
+     * @tparam kind  One of the pyllars::OpUnaryEnum or pyllars::OpBinaryEnum values, which should be consitent with
+     *    the type of operator method being provided
+     */
     template <typename method_t, method_t method, typename OpKind<method_t>::OpEnum kind>
     class PyllarsClassOperator;
 
@@ -146,48 +155,6 @@ namespace pyllars{
     typename PyllarsClassOperator<ReturnType(Class::*)(ArgType) const, method, kind>::Initializer * const
             PyllarsClassOperator<ReturnType(Class::*)(ArgType) const, method, kind>::initializer  = new
                     PyllarsClassOperator<ReturnType(Class::*)(ArgType) const, method, kind>::Initializer();
-}
-
-namespace __pyllars_internal {
-
-    template<typename T>
-    template<OpUnaryEnum kind, typename ReturnType, ReturnType( core_type<T>::type::*method)()>
-    void PythonClassWrapper<T,
-            typename std::enable_if<is_rich_class<T>::value>::type>::
-    template Op<kind, ReturnType( core_type<T>::type::*)(), method>::addUnaryOperator() {
-        static const char* const kwlist[1] = {nullptr};
-        PythonClassWrapper<T>::_unaryOperators[kind] = (unaryfunc) MethodContainer<kwlist, ReturnType(T::*)(), method>::callAsUnaryFunc;
-    }
-
-
-    template<typename T>
-    template<OpUnaryEnum kind, typename ReturnType, ReturnType(core_type<T>::type::*method)() const>
-    void PythonClassWrapper<T,
-            typename std::enable_if<is_rich_class<T>::value>::type>::
-    Op<kind, ReturnType(core_type<T>::type::*)() const, method>::addUnaryOperator() {
-        static const char* const kwlist[1] = {nullptr};
-        PythonClassWrapper<T>::_unaryOperatorsConst()[kind] = (unaryfunc) MethodContainer<kwlist, ReturnType(CClass::*)() const, method>::callAsUnaryFunc;
-    }
-
-    template<typename T>
-    template<OpBinaryEnum kind, typename ReturnType, typename ArgType,
-            ReturnType(core_type<T>::type::*method)(ArgType)>
-    void PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::
-    BinaryOp<kind, ReturnType(core_type<T>::type::*)(ArgType), method>::addBinaryOperator() {
-        static constexpr cstring kwlist[] = {"operand", nullptr};
-        PythonClassWrapper<T>::_binaryOperators()[kind] = (binaryfunc) MethodContainer<kwlist,  ReturnType(core_type<T>::type::*)(ArgType), method>::callAsBinaryFunc;
-    }
-
-    template<typename T>
-    template<OpBinaryEnum kind, typename ReturnType, typename ArgType,
-            ReturnType(core_type<T>::type::*method)(ArgType) const>
-    void PythonClassWrapper<T,
-            typename std::enable_if<is_rich_class<T>::value>::type>::
-    BinaryOp<kind, ReturnType(core_type<T>::type::*)(ArgType) const, method>::addBinaryOperator() {
-        static constexpr cstring kwlist[] = {"operand", nullptr};
-        PythonClassWrapper<T>::_binaryOperatorsConst()[kind] = (binaryfunc) MethodContainer< kwlist,  ReturnType(core_type<T>::type::*)(ArgType) const,
-                method>::callAsBinaryFunc;
-    }
 }
 
 #endif

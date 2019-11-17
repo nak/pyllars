@@ -115,6 +115,16 @@ namespace __pyllars_internal {
     PyObject* MethodCallSemantics<kwlist, method_t>::
     call(CClass &self, method_t method, PyObject *args, PyObject *kwds) {
         constexpr ssize_t argsize = func_traits<method_t>::argsize;
+        const ssize_t  pyargsize = PyTuple_Size(args) + (kwds?PyDict_Size(kwds):0);
+        if constexpr(func_traits<method_t>::has_ellipsis){
+            if (pyargsize < argsize){
+                throw PyllarsException(PyExc_TypeError, "Invalid arguments to method call");
+            }
+        } else {
+            if (pyargsize != argsize) {
+                throw PyllarsException(PyExc_TypeError, "Invalid arguments to method call");
+            }
+        }
         typedef typename argGenerator<argsize>::type arg_generator_t;
         if constexpr (std::is_void<ReturnType >::value){
             call_methodBase(self, method, args, kwds, arg_generator_t());

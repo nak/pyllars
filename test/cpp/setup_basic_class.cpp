@@ -9,7 +9,6 @@
 #include "pyllars/pyllars_classmember.hpp"
 #include "pyllars/pyllars_classstaticmember.hpp"
 #include "pyllars/pyllars_enum.hpp"
-#include "pyllars/pyllars_classenumclass.hpp"
 #include "pyllars/pyllars_classconstructor.hpp"
 #include "pyllars/pyllars_classoperator.hpp"
 #include "pyllars/pyllars_classmember.hpp"
@@ -76,7 +75,7 @@ template class pyllars::PyllarsClassOperator<BasicClass(BasicClass::*)(const dou
 
 template class pyllars::PyllarsClassOperator<double(BasicClass::*)(const BasicClass&) const, &BasicClass::operator+, pyllars::OpBinaryEnum::ADD>;
 
-template class pyllars::PyllarsClassStaticMethod<static_method_name, kwlist, BasicClass,  const char* const(), &BasicClass::static_public_method>;
+template class pyllars::PyllarsClassStaticMethod<static_method_name, kwlist, BasicClass,  const char* const(*)(), &BasicClass::static_public_method>;
 
 template class pyllars::PyllarsClassStaticMember<class_const_member_name, BasicClass, const int, &BasicClass::class_const_member>;
 
@@ -90,11 +89,11 @@ template class pyllars::PyllarsClass<BasicClass2, pyllars::GlobalNS >;
 
 template class pyllars::PyllarsClassMethod<create_bclass_method_name, kwlist, BasicClass(BasicClass2::*)(), &BasicClass2::createBasicClass>;
 
-template class pyllars::PyllarsClassStaticMethod<create_method_name, empty_list, NonDestructible, NonDestructible *(), &NonDestructible::create>;
+template class pyllars::PyllarsClassStaticMethod<create_method_name, empty_list, NonDestructible, NonDestructible *(*)(), &NonDestructible::create>;
 
 template class pyllars::PyllarsClass<NonDestructible, pyllars::GlobalNS >;
 
-template class pyllars::PyllarsClassStaticMethod<create_const_method_name, empty_list, NonDestructible, const NonDestructible *(), &NonDestructible::create_const>;
+template class pyllars::PyllarsClassStaticMethod<create_const_method_name, empty_list, NonDestructible, const NonDestructible *(*)(), &NonDestructible::create_const>;
 
 template class pyllars::PyllarsClass<EnumClass, pyllars::GlobalNS >;
 
@@ -104,13 +103,14 @@ static const char *const kwlist2[] = {"_CObject", nullptr};
 
 template class pyllars::PyllarsClassConstructor<kwlist2, EnumClass, EnumClass>;
 
-template class pyllars::PyllarsClassStaticMethod<enum_convert_name, kwlist2, EnumClass, long long (const EnumClass&), &convertEnum>;
+template class pyllars::PyllarsClassStaticMethod<enum_convert_name, kwlist2, EnumClass, long long (*)(const EnumClass&), &convertEnum>;
 
-constexpr cstring E_ONE_NAME = "E_ONE";
 
-template class pyllars::PyllarsClassEnumClassValue<E_ONE_NAME, EnumClass, pyllars::GlobalNS >;
-
-template class pyllars::PyllarsClassEnumClassValue<E_ONE_NAME, EnumClass, pyllars::GlobalNS >::template Value<EnumClass::E_ONE>;
+constexpr const char * enum_names[] = {"E_ONE", "E_TWO"};
+namespace {
+    static const char ENUM_CLASS_NAME[] = "EnumClass";
+}
+template class pyllars::PyllarsEnum<ENUM_CLASS_NAME, EnumClass, pyllars::GlobalNS, enum_names, EnumClass::E_ONE, EnumClass::E_TWO>;
 
 void
 SetupBasicClass::SetUpTestSuite() {

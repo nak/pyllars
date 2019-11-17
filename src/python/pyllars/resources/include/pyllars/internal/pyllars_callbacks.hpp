@@ -9,6 +9,7 @@
 #include <functional>
 
 #include "pyllars_classwrapper.hpp"
+#include "pyllars_conversions.hpp"
 
 namespace __pyllars_internal{
 

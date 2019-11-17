@@ -4,10 +4,6 @@
 #include <Python.h>
 #include <string.h>
 
-#include "pyllars_utils.hpp"
-#include "pyllars_defns.hpp"
-#include "pyllars_conversions.hpp"
-#include "pyllars_varargs.hpp"
 
 /**
 * This unit defines template classes needed to contain member pointers and

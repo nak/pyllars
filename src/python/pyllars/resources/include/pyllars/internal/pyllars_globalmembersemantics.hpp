@@ -4,7 +4,7 @@
 #include <Python.h>
 
 #include "pyllars/internal/pyllars_defns.hpp"
-#include "pyllars.hpp"
+#include "pyllars/pyllars.hpp"
 #include "pyllars/internal/pyllars_classwrapper.hpp"
 
 namespace __pyllars_internal {

@@ -3,6 +3,7 @@
 
 #include <ffi.h>
 #include <Python.h>
+#include "pyllars_defns.hpp"
 
 namespace __pyllars_internal {
 

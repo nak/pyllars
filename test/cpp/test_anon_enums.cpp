@@ -13,7 +13,6 @@
 #include "setup_anon_enums.hpp"
 
 #include "pyllars/pyllars_enum.hpp"
-#include "pyllars/pyllars_classenumclass.hpp"
 
 template<>
 const char* const __pyllars_internal::TypeInfo<ClassWithEnum>::type_name = "ClassWithEnum";
@@ -60,10 +59,15 @@ TEST_F(SetupAnonEnums, TestClassWithEnum){
     ASSERT_NE(obj, nullptr);
     auto first = PyObject_GetAttrString(obj, "FIRST");
     ASSERT_NE(first, nullptr);
-    ASSERT_EQ(PyInt_AsLong(first), ClassWithEnum::FIRST);
+    auto value_f = PyObject_GetAttrString(first, "value");
+    auto valargs = PyTuple_Pack(1, first);
+    auto value = PyObject_Call(value_f, valargs, nullptr);
+    ASSERT_EQ(PyInt_AsLong(value), ClassWithEnum::FIRST);
     auto second = PyObject_GetAttrString(obj, "SECOND");
     ASSERT_NE(second, nullptr);
-    ASSERT_EQ(PyInt_AsLong(second), ClassWithEnum::SECOND);
+    valargs = PyTuple_Pack(1, second);
+    value = PyObject_Call(value_f, valargs, nullptr);
+    ASSERT_EQ(PyInt_AsLong(value), ClassWithEnum::SECOND);
     Py_DECREF(obj);
 }
 
@@ -72,8 +76,12 @@ TEST_F(SetupAnonEnums, TestEnums){
     typedef PythonClassWrapper<Enum> Class;
 
     PyObject* ZERO_E = PyObject_GetAttrString((PyObject*)Class::getType(), "ZERO");
+
+    auto value_f = PyObject_GetAttrString(ZERO_E, "value");
     ASSERT_NE(ZERO_E, nullptr);
-    ASSERT_EQ(PyInt_AsLong(ZERO_E), 0);
+    auto valargs = PyTuple_Pack(1, ZERO_E);
+    auto value = PyObject_Call(value_f, valargs, nullptr);
+    ASSERT_EQ(PyInt_AsLong(value), 0);
 }
 
 

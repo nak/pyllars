@@ -678,6 +678,9 @@ namespace __pyllars_internal {
     class PyNumberCustomObject<const unsigned char>;
 
     template
+    class PyNumberCustomObject<const signed char>;
+
+    template
     class PyNumberCustomObject<const unsigned short>;
 
     template
@@ -695,6 +698,9 @@ namespace __pyllars_internal {
 
     template
     class PyNumberCustomObject<char>;
+
+    template
+    class PyNumberCustomObject<signed char>;
 
     template
     class PyNumberCustomObject<short>;
@@ -731,6 +737,9 @@ namespace __pyllars_internal {
     class PyNumberCustomObject<volatile const char>;
 
     template
+    class PyNumberCustomObject<volatile const signed char>;
+
+    template
     class PyNumberCustomObject<volatile const short>;
 
     template
@@ -763,6 +772,9 @@ namespace __pyllars_internal {
 
     template
     class PyNumberCustomObject<volatile char>;
+
+    template
+    class PyNumberCustomObject<volatile signed char>;
 
     template
     class PyNumberCustomObject<volatile short>;

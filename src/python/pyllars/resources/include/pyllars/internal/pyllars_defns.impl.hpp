@@ -51,6 +51,4 @@ namespace __pyllars_internal{
     }
 
 }
-#else
-adsf
 #endif

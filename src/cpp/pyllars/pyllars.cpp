@@ -34,7 +34,7 @@ PyObject*
 PyllarsInit(const char* const name){
   static PyObject *const pyllars_mod = PyImport_ImportModule("pyllars");
   const char* const doc = "Pyllars top-level module";
-  PyModuleDef moduleDef = {
+  PyModuleDef *moduleDef = new PyModuleDef{
     PyModuleDef_HEAD_INIT,
     name,
     doc,
@@ -42,18 +42,20 @@ PyllarsInit(const char* const name){
     nullptr
   };
 
-  PyObject* mod = PyModule_Create(&moduleDef);
+  PyObject* mod = PyModule_Create(moduleDef);
   if(mod){
     Py_INCREF(mod);
     PyObject_SetAttrString(pyllars_mod, name, mod);
   }
-    if (__pyllars_internal::Init::init()!= 0){
+  int status = 0;
+  if ((status = __pyllars_internal::Init::init())!= 0){
         printf("Failed to init all types");
+  } else {
+    if ((status |= __pyllars_internal::Init::ready()) != 0){
+      printf("Failed to ready all types");
     }
-    if (__pyllars_internal::Init::ready()!= 0){
-        printf("Failed to ready all types");
-    }
-  return mod;
+  }
+  return (status == 0)?mod:nullptr;
 }
 #else
 PyMODINIT_FUNC

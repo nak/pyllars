@@ -13,10 +13,11 @@
 #define Py_TPFLAGS_CHECKTYPES 0
 #endif
 
-#include <structmember.h>
 #include <functional>
 #include <memory>
 #include <limits>
+#include <Python.h>
+
 #include "pyllars_type_traits.hpp"
 #include "pyllars/internal/pyllars_defns.hpp"
 
@@ -262,6 +263,15 @@ namespace __pyllars_internal {
             return __pyllars_internal::type_name<RType(Args...)>();
         }
 
+        template<type func>
+        static RType call(Args ...args){
+            if constexpr (std::is_void<RType>::value){
+                func(args...);
+            }else {
+                return func(args...);
+            }
+        }
+
     };
     template<typename RType, typename ...Args>
     struct func_traits<RType(Args...)>{
@@ -306,6 +316,14 @@ namespace __pyllars_internal {
             return __pyllars_internal::type_name<RType(Args...)>();
         }
 
+        template<type func>
+        static RType call(Args ...args) noexcept{
+            if constexpr (std::is_void<RType>::value){
+                func(args...);
+            }else {
+                return func(args...);
+            }
+        }
     };
 
     template<typename RType, typename ...Args>
@@ -332,6 +350,14 @@ namespace __pyllars_internal {
             return __pyllars_internal::type_name<RType(Args..., ...)>();
         }
 
+        template<type func, typename ...VarArgs>
+        static RType call(Args ...args, VarArgs ...varargs){
+            if constexpr (std::is_void<RType>::value){
+                func(args..., varargs...);
+            }else {
+                return func(args..., varargs...);
+            }
+        }
     };
 
     template<typename RType, typename ...Args>
@@ -356,6 +382,15 @@ namespace __pyllars_internal {
         typedef RType ReturnType;
         const static std::string type_name(){
             return __pyllars_internal::type_name<RType(Args..., ...)>();
+        }
+
+        template<type func, typename ...VarArgs>
+        static RType call(Args ...args, VarArgs ...varargs) noexcept{
+            if constexpr (std::is_void<RType>::value){
+                func(args..., varargs...);
+            }else {
+                return func(args..., varargs...);
+            }
         }
 
     };

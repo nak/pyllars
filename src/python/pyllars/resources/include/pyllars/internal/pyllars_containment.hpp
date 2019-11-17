@@ -2,6 +2,8 @@
 #define __PYLLARS__CONTAINMENT__H
 
 #include <functional>
+#include <Python.h>
+
 #include "pyllars_type_traits.hpp"
 #include "pyllars_utils.hpp"
 

@@ -10,7 +10,6 @@
 #include <functional>
 
 #include <pyllars/internal/pyllars_defns.hpp>
-#include <pyllars/internal/pyllars_containment.hpp>
 
 typedef int status_t;
 
@@ -22,8 +21,22 @@ PyMODINIT_FUNC
 #endif
 PyllarsInit(const char *name);
 
+/**
+ * The 'pyllars' namespace holds all the public definitions for a client used to statically construct a mapping
+ * from C constructs into Python constructs.
+ */
+namespace pyllars{
+
+}
 
 namespace __pyllars_internal {
+
+    /**
+     * Class to hold registered init functions (called first upon init of a Pyllars' module)
+     * as well as ready functions (called after all registered init's)  -- basically, the init
+     * calls populate statically the members of the PyType struct and ready calls PyType_Ready to ready
+     * the type once it has the full definition.
+     */
     class Init {
     public:
         typedef status_t (*ready_func_t)();
@@ -70,5 +83,7 @@ namespace __pyllars_internal {
         static std::vector<ready_func_t> *_readyFuncs;
 
     };
+
+    static const char * const pyllars_empty_kwlist[] = {nullptr};
 }
 #endif

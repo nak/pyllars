@@ -35,7 +35,7 @@ namespace __pyllars_internal {
             return PyObject_TypeCheck(obj, &_Type);
         }
 
-        template<const char *const kwlist[], func_type *function>
+        template<const char *const kwlist[], func_type function>
         static
         PythonFunctionWrapper *createPy(const char *const name) {
             static bool inited = false;
@@ -49,7 +49,7 @@ namespace __pyllars_internal {
                     PyErr_Print();
                     throw PyllarsException(PyExc_SystemError, "Unable to create function callable");
                 }
-                pyfuncobj->_call_func = StaticFunctionContainer<kwlist, func_type, function>::call;
+                pyfuncobj->_call_func = StaticFunctionContainer<kwlist, func_type*, function>::call;
                 pyfuncobj->_function = function;
                 if (!PyCallable_Check((PyObject *) pyfuncobj)) {
                     throw PyllarsException(PyExc_TypeError, "Python object is not callbable as expected");
@@ -77,7 +77,7 @@ namespace __pyllars_internal {
 
         call_t _call_func;
     public:
-        func_type *_function;
+        func_type* _function;
     };
 
     //Python definition of Type for this function wrapper

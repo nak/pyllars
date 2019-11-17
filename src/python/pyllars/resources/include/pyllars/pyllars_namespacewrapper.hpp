@@ -10,7 +10,38 @@
 
 namespace pyllars{
 
-    struct NSInfoBase{};
+    struct NSInfoBase{
+        static PyObject* module(const char* const fully_qualified_name, const char* const name){
+            static std::map<std::string, PyObject*> module_list;
+            if (module_list.count(std::string(fully_qualified_name)) == 0){
+                auto docs = [fully_qualified_name]() -> std::string {
+                    static std::string text;
+                    if (text.empty()) {
+                        std::ostringstream strstream;
+                        strstream << "Module corresponding to C++ namespace " << fully_qualified_name;
+                        text = strstream.str();
+                    }
+                    return text.data();
+                };
+
+#if PY_MAJOR_VERSION == 3
+                // Initialize Python3 module associated with this namespace
+                PyModuleDef *moddef = new PyModuleDef{
+                        PyModuleDef_HEAD_INIT,
+                        name,
+                        docs().data(),
+                        -1,
+                        NULL, NULL, NULL, NULL, NULL
+                };
+                module_list[std::string(fully_qualified_name)] = PyModule_Create(moddef);
+#else
+                // Initialize Python2 module associated with this namespace
+                    mod = Py_InitModule3(name, nullptr, docs().data());
+#endif
+            }
+            return module_list[std::string(fully_qualified_name)];
+        }
+    };
 
     template <const char* const fully_qualified_name>
     struct NSInfo: public NSInfoBase{
@@ -35,34 +66,7 @@ namespace pyllars{
                 static PyObject* module = PyImport_ImportModule("pyllars");
                 return module;
             } else {
-                static PyObject *mod = nullptr;
-                if (!mod) {
-                    auto docs = []() -> std::string {
-                        static std::string text;
-                        if (text.empty()) {
-                            std::ostringstream strstream;
-                            strstream << "Module corresponding to C++ namespace " << fully_qualified_name;
-                            text = strstream.str();
-                        }
-                        return text.data();
-                    };
-
-#if PY_MAJOR_VERSION == 3
-                    // Initialize Python3 module associated with this namespace
-                    static PyModuleDef moddef = {
-                            PyModuleDef_HEAD_INIT,
-                            nsname(),
-                            docs().data(),
-                            -1,
-                            NULL, NULL, NULL, NULL, NULL
-                    };
-                    mod = PyModule_Create(&moddef);
-#else
-                    // Initialize Python2 module associated with this namespace
-                    mod = Py_InitModule3(name, nullptr, docs().data());
-#endif
-                }
-                return mod;
+                return NSInfoBase::module(fully_qualified_name, nsname());
             }
         }
 

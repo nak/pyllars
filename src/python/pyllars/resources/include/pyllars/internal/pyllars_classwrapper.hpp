@@ -10,17 +10,9 @@
 #include <vector>
 #include <map>
 #include <functional>
-#include <Python.h>
-#include <tupleobject.h>
 
 #include "pyllars/pyllars_namespacewrapper.hpp"
 #include "pyllars/pyllars.hpp"
-#include "pyllars_type_traits.hpp"
-#include "pyllars_defns.hpp"
-#include "pyllars_staticfunctionsemantics.hpp"
-#include "pyllars_classmembersemantics.hpp"
-#include "pyllars_membersemantics.hpp"
-#include "pyllars_methodcallsemantics.hpp"
 #include "pyllars_containment.hpp"
 
 typedef const char cstring[];
@@ -118,25 +110,7 @@ namespace __pyllars_internal {
         static int initialize(){return _initialize(_Type);}
 
         template<typename Parent>
-        static status_t ready(){
-            int status = 0;
-            for (const auto& ready_fnctn: _childrenReadyFunctions()){
-                status |= (ready_fnctn() == nullptr);
-            }
-            if constexpr(is_complete<Parent>::value) {
-                //for incomplete types the following will be evaled and cause compile errors if included in if constexpr above
-                if constexpr(std::is_base_of<pyllars::NSInfoBase, Parent>::value) {
-                    return PyModule_AddObject(Parent::module(), Types<T>::type_name(), (PyObject *) getPyType());
-                } else {
-                    return PyObject_SetAttrString((PyObject *) PythonClassWrapper<Parent>::getPyType(),
-                                                  Types<T>::type_name(), (PyObject *) getPyType());
-                }
-            } else {
-                return PyObject_SetAttrString((PyObject *) PythonClassWrapper<Parent>::getPyType(),
-                                              Types<T>::type_name(), (PyObject *) getPyType());
-            }
-            return status;
-        }
+        static status_t ready();
 
         static status_t preinit(){
             return 0;
@@ -179,40 +153,43 @@ namespace __pyllars_internal {
          * @param kwlist: list of keyword names of araguments
          **/
         template<const char *const name, const char *const kwlist[], typename func_type, func_type method>
-        static void addClassMethod();
+        static void addStaticMethod();
 
         /**
-         * add a class-wide (static) member
-         **/
-        static void addClassMember(const char *const name, PyObject *pyobj) ;
+         *  Adda a named type (a class-within-this-class), where typeobj may not have yet been
+         *  readied, but will be so during call to this's ready.  This allows us to handle a type
+         *  of chicken-and-egg situation
+         * @param name   name of type to add
+         * @param typeobj the type to add
+         */
+        static void addStaticType( const char* const name, PyTypeObject* (*typeobj)());
 
         /**
          * Add an enum value to the class
          */
         template<typename EnumT>
-        static int addEnumValue( const char* const name, EnumT value);
+        static int addEnumValue( const char* const name, const EnumT& value);
 
-        static int addEnumClassValue( const char* const name, const T value);
-
+        static void addClassObject(const char* const name, PyObject* const obj);
         /**
          * Add a mutable bit field to this Python type definition
          **/
         template<const char *const name, typename FieldType, const size_t bits>
         static void addBitField(
-                typename BitFieldContainer<T_NoRef>::template Container<name, FieldType, bits>::getter_t &getter,
-                typename BitFieldContainer<T_NoRef>::template Container<name, FieldType,  bits>::setter_t *setter=nullptr);
+                typename std::function< FieldType(const T_NoRef&)> &getter,
+                typename std::function< FieldType(T_NoRef&, const FieldType&)>  *setter=nullptr);
 
         /**
          * add a getter method for the given compile-time-known named public class member
          **/
         template<const char *const name, typename FieldType>
-        static void addAttribute(typename MemberContainer<name, T_NoRef, FieldType>::member_t member);
+        static void addAttribute(FieldType T_NoRef::*member);//MemberContainer<name, T_NoRef, FieldType>::member_t member);
 
         /**
          * add a getter method for the given compile-time-known named public static class member
          **/
         template<const char *const name, typename FieldType>
-        static void addClassAttribute(FieldType *member);
+        static void addStaticAttribute(FieldType *member);
 
         /**
          * add a method with given compile-time-known name to the contained collection
@@ -226,21 +203,21 @@ namespace __pyllars_internal {
         }
 
         template<typename KeyType, typename method_t, method_t method>
-        static void addMapOperator(){
-            typedef typename func_traits<method_t>::ReturnType ValueType;
-            if constexpr(func_traits<method_t>::is_const_method) {
-                _addMapOperatorMethod <KeyType, ValueType, ValueType(CClass::*)(KeyType) const, method > ();
-            } else {
-                _addMapOperatorMethod <KeyType, ValueType, ValueType(CClass::*)(KeyType), method > ();
-            }
-        }
+        static void addMapOperator();
 
         static bool checkType(PyObject * obj);
 
         static PyTypeObject *getPyType(){
-            if(initialize() != 0){
-                return nullptr;
-            }
+            return (initialize() == 0)?&_Type:nullptr;
+        }
+
+        /**
+         * Return underlying PyTypeObject, possibly uninitialized (no call to PyType_Ready is guaranteed)
+         * Use sparingly
+         *
+         * @return  PyTypeObject associated with this class
+         */
+        static PyTypeObject * getRawType(){
             return &_Type;
         }
 
@@ -369,8 +346,7 @@ namespace __pyllars_internal {
             return -1;
         }
 
-        static int
-        _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds);
+        static int _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds);
 
         static PyObject *_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 
@@ -448,8 +424,18 @@ namespace __pyllars_internal {
             static std::vector<PyTypeObject*(*)()> container;
             return container;
         }
+
         static std::map<std::string, const typename std::remove_cv<T_NoRef>::type*>& _classEnumValues(){
             static std::map<std::string, const typename std::remove_cv<T_NoRef>::type*> container;
+            return container;
+        }
+        static std::map<std::string, PyObject*>& _classObjects(){
+            static std::map<std::string, PyObject*> container;
+            return container;
+        }
+
+        static std::map<std::string, PyTypeObject* (*)()>& _classTypes(){
+            static std::map<std::string, PyTypeObject*(*)()> container;
             return container;
         }
         static std::map<OpUnaryEnum, unaryfunc>& _unaryOperators(){
@@ -515,17 +501,16 @@ namespace __pyllars_internal {
             return Parent::addEnumValue(name, value);
         }
 
-        static int addEnumClassValue( const char* const name, const T value){
-            return Parent::addEnumClassValue(name, value);
+        static void addClassObject( const char* const name, PyObject* obj){
+            return Parent::addClassObject(name, obj);
         }
 
         /**
          * Add a mutable bit field to this Python type definition
          **/
         template<const char *const name, typename FieldType, const size_t bits>
-        static void addBitField(
-                typename BitFieldContainer<T_NoRef>::template Container<name, FieldType, bits>::getter_t &getter,
-                typename BitFieldContainer<T_NoRef>::template Container<name, FieldType,  bits>::setter_t *setter=nullptr){
+        static void addBitField(  typename std::function< FieldType(const T_NoRef&)> &getter,
+                                  typename  std::function< FieldType(T_NoRef&, const FieldType&)>  *setter=nullptr){
              return Parent::addBitField(getter, setter);
          }
 
@@ -533,7 +518,7 @@ namespace __pyllars_internal {
          * add a getter method for the given compile-time-known named public class member
          **/
         template<const char *const name, typename FieldType>
-        static void addAttribute(typename MemberContainer<name, T_NoRef, FieldType>::member_t member){
+        static void addAttribute(FieldType T_NoRef::*member){
             return Parent::addAttribute(member);
         }
 

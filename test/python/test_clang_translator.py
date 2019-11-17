@@ -27,26 +27,37 @@ class ClangOutput:
     module_name: str
 
 
-@pytest.fixture(params=glob.glob(os.path.join(RESOURCES_DIR, "*.hpp")))
-def clang_output(tmpdir, request):
+@pytest.fixture(autouse=True)
+def setup_test_path(request):
+    output_dir = "modules"
+
+    sys.path += [output_dir]
+
+    def fin():
+        sys.path.remove(output_dir)
+
+    request.addfinalizer(fin)
+    return sys.path
+
+
+def generate_clang_output(src_path, out_dir):
     """
     :param base_name: base name of file to process (assumed with RESROUCES_DIR)
     :return: path to clang check output for given file name
     """
-    src_path = request.param
-    output_path = os.path.join(str(tmpdir), "clang-output.classes")
+    output_path = os.path.join(str(out_dir), "clang-output.classes")
     cmd = ["clang-check", "-ast-dump", src_path, "--extra-arg=\"-fno-color-diagnostics\""]
     with open(output_path, 'w') as output_file:
         p = subprocess.run(cmd, stdout=output_file, stderr=subprocess.PIPE)
         if p.returncode != 0:
             raise Exception(f"Failed to parse {src_path} through clang-check tool")
-    return ClangOutput(src_path, output_path, os.path.basename(request.param).replace(".hpp", ""))
+    return ClangOutput(src_path, output_path, os.path.basename(src_path).replace(".hpp", ""))
 
 
-@pytest.fixture
-def test_module(clang_output, request):
+def build_test_module(src_path, out_dir):
     # not the best test stategy, but generic enough:
     # regurgitate the file back out and compare to original to pass test
+    clang_output = generate_clang_output(src_path, out_dir)
     output_dir = "modules"
     output_gen_dir = os.path.join(output_dir, clang_output.module_name)
     with suppress(Exception):
@@ -70,53 +81,72 @@ def test_module(clang_output, request):
             objects.append(compiler.compile(filename))
     linker = Linker(compiler_flags=compiler_flags, linker_options=[], debug=True)
     linker.link(objects=objects, output_module_path=output_dir, module_name=clang_output.module_name)
-    sys.path += [output_dir]
-    importlib.import_module(clang_output.module_name)
 
-    def fin():
-        sys.path.remove(output_dir)
-
-    request.addfinalizer(fin)
     return clang_output.module_name
 
+
 @pytest.fixture
-def clang_output_classes(tmpdir):
+def module_classes(setup_test_path, tmpdir):
     """
     :return: path to clang check output for simple class tests (inheritance, methods, attributes)
     """
-    return clang_output(tmpdir, "classes")
+    path = os.path.join(RESOURCES_DIR, "classes.hpp")
+    return build_test_module(src_path=path, out_dir=tmpdir)
 
 
 @pytest.fixture
-def clang_output_complexattributes(tmpdir):
-    """
-    :return: path to clang check output for classes with compled attributes (array attributes, etc)
-    """
-    return clang_output(tmpdir, "complextattributes")
-
-
-@pytest.fixture
-def clang_output_enums(tmpdir):
-    """
-    :return: path to clang check output for simple enums/class enums
-    """
-    return clang_output(tmpdir, "enums")
-
-
-@pytest.fixture
-def clang_output_functions(tmpdir):
-    """
-    :return: path to clang check output for simple function tests
-    """
-    return clang_output(tmpdir, "functions")
-
-
-@pytest.fixture
-def clang_output_globals(tmpdir):
+def module_classoperators(setup_test_path, tmpdir):
     """
     :return: path to clang check output for simple class tests (inheritance, methods, attributes)
     """
-    return clang_output(tmpdir, "globals")
+    path = os.path.join(RESOURCES_DIR, "classoperators.hpp")
+    return build_test_module(src_path=path, out_dir=tmpdir)
+
+
+@pytest.fixture
+def module_anonymous(setup_test_path, tmpdir):
+    """
+    :return: path to clang check output for simple class tests (inheritance, methods, attributes)
+    """
+    path = os.path.join(RESOURCES_DIR, "anonymous.hpp")
+    return build_test_module(src_path=path, out_dir=tmpdir)
+
+
+@pytest.fixture
+def module_complexattributes(setup_test_path, tmpdir):
+    """
+    :return: path to clang check output for simple class tests (inheritance, methods, attributes)
+    """
+    path = os.path.join(RESOURCES_DIR, "complexattributes.hpp")
+    return build_test_module(src_path=path, out_dir=tmpdir)
+
+
+@pytest.fixture
+def module_enums(setup_test_path, tmpdir):
+    """
+    :return: path to clang check output for simple class tests (inheritance, methods, attributes)
+    """
+    path = os.path.join(RESOURCES_DIR, "enums.hpp")
+    return build_test_module(src_path=path, out_dir=tmpdir)
+
+
+@pytest.fixture
+def module_functions(setup_test_path, tmpdir):
+    """
+    :return: path to clang check output for simple class tests (inheritance, methods, attributes)
+    """
+    path = os.path.join(RESOURCES_DIR, "functions.hpp")
+    return build_test_module(src_path=path, out_dir=tmpdir)
+
+
+
+@pytest.fixture
+def module_globals(setup_test_path, tmpdir):
+    """
+    :return: path to clang check output for simple class tests (inheritance, methods, attributes)
+    """
+    path = os.path.join(RESOURCES_DIR, "globals.hpp")
+    return build_test_module(src_path=path, out_dir=tmpdir)
 
 
 def compare_builtintype(self, other: NodeType.BuiltinType):
@@ -180,7 +210,7 @@ expectation.children.append(child)
 
 class TestClangTranslation:
 
-    def test_clang_translation(self):
+    def ___test_clang_translation(self):
         file_name = os.path.join(RESOURCES_DIR, "clang-check-output.example")
         # not the best test stategy, but generic enough:
         # regurgitate the file back out and compare to original to pass test
@@ -216,12 +246,7 @@ namespace B{
 }
 """
 
-    def test_generation(self, test_module):
-        test_function = getattr(self, f"test_{test_module}")
-        test_function()
-
-    def test_anonymous(self):
-        sys.path.append("./modules")
+    def test_anonymous(self, module_anonymous):
         import pyllars
         import anonymous
         AnonInner = pyllars.trial.AnonymousInnerTypes.AnonInner
@@ -253,7 +278,85 @@ namespace B{
         assert inst.sval1 == 1
         assert inst.intval == -65535
 
-    def test_classes(self, test_module):
-        sys.path.append("./modules")
+    def test_classes(self, ):
         import pyllars
         import classes
+        assert pyllars.outside.ExternalDependency
+        obj = pyllars.trial.attributestesting.AttributesClass()
+        assert obj.int_val == 22
+        obj.int_val = -1
+        assert obj.int_val == -1
+        assert abs(obj.const_float_val - 39872.55) < 0.001
+        with pytest.raises(Exception):
+            obj.const_float_val = 2.0
+        assert obj.constexpr_int_val() == 42
+        assert not hasattr(obj, "private_float_val")
+        assert obj.ptr is not None
+        assert obj.ptr.at(0).int_val == -1
+
+        #  bit fields
+        obj = pyllars.trial.attributestesting.BitFieldsClass()
+        assert obj.size_1bit == -1
+        assert obj.size_2bit == 0
+        assert obj.const_size_11bit == 3
+        with pytest.raises(Exception):
+            obj.const_size_11bit = 1
+        assert obj.size_31bit == 42
+
+        obj.size_31bit = 1 << 28
+        assert obj.size_31bit == 1 << 28
+        with pytest.raises(ValueError):
+            obj.size_1bit = 11  # out of bounds of 1 bit field
+
+        # inheritance testing
+        objA = pyllars.trial.inheritancetesting.BaseA()
+        objB = pyllars.trial.inheritancetesting.BaseB()
+        objInherited = pyllars.trial.inheritancetesting.Inherited()
+        objMultiInherited = pyllars.trial.inheritancetesting.MultipleInherited()
+
+        assert objA.int_val == 0
+        objA = pyllars.trial.inheritancetesting.BaseA(123)
+        assert objA.int_val == 123
+        pyllars.trial.inheritancetesting.BaseA.set(objA, -987)
+        assert objA.int_val == -987
+        assert objB.bMethod().const_size_11bit == 3
+
+        objA2 = objInherited.creaetBase(911)
+        assert objA2.int_val == 911
+        assert type(objA) == type(objA2)
+
+        assert objInherited.int_val == 0
+        pyllars.trial.inheritancetesting.BaseA.set(objInherited, -135)
+        assert objInherited.int_val == -135
+        assert objInherited.aMethod().at(0).int_val == 22
+
+        assert objMultiInherited.int_val == 0
+        pyllars.trial.inheritancetesting.BaseA.set(objMultiInherited, -135)
+        assert objMultiInherited.int_val == -135
+        assert objMultiInherited.aMethod().at(0).int_val == 22
+        assert objMultiInherited.bMethod().size_31bit== 31
+
+
+
+    def test_enums(self, module_enums):
+        import pyllars
+        import enums
+        assert pyllars.GlobalEnum.value(pyllars.ONE) == 0
+        assert pyllars.GlobalEnum.value(pyllars.TWO) == 1
+        assert pyllars.GlobalEnum.value(pyllars.THREE) == 2
+        assert pyllars.GlobalEnumClass.value(pyllars.GlobalEnumClass.CL_ONE) == 0
+        assert pyllars.GlobalEnumClass.value(pyllars.GlobalEnumClass.CL_TWO) == 1
+        assert pyllars.GlobalEnumClass.value(pyllars.GlobalEnumClass.CL_THREE) == 2
+
+        assert pyllars.Struct.ClassEnum.value(pyllars.Struct.ClassEnum.ONE) == 1
+        assert pyllars.Struct.ClassEnum.value(pyllars.Struct.ClassEnum.TWO) == 2
+        assert pyllars.Struct.ClassEnum.value(pyllars.Struct.ClassEnum.THREE) == 3
+        value = pyllars.Struct.ONE.value
+        assert value(pyllars.Struct.ONE) == 1
+        assert value(pyllars.Struct.TWO) == 12
+        assert value(pyllars.Struct.THREE) == 23
+
+    def test_classoperators(self, module_classoperators):
+        import pyllars
+        import classoperators
+        obj = pyllars.trial.operators.FullOperatorList();

@@ -2,9 +2,8 @@
 #ifndef __PYLLARS_INTERNAL__MEMBERSEMANTICS_IMPL_
 #define __PYLLARS_INTERNAL__MEMBERSEMANTICS_IMPL_
 
-#include "pyllars_membersemantics.hpp"
-#include "pyllars/internal/pyllars_classwrapper.impl.hpp"
 #include "pyllars/internal/pyllars_conversions.impl.hpp"
+#include "pyllars_membersemantics.hpp"
 
 namespace __pyllars_internal {
 
