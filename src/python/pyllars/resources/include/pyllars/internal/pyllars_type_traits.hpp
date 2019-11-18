@@ -17,6 +17,11 @@ namespace __pyllars_internal {
     };
 
 
+    template<typename E>
+    using is_scoped_enum = std::integral_constant<
+            bool,
+            std::is_enum<E>::value && !std::is_convertible<E, int>::value>;
+
     template<typename T>
     struct core_type{
         typedef typename std::remove_const<typename std::remove_volatile
@@ -54,6 +59,26 @@ namespace __pyllars_internal {
         static constexpr bool value = true;
     };
 
+
+    template <typename Base>
+    struct ApplyCv{
+        typedef Base type;
+    };
+
+    template <typename Base>
+    struct ApplyCv<const Base>{
+        typedef const Base type;
+    };
+
+    template <typename Base>
+    struct ApplyCv<volatile Base>{
+        typedef volatile Base type;
+    };
+
+    template <typename Base>
+    struct ApplyCv<const volatile Base>{
+        typedef const volatile Base type;
+    };
 
     template<typename T>
     struct is_rich_class {

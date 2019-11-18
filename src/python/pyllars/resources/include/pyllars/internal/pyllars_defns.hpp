@@ -704,6 +704,11 @@ namespace __pyllars_internal {
                    (to_is_const || !to_is_reference || !self->_is_const); // logic for conversion-is-allowed
         }
 
+        static std::map< std::pair<PyTypeObject*, PyTypeObject*>, PyObject* (*)(PyObject*)> & castMap(){
+            static std::map< std::pair<PyTypeObject*, PyTypeObject*>, PyObject* (*)(PyObject*)> map;
+            return map;
+        }
+
     protected:
         static PyTypeObject _BaseType;
 

@@ -24,11 +24,6 @@ namespace pyllars{
     public:
     private:
 
-        template<typename E>
-        using is_scoped_enum = std::integral_constant<
-                bool,
-                std::is_enum<E>::value && !std::is_convertible<E, int>::value>;
-
         class Initializer{
         public:
             Initializer() {

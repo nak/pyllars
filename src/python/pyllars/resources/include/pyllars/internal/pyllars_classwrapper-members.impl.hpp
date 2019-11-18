@@ -12,7 +12,7 @@ namespace __pyllars_internal {
     template<const char *const name, typename FieldType>
     void PythonClassWrapper<T,
             typename std::enable_if<is_rich_class<T>::value>::type>::
-    addAttribute(FieldType T_NoRef::* member) {
+    addAttribute(typename MemberPtr<FieldType>::member_t member) {
 
         static const char *const doc = "Get attribute ";
         char *doc_string = new char[strlen(name) + strlen(doc) + 1];

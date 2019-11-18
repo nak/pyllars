@@ -126,17 +126,15 @@ namespace __pyllars_internal {
         if (!Basic::_baseClasses().empty()) {
             if (Basic::_baseClasses().size() > 1) {
                 Type.tp_bases = PyTuple_New(Basic::_baseClasses().size());
+                size_t index = 0;
+                std::for_each(_baseClasses().begin(), _baseClasses().end(),
+                              [&index, Type](PyTypeObject * const baseClass) {
+                                  PyTuple_SetItem(Type.tp_bases, index++, (PyObject *) baseClass);
+                              });
             } else if (Basic::_baseClasses().size() == 1) {
-                if constexpr (std::is_const<T>::value) {
-                    Type.tp_base = Basic::_baseClassesConst()[0];
-                } else {
-                    Type.tp_base = Basic::_baseClasses()[0];
-                }
+                Type.tp_base = Basic::_baseClasses()[0];
             }
-            for (size_t index = 0; index < Basic::_baseClasses().size(); ++ index){
-                auto baseClass = std::is_const<T>::value?_baseClassesConst()[index]:_baseClasses()[index];
-                if (Basic::_baseClasses().size() > 1)
-                    PyTuple_SetItem(Type.tp_bases, index, (PyObject *) baseClass);
+            for (auto& baseClass : _baseClasses()){
                 // tp_bases not usable for inheritance of methods/members as it doesn't really do the right thing and
                 // causes problems on lookup of base classes,
                 // so do this manually...
@@ -322,7 +320,10 @@ namespace __pyllars_internal {
 
         const bool have_args = args != NULL_ARGS();
 
-        if (!have_args) return 0;
+        if (!have_args) {
+            self->_CObject = (T*)kwds;
+            return 0;
+        }
 
         for (auto const &[kwlist_, constructor] : PythonClassWrapper<T>::_constructors()) {
             (void) kwlist_;

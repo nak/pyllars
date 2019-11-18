@@ -14,6 +14,7 @@
 #include "pyllars/pyllars_namespacewrapper.hpp"
 #include "pyllars/pyllars.hpp"
 #include "pyllars_containment.hpp"
+#include "pyllars_type_traits.hpp"
 
 typedef const char cstring[];
 static constexpr cstring operatormapname = "operator[]";
@@ -179,11 +180,18 @@ namespace __pyllars_internal {
                 typename std::function< FieldType(const T_NoRef&)> &getter,
                 typename std::function< FieldType(T_NoRef&, const FieldType&)>  *setter=nullptr);
 
+        template <typename FieldType, typename E= void>
+        struct MemberPtr;
+
+        template <typename FieldType>
+        struct MemberPtr<FieldType, std::enable_if_t<!is_scoped_enum<T_NoRef>::value > >{
+            typedef FieldType T_NoRef::*member_t;
+        };
         /**
          * add a getter method for the given compile-time-known named public class member
          **/
         template<const char *const name, typename FieldType>
-        static void addAttribute(FieldType T_NoRef::*member);//MemberContainer<name, T_NoRef, FieldType>::member_t member);
+        static void addAttribute(typename MemberPtr<FieldType>::member_t member);//MemberContainer<name, T_NoRef, FieldType>::member_t member);
 
         /**
          * add a getter method for the given compile-time-known named public static class member
@@ -236,7 +244,6 @@ namespace __pyllars_internal {
          */
         typename PythonClassWrapper::T_NoRef *get_CObject() const;
 
-
         typename std::remove_const<T>::type& toCArgument();
         const T& toCArgument() const;
 
@@ -270,6 +277,10 @@ namespace __pyllars_internal {
 
     protected:
 
+        void set_CObject(T_NoRef * value ){
+            _CObject = value;
+        }
+
         PythonClassWrapper();// never invoked as Python allocates memory directly
 
         static PyObject *alloc(PyObject *cls, PyObject *args, PyObject *kwds);
@@ -290,6 +301,16 @@ namespace __pyllars_internal {
                 return PyObject_GenericGetAttr(self, PyString_FromString(attrname));
             }
             return _member_getters()[attrname](self, nullptr);
+        }
+
+        template <class Base>
+        static PyObject* cast(PyObject* self){
+            static_assert(std::is_base_of<Base, T_NoRef >::value);
+            auto self_ = (PythonClassWrapper<T>*)self;
+            auto castWrapper = (PythonClassWrapper<Base&>*) PyObject_Call((PyObject*)PythonClassWrapper<Base&>::getPyType(),
+                    NULL_ARGS(), nullptr);
+            castWrapper->set_CObject(static_cast<Base*>(self_->get_CObject()));
+            return (PyObject*) castWrapper;
         }
 
         // must use object container, since code may have new and delete private and container
@@ -389,14 +410,17 @@ namespace __pyllars_internal {
             static std::vector<ConstructorContainer> container;
             return container;
         }
+
         static std::map<std::string, PyMethodDef>& _methodCollection(){
             static std::map<std::string, PyMethodDef> container;
             return container;
         }
+
         static std::map<std::string, PyMethodDef>& _methodCollectionConst(){
             static std::map<std::string, PyMethodDef> container;
             return container;
         }
+
         static std::map<std::string, std::pair<std::function<PyObject*(PyObject*, PyObject*)>,
                                      std::function<int(bool, PyObject*, PyObject*, PyObject*)>>
                           >_mapMethodCollection;
@@ -404,22 +428,22 @@ namespace __pyllars_internal {
             static std::map<std::string, _getattrfunc > container;
             return container;
         }
+
         static std::map<std::string, _setattrfunc >& _member_setters(){
             static std::map<std::string, _setattrfunc > container;
             return container;
         }
+
         static std::vector<_setattrfunc >& _assigners(){
             static std::vector<_setattrfunc > container;
             return container;
         }
+
         static std::vector<PyTypeObject *>& _baseClasses(){
             static std::vector<PyTypeObject *> container;
             return container;
         }
-        static std::vector<PyTypeObject *>& _baseClassesConst(){
-            static std::vector<PyTypeObject *> container;
-            return container;
-        }
+
         static std::vector<PyTypeObject*(*)()>& _childrenReadyFunctions(){
             static std::vector<PyTypeObject*(*)()> container;
             return container;
@@ -429,6 +453,7 @@ namespace __pyllars_internal {
             static std::map<std::string, const typename std::remove_cv<T_NoRef>::type*> container;
             return container;
         }
+
         static std::map<std::string, PyObject*>& _classObjects(){
             static std::map<std::string, PyObject*> container;
             return container;
@@ -438,18 +463,22 @@ namespace __pyllars_internal {
             static std::map<std::string, PyTypeObject*(*)()> container;
             return container;
         }
+
         static std::map<OpUnaryEnum, unaryfunc>& _unaryOperators(){
             static std::map<OpUnaryEnum , unaryfunc> container;
             return container;
         }
+
         static std::map<OpUnaryEnum, unaryfunc>& _unaryOperatorsConst(){
             static std::map<OpUnaryEnum , unaryfunc> container;
             return container;
         }
+
         static std::map<OpBinaryEnum, binaryfunc>& _binaryOperators(){
             static std::map<OpBinaryEnum, binaryfunc> container;
             return container;
         }
+
         static std::map<OpBinaryEnum, binaryfunc>& _binaryOperatorsConst(){
             static std::map<OpBinaryEnum , binaryfunc> container;
             return container;

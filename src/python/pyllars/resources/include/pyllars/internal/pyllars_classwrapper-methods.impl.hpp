@@ -37,7 +37,6 @@ namespace __pyllars_internal {
                 METH_KEYWORDS | METH_VARARGS,
                 doc_string
         };
-
         _addMethod<func_traits<method_t>::is_const_method>(pyMeth);
     }
 

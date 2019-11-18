@@ -203,8 +203,15 @@ namespace __pyllars_internal {
         static constexpr cstring type_name = func_traits<method_t>::type_name();
 
         static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds){
-            CClass* this_ = reinterpret_cast<PythonClassWrapper<CClass>*>(self)->get_CObject();
-            return MethodCallSemantics<kwlist, method_t>::call(*this_, method, args, kwds);
+            PyTypeObject * baseTyp = PythonClassWrapper<CClass>::getPyType();
+            PyTypeObject * derivedTyp = self->ob_type;
+            auto key = std::pair{baseTyp, derivedTyp};
+            if (CommonBaseWrapper::castMap().count(key) == 0) {
+                CClass *this_ = reinterpret_cast<PythonClassWrapper<CClass> *>(self)->get_CObject();
+                return MethodCallSemantics<kwlist, method_t>::call(*this_, method, args, kwds);
+            } else {
+                call(CommonBaseWrapper::castMap()[key](self), args, kwds);
+            }
         }
 
         static PyObject *callAsUnaryFunc(PyObject *self){

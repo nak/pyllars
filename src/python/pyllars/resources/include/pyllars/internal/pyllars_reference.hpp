@@ -59,6 +59,17 @@ namespace __pyllars_internal {
             return Base::toCArgument();
         }
 
+        void set_CObject(T* value){
+            PythonClassWrapper<T >::set_CObject(value);
+        }
+        /**
+         * Add a base class to this Python definition (called before initialize)
+         **/
+        template<typename Base>
+        static void addBaseClass() {
+            PythonClassWrapper<std::remove_reference_t <T> >::template addBaseClass<Base>();
+        }
+
     protected:
         static int _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds);
         static PyTypeObject _Type;

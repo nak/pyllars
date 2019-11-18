@@ -10,7 +10,14 @@
 
 class BasicClass{
 public:
-    explicit BasicClass(const double val=2.3):double_ptr_member(new double(val)){
+     BasicClass():double_ptr_member(new double(2.3)){
+        int_array[0] = 1;
+        int_array[1] = 2;
+        int_array[2] = 3;
+        _mapped_values["123"] = 123;
+    }
+
+    explicit BasicClass(const double val):double_ptr_member(new double(val)){
         int_array[0] = 1;
         int_array[1] = 2;
         int_array[2] = 3;

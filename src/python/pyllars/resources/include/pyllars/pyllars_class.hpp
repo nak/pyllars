@@ -3,6 +3,7 @@
 //
 #include "pyllars/internal/pyllars_classwrapper.impl.hpp"
 #include "pyllars/internal/pyllars_classwrapper-enums.impl.hpp"
+#include "pyllars/internal/pyllars_type_traits.hpp"
 
 #ifndef PYLLARS_PYLLARS_CLASSINSTANTITATION_IMPL_HPP
 #define PYLLARS_PYLLARS_CLASSINSTANTITATION_IMPL_HPP
@@ -50,10 +51,19 @@ namespace pyllars {
                 return 0;
             }
 
+            template <typename ...Classes>
+            struct ForEach{
+            public:
+                ForEach() {
+                    static int unused[] = {(PythonClassWrapper<typename ApplyCv<Class>::type>::template addBaseClass<Classes>(), 0)...};
+                }
+            };
+
             static status_t ready(){
                 using namespace __pyllars_internal;
                 //add each base class in parameter pack...
-                int unused[] = {(PythonClassWrapper<Class>::template addBaseClass<BaseClass>(),0)...};
+                static int unused[] = {(ForEach<BaseClass, const BaseClass, volatile BaseClass, const volatile BaseClass,
+                                       BaseClass&, const BaseClass&, volatile BaseClass&, const volatile BaseClass&>(), 0)...};
                 (void)unused;
                 //we are now ready to ready the Python type associated with this class:
                 int status = PythonClassWrapper<Class>::template ready<Parent>();
