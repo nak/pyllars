@@ -94,7 +94,7 @@ namespace trial{
     
         virtual ~BasicClass(){}
     
-        BasicClass &operator=(const BasicClass & ){}
+        BasicClass &operator=(const BasicClass & ){return *this;}
     
         int varargs_method(double d, ...){
             return int(d);

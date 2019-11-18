@@ -6,6 +6,7 @@
 #define PYLLARS_PYLLARS_CLASSWRAPPER_METHODS_IMPL_HPP
 #include "pyllars_classwrapper.hpp"
 #include "pyllars_methodcallsemantics.impl.hpp"
+#include "pyllars_funttraits.hpp"
 
 namespace __pyllars_internal {
 

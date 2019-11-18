@@ -278,7 +278,7 @@ namespace B{
         assert inst.sval1 == 1
         assert inst.intval == -65535
 
-    def test_classes(self, ):
+    def test_classes(self, module_classes):
         import pyllars
         import classes
         assert pyllars.outside.ExternalDependency
@@ -321,7 +321,7 @@ namespace B{
         assert objA.int_val == -987
         assert objB.bMethod().const_size_11bit == 3
 
-        objA2 = objInherited.creaetBase(911)
+        objA2 = objInherited.createBase(911)
         assert objA2.int_val == 911
         assert type(objA) == type(objA2)
 
@@ -334,7 +334,7 @@ namespace B{
         pyllars.trial.inheritancetesting.BaseA.set(objMultiInherited, -135)
         assert objMultiInherited.int_val == -135
         assert objMultiInherited.aMethod().at(0).int_val == 22
-        assert objMultiInherited.bMethod().size_31bit== 31
+        assert objMultiInherited.bMethod().size_31bit == 42
 
 
 

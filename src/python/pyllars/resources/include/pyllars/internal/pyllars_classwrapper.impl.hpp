@@ -92,12 +92,12 @@ namespace __pyllars_internal {
     void PythonClassWrapper<T,
             typename std::enable_if<is_rich_class<T>::value>::type>::
     addBaseClass() {
-        PyTypeObject * base = PythonClassWrapper<Base>::getPyType();
+        PyTypeObject * base = PythonClassWrapper<Base>::getRawType();
         if (!base) return;
         _baseClasses().insert(_baseClasses().begin(), base);
         _childrenReadyFunctions().insert(_childrenReadyFunctions().begin(), &PythonClassWrapper<Base>::getPyType);
-        auto baseTyp = PythonClassWrapper<Base>::getPyType();
-        auto key = std::pair{baseTyp, getPyType()};
+        auto baseTyp = PythonClassWrapper<Base>::getRawType();
+        auto key = std::pair{baseTyp, getRawType()};
         castMap()[key] = &cast<Base>;
     }
 

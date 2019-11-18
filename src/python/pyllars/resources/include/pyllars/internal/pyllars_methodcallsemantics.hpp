@@ -4,7 +4,7 @@
 #include <Python.h>
 
 #include "pyllars/internal/pyllars_conversions.hpp"
-#include "pyllars_utils.hpp"
+#include "pyllars/internal/pyllars_funttraits.hpp"
 #include "pyllars/internal/pyllars_defns.hpp"
 
 /**

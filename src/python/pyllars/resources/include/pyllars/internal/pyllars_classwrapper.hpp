@@ -68,9 +68,6 @@ namespace __pyllars_internal {
     template<typename T>
     class InitHelper;
 
-    template<typename func_t>
-    struct func_traits;
-
     template<typename functype>
     struct PythonFunctionWrapper;
 
@@ -305,11 +302,11 @@ namespace __pyllars_internal {
 
         template <class Base>
         static PyObject* cast(PyObject* self){
-            static_assert(std::is_base_of<Base, T_NoRef >::value);
+            static_assert(std::is_base_of<std::remove_reference_t <Base>, T_NoRef >::value);
             auto self_ = (PythonClassWrapper<T>*)self;
             auto castWrapper = (PythonClassWrapper<Base&>*) PyObject_Call((PyObject*)PythonClassWrapper<Base&>::getPyType(),
                     NULL_ARGS(), nullptr);
-            castWrapper->set_CObject(static_cast<Base*>(self_->get_CObject()));
+            castWrapper->set_CObject(static_cast<std::remove_reference_t<Base>*>(self_->get_CObject()));
             return (PyObject*) castWrapper;
         }
 

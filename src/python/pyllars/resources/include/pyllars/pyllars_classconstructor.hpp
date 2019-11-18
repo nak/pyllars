@@ -3,7 +3,6 @@
 //
 #include "pyllars/internal/pyllars_classwrapper.hpp"
 #include "pyllars/internal/pyllars_classwrapper-xtors.impl.hpp"
-#include "pyllars/internal/pyllars_conversions.impl.hpp"
 
 #ifndef PYLLARS_PYLLARS_CLASSCONSTRUCTOR_HPP
 #define PYLLARS_PYLLARS_CLASSCONSTRUCTOR_HPP

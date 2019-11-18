@@ -51,20 +51,23 @@ namespace pyllars {
                 return 0;
             }
 
-            template <typename ...Classes>
+            template <typename ...CvBaseClass>
             struct ForEach{
             public:
                 ForEach() {
-                    static int unused[] = {(PythonClassWrapper<typename ApplyCv<Class>::type>::template addBaseClass<Classes>(), 0)...};
+		            static std::vector<int> unused {(PythonClassWrapper<typename ApplyCv<CvBaseClass, Class>::type>::template addBaseClass<CvBaseClass>(), 0)...};
+		            (void)unused;
+		            printf("sizeof unused2: %d\n", unused.size());
                 }
             };
 
             static status_t ready(){
                 using namespace __pyllars_internal;
                 //add each base class in parameter pack...
-                static int unused[] = {(ForEach<BaseClass, const BaseClass, volatile BaseClass, const volatile BaseClass,
-                                       BaseClass&, const BaseClass&, volatile BaseClass&, const volatile BaseClass&>(), 0)...};
+                static std::vector<int> unused{(ForEach<BaseClass, const BaseClass, volatile BaseClass, const volatile BaseClass>(), 0)...};
                 (void)unused;
+		        printf("sizeof unused: %d\n", unused.size());
+	        
                 //we are now ready to ready the Python type associated with this class:
                 int status = PythonClassWrapper<Class>::template ready<Parent>();
                 if constexpr(is_complete<Parent>::value) {

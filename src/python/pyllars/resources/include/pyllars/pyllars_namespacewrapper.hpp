@@ -63,8 +63,7 @@ namespace pyllars{
 
         static PyObject* module(){
             if constexpr(fully_qualified_name == nullptr){
-                static PyObject* module = PyImport_ImportModule("pyllars");
-                return module;
+                return PyImport_ImportModule("pyllars");
             } else {
                 return NSInfoBase::module(fully_qualified_name, nsname());
             }

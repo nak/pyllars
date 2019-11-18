@@ -60,24 +60,24 @@ namespace __pyllars_internal {
     };
 
 
-    template <typename Base>
+    template <typename Base, typename Class>
     struct ApplyCv{
-        typedef Base type;
+        typedef Class type;
     };
 
-    template <typename Base>
-    struct ApplyCv<const Base>{
-        typedef const Base type;
+    template <typename Base, typename Class>
+    struct ApplyCv<const Base, Class>{
+        typedef const Class type;
     };
 
-    template <typename Base>
-    struct ApplyCv<volatile Base>{
-        typedef volatile Base type;
+    template <typename Base, typename Class>
+    struct ApplyCv<volatile Base, Class>{
+        typedef volatile Class type;
     };
 
-    template <typename Base>
-    struct ApplyCv<const volatile Base>{
-        typedef const volatile Base type;
+    template <typename Base, typename Class>
+    struct ApplyCv<const volatile Base, Class>{
+        typedef const volatile Class type;
     };
 
     template<typename T>

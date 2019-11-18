@@ -10,7 +10,7 @@ pyllars/pyllars.cpp
 pyllars/pyllars_integer.cpp
 pyllars/pyllars_templates.cpp
 pyllars/pyllars_floating_point.cpp
-pyllars/pyllars_integer.cpp ../python/pyllars/resources/include/pyllars/pyllars_namespacewrapper.hpp ../python/pyllars/resources/include/pyllars/pyllars_class.hpp ../python/pyllars/resources/include/pyllars/pyllars_classmethod.hpp pyllars/pyllars_class.cpp ../python/pyllars/resources/include/pyllars/internal/pyllars_classwrapper-methods.impl.hpp)
+pyllars/pyllars_integer.cpp ../python/pyllars/resources/include/pyllars/pyllars_namespacewrapper.hpp ../python/pyllars/resources/include/pyllars/pyllars_class.hpp ../python/pyllars/resources/include/pyllars/pyllars_classmethod.hpp pyllars/pyllars_class.cpp ../python/pyllars/resources/include/pyllars/internal/pyllars_classwrapper-methods.impl.hpp ../python/pyllars/resources/include/pyllars/internal/pyllars_funttraits.hpp)
 
 
 FILE(GLOB pcheaders
