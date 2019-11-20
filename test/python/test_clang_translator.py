@@ -246,7 +246,7 @@ namespace B{
 }
 """
 
-    def test_anonymous(self, module_anonymous):
+    def test_anonymous(self, ):
         import pyllars
         import anonymous
         AnonInner = pyllars.trial.AnonymousInnerTypes.AnonInner
@@ -278,7 +278,7 @@ namespace B{
         assert inst.sval1 == 1
         assert inst.intval == -65535
 
-    def test_classes(self, module_classes):
+    def test_classes(self, ):
         import pyllars
         import classes
         assert pyllars.outside.ExternalDependency
@@ -338,7 +338,7 @@ namespace B{
 
 
 
-    def test_enums(self, module_enums):
+    def test_enums(self, ):
         import pyllars
         import enums
         assert pyllars.GlobalEnum.value(pyllars.ONE) == 0
@@ -356,7 +356,7 @@ namespace B{
         assert value(pyllars.Struct.TWO) == 12
         assert value(pyllars.Struct.THREE) == 23
 
-    def test_classoperators(self, module_classoperators):
+    def test_classoperators(self, ):
         import pyllars
         import classoperators
         obj = pyllars.trial.operators.FullOperatorList();

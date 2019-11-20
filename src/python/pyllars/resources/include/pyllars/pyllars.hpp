@@ -54,27 +54,33 @@ namespace __pyllars_internal {
         }
 
         static status_t ready(){
-            static status_t status = 0;
-            static bool inited = false;
-            if (inited) return status;
-            inited = true;
+            status_t status = 0;
             if(_readyFuncs) {
                 for (auto &func: *_readyFuncs) {
-                    if(func) {status |= func();}
+                    if(func) {
+                        status |= func();
+                        if (status != 0 && PyErr_Occurred()){
+                            return status;
+                        }
+                    }
                 }
+                _readyFuncs->clear();
             }
             return status;
         }
 
         static status_t init(){
-            static status_t status = 0;
-            static bool inited = false;
-            if (inited) return status;
-            inited = true;
+            status_t status = 0;
             if(_initFuncs) {
                 for (auto &func: *_initFuncs) {
-                    if(func) {status |= func();}
+                    if(func) {
+                        status |= func();
+                        if (status != 0 && PyErr_Occurred()){
+                            return status;
+                        }
+                    }
                 }
+                _initFuncs->clear();
             }
             return status;
         }

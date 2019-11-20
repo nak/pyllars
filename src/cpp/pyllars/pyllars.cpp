@@ -148,56 +148,56 @@ namespace __pyllars_internal {
     PyObject_HEAD_INIT(nullptr)
             0,                         /*ob_size*/
 #endif
-            "BasePythonFromCWrapper",             /*tp_name*/ /*filled on init*/
-            sizeof(CommonBaseWrapper),             /*tp_basicsize*/
-            0,                         /*tp_itemsize*/
-            nullptr, //(destructor) CommonBaseWrapper::_dealloc, /*tp_dealloc*/
-            nullptr,                         /*tp_print*/
-            nullptr,                         /*tp_getattr*/
-            nullptr,                         /*tp_setattr*/
-            nullptr,                         /*tp_compare*/
-            nullptr,                         /*tp_repr*/
-            nullptr,          /*tp_as_number*/
-            nullptr,                         /*tp_as_sequence*/
-            nullptr,                         /*tp_as_mapping*/
-            nullptr,                         /*tp_hash */
-            nullptr,                         /*tp_call*/
-            nullptr,                         /*tp_str*/
-            nullptr,                         /*tp_getattro*/
-            nullptr,                         /*tp_setattro*/
-            nullptr,                         /*tp_as_buffer*/
-            Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_CHECKTYPES, /*tp_flags*/
-            "BasePythonFromCWrapper object",           /* tp_doc */
-            nullptr,                       /* tp_traverse */
-            nullptr,                       /* tp_clear */
-            nullptr,                       /* tp_richcompare */
-            0,                               /* tp_weaklistoffset */
-            nullptr,                       /* tp_iter */
-            nullptr,                       /* tp_iternext */
-            nullptr,             /* tp_methods */
-            nullptr,             /* tp_members */
-            nullptr,                         /* tp_getset */
-            nullptr,                         /* tp_base */
-            nullptr,                         /* tp_dict */
-            nullptr,                         /* tp_descr_get */
-            nullptr,                         /* tp_descr_set */
-            0,                         /* tp_dictoffset */
-            CommonBaseWrapper::__init,  /* tp_init */
-            nullptr,                         /* tp_alloc */
-            CommonBaseWrapper::_new,             /* tp_new */
-            nullptr,                         /*tp_free*/
-            nullptr,                         /*tp_is_gc*/
+        "BasePythonFromCWrapper",             /*tp_name*/ /*filled on init*/
+        sizeof(CommonBaseWrapper),             /*tp_basicsize*/
+        0,                         /*tp_itemsize*/
+        nullptr, //(destructor) CommonBaseWrapper::_dealloc, /*tp_dealloc*/
+        nullptr,                         /*tp_print*/
+        nullptr,                         /*tp_getattr*/
+        nullptr,                         /*tp_setattr*/
+        nullptr,                         /*tp_compare*/
+        nullptr,                         /*tp_repr*/
+        nullptr,          /*tp_as_number*/
+        nullptr,                         /*tp_as_sequence*/
+        nullptr,                         /*tp_as_mapping*/
+        nullptr,                         /*tp_hash */
+        nullptr,                         /*tp_call*/
+        nullptr,                         /*tp_str*/
+        nullptr,                         /*tp_getattro*/
+        nullptr,                         /*tp_setattro*/
+        nullptr,                         /*tp_as_buffer*/
+        Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_CHECKTYPES, /*tp_flags*/
+        "BasePythonFromCWrapper object",           /* tp_doc */
+        nullptr,                       /* tp_traverse */
+        nullptr,                       /* tp_clear */
+        nullptr,                       /* tp_richcompare */
+        0,                               /* tp_weaklistoffset */
+        nullptr,                       /* tp_iter */
+        nullptr,                       /* tp_iternext */
+        nullptr,             /* tp_methods */
+        nullptr,             /* tp_members */
+        nullptr,                         /* tp_getset */
+        nullptr,                         /* tp_base */
+        nullptr,                         /* tp_dict */
+        nullptr,                         /* tp_descr_get */
+        nullptr,                         /* tp_descr_set */
+        0,                         /* tp_dictoffset */
+        CommonBaseWrapper::__init,  /* tp_init */
+        nullptr,                         /* tp_alloc */
+        CommonBaseWrapper::_new,             /* tp_new */
+        nullptr,                         /*tp_free*/
+        nullptr,                         /*tp_is_gc*/
 #if PY_MAJOR_VERSION == 3
-            nullptr,                         /*tp_base*/
+        nullptr,                         /*tp_base*/
 #else
-            &CommonBaseWrapper::Base::TypePtr,                         /*tp_bases*/
+        &CommonBaseWrapper::Base::TypePtr,                         /*tp_bases*/
 #endif
-            nullptr,                         /*tp_mro*/
-            nullptr,                         /*tp_cache*/
-            nullptr,                         /*tp_subclasses*/
-            nullptr,                          /*tp_weaklist*/
-            nullptr,                          /*tp_del*/
-            0,                          /*tp_version_tag*/
+        nullptr,                         /*tp_mro*/
+        nullptr,                         /*tp_cache*/
+        nullptr,                         /*tp_subclasses*/
+        nullptr,                          /*tp_weaklist*/
+        nullptr,                          /*tp_del*/
+        0,                          /*tp_version_tag*/
     };
 
     namespace {
@@ -381,4 +381,10 @@ namespace __pyllars_internal {
         }
         return Py_None;
     }
+}
+
+#include "pyllars_namespacewrapper.hpp"
+
+namespace pyllars{
+    std::map<std::string, PyObject*> NSInfoBase::module_list;
 }

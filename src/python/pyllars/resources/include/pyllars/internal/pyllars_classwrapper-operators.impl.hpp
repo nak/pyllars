@@ -14,7 +14,7 @@ namespace __pyllars_internal {
     void PythonClassWrapper<T,
             typename std::enable_if<is_rich_class<T>::value>::type>::
     template Op<kind, ReturnType( core_type<T>::type::*)(), method>::addUnaryOperator() {
-        PythonClassWrapper<T>::_unaryOperators[kind] = (unaryfunc) MethodContainer<pyllars_empty_kwlist, ReturnType(T::*)(), method>::callAsUnaryFunc;
+        PythonClassWrapper<T>::_unaryOperators()[kind] = (unaryfunc) MethodContainer<pyllars_empty_kwlist, ReturnType(T::*)(), method>::callAsUnaryFunc;
     }
 
 

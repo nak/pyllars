@@ -313,22 +313,3 @@ class TestBasics:
         assert +c_type(121) == 121
         i = c_type(12)
         assert +i is i
-
-    def test_enums(self, testglobals):
-        assert testglobals.FIRST == 1
-        assert testglobals.SECOND == 2
-        assert testglobals.THIRD == 3
-        assert testglobals.UnsizedClassEnum.value(testglobals.UnsizedClassEnum.A) == 0
-        assert testglobals.UnsizedClassEnum.value(testglobals.UnsizedClassEnum.B) == 1
-        assert testglobals.UnsizedClassEnum.value(testglobals.UnsizedClassEnum.C) == 2
-        assert testglobals.SizedClassEnum.value(testglobals.SizedClassEnum.A) == -1
-        assert testglobals.SizedClassEnum.value(testglobals.SizedClassEnum.B) == -2
-        assert testglobals.SizedClassEnum.value(testglobals.SizedClassEnum.C) == -3
-        assert testglobals.Enumeration.ZERO == 0
-        assert testglobals.Enumeration.ONE == 1
-        assert testglobals.Enumeration.TWO == 2
-        assert testglobals.Enumeration.THREE == 3
-
-        assert testglobals.scoped.TestClass.INNER_ONE == 1
-        assert testglobals.scoped.TestClass.INNER_TWO == 2
-        assert testglobals.scoped.TestClass.INNER_THREE == 3

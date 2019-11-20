@@ -33,6 +33,10 @@ namespace __pyllars_internal{
                 PyErr_SetString(PyExc_ValueError, "Invalid argument keyword name or type to method call");
                 return nullptr;
             } else if (kwds) {
+                if (!pyarg){ // should be set in previous if conditional
+                    PyErr_SetString(PyExc_ValueError, "Failed to parse kwds in call to method");
+                    return nullptr;
+                }
                 auto value = toCArgument<AttrType>(*pyarg);
                 Assignment<AttrType>::assign(*member, value.value());
                 return Py_None;
@@ -44,6 +48,9 @@ namespace __pyllars_internal{
     template<const char *const name, typename CClass, typename AttrType>
     void ClassMember<name, CClass, AttrType>::
     setFrom(PyObject *pyobj) {
+        if (!pyobj){
+            throw PyllarsException(PyExc_SystemError, "Request to set attribute from nullptr object");
+        }
         if constexpr (std::is_const<AttrType>::value){
              throw PyllarsException(PyExc_TypeError, "Cannot set const class-member");
         } else if constexpr (std::is_array<AttrType>::value && ArraySize<AttrType>::size > 0){
