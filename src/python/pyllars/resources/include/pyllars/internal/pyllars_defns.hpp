@@ -8,7 +8,9 @@
 
 #include "pyllars_type_traits.hpp"
 
+
 namespace __pyllars_internal {
+    extern PyObject* NULL_ARGS();
 
     constexpr size_t ct_strlen( const char* s ) noexcept{
         return *s ? 1 + ct_strlen(s + 1) : 0;
@@ -709,6 +711,17 @@ namespace __pyllars_internal {
             return map;
         }
 
+
+        template <class Class, class Derived>
+        static PyObject* interpret_cast(PyObject* self){
+            auto self_ = (PythonClassWrapper<Class>*)self;
+            auto castWrapper = (PythonClassWrapper<Derived>*) PyObject_Call((PyObject*)PythonClassWrapper<Derived>::getPyType(),
+                                                                            NULL_ARGS(), nullptr);
+            typedef typename std::remove_reference_t <Derived> Derived_NoRef;
+            castWrapper->set_CObject(static_cast<Derived_NoRef *>(self_->get_CObject()));
+            return (PyObject*) castWrapper;
+        }
+
     protected:
         static PyTypeObject _BaseType;
 
@@ -869,7 +882,6 @@ namespace __pyllars_internal {
         PyObject* const _excType;
     };
 
-    extern PyObject* NULL_ARGS();
 
     constexpr int ERR_PYLLARS_ON_CREATE = -1;
 }

@@ -246,7 +246,7 @@ namespace B{
 }
 """
 
-    def test_anonymous(self, ):
+    def test_anonymous(self, module_anonymous):
         import pyllars
         import anonymous
         AnonInner = pyllars.trial.AnonymousInnerTypes.AnonInner
@@ -278,7 +278,7 @@ namespace B{
         assert inst.sval1 == 1
         assert inst.intval == -65535
 
-    def test_classes(self, ):
+    def test_classes(self, module_classes):
         import pyllars
         import classes
         assert pyllars.outside.ExternalDependency
@@ -338,7 +338,7 @@ namespace B{
 
 
 
-    def test_enums(self, ):
+    def test_enums(self, module_enums ):
         import pyllars
         import enums
         assert pyllars.GlobalEnum.value(pyllars.ONE) == 0
@@ -356,7 +356,21 @@ namespace B{
         assert value(pyllars.Struct.TWO) == 12
         assert value(pyllars.Struct.THREE) == 23
 
-    def test_classoperators(self, ):
+    def test_classoperators(self, module_classoperators ):
         import pyllars
         import classoperators
         obj = pyllars.trial.operators.FullOperatorList();
+        assert ((+obj).val() - obj.val()) == 0.0
+        assert abs(obj.val() - 0.134) < 0.001
+        assert abs((~obj).val() - (-0.134 - 1.2)) < 0.001
+        assert abs((obj + 2).val() - (0.134 + 2.0)) < 0.001
+        assert abs((obj - 99).val() - (0.134 - 99.0)) < 0.001
+        assert abs((obj/10.0).val() - 0.0134) < 0.001
+        obj = pyllars.trial.operators.FullOperatorList(35.0)
+        assert abs((obj & 33).val() - 33.0) < 0.001
+        assert abs((obj | 8).val() - 43.0) < 0.001
+        assert abs((obj ^ 3).val() - 32.0) < 0.001
+        assert abs((obj << 2).val() - 140.0) < 0.001
+        assert abs((obj >> 1).val() - 17.0) < 0.001
+        obj += 64
+        assert abs(obj.val() - (35.0 + 64.0)) < 0.001

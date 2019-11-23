@@ -10,6 +10,7 @@ namespace __pyllars_internal{
     int PythonClassWrapper<T&, void>::_init(PythonClassWrapper *self, PyObject *args, PyObject *kwds){
         // Must have at least one arg to reference or we ar bootstrapping
         const bool allow_null = args == NULL_ARGS();
+        __initAddCArgCasts();
         PyObject *arg = nullptr;
         if (!allow_null && PyTuple_Size(args) != 1){
             PyErr_SetString(PyExc_TypeError, "Must supply exactly  one object to reference when constructing wrapper to "

@@ -173,7 +173,7 @@ namespace __pyllars_internal {
         typedef typename func_traits<method_t>::ReturnType ReturnType;
         typedef typename func_traits<method_t>::class_type CClass;
 
-        static PyObject *call(CClass &self, method_t method, PyObject *args, PyObject *kwds) ;
+        static PyObject* call(PyObject* self, method_t method, PyObject *args, PyObject *kwds) ;
 
     protected:
 
@@ -203,14 +203,21 @@ namespace __pyllars_internal {
         static constexpr cstring type_name = func_traits<method_t>::type_name();
 
         static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds){
-            PyTypeObject * baseTyp = PythonClassWrapper<CClass>::getPyType();
-            PyTypeObject * derivedTyp = self->ob_type;
-            auto key = std::pair{baseTyp, derivedTyp};
-            if (CommonBaseWrapper::castMap().count(key) == 0) {
-                CClass *this_ = reinterpret_cast<PythonClassWrapper<CClass> *>(self)->get_CObject();
-                return MethodCallSemantics<kwlist, method_t>::call(*this_, method, args, kwds);
-            } else {
-                call(CommonBaseWrapper::castMap()[key](self), args, kwds);
+            try {
+                PyTypeObject *baseTyp = PythonClassWrapper<CClass>::getPyType();
+                PyTypeObject *derivedTyp = self->ob_type;
+                auto key = std::pair{baseTyp, derivedTyp};
+                if (CommonBaseWrapper::castMap().count(key) == 0) {
+                    return MethodCallSemantics<kwlist, method_t>::call(self, method, args, kwds);
+                } else {
+                    return call(CommonBaseWrapper::castMap()[key](self), args, kwds);
+                }
+            } catch (PyllarsException & e){
+                PyErr_SetString(e.type(), e.msg());
+                return nullptr;
+            } catch (...){
+                PyErr_SetString(PyExc_SystemError, "Unknown exception in Pyllars");
+                return nullptr;
             }
         }
 

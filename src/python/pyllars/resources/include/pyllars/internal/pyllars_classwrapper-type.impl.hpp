@@ -363,6 +363,7 @@ namespace __pyllars_internal {
             typename std::enable_if<is_rich_class<T>::value>::type>::
     _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds) {
         int status = 0;
+        __initAddCArgCasts();
         for (auto const &ready: _childrenReadyFunctions()){
             if(!ready()){
                 status |= -1;

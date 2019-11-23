@@ -113,11 +113,11 @@ namespace __pyllars_internal {
 
     template<const char *const kwlist[], typename method_t>
     PyObject* MethodCallSemantics<kwlist, method_t>::
-    call(CClass &self, method_t method, PyObject *args, PyObject *kwds) {
+    call(PyObject* self, method_t method, PyObject *args, PyObject *kwds) {
         constexpr ssize_t argsize = func_traits<method_t>::argsize;
-        const ssize_t  pyargsize = PyTuple_Size(args) + (kwds?PyDict_Size(kwds):0);
-        if constexpr(func_traits<method_t>::has_ellipsis){
-            if (pyargsize < argsize){
+        const ssize_t pyargsize = PyTuple_Size(args) + (kwds ? PyDict_Size(kwds) : 0);
+        if constexpr(func_traits<method_t>::has_ellipsis) {
+            if (pyargsize < argsize) {
                 throw PyllarsException(PyExc_TypeError, "Invalid arguments to method call");
             }
         } else {
@@ -126,11 +126,37 @@ namespace __pyllars_internal {
             }
         }
         typedef typename argGenerator<argsize>::type arg_generator_t;
-        if constexpr (std::is_void<ReturnType >::value){
-            call_methodBase(self, method, args, kwds, arg_generator_t());
+        auto self_ = reinterpret_cast<PythonClassWrapper<CClass>*>(self);
+        CClass &this_ = *self_->get_CObject();
+        if(!&this_){
+          PyErr_SetString(PyExc_SystemError, "Null object encountered unxpectedly in call to method");
+          return nullptr;
+        }
+        if constexpr (std::is_void<ReturnType>::value) {
+            call_methodBase(this_, method, args, kwds, arg_generator_t());
             return Py_None;
         } else {
-            return toPyObject<ReturnType>(call_methodBase(self, method, args, kwds, arg_generator_t()), 1);
+            //TODO: volatile and const volatile in is_same comparison?  Just create a strip_const type trait?
+            if constexpr((std::is_reference<ReturnType>::value &&  (std::is_same<CClass&, ReturnType>::value || std::is_same<const CClass&, ReturnType>::value))){
+                auto &result = call_methodBase(this_, method, args, kwds, arg_generator_t());
+                if (&result == &this_){
+                    //return a pointer/reference to "this" and so just return same Pyhton self object
+                    //(otherwise reference semantics might get hosed and worse)
+		  Py_INCREF(self);
+                    return self;
+                }
+                return toPyObject(result, 1);
+            } else if constexpr((std::is_pointer<ReturnType>::value && (std::is_same<CClass*, ReturnType>::value || std::is_same<const CClass*, ReturnType>::value))){
+                auto *result = call_methodBase(this_, method, args, kwds, arg_generator_t());
+                if (result == this_){
+                    //return a pointer/reference to "this" and so just return same Pyhton self object
+                    //(otherwise reference semantics might get hosed and worse)
+                    Py_INCREF(self);
+                    return self;
+                }
+                return toPyObject(result, 1);
+            }
+            return toPyObject<ReturnType>(call_methodBase(this_, method, args, kwds, arg_generator_t()), 1);
         }
     }
 

@@ -65,9 +65,18 @@ namespace trial{
                 return *this;
             }
 
-            FullOperatorList& operator-(const int i){
+            FullOperatorList& operator-=(const int i){
                 value -= i;
                 return *this;
+            }
+
+            FullOperatorList operator-(const int i){
+                FullOperatorList result(value - i);
+                return result;
+            }
+
+            double val(){
+                return value;
             }
 
         private:

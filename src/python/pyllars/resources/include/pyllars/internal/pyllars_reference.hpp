@@ -41,6 +41,10 @@ namespace __pyllars_internal {
 
         static int initialize();
 
+        static PyTypeObject* getRawType(){
+            return &_Type;
+        }
+
         static bool checkType(PyObject *obj);
 
         static PythonClassWrapper *fromCObject(T& cobj, PyObject *referencing = nullptr);
@@ -77,6 +81,38 @@ namespace __pyllars_internal {
     private:
         typedef int (*set_t)(PyObject *self, char *attrname, PyObject * value);
         typedef PyObject* (*get_t)(PyObject* self,  char* attrname);
+
+
+        static std::map<PyTypeObject*, PyObject*(*)(PyObject*)>& _castAsCArgument(){
+            static std::map<PyTypeObject*, PyObject*(*)(PyObject*)> container;
+            return container;
+        }
+
+        template<typename ...DerivedType>
+        struct ForEach{
+
+            template<typename T2>
+            static void insert(){
+                typedef typename std::remove_reference_t<T> T_NoRef;
+                typedef typename extent_as_pointer<T_NoRef >::type T_bare;
+                if constexpr (!std::is_pointer<T_bare>::value){
+                    _castAsCArgument().insert(std::make_pair(PythonClassWrapper<T2>::getRawType(),
+                                                             &PythonClassWrapper<T_NoRef >::template interpret_cast<T, T2>));
+                }
+            }
+
+            static void init() {
+                int unused[] = {(insert<DerivedType>(), 0)...};
+            }
+        };
+
+        static void __initAddCArgCasts(){
+            if constexpr (!std::is_const<T>::value) {
+                ForEach<T, const T &, const T,  volatile T, const volatile T &, const volatile T>::init();
+            } else {
+                ForEach<const T &, T, volatile T, const volatile T &, const volatile T>::init();
+            }
+        }
 
         constexpr static set_t setter() {
             if constexpr (is_rich_class<T>::value){
@@ -143,7 +179,6 @@ namespace __pyllars_internal {
         const T& toCArgument() const{
             return Base::toCArgument();
         }
-
     protected:
 
         static int _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds);

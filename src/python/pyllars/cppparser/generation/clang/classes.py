@@ -374,19 +374,30 @@ class CXXConstructorDeclGenerator(Generator):
             signature = self._full_signature()
             kwlist = []
             args = []
-            for c in reversed([c for c in self._node.children if isinstance(c, NodeType.ParmVarDecl)]):
-                if not c.name:
-                    break
-                kwlist.insert(0, f"\"{c.name}\"")
+            has_default = []
+            for c in[c for c in self._node.children if isinstance(c, NodeType.ParmVarDecl)]:
+                if c.name:
+                    kwlist.append(f"\"{c.name}\"")
                 args.append(c.type_text)
-            args = (", " + ", ".join(args)) if args else ""
-            kwlist_items = ", ".join(kwlist + ["nullptr"])
+                has_default.append(c.has_default_value())
+            has_default.append(True)
             body_stream.write("namespace{\n")
-            body_stream.write(f"    static const char* const kwlist[] = {{{kwlist_items}}};\n")
             body_stream.write(f"    constexpr cstring name = \"{name}\";\n")
             body_stream.write("}\n\n")
+            counter = 0
+            while has_default[len(args)]:
+                args_text = (", " + ", ".join(args)) if args else ""
+                kwlist_items = ", ".join(kwlist + ["nullptr"])
+                body_stream.write("namespace{\n")
+                body_stream.write(f"    static const char* const kwlist{counter}[] = {{{kwlist_items}}};\n")
+                body_stream.write("}\n\n")
 
-            body_stream.write(f"template class pyllars::PyllarsClassConstructor<kwlist, {self._node.parent.full_cpp_name} {args}>;")
+                body_stream.write(f"template class pyllars::PyllarsClassConstructor<kwlist{counter}, {self._node.parent.full_cpp_name} {args_text}>;")
+                counter += 1
+                if not args:
+                    break
+                args = args[:-1]
+
         finally:
             body_stream.close()
         return None, body_stream.name

@@ -31,7 +31,8 @@ namespace __pyllars_internal {
             ReturnType(core_type<T>::type::*method)(ArgType)>
     void PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::
     BinaryOp<kind, ReturnType(core_type<T>::type::*)(ArgType), method>::addBinaryOperator() {
-        PythonClassWrapper<T>::_binaryOperators()[kind] = (binaryfunc) MethodContainer<pyllars_empty_kwlist,  ReturnType(core_type<T>::type::*)(ArgType), method>::callAsBinaryFunc;
+        static constexpr cstring kwlist[] = {"operand", nullptr};
+        PythonClassWrapper<T>::_binaryOperators()[kind] = (binaryfunc) MethodContainer<kwlist,  ReturnType(core_type<T>::type::*)(ArgType), method>::callAsBinaryFunc;
     }
 
     template<typename T>
@@ -41,7 +42,7 @@ namespace __pyllars_internal {
             typename std::enable_if<is_rich_class<T>::value>::type>::
     BinaryOp<kind, ReturnType(core_type<T>::type::*)(ArgType) const, method>::addBinaryOperator() {
         static constexpr cstring kwlist[] = {"operand", nullptr};
-        PythonClassWrapper<T>::_binaryOperatorsConst()[kind] = (binaryfunc) MethodContainer< pyllars_empty_kwlist,  ReturnType(core_type<T>::type::*)(ArgType) const,
+        PythonClassWrapper<T>::_binaryOperatorsConst()[kind] = (binaryfunc) MethodContainer< kwlist,  ReturnType(core_type<T>::type::*)(ArgType) const,
                 method>::callAsBinaryFunc;
     }
 }

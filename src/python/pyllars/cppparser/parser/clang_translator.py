@@ -828,7 +828,7 @@ class NodeType:
 
 
     @dataclass
-    class ParmVarDecl(LeafNode):
+    class ParmVarDecl(CompositeNode):
         col_span_loc: str
         col_loc : str
         name: str
@@ -836,6 +836,13 @@ class NodeType:
         base_type_text: Optional[str]
 
         def __init__(self, node_id, col_span_loc, col_loc, *args):
+            super().__init__(node_id, col_span_loc, col_loc)
+            while args and args[0] in ['used']:
+                args = args[1:]
+            self.has_default = False
+            while args and args[-1] == 'cinit':
+                args = args[:-1]
+                self.has_default = True
             if len(args) > 3 or len(args) == 0:
                 raise Exception(f"Extra unexpected args in ParmVarDecl: {args}")
             self.base_type_text = ""
@@ -843,14 +850,15 @@ class NodeType:
                 self.name = ""
                 self.type_text = args[0]
             elif len(args) >= 2:
-                self.name = args[1]
-                self.type_text = args[2]
+                self.name = args[0]
+                self.type_text = args[1]
             if len(args) == 3:
                 self.base_type_text = args[2]
-            assert self.name != 'used'
-            super().__init__(node_id)
             self.col_span_loc = col_span_loc
             self.col_loc = col_loc
+
+        def has_default_value(self):
+            return self.has_default
 
         def to_str(self, prefix):
             if self.base_type_text and self.name:

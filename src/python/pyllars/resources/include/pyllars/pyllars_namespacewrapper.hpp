@@ -36,9 +36,6 @@ namespace pyllars{
                     PyErr_Print();
                     fprintf(stderr, "Failed to create module '%s':  '%s'\n\n  %s\n\n", fully_qualified_name, name.c_str(),
                             docs->c_str());
-                } else {
-                    fprintf(stderr, "Created module %s: %p\n", fully_qualified_name,
-                           module_list[std::string(fully_qualified_name)]);
                 }
 #else
                 // Initialize Python2 module associated with this namespace
@@ -113,7 +110,7 @@ namespace pyllars{
                         printf("Adding %s to %s\n", NS::nsname().c_str(), Parent::nsname().c_str());
                         status = PyModule_AddObject(Parent::module(), NS::nsname().c_str(), NS::module());
 			            if (status != 0){
-			                printf("Unabla to add module '%s' to '%s':  %p %p\n", NS::nsname().c_str(), Parent::nsname().c_str(), NS::module(), Parent::module());
+			                fprintf(stderr, "Unable to add module '%s' to '%s':  %p %p\n", NS::nsname().c_str(), Parent::nsname().c_str(), NS::module(), Parent::module());
 			            }
                     }
                 } else {

@@ -20,6 +20,10 @@ namespace  __pyllars_internal {
 
         static PyTypeObject _Type;
          __int128_t(*toInt)(PyObject* obj);
+
+         static PyTypeObject* getRawType(){
+             return &_Type;
+         }
     };
 
 
@@ -284,11 +288,19 @@ namespace  __pyllars_internal {
             return _CObject;
         }
 
+        inline void set_CObject(number_type * v){
+            _CObject = v;
+        }
+
         /**
          * @return the PyTypeObject associated with this class;  initialize the type if not already initialized
          */
         static PyTypeObject *getPyType() {
             if (initialize() != 0) { return nullptr; }
+            return &_Type;
+        }
+
+        static PyTypeObject* getRawType(){
             return &_Type;
         }
 

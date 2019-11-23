@@ -272,6 +272,8 @@ namespace __pyllars_internal {
             static void addBinaryOperator();
         };
 
+        friend class CommonBaseWrapper;
+
     protected:
 
         void set_CObject(T_NoRef * value ){
@@ -305,17 +307,35 @@ namespace __pyllars_internal {
             static_assert(std::is_base_of<std::remove_reference_t <Base>, T_NoRef >::value);
             auto self_ = (PythonClassWrapper<T>*)self;
             auto castWrapper = (PythonClassWrapper<Base&>*) PyObject_Call((PyObject*)PythonClassWrapper<Base&>::getPyType(),
-                    NULL_ARGS(), nullptr);
+                                                                          NULL_ARGS(), nullptr);
             castWrapper->set_CObject(static_cast<std::remove_reference_t<Base>*>(self_->get_CObject()));
             return (PyObject*) castWrapper;
         }
+
 
         // must use object container, since code may have new and delete private and container
         // will shield us from that
         //ObjectContainer<T_NoRef> *_CObject;
         T_NoRef * _CObject;
 
+
     private:
+        template<typename ...DerivedType>
+        struct ForEach{
+            static void init() {
+                int unused[] = { (_castAsCArgument().insert(std::make_pair(PythonClassWrapper<DerivedType>::getRawType(),
+                                   &PythonClassWrapper::template interpret_cast<T, DerivedType>)), 0)...};
+            }
+        };
+
+        static void __initAddCArgCasts(){
+            static_assert(!std::is_reference<T>::value && !std::is_pointer<T>::value);
+            if constexpr (!std::is_const<T>::value) {
+                ForEach<T &, const T &, const T, volatile T &, volatile T, const volatile T &, const volatile T>::init();
+            } else {
+                ForEach<const T &, T, volatile T, const volatile T &, const volatile T>::init();
+            }
+        }
 
         static bool _isInitialized;
 
@@ -478,6 +498,11 @@ namespace __pyllars_internal {
 
         static std::map<OpBinaryEnum, binaryfunc>& _binaryOperatorsConst(){
             static std::map<OpBinaryEnum , binaryfunc> container;
+            return container;
+        }
+
+        static std::map<PyTypeObject*, PyObject*(*)(PyObject*)>& _castAsCArgument(){
+            static std::map<PyTypeObject*, PyObject*(*)(PyObject*)> container;
             return container;
         }
 

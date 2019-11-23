@@ -13,6 +13,11 @@ namespace __pyllars_internal{
         PyObject_HEAD
         static PyTypeObject _Type;
         std::function<double()> asDouble;
+
+        static PyTypeObject* getRawType(){
+            return &_Type;
+        }
+
     };
 
     template<typename number_type>
@@ -32,6 +37,10 @@ namespace __pyllars_internal{
 
         inline number_type_basic *get_CObject() const {
             return _CObject;
+        }
+
+        inline void set_CObject(number_type_basic * v){
+            _CObject = v;
         }
 
         inline static bool checkType(PyObject *const obj) {
