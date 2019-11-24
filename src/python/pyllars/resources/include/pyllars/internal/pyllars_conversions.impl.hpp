@@ -116,6 +116,12 @@ namespace __pyllars_internal {
     toCArgument(PyObject &pyobj) {
         typedef typename std::remove_cv<typename std::remove_reference<T>::type>::type T_bare;
 
+        PyTypeObject* typ = PythonClassWrapper<T>::getPyType();
+        auto* casted = (PythonClassWrapper<T>*) CommonBaseWrapper::castToCArgument<T>(&pyobj);
+        if (casted){
+            return argument_capture<T>(casted->toCArgument());
+        }
+        /*
         if constexpr(std::is_const<typename std::remove_reference<T>::type>::value || !std::is_reference<T>::value) {
             if (PythonClassWrapper<const T_bare>::checkType(&pyobj)) {
                 return argument_capture<T>((T&)((const PythonClassWrapper<const T_bare> *) &pyobj)->toCArgument());
@@ -153,92 +159,91 @@ namespace __pyllars_internal {
                 if constexpr (std::is_volatile<T>::value) {
                     return ((PythonClassWrapper<volatile T_bare &&> *) &pyobj)->toCArgument();
                 }
-            } else  if (&pyobj == Py_True || &pyobj == Py_False) {
-                if constexpr (is_bool<T_bare>::value){
-                    return argument_capture<T>(new bool(&pyobj == Py_True), false);
+            } else
+            */
+        typedef typename std::remove_reference<T_bare>::type T_NoRef;
+        if constexpr (is_bool<T_bare>::value){
+            if (&pyobj == Py_True || &pyobj == Py_False) {
+                return argument_capture<T>(new bool(&pyobj == Py_True), false);
+            }
+        } else if constexpr(std::is_enum<T_bare>::value || std::is_integral<T_bare>::value){
+            if (PyInt_Check(&pyobj)) {
+                if constexpr (std::is_signed<T_bare>::value) {
+                    auto value = (T_bare) PyInt_AsLong(&pyobj);
+                    return argument_capture<T>(new T_bare(value));
+                } else {
+                    auto value = (T_bare) PyLong_AsUnsignedLongMask(&pyobj);
+                    return argument_capture<T>(new T_bare(value));
+                }
+            } else if (PyLong_Check(&pyobj)) {
+                // TODO: throughout code: be consistent on signed vs unsigned
+                // TODO: also add checks here and throughout on limits after conversion to C integral values
+                if (std::is_signed<T>::value) {
+                    auto  value = (T_bare) PyLong_AsLongLong(&pyobj);
+                    return argument_capture<T>(new T_bare(value));
+                } else {
+                    T_bare value = (T_bare) PyLong_AsUnsignedLongLong(&pyobj);
+                    return argument_capture<T>(new T_bare(value));
                 }
             }
-            typedef typename std::remove_reference<T_bare>::type T_NoRef;
 
-            if constexpr(std::is_enum<T_bare>::value || std::is_integral<T_bare>::value){
-                if (PyInt_Check(&pyobj)) {
-                    if constexpr (std::is_signed<T_bare>::value) {
-                        auto value = (T_bare) PyInt_AsLong(&pyobj);
-                        return argument_capture<T>(new T_bare(value));
-                    } else {
-                        auto value = (T_bare) PyLong_AsUnsignedLongMask(&pyobj);
-                        return argument_capture<T>(new T_bare(value));
-                    }
-                } else if (PyLong_Check(&pyobj)) {
-                    // TODO: throughout code: be consistent on signed vs unsigned
-                    // TODO: also add checks here and throughout on limits after conversion to C integral values
-                    if (std::is_signed<T>::value) {
-                        auto  value = (T_bare) PyLong_AsLongLong(&pyobj);
-                        return argument_capture<T>(new T_bare(value));
-                    } else {
-                        T_bare value = (T_bare) PyLong_AsUnsignedLongLong(&pyobj);
-                        return argument_capture<T>(new T_bare(value));
-                    }
-                }
-
-            } else if constexpr (std::is_floating_point<T_NoRef >::value) {
-                if (PyFloat_Check(&pyobj)) {
-                    T_NoRef value = (T_NoRef) PyFloat_AsDouble(&pyobj);
-                    return argument_capture<T>(new T_NoRef(value));
-                }
-
-            } else if constexpr(is_c_string_like<T_NoRef>::value){
-                const char* text = nullptr;
-                if (PyString_Check(&pyobj)) {
-                    text= PyString_AsString(&pyobj);
-                    if (!text) {
-                        throw PyllarsException(PyExc_ValueError, "Error converting string: null pointer encountered");
-                    }
-                    return argument_capture<T>(new (const char*)(text), false);
-                } else if (CommonBaseWrapper::template checkImplicitArgumentConversion<const char*>(&pyobj)) {
-                    return argument_capture<T>(*((PythonClassWrapper<const char*> *)(&pyobj))->get_CObject());
-                } else {
-                    throw PyllarsException(PyExc_TypeError, "Invalid type or const conversion converting to C object");
-                }
-
-            } else if constexpr(is_bytes_like<T>::value) {
-                char *bytes = nullptr;
-                if (PyBytes_Check(&pyobj)) {
-                    bytes = (char *) PyBytes_AsString(&pyobj);
-                } else if (CommonBaseWrapper::template checkImplicitArgumentConversion<char *const>(&pyobj)) {
-                    bytes = *reinterpret_cast<PythonClassWrapper<char *const> * >(&pyobj)->get_CObject();
-                } else {
-                    throw PyllarsException(PyExc_TypeError, "Invalid type or const conversion converting to C object");
-                }
-                if (!bytes) { throw PyllarsException(PyExc_ValueError, "Error converting string: null pointer encountered"); }
-                return argument_capture<T>(new (char*)(bytes), false);
-            } else if constexpr (std::is_array<T>::value && ArraySize<T>::size > 0) {
-                constexpr auto size = ArraySize<T>::size;
-                typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_element;
-                typedef typename std::remove_const<T_element>::type NonConst_T_array[size];
-                if (PyList_Check(&pyobj)) {
-                    if (PyList_Size(&pyobj) != size) {
-                        throw PyllarsException(PyExc_TypeError, "Inconsistent sizes in array assignment");
-                    }
-                    NonConst_T_array *val = new NonConst_T_array[1];
-                    for (size_t i = 0; i < size; ++i) {
-                        PyObject *listitem = PyList_GetItem(&pyobj, i);
-                        if (!listitem) {
-                            throw PyllarsException(PyExc_ValueError, "Invalid null _CObject for list item in conversion to C array");
-                        }
-                        (*val)[i] = CObjectConversionHelper<T_element>::toCArgument(*listitem).value();
-                    }
-                    auto reverse_capture = [&pyobj, val]() {
-                        if constexpr(!std::is_const<T>::value) {
-                            for (size_t i = 0; i < size; ++i) {
-                                Setter<T_element>::setItem(&pyobj, i, (*val)[i]);
-                            }
-                        }
-                    };
-                    return argument_capture<T>(val, true, reverse_capture);
-                }
-
+        } else if constexpr (std::is_floating_point<T_NoRef >::value) {
+            if (PyFloat_Check(&pyobj)) {
+                T_NoRef value = (T_NoRef) PyFloat_AsDouble(&pyobj);
+                return argument_capture<T>(new T_NoRef(value));
             }
+
+        } else if constexpr(is_c_string_like<T_NoRef>::value){
+            const char* text = nullptr;
+            if (PyString_Check(&pyobj)) {
+                text= PyString_AsString(&pyobj);
+                if (!text) {
+                    throw PyllarsException(PyExc_ValueError, "Error converting string: null pointer encountered");
+                }
+                return argument_capture<T>(new (const char*)(text), false);
+            } else if (CommonBaseWrapper::template checkImplicitArgumentConversion<const char*>(&pyobj)) {
+                return argument_capture<T>(*((PythonClassWrapper<const char*> *)(&pyobj))->get_CObject());
+            } else {
+                throw PyllarsException(PyExc_TypeError, "Invalid type or const conversion converting to C object");
+            }
+
+        } else if constexpr(is_bytes_like<T>::value) {
+            char *bytes = nullptr;
+            if (PyBytes_Check(&pyobj)) {
+                bytes = (char *) PyBytes_AsString(&pyobj);
+            } else if (CommonBaseWrapper::template checkImplicitArgumentConversion<char *const>(&pyobj)) {
+                bytes = *reinterpret_cast<PythonClassWrapper<char *const> * >(&pyobj)->get_CObject();
+            } else {
+                throw PyllarsException(PyExc_TypeError, "Invalid type or const conversion converting to C object");
+            }
+            if (!bytes) { throw PyllarsException(PyExc_ValueError, "Error converting string: null pointer encountered"); }
+            return argument_capture<T>(new (char*)(bytes), false);
+        } else if constexpr (std::is_array<T>::value && ArraySize<T>::size > 0) {
+            constexpr auto size = ArraySize<T>::size;
+            typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_element;
+            typedef typename std::remove_const<T_element>::type NonConst_T_array[size];
+            if (PyList_Check(&pyobj)) {
+                if (PyList_Size(&pyobj) != size) {
+                    throw PyllarsException(PyExc_TypeError, "Inconsistent sizes in array assignment");
+                }
+                NonConst_T_array *val = new NonConst_T_array[1];
+                for (size_t i = 0; i < size; ++i) {
+                    PyObject *listitem = PyList_GetItem(&pyobj, i);
+                    if (!listitem) {
+                        throw PyllarsException(PyExc_ValueError, "Invalid null _CObject for list item in conversion to C array");
+                    }
+                    (*val)[i] = CObjectConversionHelper<T_element>::toCArgument(*listitem).value();
+                }
+                auto reverse_capture = [&pyobj, val]() {
+                    if constexpr(!std::is_const<T>::value) {
+                        for (size_t i = 0; i < size; ++i) {
+                            Setter<T_element>::setItem(&pyobj, i, (*val)[i]);
+                        }
+                    }
+                };
+                return argument_capture<T>(val, true, reverse_capture);
+            }
+
         } else  {
             //non-const reference
             if (PythonClassWrapper<const T_bare>::checkType(&pyobj) ||
@@ -354,6 +359,8 @@ namespace __pyllars_internal {
                 pyobj = (PyObject *) ClassWrapper::fromCObject(var);
             }
             if (!pyobj || !ClassWrapper::checkType(pyobj)) {
+                if (PyErr_Occurred()) PyErr_Print();
+                PyErr_Clear();
                 PyErr_Format(PyExc_TypeError, "Unable to convert C type object to Python object %s: %s",
                              pyobj ? pyobj->ob_type->tp_name : "NULL OBJ", Types<T>::type_name());
                 pyobj = nullptr;

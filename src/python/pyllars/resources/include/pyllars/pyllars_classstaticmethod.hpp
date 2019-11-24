@@ -1,7 +1,8 @@
 //
 // Created by jrusnak on 10/13/19.
 //
-#include "pyllars/internal/pyllars_classwrapper.impl.hpp"
+#include "pyllars/internal/pyllars_classwrapper.hpp"
+#include "pyllars/internal/pyllars_staticfunctionsemantics.impl.hpp"
 
 #ifndef PYLLARS_PYLLARS_CLASSSTATICMETHOD_HPP
 #define PYLLARS_PYLLARS_CLASSSTATICMETHOD_HPP

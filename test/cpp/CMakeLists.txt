@@ -23,7 +23,7 @@ include_directories(.
         ../..)
 endif()
 
-add_library(setupBasicClassLib SHARED setup_basic_class.cpp )
+add_library(setupBasicClassLib SHARED setup_basic_class.cpp setup_basic_class-builder.cpp)
 add_library(setupInheritanceLib SHARED setup_inheritance_test.cpp )
 add_library(setupBitFieldsLib SHARED setup_bitfields.cpp )
 add_library(setupAnonEnumsLib SHARED setup_anon_enums.cpp )

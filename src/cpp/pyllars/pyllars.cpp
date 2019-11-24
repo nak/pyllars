@@ -2,6 +2,7 @@
 #include <cstdio>
 #include <limits>
 #include <cmath>
+#include <map>
 
 #include <pyllars/pyllars.hpp>
 #include <pyllars/internal/pyllars_pointer.impl.hpp>
@@ -141,7 +142,7 @@ namespace __pyllars_internal {
         return subtype;
     }
 
-    PyTypeObject CommonBaseWrapper::_BaseType ={
+    PyTypeObject CommonBaseWrapper::_BaseType = {
 #if PY_MAJOR_VERSION == 3
             PyVarObject_HEAD_INIT(NULL, 0)
 #else
@@ -381,6 +382,43 @@ namespace __pyllars_internal {
         }
         return Py_None;
     }
+
+    bool CommonBaseWrapper::IsClassType(PyObject* obj){
+        auto *pytype = (PyTypeObject *) PyObject_Type(obj);
+        return strncmp(pytype->tp_name, tp_name_prefix, tp_name_prefix_len) == 0;
+    }
+
+    void CommonBaseWrapper::make_reference(PyObject* obj){
+        if (_referenced) { Py_DECREF(_referenced); }
+        if (obj) { Py_INCREF(obj); }
+        _referenced = obj;
+    }
+
+    std::map< std::pair<PyTypeObject*, PyTypeObject*>, PyObject* (*)(PyObject*)> & CommonBaseWrapper::castMap() {
+        static std::map< std::pair<PyTypeObject*, PyTypeObject*>, PyObject* (*)(PyObject*)> map;
+        return map;
+    }
+
+
+    std::map<std::pair<PyTypeObject*, PyTypeObject*>, PyObject*(*)(PyObject*)>& CommonBaseWrapper::_castAsCArgument(){
+        static std::map<std::pair<PyTypeObject*, PyTypeObject*>, PyObject*(*)(PyObject*)> container;
+        return container;
+    }
+
+    PyObject *CommonBaseWrapper::_new(PyTypeObject *type, PyObject *args, PyObject *kwds){
+        (void) args;
+        (void) kwds;
+        CommonBaseWrapper *self;
+        self = (CommonBaseWrapper *) type->tp_alloc(type, 0);
+        return reinterpret_cast<PyObject*>(self);
+    }
+
+
+    bool CommonBaseWrapper::IsCFunctionType(PyObject *obj) {
+        auto *pytype = (PyTypeObject *) PyObject_Type(obj);
+        return strncmp(pytype->tp_name, ptrtp_name_prefix, ptrtp_name_prefix_len) == 0;
+    }
+
 }
 
 #include "pyllars_namespacewrapper.hpp"

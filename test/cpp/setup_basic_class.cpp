@@ -2,6 +2,7 @@
 // Created by jrusnak on 3/24/19.
 //
 #include <Python.h>
+
 #include "pyllars/pyllars.hpp"
 #include "pyllars/pyllars_class.hpp"
 #include "pyllars/pyllars_classmethod.hpp"
@@ -14,29 +15,15 @@
 #include "pyllars/pyllars_classmember.hpp"
 #include "pyllars/pyllars_classbitfield.hpp"
 #include "pyllars/pyllars_classmapoperator.hpp"
-
 #include "class_test_defns.h"
 #include "setup_basic_class.h"
 
 int BasicClass::class_member = 6234;
 const int BasicClass::class_const_member;
 
-template<>
-const char* const __pyllars_internal::TypeInfo<BasicClass>::type_name = "BasicClass";
-
-template<>
-const char* const __pyllars_internal::TypeInfo<BasicClass2>::type_name = "BasicClass2";
-
-template<>
-const char* const __pyllars_internal::TypeInfo<NonDestructible>::type_name = "NonDestructible";
-
-template<>
-const char* const __pyllars_internal::TypeInfo<EnumClass>::type_name = "EnumClass";
-
 long long convertEnum(const EnumClass &val){
     return (long long)val;
 }
-
 const char *const empty_list[] = {nullptr};
 
 template class pyllars::PyllarsClass<BasicClass const, pyllars::GlobalNS >;
@@ -55,11 +42,13 @@ template class pyllars::PyllarsClassConstructor<kwlist_copy_constr, BasicClass, 
 
 const char *const kwlist[2] = {"_CObject", nullptr};
 
+
 template class pyllars::PyllarsClassConstructor<kwlist_copy_constr, BasicClass, const double>;
 
 template class pyllars::PyllarsClassMapOperator<int& (BasicClass::*)(const char* const), &BasicClass::operator[]>;
 
 template class pyllars::PyllarsClassMapOperator<const int& (BasicClass::*)(const char* const) const, &BasicClass::operator[]>;
+
 
 template class pyllars::PyllarsClassMember<const_int_member_name, BasicClass, const int, &BasicClass::const_int_value>;
 
@@ -137,3 +126,4 @@ template PyObject* __pyllars_internal::toPyObject<double>(double, const ssize_t)
 template PyObject* __pyllars_internal::toPyArgument<BasicClass const&>(BasicClass const &, const ssize_t);
 
 template __pyllars_internal::argument_capture<BasicClass> __pyllars_internal::toCArgument(PyObject&);
+

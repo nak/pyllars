@@ -10,6 +10,7 @@
 #include "pyllars/internal/pyllars_floating_point.hpp"
 #include "pyllars/internal/pyllars_integer.hpp"
 #include "pyllars/internal/pyllars_classwrapper.impl.hpp"
+#include "pyllars/internal/pyllars_reference.impl.hpp"
 #include "pyllars_reference.impl.hpp"
 
 namespace __pyllars_internal {
@@ -213,9 +214,11 @@ namespace __pyllars_internal {
                                                                                  self);
                     }
                 } else {
-                    res = (PyObject *) PythonClassWrapper<T_base &>::fromCObject(var);
+                    res = (PyObject *) PythonClassWrapper<T_base &>::fromCObject(var, self);
                 }
                 if (!res) {
+                    if (PyErr_Occurred()) PyErr_Print();
+                    PyErr_Clear();
                     PyErr_SetString(PyExc_TypeError, "Unknown error creating wrapper to C element");
                     return nullptr;
                 }
@@ -505,7 +508,8 @@ namespace __pyllars_internal {
             }
             delete self->_byte_bucket;
         } else if(!self->_referenced){
-            //delete self->_CObject;
+            //DO NOT delete:  this pointer could have been shared internal to some call made within C++ code base,
+            //untracked by Python
         }
         if (self->_referenced) {
             Py_XDECREF(self->_referenced);
@@ -775,7 +779,7 @@ namespace __pyllars_internal {
         PyTypeObject *const coreTypePtr = PythonClassWrapper<typename core_type<T>::type>::getPyType();
         self->template populate_type_info<T>(&checkType, coreTypePtr);
 
-        int result = Base::_initbase(self, args, kwds, &_Type);
+        int result = Base::_initbase(self, args, kwds, getPyType());
 
         if (result == ERROR_TYPE_MISMATCH && (ptr_depth<T>::value == 1) &&
             (PythonClassWrapper<const char *>::checkType((PyObject *) self) ||

@@ -45,10 +45,9 @@ SetupAnonEnums::SetUpTestSuite(){
     }
     {
         static const char *const value[] = {"_CObject", nullptr};
-        PythonClassWrapper<decltype(ClassWithEnum::FIRST)>::addConstructor<decltype(ClassWithEnum::FIRST)>(
-                value);
+        PythonClassWrapper<decltype(ClassWithEnum::FIRST)>::addConstructor<value, decltype(ClassWithEnum::FIRST)>();
         typedef decltype(ClassWithEnum::FIRST) enum_type;
-        PythonClassWrapper<ClassWithEnum>::addConstructor<>(empty_list);
+        PythonClassWrapper<ClassWithEnum>::addConstructor<empty_list>;
         PythonClassWrapper<enum_type>::addEnumValue<enum_type>("FIRST", ClassWithEnum::FIRST);
         PythonClassWrapper<enum_type>::addEnumValue("SECOND", ClassWithEnum::SECOND);
         PythonClassWrapper<enum_type>::addEnumValue("THIRD", ClassWithEnum::THIRD);

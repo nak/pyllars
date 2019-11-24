@@ -18,10 +18,10 @@ namespace __pyllars_internal {
     }
 
     template<typename T>
-    template< typename ...Args>
+    template< const char* const kwlist[], typename ...Args>
     void PythonClassWrapper<T,
             typename std::enable_if<is_rich_class<T>::value>::type>::
-    addConstructor(const char *const kwlist[]){
+    addConstructor(){
         addConstructorBase(kwlist, &create<Args...>);
     }
 

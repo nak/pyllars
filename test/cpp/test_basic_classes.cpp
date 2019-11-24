@@ -54,6 +54,46 @@ TEST_F(SetupBasicClass, TestBasicClassNew) {
     Py_DECREF(obj);
 }
 
+
+TEST_F(SetupBasicClass, TestBasicClassConst) {
+    using namespace __pyllars_internal;
+    PyObject *const_type = PyObject_GetAttrString((PyObject*)PythonClassWrapper<BasicClass>::getPyType(), "const");
+    PyObject *new_op = PyObject_GetAttrString(const_type, "new");
+
+    ASSERT_NE(new_op, nullptr);
+    ASSERT_FALSE(PyErr_Occurred());
+
+    PyObject* args_tuple1 = PyTuple_New(1);
+    PyTuple_SetItem(args_tuple1, 0, PyFloat_FromDouble(1.1));
+    PyObject* args_tuple2 = PyTuple_New(2);
+    PyTuple_SetItem(args_tuple2, 0, PyFloat_FromDouble(2.2));
+    PyTuple_SetItem(args_tuple2, 1, PyUnicode_FromString("unused"));
+
+    PyObject* tuple_list = PyList_New(0);
+    PyList_Append(tuple_list, args_tuple1);
+    PyList_Append(tuple_list, args_tuple2);
+
+    PyObject* call_args = PyTuple_New(1);
+    PyTuple_SetItem(call_args, 0, tuple_list);
+    PyObject* obj = PyObject_Call(new_op, call_args, nullptr);
+    ASSERT_FALSE(PyErr_Occurred());
+    ASSERT_NE(obj, nullptr);
+    Py_DECREF(obj);
+
+    PyTuple_SetItem(call_args, 0, args_tuple2);
+    obj = PyObject_Call(new_op, call_args, nullptr);
+    ASSERT_FALSE(PyErr_Occurred());
+    ASSERT_NE(obj, nullptr);
+    Py_DECREF(obj);
+
+    PyTuple_SetItem(call_args, 0, PyLong_FromLong(100));
+    obj = PyObject_Call(new_op, call_args, nullptr);
+    ASSERT_FALSE(PyErr_Occurred());
+    ASSERT_NE(obj, nullptr);
+
+    Py_DECREF(obj);
+}
+
 TEST_F(SetupBasicClass, TestBasicClass){
     using namespace __pyllars_internal;
     static const char* const kwlist[] = {"_CObject", nullptr};

@@ -5,7 +5,6 @@
 #ifndef PYLLARS_PYLLARS_CLASSWRAPPER_MAPOP_IMPL_HPP
 #define PYLLARS_PYLLARS_CLASSWRAPPER_MAPOP_IMPL_HPP
 #include "pyllars_classwrapper.hpp"
-#include "pyllars_classwrapper-type.impl.hpp"
 #include "pyllars_funttraits.hpp"
 
 #include <functional>

@@ -1,16 +1,15 @@
 //
 // Created by jrusnak on 10/13/19.
 //
-#include "pyllars/internal/pyllars_classwrapper.impl.hpp"
+#include "pyllars/internal/pyllars_classwrapper.hpp"
 #include "pyllars/internal/pyllars_classwrapper-enums.impl.hpp"
-#include "pyllars/internal/pyllars_type_traits.hpp"
+#include "pyllars/internal/pyllars_classwrapper.impl.hpp"
 
 #ifndef PYLLARS_PYLLARS_CLASSINSTANTITATION_IMPL_HPP
 #define PYLLARS_PYLLARS_CLASSINSTANTITATION_IMPL_HPP
 
 
 namespace pyllars {
-
 
     using namespace __pyllars_internal;
 
@@ -88,5 +87,6 @@ namespace pyllars {
 
 
 }
+
 
 #endif

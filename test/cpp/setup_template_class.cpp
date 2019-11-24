@@ -39,7 +39,7 @@ SetupTemplateClass::SetUpTestSuite() {
         typedef PythonClassWrapper <SingleTypeTemplateClassInt> Class;
         static const char *const kwlist[] = {"val", nullptr};
 
-        Class::addConstructor<const int&>(kwlist);
+        Class::addConstructor<kwlist, const int&>();
         auto status = TemplateClassInstantiation<single_type_template_name, SingleTypeTemplateClassInt >::
                 template Params< BareArgBundle<int> >::instantiate();
         ASSERT_EQ(status, 0);
@@ -48,7 +48,7 @@ SetupTemplateClass::SetUpTestSuite() {
         typedef PythonClassWrapper <SingleTypeTemplateClassCharPtr> Class;
         static const char *const kwlist[] = {"val", nullptr};
 
-        Class::addConstructor<const char*&>(kwlist);
+        Class::addConstructor<kwlist, const char*&>();
         auto status = TemplateClassInstantiation<single_type_template_name, SingleTypeTemplateClassCharPtr >::
             template Params< BareArgBundle<const char*> >::instantiate();
         ASSERT_EQ(status, 0);

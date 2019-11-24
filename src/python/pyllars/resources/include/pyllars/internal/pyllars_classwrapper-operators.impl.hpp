@@ -4,9 +4,9 @@
 
 #ifndef PYLLARS_PYLLARS_CLASSWRAPPER_OPERATORS_IMPL_HPP
 #define PYLLARS_PYLLARS_CLASSWRAPPER_OPERATORS_IMPL_HPP
+#include "pyllars/pyllars.hpp"
 #include "pyllars_classwrapper.hpp"
 #include "pyllars_methodcallsemantics.impl.hpp"
-#include "pyllars/pyllars.hpp"
 
 namespace __pyllars_internal {
     template<typename T>

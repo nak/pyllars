@@ -46,6 +46,7 @@ namespace __pyllars_internal{
     template<typename T>
     int PythonClassWrapper<T&, void>::initialize() {
         if (Base::initialize() == 0) {
+            _Type.tp_base = &PythonClassWrapper<T>::_Type;
             return PyType_Ready(&_Type);
         } else {
             PyErr_SetString(PyExc_SystemError, "Failed to initializer Python type wrapper to C object reference");

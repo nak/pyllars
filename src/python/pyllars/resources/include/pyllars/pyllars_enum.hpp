@@ -2,7 +2,6 @@
 // Created by jrusnak on 10/13/19.
 //
 #include "pyllars/internal/pyllars_classwrapper.hpp"
-#include "pyllars/internal/pyllars_classwrapper-type.impl.hpp"
 #include "pyllars/internal/pyllars_classwrapper-enums.impl.hpp"
 #include "pyllars/internal/pyllars_conversions.impl.hpp"
 

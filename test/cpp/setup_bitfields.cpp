@@ -39,7 +39,7 @@ SetupBitfields::SetUpTestSuite() {
     static const char *const empty_list[] = {nullptr};
     {
         typedef PythonClassWrapper<BitFieldContainerClass> Class;
-        Class::addConstructor<>(empty_list);
+        Class::addConstructor<empty_list>();
         __pyllars_internal::BitFieldContainer<BitFieldContainerClass>::Container<bit_name, unsigned char, 1>::getter_t getter =
                 [](const BitFieldContainerClass &c) -> unsigned char { return c.bit; };
         __pyllars_internal::BitFieldContainer<BitFieldContainerClass>::Container<bit_name, unsigned char, 1>::setter_t setter =

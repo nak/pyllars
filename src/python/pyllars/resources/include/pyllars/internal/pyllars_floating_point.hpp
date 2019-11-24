@@ -29,10 +29,7 @@ namespace __pyllars_internal{
         static PyObject* to_float(PyObject *cls, PyObject *args, PyObject *kwds);
 
         static PyTypeObject *getPyType(){
-            if(initialize() != 0){
-                return nullptr;
-            }
-            return &_Type;
+            return (initialize() == 0)?&_Type: nullptr;
         }
 
         inline number_type_basic *get_CObject() const {

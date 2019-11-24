@@ -668,23 +668,13 @@ namespace __pyllars_internal {
         } baseClass;
 
 
-        static bool IsClassType(PyObject *obj) {
-            auto *pytype = (PyTypeObject *) PyObject_Type(obj);
-            return strncmp(pytype->tp_name, tp_name_prefix, tp_name_prefix_len) == 0;
-        }
+        static bool IsClassType(PyObject *obj);
 
-        static bool IsCFunctionType(PyObject *obj) {
-            auto *pytype = (PyTypeObject *) PyObject_Type(obj);
-            return strncmp(pytype->tp_name, ptrtp_name_prefix, ptrtp_name_prefix_len) == 0;
-        }
+        static bool IsCFunctionType(PyObject *obj);
 
-        void make_reference(PyObject *obj) {
-            if (_referenced) { Py_DECREF(_referenced); }
-            if (obj) { Py_INCREF(obj); }
-            _referenced = obj;
-        }
+        void make_reference(PyObject *obj);
 
-        PyObject *getReferenced() {
+        inline PyObject *getReferenced() {
             return _referenced;
         }
 
@@ -706,37 +696,45 @@ namespace __pyllars_internal {
                    (to_is_const || !to_is_reference || !self->_is_const); // logic for conversion-is-allowed
         }
 
-        static std::map< std::pair<PyTypeObject*, PyTypeObject*>, PyObject* (*)(PyObject*)> & castMap(){
-            static std::map< std::pair<PyTypeObject*, PyTypeObject*>, PyObject* (*)(PyObject*)> map;
-            return map;
+        static std::map< std::pair<PyTypeObject*, PyTypeObject*>, PyObject* (*)(PyObject*)> & castMap();
+
+
+        template<typename Other>
+        static PyObject* castToCArgument(PyObject* self){
+            PyTypeObject * typ = PythonClassWrapper<Other>::getPyType();
+            if (typ == self->ob_type){
+                return self;
+            }
+            if(_castAsCArgument().count(std::pair{self->ob_type, typ}) > 0){
+                return _castAsCArgument()[std::pair{self->ob_type, typ}](self);
+            }
+            return nullptr;
         }
 
-
-        template <class Class, class Derived>
+        template <class Class, class Other>
         static PyObject* interpret_cast(PyObject* self){
             auto self_ = (PythonClassWrapper<Class>*)self;
-            auto castWrapper = (PythonClassWrapper<Derived>*) PyObject_Call((PyObject*)PythonClassWrapper<Derived>::getPyType(),
+            auto castWrapper = (PythonClassWrapper<Other>*) PyObject_Call((PyObject*)PythonClassWrapper<Other>::getPyType(),
                                                                             NULL_ARGS(), nullptr);
-            typedef typename std::remove_reference_t <Derived> Derived_NoRef;
-            castWrapper->set_CObject(static_cast<Derived_NoRef *>(self_->get_CObject()));
+            typedef typename std::remove_reference_t <Other> Other_NoRef;
+            castWrapper->set_CObject(reinterpret_cast<Other_NoRef *>(self_->get_CObject()));
             return (PyObject*) castWrapper;
         }
 
+        static std::map<std::pair<PyTypeObject*, PyTypeObject*>, PyObject*(*)(PyObject*)>& _castAsCArgument();
+
     protected:
+
+
+
         static PyTypeObject _BaseType;
 
         static int
-        __init(PyObject *self, PyObject *args, PyObject *kwds){
+        inline __init(PyObject *self, PyObject *args, PyObject *kwds){
             return 0;
         }
 
-        static PyObject *_new(PyTypeObject *type, PyObject *args, PyObject *kwds){
-            (void) args;
-            (void) kwds;
-            CommonBaseWrapper *self;
-            self = (CommonBaseWrapper *) type->tp_alloc(type, 0);
-            return reinterpret_cast<PyObject*>(self);
-        }
+        static PyObject *_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 
 
         template<typename T>

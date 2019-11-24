@@ -503,7 +503,7 @@ namespace __pyllars_internal {
                 PyErr_SetString(PyExc_SystemError, "Internal error getting tuple _CObject");
                 return nullptr;
             }
-            if (!bool(PyLong_Check(item)) || bool(PyObject_TypeCheck(item, &PyFloatingPtCustomBase::_Type))) {
+            if (!bool(PyLong_Check(item)) || bool(PyObject_TypeCheck(item, PyFloatingPtCustomBase::getPyType()))) {
                 PyErr_SetString(PyExc_ValueError, "Argument must be of integral type");
                 return nullptr;
             }

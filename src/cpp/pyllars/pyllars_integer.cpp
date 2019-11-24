@@ -147,7 +147,7 @@ namespace __pyllars_internal {
                 return nullptr;
             }
             auto *ret = (PyNumberCustomObject<number_type> *) PyObject_Call(
-                    (PyObject *) &PyNumberCustomObject<number_type>::_Type, emptyargs, nullptr);
+                    (PyObject *) PyNumberCustomObject<number_type>::getPyType(), emptyargs, nullptr);
             if (!ret) {
                 return nullptr;
             }
@@ -160,7 +160,7 @@ namespace __pyllars_internal {
     template<void(*func)(__int128_t &, number_type)>
     PyObject *
     NumberType<number_type>::_baseInplaceBinaryFunc(PyObject *v1, PyObject *v2) {
-        if (!PyObject_TypeCheck(v1, &PyNumberCustomObject<number_type>::_Type)) {
+        if (!PyObject_TypeCheck(v1, PyNumberCustomObject<number_type>::getPyType())) {
             PyErr_SetString(PyExc_TypeError, "Invalid types for arguments");
             Py_RETURN_NOTIMPLEMENTED;
         }
@@ -203,7 +203,7 @@ namespace __pyllars_internal {
         }
 
         auto *ret = (PyNumberCustomObject<number_type> *) PyObject_Call(
-                (PyObject *) &PyNumberCustomObject<number_type>::_Type, emptyargs, nullptr);
+                (PyObject *) PyNumberCustomObject<number_type>::getPyType(), emptyargs, nullptr);
         if (ret) {
             if constexpr(std::is_const<number_type>::value) {
                 *const_cast<typename std::remove_const<number_type>::type *>(ret->_CObject) = ret_value;
@@ -225,7 +225,7 @@ namespace __pyllars_internal {
             static PyObject *emptyargs = PyTuple_New(0);
 
             auto *ret = (PyNumberCustomObject<number_type> *) PyObject_Call(
-                    (PyObject *) &PyNumberCustomObject<number_type>::_Type, emptyargs, nullptr);
+                    (PyObject *) PyNumberCustomObject<number_type>::getPyType(), emptyargs, nullptr);
             if (!ret) {
                 return nullptr;
             }
@@ -263,9 +263,9 @@ namespace __pyllars_internal {
         } else {
             static PyObject *emptyargs = PyTuple_New(0);
             auto *retq = (PyNumberCustomObject<number_type> *) PyObject_Call(
-                    (PyObject *) &PyNumberCustomObject<number_type>::_Type, emptyargs, nullptr);
+                    (PyObject *) PyNumberCustomObject<number_type>::getPyType(), emptyargs, nullptr);
             auto *retr = (PyNumberCustomObject<number_type> *) PyObject_Call(
-                    (PyObject *) &PyNumberCustomObject<number_type>::_Type, emptyargs, nullptr);
+                    (PyObject *) PyNumberCustomObject<number_type>::getPyType(), emptyargs, nullptr);
             if (!retq || !retr) {
                 return nullptr;
             }

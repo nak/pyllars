@@ -82,22 +82,11 @@ namespace __pyllars_internal {
 
         typedef typename std::remove_reference<T>::type T_NoRef;
         typedef typename core_type<T>::type CClass;
-        typedef PyTypeObject *TypePtr;
 
         template<typename C>
         friend
         class InitHelper;
 
-        /**
-         * Initialize python type if needed
-         * @return Python-based PyTypeObject associated with T
-         */
-        static PyTypeObject* getType(){
-            if(initialize() != 0){
-                return nullptr;
-            }
-            return &_Type;
-        }
 
         /**
          * Python initialization of underlying type, called to init and register type with
@@ -137,8 +126,8 @@ namespace __pyllars_internal {
          *
          * @param kwlist: list of keyword names of parameter names for name association
          **/
-        template< typename ...Args>
-        static void addConstructor(const char *const kwlist[]);
+        template<const char*  const kwlist[], typename ...Args>
+        static void addConstructor();
 
         /**
          * add a method with a ReturnType to be avaialable in this classes' corresponding  Python type object
@@ -212,9 +201,7 @@ namespace __pyllars_internal {
 
         static bool checkType(PyObject * obj);
 
-        static PyTypeObject *getPyType(){
-            return (initialize() == 0)?&_Type:nullptr;
-        }
+        static PyTypeObject *getPyType();
 
         /**
          * Return underlying PyTypeObject, possibly uninitialized (no call to PyType_Ready is guaranteed)
@@ -312,30 +299,16 @@ namespace __pyllars_internal {
             return (PyObject*) castWrapper;
         }
 
-
         // must use object container, since code may have new and delete private and container
         // will shield us from that
         //ObjectContainer<T_NoRef> *_CObject;
         T_NoRef * _CObject;
 
 
-    private:
-        template<typename ...DerivedType>
-        struct ForEach{
-            static void init() {
-                int unused[] = { (_castAsCArgument().insert(std::make_pair(PythonClassWrapper<DerivedType>::getRawType(),
-                                   &PythonClassWrapper::template interpret_cast<T, DerivedType>)), 0)...};
-            }
-        };
 
-        static void __initAddCArgCasts(){
-            static_assert(!std::is_reference<T>::value && !std::is_pointer<T>::value);
-            if constexpr (!std::is_const<T>::value) {
-                ForEach<T &, const T &, const T, volatile T &, volatile T, const volatile T &, const volatile T>::init();
-            } else {
-                ForEach<const T &, T, volatile T, const volatile T &, const volatile T>::init();
-            }
-        }
+    private:
+
+        static void _initAddCArgCasts();
 
         static bool _isInitialized;
 
@@ -501,12 +474,7 @@ namespace __pyllars_internal {
             return container;
         }
 
-        static std::map<PyTypeObject*, PyObject*(*)(PyObject*)>& _castAsCArgument(){
-            static std::map<PyTypeObject*, PyObject*(*)(PyObject*)> container;
-            return container;
-        }
-
-        static PyTypeObject _Type;
+        static  PyTypeObject _Type;
 
     };
 
@@ -532,8 +500,8 @@ namespace __pyllars_internal {
          * Initialize python type if needed
          * @return Python-based PyTypeObject associated with T
         */
-        static PyTypeObject* getType(){
-           return Parent::getType();
+        static PyTypeObject* getPyType(){
+           return Parent::getPyType();
         }
 
         /**

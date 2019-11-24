@@ -9,6 +9,7 @@
 #include <Python.h>
 #include <structmember.h>
 #include <climits>
+#include <map>
 
 #include "pyllars/internal/pyllars_integer.hpp"
 #include "pyllars/internal/pyllars_floating_point.hpp"
@@ -33,10 +34,7 @@ namespace __pyllars_internal {
         T * get_CObject() const;
 
         static PyTypeObject *getPyType(){
-            if(initialize() != 0){
-                return nullptr;
-            }
-            return &_Type;
+            return (initialize() == 0)?&_Type:nullptr;
         }
 
         static int initialize();
@@ -83,34 +81,28 @@ namespace __pyllars_internal {
         typedef PyObject* (*get_t)(PyObject* self,  char* attrname);
 
 
-        static std::map<PyTypeObject*, PyObject*(*)(PyObject*)>& _castAsCArgument(){
-            static std::map<PyTypeObject*, PyObject*(*)(PyObject*)> container;
-            return container;
+
+        template<typename Other>
+        static void insert(){
+            typedef typename std::remove_reference_t<T> T_NoRef;
+            typedef typename extent_as_pointer<T_NoRef >::type T_bare;
+            if constexpr (!std::is_pointer<T_bare>::value){
+                auto pair = std::pair{PythonClassWrapper<T&>::getPyType(), PythonClassWrapper<Other>::getPyType()};
+                PythonClassWrapper<T>::_castAsCArgument().insert(std::pair{pair,
+                                                         &PythonClassWrapper<T_NoRef >::template interpret_cast<T&, Other>});
+            }
         }
 
-        template<typename ...DerivedType>
-        struct ForEach{
-
-            template<typename T2>
-            static void insert(){
-                typedef typename std::remove_reference_t<T> T_NoRef;
-                typedef typename extent_as_pointer<T_NoRef >::type T_bare;
-                if constexpr (!std::is_pointer<T_bare>::value){
-                    _castAsCArgument().insert(std::make_pair(PythonClassWrapper<T2>::getRawType(),
-                                                             &PythonClassWrapper<T_NoRef >::template interpret_cast<T, T2>));
-                }
-            }
-
-            static void init() {
-                int unused[] = {(insert<DerivedType>(), 0)...};
-            }
-        };
+        template<typename ...Other>
+        static void for_each_init() {
+            int unused[] = {(insert<Other>(), 0)...};
+        }
 
         static void __initAddCArgCasts(){
             if constexpr (!std::is_const<T>::value) {
-                ForEach<T, const T &, const T,  volatile T, const volatile T &, const volatile T>::init();
+                for_each_init<T, const T &, const T,  volatile T, const volatile T &, const volatile T>();
             } else {
-                ForEach<const T &, T, volatile T, const volatile T &, const volatile T>::init();
+                for_each_init<const T &, T, volatile T, const volatile T &, const volatile T>();
             }
         }
 

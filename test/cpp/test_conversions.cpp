@@ -67,8 +67,8 @@ protected:
         Py_Initialize();
         static const char* const empty[] = {nullptr};
         static const char* const kwlist[]= {"obj", nullptr};
-        PythonClassWrapper<A>::addConstructor<const A&>(kwlist);
-        PythonClassWrapper<A>::addConstructor<>(empty);
+        PythonClassWrapper<A>::addConstructor<kwlist, const A&>();
+        PythonClassWrapper<A>::addConstructor<empty>();
     }
 
 

@@ -27,7 +27,7 @@ namespace pyllars{
 
             static status_t init(){
                 using namespace __pyllars_internal;
-                PythonClassWrapper<Class>::template addConstructor<Args...>(kwlist);
+                PythonClassWrapper<Class>::template addConstructor<kwlist, Args...>();
                 return 0;
             }
 

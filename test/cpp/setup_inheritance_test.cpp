@@ -37,11 +37,11 @@ void
 SetupInheritanceTest::SetUpTestSuite() {
     SetupBasicClass::SetUpTestSuite();
     using namespace __pyllars_internal;
-    static constexpr char *const empty_list[] = {nullptr};
+    static const char *const empty_list[] = {nullptr};
     {
         static const char *const kwlist2[] = {"data", nullptr};
         typedef  PythonClassWrapper<InheritanceClass> Class;
-        Class::addConstructor<>(empty_list);
+        Class::addConstructor<empty_list>();
         Class::addMethod<new_method_name, kwlist2, int(InheritanceClass::*)(const char* const) const,
                 &InheritanceClass::new_method>();
         Class::addBaseClass<BasicClass>();
@@ -50,7 +50,7 @@ SetupInheritanceTest::SetUpTestSuite() {
 
     {
         typedef PythonClassWrapper<MultiInheritanceClass> Class;
-        Class::addConstructor<>(empty_list);
+        Class::addConstructor<empty_list>();
         static const char *const kwlist2[] = {"data", nullptr};
         Class::addMethod<create_bclass2_method_name, kwlist2,
           BasicClass2(MultiInheritanceClass::*)(),

@@ -4,10 +4,9 @@
 
 #ifndef __PYLLARS_INTERNAL__METHODCALLSEMANTICS_CPP_
 #define __PYLLARS_INTERNAL__METHODCALLSEMANTICS_CPP_
-
+#include "pyllars_varargs.hpp"
 #include "pyllars_methodcallsemantics.hpp"
 
-#include "pyllars/internal/pyllars_classwrapper.impl.hpp"
 
 namespace __pyllars_internal {
 

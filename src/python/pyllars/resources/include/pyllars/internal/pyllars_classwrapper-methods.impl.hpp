@@ -7,6 +7,8 @@
 #include "pyllars_classwrapper.hpp"
 #include "pyllars_methodcallsemantics.impl.hpp"
 #include "pyllars_funttraits.hpp"
+#include "pyllars_staticfunctionsemantics.impl.hpp"
+#include "pyllars_classwrapper-staticmethods.impl.hpp"
 
 namespace __pyllars_internal {
 
@@ -41,24 +43,6 @@ namespace __pyllars_internal {
         _addMethod<func_traits<method_t>::is_const_method>(pyMeth);
     }
 
-    template<typename T>
-    template<const char *const name, const char *const kwlist[], typename func_type, func_type method>
-    void PythonClassWrapper<T,
-            typename std::enable_if<is_rich_class<T>::value>::type>::
-    addStaticMethod() {
-        static const char *const doc = "Call class method ";
-        char *doc_string = new char[strlen(name) + strlen(doc) + 1];
-        snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
-
-        PyMethodDef pyMeth = {
-                name,
-                (PyCFunction) StaticFunctionContainer<kwlist, func_type, method>::call,
-                METH_KEYWORDS | METH_CLASS | METH_VARARGS,
-                doc_string
-        };
-
-        _addMethod<true>(pyMeth);
-    }
 }
 
 
