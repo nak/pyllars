@@ -29,8 +29,14 @@ template<>
 const char* const __pyllars_internal::TypeInfo<NonDestructible>::type_name = "NonDestructible";
 
 template class __pyllars_internal::PythonClassWrapper<NonDestructible>;
+template class __pyllars_internal::PythonClassWrapper<const NonDestructible>;
+template class __pyllars_internal::PythonClassWrapper<volatile NonDestructible>;
+template class __pyllars_internal::PythonClassWrapper<const volatile NonDestructible>;
 
 template<>
 const char* const __pyllars_internal::TypeInfo<EnumClass>::type_name = "EnumClass";
 
 template class __pyllars_internal::PythonClassWrapper<EnumClass>;
+template class __pyllars_internal::PythonClassWrapper<const EnumClass>;
+template class __pyllars_internal::PythonClassWrapper<volatile EnumClass>;
+template class __pyllars_internal::PythonClassWrapper<const volatile EnumClass>;

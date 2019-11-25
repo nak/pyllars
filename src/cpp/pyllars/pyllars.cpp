@@ -7,7 +7,8 @@
 #include <pyllars/pyllars.hpp>
 #include <pyllars/internal/pyllars_pointer.impl.hpp>
 #include <pyllars/internal/pyllars_classwrapper.impl.hpp>
-
+#include <pyllars/internal/pyllars_varargs.hpp>
+#include <pyllars/internal/pyllars_function_wrapper.hpp>
 
 static void _pyllars_import_to_top(PyObject* pyllars_mod, PyObject* module){
   if(!pyllars_mod || !module){

@@ -240,7 +240,6 @@ namespace __pyllars_internal {
 
     template<class X, class Y> using has_operator_compare = typename op_valid_impl<X, Y, std::equal_to<> >::type;
 
-
 }
 
 #endif

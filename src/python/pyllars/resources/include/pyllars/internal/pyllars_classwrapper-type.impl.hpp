@@ -13,13 +13,18 @@ namespace {
 }
 
 namespace __pyllars_internal {
+    namespace{
+        template <typename T>
+        struct Shadow {
+            char value[sizeof(T)];
+        };
 
-
-    template<typename T>
-    typename std::remove_reference<T>::type *
-    PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::get_CObject() const{
-        return _CObject;
     }
+
+    template <typename T>
+    struct TypeInfo< Shadow<T> >{
+        static constexpr cstring type_name = "?ShadowType?";
+    };
 
 
     template<typename T>
@@ -37,7 +42,6 @@ namespace __pyllars_internal {
             obj = PyObject_Call((PyObject*)PythonClassWrapper<T_NoRef*>::getPyType(), NULL_ARGS(), nullptr);
             ((PythonClassWrapper<T_NoRef*>*)obj)->_CObject =  &self_->_CObject;
             ((PythonClassWrapper<T_NoRef*>*)obj)->make_reference(self);
-//                    toPyObject<T_NoRef *>(self_->_CObject, 1); // by reference? pointer -- so probably no need
             PyErr_Clear();
             (reinterpret_cast<PythonClassWrapper<T_NoRef *>*>(obj))->make_reference(self);
         } else {
@@ -46,17 +50,6 @@ namespace __pyllars_internal {
         return obj;
     }
 
-
-    template <typename  T>
-    typename std::remove_const<T>::type &
-    PythonClassWrapper<T,typename std::enable_if<is_rich_class<T>::value>::type>::
-    toCArgument(){
-        if constexpr (std::is_const<T>::value){
-            throw PyllarsException(PyExc_TypeError, "Invalid conversion from non const reference to const reference");
-        } else {
-            return *get_CObject();
-        }
-    }
 
 
     template <typename  T>
@@ -72,33 +65,13 @@ namespace __pyllars_internal {
     >
             PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::_mapMethodCollection;
 
-    template<typename T>
-    template<typename Base>
-    void PythonClassWrapper<T,
-            typename std::enable_if<is_rich_class<T>::value>::type>::
-    addBaseClass() {
-        PyTypeObject * base = PythonClassWrapper<Base>::getRawType();
-        if (!base) return;
-        _baseClasses().insert(_baseClasses().begin(), base);
-        _childrenReadyFunctions().insert(_childrenReadyFunctions().begin(), &PythonClassWrapper<Base>::getPyType);
-        auto baseTyp = PythonClassWrapper<Base>::getRawType();
-        auto key = std::pair{baseTyp, getRawType()};
-        castMap()[key] = &cast<Base>;
-    }
-
-
-    template<typename T>
-    PyTypeObject *PythonClassWrapper<T,
-            typename std::enable_if<is_rich_class<T>::value>::type>::getPyType() {
-        return (initialize() == 0)?&_Type:nullptr;
-    }
 
     namespace {
 
         template<typename T, typename ...Other>
         void for_each_init() {
             int unused[] = {(CommonBaseWrapper::_castAsCArgument().insert(
-                    std::pair{std::pair{PythonClassWrapper<T>::getPyType(),
+                    std::pair{std::pair{PythonClassWrapper<T>::getRawType(),
                                         PythonClassWrapper<Other>::getRawType()},
                               &PythonClassWrapper<T>::template interpret_cast<T, Other>}), 0)...};
         }
@@ -107,35 +80,26 @@ namespace __pyllars_internal {
     template <typename  T>
     void PythonClassWrapper<T,typename std::enable_if<is_rich_class<T>::value>::type>::_initAddCArgCasts(){
         static_assert(!std::is_reference<T>::value && !std::is_pointer<T>::value);
-        if constexpr (!std::is_const<T>::value) {
-            for_each_init<T &, const T &, const T, volatile T &, volatile T, const volatile T &, const volatile T>();
+        typedef std::remove_cv_t <T> T_bare;
+        if constexpr (!std::is_const<T>::value && !std::is_volatile<T>::value) {
+            for_each_init<T, T_bare &, const T_bare &, const T_bare>();
+            for_each_init<T&, T_bare &, const T_bare &, T_bare &&, const T_bare &&, const T_bare>();
+            for_each_init<T&&, T_bare &, const T_bare &, T_bare &&, const T_bare &&, const T_bare>();
+        } else if (std::is_const<T>::value && !std::is_volatile<T>::value){
+            for_each_init<T, const T_bare &, const T_bare &&, T_bare , const T_bare>();
+            for_each_init<T&, const T_bare &, const T_bare &&, T_bare , const T_bare>();
+            for_each_init<T&&, const T_bare &, const T_bare &&, T_bare , const T_bare>();
+        } else if (!std::is_const<T>::value && std::is_volatile<T>::value){
+            for_each_init<T, volatile T_bare &, const volatile T_bare &, volatile T_bare &&, const volatile T_bare &&, const volatile T_bare>();
+            for_each_init<T&, volatile T_bare &, const volatile T_bare &,volatile T_bare &&, const volatile T_bare &&, const volatile T_bare>();
+            for_each_init<T&&, volatile T_bare &, const volatile T_bare &,volatile T_bare &&, const volatile T_bare &&, const volatile T_bare>();
         } else {
-            for_each_init<const T &, T, volatile T, const volatile T &, const volatile T>();
+            for_each_init<T, const volatile T_bare &,const volatile T_bare &&, volatile T_bare , const volatile T_bare>();
+            for_each_init<T&, const volatile T_bare &,  const volatile T_bare &&, volatile T_bare , const volatile T_bare>();
+            for_each_init<T&&, const volatile T_bare &,  const volatile T_bare &&, volatile T_bare , const volatile T_bare>();
         }
     }
 
-    template<typename T>
-    PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type> *
-    PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::
-    fromCObject(T_NoRef &cobj) {
-        if (!_Type.tp_name) {
-            PyErr_SetString(PyExc_RuntimeError, "Uninitialized type when creating object");
-            return nullptr;
-        }
-        PythonClassWrapper *pyobj = (PythonClassWrapper *) PyObject_Call(
-                reinterpret_cast<PyObject *>(&_Type), NULL_ARGS(), nullptr);
-        if (pyobj) {
-            if constexpr (std::is_reference<T>::value){
-                pyobj->_CObject = &cobj;
-            } else if constexpr (std::is_copy_constructible<T_NoRef>::value){
-                pyobj->_CObject = new T_NoRef(cobj);//ObjectLifecycleHelpers::Copy<T>::new_copy(cobj);
-            } else {
-                PyErr_Format(PyExc_RuntimeError, "Attempt to make copy of non-copiable type %s", Types<T>::type_name());
-                return nullptr;
-            }
-        }
-        return pyobj;
-    }
 
     template<typename T>
     bool PythonClassWrapper<T,
@@ -577,16 +541,14 @@ namespace __pyllars_internal {
             for (auto const&[name_, value]: _classEnumValues()) {
                 // can only be called after ready of Type:
 
-                struct Shadow {
-                    char value[sizeof(T)];
-                };
-                const Shadow *shadowed = reinterpret_cast<const Shadow *>(value);
-                auto *pyval = (PythonClassWrapper<const Shadow> *) PyObject_Call(
-                        (PyObject *) PythonClassWrapper<const Shadow>::getPyType(), NULL_ARGS(), nullptr);
+                const Shadow<T> *shadowed = reinterpret_cast<const Shadow<T> *>(value);
+                auto *pyval = (PythonClassWrapper<const Shadow<T> > *) PyObject_Call(
+                        (PyObject *) PythonClassWrapper<const Shadow<T> >::getPyType(), NULL_ARGS(), nullptr);
                 pyval->set_CObject(shadowed);
                 if (pyval) {
                     PyDict_SetItemString(Type.tp_dict, name_.c_str(),
                                          (PyObject *) reinterpret_cast<PythonClassWrapper<const T_NoRef> *>(pyval));
+                    ((PyObject*)pyval)->ob_type = &PythonClassWrapper::_Type;
                 } else {
                     return -1;
                 }
@@ -602,15 +564,16 @@ namespace __pyllars_internal {
             }
         }
 
-
-        static const char* const const_name = "const";
-        typedef const typename std::remove_const_t <T> T_const;
-        PyDict_SetItemString(Type.tp_dict, const_name,  (PyObject*)PythonClassWrapper<T_const>::getRawType());
-
-        static const char* const volatile_name = "volatile";
-        typedef volatile typename std::remove_volatile_t <T> T_volatile;
-        PyDict_SetItemString(Type.tp_dict, volatile_name,  (PyObject*)PythonClassWrapper<T_volatile>::getRawType());
-
+        if constexpr (!std::is_const<T>::value) {
+            static const char *const const_name = "const";
+            typedef const typename std::remove_const_t<T> T_const;
+            PyDict_SetItemString(Type.tp_dict, const_name, (PyObject *) PythonClassWrapper<T_const>::getPyType());
+        }
+        if constexpr(!std::is_volatile<T>::value) {
+            static const char *const volatile_name = "volatile";
+            typedef volatile typename std::remove_volatile_t<T> T_volatile;
+            PyDict_SetItemString(Type.tp_dict, volatile_name, (PyObject *) PythonClassWrapper<T_volatile>::getPyType());
+        }
 
         if (PyType_Ready(&Type) < 0) {
             PyErr_SetString(PyExc_RuntimeError, "Failed to set_up type!");

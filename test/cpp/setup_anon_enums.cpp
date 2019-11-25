@@ -8,6 +8,7 @@
 
 #include "pyllars/pyllars.hpp"
 #include "pyllars/internal/pyllars_classwrapper.impl.hpp"
+#include "pyllars/internal/pyllars_classwrapper-type.impl.hpp"
 #include "pyllars/internal/pyllars_pointer.impl.hpp"
 #include "pyllars/internal/pyllars_membersemantics.impl.hpp"
 #include "pyllars/internal/pyllars_classmembersemantics.impl.hpp"
@@ -28,8 +29,17 @@ typedef const char c_string[];
 
 constexpr c_string bit_name = "bit";
 constexpr const char EnumName[] = "Enum";
+constexpr const char ClassWithEnumName[] = "ClassWithEnum";
 constexpr const char * enum_names[] = {"ZERO", "ONE", "TWO"};
+constexpr const char * cwenum_names[] = {"FIRST", "SECOND", "THIRD"};
+
+template class pyllars::PyllarsClass<ClassWithEnum, pyllars::GlobalNS>;
+template class pyllars::PyllarsClassConstructor<emptylist, ClassWithEnum>;
 template class pyllars::PyllarsEnum<EnumName, Enum, pyllars::GlobalNS , enum_names, ZERO, ONE, TWO>;
+template class pyllars::PyllarsClassConstructor<emptylist, Enum>;
+template class pyllars::PyllarsEnum<ClassWithEnumName, decltype(ClassWithEnum::FIRST), ClassWithEnum, cwenum_names,
+        ClassWithEnum::FIRST, ClassWithEnum::SECOND, ClassWithEnum::THIRD>;
+template class pyllars::PyllarsClassConstructor<emptylist, decltype(ClassWithEnum::FIRST)>;
 
 void
 SetupAnonEnums::SetUpTestSuite(){
@@ -45,15 +55,6 @@ SetupAnonEnums::SetUpTestSuite(){
     }
     {
         static const char *const value[] = {"_CObject", nullptr};
-        PythonClassWrapper<decltype(ClassWithEnum::FIRST)>::addConstructor<value, decltype(ClassWithEnum::FIRST)>();
-        typedef decltype(ClassWithEnum::FIRST) enum_type;
-        PythonClassWrapper<ClassWithEnum>::addConstructor<empty_list>;
-        PythonClassWrapper<enum_type>::addEnumValue<enum_type>("FIRST", ClassWithEnum::FIRST);
-        PythonClassWrapper<enum_type>::addEnumValue("SECOND", ClassWithEnum::SECOND);
-        PythonClassWrapper<enum_type>::addEnumValue("THIRD", ClassWithEnum::THIRD);
-        PythonClassWrapper<ClassWithEnum>::addClassObject("FIRST", __pyllars_internal::toPyObject(ClassWithEnum::FIRST, 1));
-        PythonClassWrapper<ClassWithEnum>::addClassObject("SECOND", __pyllars_internal::toPyObject(ClassWithEnum::SECOND, 1));
-        PythonClassWrapper<ClassWithEnum>::addClassObject("THIRD", __pyllars_internal::toPyObject(ClassWithEnum::THIRD, 1));
         ASSERT_EQ(PythonClassWrapper<ClassWithEnum>::initialize(), 0);
 
     }

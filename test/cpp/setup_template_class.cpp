@@ -14,6 +14,7 @@
 #include <pyllars/pyllars_classmethod.hpp>
 #include <pyllars/pyllars_class.hpp>
 #include <pyllars/pyllars_classconstructor.hpp>
+#include "pyllars/internal/pyllars_classwrapper-type.impl.hpp"
 
 
 template<>

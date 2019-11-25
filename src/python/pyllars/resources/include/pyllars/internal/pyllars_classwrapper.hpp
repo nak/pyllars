@@ -201,7 +201,9 @@ namespace __pyllars_internal {
 
         static bool checkType(PyObject * obj);
 
-        static PyTypeObject *getPyType();
+        static PyTypeObject *getPyType(){
+            return (initialize() == 0)?&_Type:nullptr;
+        }
 
         /**
          * Return underlying PyTypeObject, possibly uninitialized (no call to PyType_Ready is guaranteed)
@@ -226,7 +228,9 @@ namespace __pyllars_internal {
         /**
          * return the C-like object associated with this Python wrapper
          */
-        typename PythonClassWrapper::T_NoRef *get_CObject() const;
+        typename PythonClassWrapper::T_NoRef *get_CObject() const{
+            return _CObject;
+        }
 
         typename std::remove_const<T>::type& toCArgument();
         const T& toCArgument() const;

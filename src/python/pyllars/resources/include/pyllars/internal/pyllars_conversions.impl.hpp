@@ -119,7 +119,7 @@ namespace __pyllars_internal {
         PyTypeObject* typ = PythonClassWrapper<T>::getPyType();
         auto* casted = (PythonClassWrapper<T>*) CommonBaseWrapper::castToCArgument<T>(&pyobj);
         if (casted){
-            return argument_capture<T>(casted->toCArgument());
+            return argument_capture<T>(casted->get_CObject());
         }
         /*
         if constexpr(std::is_const<typename std::remove_reference<T>::type>::value || !std::is_reference<T>::value) {

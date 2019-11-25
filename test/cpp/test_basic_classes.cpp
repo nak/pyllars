@@ -216,7 +216,7 @@ TEST_F(SetupBasicClass, TestClassEnums){
     using namespace __pyllars_internal;
     typedef PythonClassWrapper< EnumClass> Class;
 
-    PyObject* ONE_E = PyObject_GetAttrString((PyObject*)Class::getType(), "E_ONE");
+    PyObject* ONE_E = PyObject_GetAttrString((PyObject*)Class::getPyType(), "E_ONE");
     ASSERT_NE(ONE_E, nullptr);
     ASSERT_NE((((Class*)ONE_E)->get_CObject()), nullptr);
     ASSERT_EQ(*(((Class*)ONE_E)->get_CObject()), EnumClass::E_ONE);

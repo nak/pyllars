@@ -717,7 +717,7 @@ namespace __pyllars_internal {
             auto castWrapper = (PythonClassWrapper<Other>*) PyObject_Call((PyObject*)PythonClassWrapper<Other>::getPyType(),
                                                                             NULL_ARGS(), nullptr);
             typedef typename std::remove_reference_t <Other> Other_NoRef;
-            castWrapper->set_CObject(reinterpret_cast<Other_NoRef *>(self_->get_CObject()));
+            castWrapper->set_CObject(const_cast<Other_NoRef *>(self_->get_CObject()));
             return (PyObject*) castWrapper;
         }
 

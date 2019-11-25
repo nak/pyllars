@@ -24,6 +24,7 @@
 #include "pyllars/pyllars_classmember.hpp"
 #include "pyllars/pyllars_classbitfield.hpp"
 #include "pyllars/pyllars_class.hpp"
+#include "pyllars/internal/pyllars_classwrapper-type.impl.hpp"
 
 struct A{
     int ivalue;

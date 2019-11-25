@@ -5,6 +5,7 @@
 
 #include "pyllars/pyllars.hpp"
 #include "pyllars/internal/pyllars_classwrapper.impl.hpp"
+#include "pyllars/internal/pyllars_classwrapper-type.impl.hpp"
 #include "pyllars/internal/pyllars_pointer.impl.hpp"
 #include "pyllars/internal/pyllars_membersemantics.impl.hpp"
 #include "pyllars/internal/pyllars_classmembersemantics.impl.hpp"

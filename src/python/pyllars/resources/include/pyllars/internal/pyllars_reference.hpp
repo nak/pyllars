@@ -33,6 +33,10 @@ namespace __pyllars_internal {
 
         T * get_CObject() const;
 
+        void set_CObject(T* const & v){
+            return PythonClassWrapper<T>::set_CObject(v);
+        }
+
         static PyTypeObject *getPyType(){
             return (initialize() == 0)?&_Type:nullptr;
         }
@@ -61,9 +65,6 @@ namespace __pyllars_internal {
             return Base::toCArgument();
         }
 
-        void set_CObject(T* value){
-            PythonClassWrapper<T >::set_CObject(value);
-        }
         /**
          * Add a base class to this Python definition (called before initialize)
          **/
@@ -149,10 +150,18 @@ namespace __pyllars_internal {
             return PythonClassWrapper<T>::get_CObject();
         }
 
+        void set_CObject(T* const & v){
+            return PythonClassWrapper<T>::set_CObject(v);
+        }
+
         static PyTypeObject *getPyType(){
             if(initialize() != 0){
                 return nullptr;
             }
+            return &_Type;
+        }
+
+        static PyTypeObject *getRawType(){
             return &_Type;
         }
 
