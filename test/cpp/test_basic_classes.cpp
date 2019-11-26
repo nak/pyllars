@@ -18,40 +18,47 @@
 
 TEST_F(SetupBasicClass, TestBasicClassNew) {
     using namespace __pyllars_internal;
-    PyObject *new_op = PyObject_GetAttrString((PyObject*)PythonClassWrapper<BasicClass>::getPyType(), "new");
+    PyObject *new_op = PyObject_GetAttrString((PyObject *) PythonClassWrapper<BasicClass>::getPyType(), "new");
 
     ASSERT_NE(new_op, nullptr);
     ASSERT_FALSE(PyErr_Occurred());
 
-    PyObject* args_tuple1 = PyTuple_New(1);
+    PyObject *args_tuple1 = PyTuple_New(1);
     PyTuple_SetItem(args_tuple1, 0, PyFloat_FromDouble(1.1));
-    PyObject* args_tuple2 = PyTuple_New(2);
+    PyObject *args_tuple2 = PyTuple_New(2);
     PyTuple_SetItem(args_tuple2, 0, PyFloat_FromDouble(2.2));
     PyTuple_SetItem(args_tuple2, 1, PyUnicode_FromString("unused"));
+    PyObject *call_args = PyTuple_New(1);
 
-    PyObject* tuple_list = PyList_New(0);
-    PyList_Append(tuple_list, args_tuple1);
-    PyList_Append(tuple_list, args_tuple2);
+    {
+        PyObject *tuple_list = PyList_New(0);
+        PyList_Append(tuple_list, args_tuple1);
+        PyList_Append(tuple_list, args_tuple2);
 
-    PyObject* call_args = PyTuple_New(1);
-    PyTuple_SetItem(call_args, 0, tuple_list);
+        PyTuple_SetItem(call_args, 0, tuple_list);
+
+        PyObject *obj = PyObject_Call(new_op, call_args, nullptr);
+        ASSERT_FALSE(PyErr_Occurred());
+        ASSERT_NE(obj, nullptr);
+        Py_DECREF(obj);
+    }
+
+    PyTuple_SetItem(call_args, 0, args_tuple2);
     PyObject* obj = PyObject_Call(new_op, call_args, nullptr);
     ASSERT_FALSE(PyErr_Occurred());
     ASSERT_NE(obj, nullptr);
     Py_DECREF(obj);
 
-    PyTuple_SetItem(call_args, 0, args_tuple2);
-    obj = PyObject_Call(new_op, call_args, nullptr);
-    ASSERT_FALSE(PyErr_Occurred());
-    ASSERT_NE(obj, nullptr);
-    Py_DECREF(obj);
-
     PyTuple_SetItem(call_args, 0, PyLong_FromLong(100));
+    //args_tuple2 no longer referenced as call_args "owned" it and first element is now replaced
     obj = PyObject_Call(new_op, call_args, nullptr);
     ASSERT_FALSE(PyErr_Occurred());
     ASSERT_NE(obj, nullptr);
 
     Py_DECREF(obj);
+    Py_DECREF(call_args);
+    Py_DECREF(args_tuple1);
+    Py_DECREF(new_op);
 }
 
 
@@ -68,30 +75,35 @@ TEST_F(SetupBasicClass, TestBasicClassConst) {
     PyObject* args_tuple2 = PyTuple_New(2);
     PyTuple_SetItem(args_tuple2, 0, PyFloat_FromDouble(2.2));
     PyTuple_SetItem(args_tuple2, 1, PyUnicode_FromString("unused"));
+    PyObject *call_args = PyTuple_New(1);
 
-    PyObject* tuple_list = PyList_New(0);
-    PyList_Append(tuple_list, args_tuple1);
-    PyList_Append(tuple_list, args_tuple2);
+    {
+        PyObject *tuple_list = PyList_New(0);
+        PyList_Append(tuple_list, args_tuple1);
+        PyList_Append(tuple_list, args_tuple2);
 
-    PyObject* call_args = PyTuple_New(1);
-    PyTuple_SetItem(call_args, 0, tuple_list);
+        PyTuple_SetItem(call_args, 0, tuple_list);
+        PyObject *obj = PyObject_Call(new_op, call_args, nullptr);
+        ASSERT_FALSE(PyErr_Occurred());
+        ASSERT_NE(obj, nullptr);
+        Py_DECREF(obj);
+    }
+
+    PyTuple_SetItem(call_args, 0, args_tuple2);
     PyObject* obj = PyObject_Call(new_op, call_args, nullptr);
     ASSERT_FALSE(PyErr_Occurred());
     ASSERT_NE(obj, nullptr);
     Py_DECREF(obj);
 
-    PyTuple_SetItem(call_args, 0, args_tuple2);
-    obj = PyObject_Call(new_op, call_args, nullptr);
-    ASSERT_FALSE(PyErr_Occurred());
-    ASSERT_NE(obj, nullptr);
-    Py_DECREF(obj);
-
     PyTuple_SetItem(call_args, 0, PyLong_FromLong(100));
+    //args_tuple2, which was solely owned by call_args is now reference count 0
     obj = PyObject_Call(new_op, call_args, nullptr);
     ASSERT_FALSE(PyErr_Occurred());
     ASSERT_NE(obj, nullptr);
-
     Py_DECREF(obj);
+    Py_DECREF(call_args);
+    Py_DECREF(args_tuple1);
+    Py_DECREF(new_op);
 }
 
 TEST_F(SetupBasicClass, TestBasicClass){
@@ -249,24 +261,25 @@ TEST_F(SetupBasicClass, TestClassEnums){
 
 TEST_F(SetupBasicClass, TestBasicClassOffNominal) {
     using namespace __pyllars_internal;
-    static const char *const kwlist[] = {"_CObject", nullptr};
-    static const char *const empty_list[] = {nullptr};
-    static const char *const kwlist_copy_constr[] = {"obj", nullptr};
-    PyObject *args = PyTuple_New(2);
-    PyTuple_SetItem(args, 0, PyLong_FromLong(1));
-    PyTuple_SetItem(args, 1, PyLong_FromLong(2));
-    PyObject *obj = PyObject_Call((PyObject *) PythonClassWrapper<BasicClass>::getPyType(),
-                                  args, nullptr);
-    ASSERT_EQ(obj, nullptr);
-    ASSERT_TRUE(PyErr_Occurred());
+    {
+        PyObject *args = PyTuple_New(2);
+        PyTuple_SetItem(args, 0, PyLong_FromLong(1));
+        PyTuple_SetItem(args, 1, PyLong_FromLong(2));
+        PyObject *obj = PyObject_Call((PyObject *) PythonClassWrapper<BasicClass>::getPyType(),
+                                      args, nullptr);
+        ASSERT_EQ(obj, nullptr);
+        ASSERT_TRUE(PyErr_Occurred());
+        Py_DECREF(args);
+    }
     PyErr_Clear();
     static auto empty = PyTuple_New(0);
     PyObject* kwds = PyDict_New();
     PyDict_SetItemString(kwds, "ununsed", PyLong_FromLong(33));
-    obj =  PyObject_Call((PyObject *) PythonClassWrapper<BasicClass>::getPyType(), empty, kwds);
+    PyObject* obj =  PyObject_Call((PyObject *) PythonClassWrapper<BasicClass>::getPyType(), empty, kwds);
     ASSERT_EQ(obj, nullptr);
     ASSERT_TRUE(PyErr_Occurred());
     PyErr_Clear();
+    Py_DECREF(empty);
 }
 
 TEST_F(SetupBasicClass, TestPointers){
@@ -278,7 +291,7 @@ TEST_F(SetupBasicClass, TestPointers){
     auto self = PyObject_GetAttrString(obj, "this");
     ASSERT_NE(self, nullptr);
 
-    constexpr int MAX = 1000;
+    constexpr int MAX = 10000;
     PyObject *ptrs[MAX] = {nullptr};
     ptrs[0] = self;
 
@@ -297,12 +310,18 @@ TEST_F(SetupBasicClass, TestPointers){
         auto at = PyObject_GetAttrString(derefed, "at");
         ASSERT_NE(at, nullptr);
         derefed = PyObject_Call(at, args_index_0, nullptr);
+        if (PyErr_Occurred()){
+            PyErr_Print();
+        }
         ASSERT_NE(derefed, nullptr);
         ASSERT_NE(((PythonClassWrapper<BasicClass*>*)ptrs[i])->get_CObject(), nullptr);
         ASSERT_NE(((PythonClassWrapper<BasicClass*>*) derefed)->get_CObject(), nullptr);
         ASSERT_EQ(*((PythonClassWrapper<BasicClass*>*) derefed)->get_CObject(),
                   *((PythonClassWrapper<BasicClass*>*)ptrs[i])->get_CObject());
+        Py_DECREF(derefed);
+        Py_DECREF(at);
     }
+    Py_DECREF(args_index_0);
 }
 
 TEST_F(SetupBasicClass, TestPrivateCtrDestructor){

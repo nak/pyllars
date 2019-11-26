@@ -42,13 +42,16 @@ namespace __pyllars_internal{
                                     PyTuple_SetItem(pyargs, i, pyargs_array[i]);
                                 }
                                 PyObject *ret = PyObject_Call(callable, pyargs, nullptr);
+                                Py_DECREF(pyargs);
                                 if (!ret) {
                                     throw PyllarsException(PyExc_SystemError, "Error in call to python callback-wrapper");
                                 }
                                 if constexpr (std::is_void<ReturnType>::value) {
                                     return;
                                 } else {
-                                    return toCObject<ReturnType>(ret);
+                                    auto result = toCObject<ReturnType>(ret);
+                                    Py_DECREF(ret);
+                                    return result;
                                 }
                             }
                     );

@@ -181,7 +181,9 @@ namespace __pyllars_internal{
                 for (ssize_t i = 0; i < sizeof...(ArgBundleT); ++i) {
                     PyObject** obj = params[i];
                     while (*obj) {
-                        PyTuple_SetItem(tuple, index++, *(obj++));
+                        PyTuple_SetItem(tuple, index++, *obj);
+                        Py_INCREF(*obj);
+                        ++obj;
                     }
                 }
                 return PyObject_SetItem(TemplateClassInstantiation::_dictionary, tuple, (PyObject*)PythonClassWrapper<T>::getPyType());

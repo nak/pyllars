@@ -222,10 +222,11 @@ namespace __pyllars_internal {
         } else if (PyTuple_Check(arg)) {
             auto list = PyList_New(1);
             PyList_SetItem(list, 0, arg);
+            Py_INCREF(arg);
             auto new_arg = PyTuple_New(1);
             PyTuple_SetItem(new_arg, 0, list);
             auto obj = alloc(cls, new_arg, kwds);
-            Py_INCREF(list); // new_arg selfilshly grabs reference in SetItem call
+            //Py_INCREF(list); // new_arg selfilshly grabs reference in SetItem call
             Py_DECREF(new_arg);
             return obj;
         } else if (PyList_Check(arg)) {
@@ -387,6 +388,7 @@ namespace __pyllars_internal {
                 std::for_each(_baseClasses().begin(), _baseClasses().end(),
                               [&index, Type](PyTypeObject * const baseClass) {
                                   PyTuple_SetItem(Type.tp_bases, index++, (PyObject *) baseClass);
+                                  Py_INCREF(baseClass); //SetItem steals a reference
                               });
             } else if (Basic::_baseClasses().size() == 1) {
                 Type.tp_base = Basic::_baseClasses()[0];
