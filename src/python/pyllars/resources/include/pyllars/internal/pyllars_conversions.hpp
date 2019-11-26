@@ -42,7 +42,7 @@ namespace __pyllars_internal {
          *    as C allows modification of its non-const-by-reference inputs to functions
          */
         argument_capture(T& value,  std::function<void()> reverse_capture=empty_func):
-                _reverse_capture(reverse_capture), _valueP(nullptr), _value(value), _array_allocated(false){}
+                _reverse_capture(reverse_capture), _valueP(nullptr), _value(value){}
 
         /**
          *
@@ -50,18 +50,12 @@ namespace __pyllars_internal {
          * @param array_allocated : whether array-allocation used or not to allocate instance
          * @param revers_capture : as above
          */
-        argument_capture(T_bare *value, const bool array_allocated= false,
+        argument_capture(T_bare *value,
                 std::function<void()> revers_capture=empty_func):
-            _reverse_capture(revers_capture), _valueP(value), _value(*_valueP), _array_allocated(array_allocated){}
+            _reverse_capture(revers_capture), _valueP(value), _value(*_valueP){}
 
         ~argument_capture(){
             _reverse_capture();
-            if constexpr (std::is_destructible<T_bare>::value){
-                if (_valueP){
-                    if(_array_allocated) delete [] _valueP;
-                    else delete _valueP;
-                }
-            }
             _valueP = nullptr;
         }
 
@@ -81,7 +75,6 @@ namespace __pyllars_internal {
         std::function<void()> _reverse_capture;
         T_bare * _valueP;
         T_bare & _value;
-        const bool _array_allocated;
     };
 
     /**

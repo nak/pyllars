@@ -15,6 +15,8 @@
 #include <pyllars/internal/pyllars_integer.hpp>
 #include <pyllars/internal/pyllars_floating_point.hpp>
 
+
+
 class PythonBased: public ::testing::Test{
 public:
 
@@ -39,10 +41,10 @@ protected:
 
     static void TearDownTestSuite(){
         ASSERT_FALSE(PyErr_Occurred());
-        ASSERT_TRUE(Py_FinalizeEx() == 0);
+       // ASSERT_TRUE(Py_FinalizeEx() == 0);
     }
 
-    void TearDown(){
+    void TearDown() override{
         ASSERT_FALSE(PyErr_Occurred());
         PyErr_Clear();
     }

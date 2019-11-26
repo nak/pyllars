@@ -194,14 +194,23 @@ namespace __pyllars_internal {
             }
 
         } else if constexpr(is_c_string_like<T_NoRef>::value){
-            const char* text = nullptr;
             if (PyString_Check(&pyobj)) {
-                text= PyString_AsString(&pyobj);
-                if (!text) {
-                    throw PyllarsException(PyExc_ValueError, "Error converting string: null pointer encountered");
+                if constexpr(std::is_const<T>::value){
+                    const char* const text= PyString_AsString(&pyobj);
+                    if (!text) {
+                        throw PyllarsException(PyExc_ValueError, "Error converting string: null pointer encountered");
+                    }
+                    return argument_capture<T>(text);
+
+                } else {
+                    const char* text= PyString_AsString(&pyobj);
+                    if (!text) {
+                        throw PyllarsException(PyExc_ValueError, "Error converting string: null pointer encountered");
+                    }
+                    return argument_capture<T>(text);
+
                 }
-                return argument_capture<T>(new (const char*)(text), false);
-            } else if (CommonBaseWrapper::template checkImplicitArgumentConversion<const char*>(&pyobj)) {
+             } else if (CommonBaseWrapper::template checkImplicitArgumentConversion<const char*>(&pyobj)) {
                 return argument_capture<T>(*((PythonClassWrapper<const char*> *)(&pyobj))->get_CObject());
             } else {
                 throw PyllarsException(PyExc_TypeError, "Invalid type or const conversion converting to C object");
@@ -210,14 +219,16 @@ namespace __pyllars_internal {
         } else if constexpr(is_bytes_like<T>::value) {
             char *bytes = nullptr;
             if (PyBytes_Check(&pyobj)) {
-                bytes = (char *) PyBytes_AsString(&pyobj);
+                bytes = PyBytes_AsString(&pyobj);
             } else if (CommonBaseWrapper::template checkImplicitArgumentConversion<char *const>(&pyobj)) {
                 bytes = *reinterpret_cast<PythonClassWrapper<char *const> * >(&pyobj)->get_CObject();
             } else {
                 throw PyllarsException(PyExc_TypeError, "Invalid type or const conversion converting to C object");
             }
-            if (!bytes) { throw PyllarsException(PyExc_ValueError, "Error converting string: null pointer encountered"); }
-            return argument_capture<T>(new (char*)(bytes), false);
+            if (!bytes) {
+                throw PyllarsException(PyExc_ValueError, "Error converting string: null pointer encountered");
+            }
+            return argument_capture<T>(bytes);
         } else if constexpr (std::is_array<T>::value && ArraySize<T>::size > 0) {
             constexpr auto size = ArraySize<T>::size;
             typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_element;
@@ -241,7 +252,7 @@ namespace __pyllars_internal {
                         }
                     }
                 };
-                return argument_capture<T>(val, true, reverse_capture);
+                return argument_capture<T>(val, reverse_capture);
             }
 
         } else  {
