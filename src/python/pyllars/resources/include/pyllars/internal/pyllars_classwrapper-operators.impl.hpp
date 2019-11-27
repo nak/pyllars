@@ -9,22 +9,6 @@
 #include "pyllars_methodcallsemantics.impl.hpp"
 
 namespace __pyllars_internal {
-    template<typename T>
-    template<OpUnaryEnum kind, typename ReturnType, ReturnType( core_type<T>::type::*method)()>
-    void PythonClassWrapper<T,
-            typename std::enable_if<is_rich_class<T>::value>::type>::
-    template Op<kind, ReturnType( core_type<T>::type::*)(), method>::addUnaryOperator() {
-        PythonClassWrapper<T>::_unaryOperators()[kind] = (unaryfunc) MethodContainer<pyllars_empty_kwlist, ReturnType(T::*)(), method>::callAsUnaryFunc;
-    }
-
-
-    template<typename T>
-    template<OpUnaryEnum kind, typename ReturnType, ReturnType(core_type<T>::type::*method)() const>
-    void PythonClassWrapper<T,
-            typename std::enable_if<is_rich_class<T>::value>::type>::
-    Op<kind, ReturnType(core_type<T>::type::*)() const, method>::addUnaryOperator() {
-        PythonClassWrapper<T>::_unaryOperatorsConst()[kind] = (unaryfunc) MethodContainer<pyllars_empty_kwlist, ReturnType(T::*)() const, method>::callAsUnaryFunc;
-    }
 
     template<typename T>
     template<OpBinaryEnum kind, typename ReturnType, typename ArgType,

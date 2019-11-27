@@ -93,56 +93,6 @@ namespace __pyllars_internal {
         return args;
     }
 
-    int getType(PyObject *obj, ffi_type *&type) {
-        int subtype = 0;
-        if (!obj){
-            throw "SystemError: null object encountered when getting ffi type";
-        }
-        if ( PythonClassWrapper<char>::checkType(obj)||
-            PythonClassWrapper<char&>::checkType(obj)) {
-            type = &ffi_type_sint8;
-        } else if ( PythonClassWrapper<unsigned char>::checkType(obj)||
-               PythonClassWrapper<unsigned char&>::checkType(obj)) {
-            type = &ffi_type_uint8;
-        } else if (PyInt_Check(obj) || PythonClassWrapper<int>::checkType(obj)||
-                   PythonClassWrapper<int&>::checkType(obj)) {
-            type = &ffi_type_sint32;
-        } else if (PyLong_Check(obj)|| PythonClassWrapper<long long>::checkType(obj)||
-                   PythonClassWrapper<long long&>::checkType(obj)|| PythonClassWrapper<long>::checkType(obj)||
-                   PythonClassWrapper<long&>::checkType(obj)) {
-            type = &ffi_type_sint64;
-        } else if (PythonClassWrapper<float>::checkType(obj)||
-                   PythonClassWrapper<float&>::checkType(obj)) {
-            type = &ffi_type_float;
-        }else if (PyFloat_Check(obj)|| PythonClassWrapper<double>::checkType(obj)||
-                  PythonClassWrapper<double&>::checkType(obj)) {
-            type = &ffi_type_double;
-        } else if (PyBool_Check(obj)) {
-            type = &ffi_type_uint8;
-        } else if (PyString_Check(obj) || PythonClassWrapper<const char*>::checkType(obj)||
-                    PythonClassWrapper<const char* const>::checkType(obj)) {
-            type = &ffi_type_pointer;
-            subtype = STRING_TYPE;
-#if PY_MAJOR_VERSION == 3
-        } else if (PyBytes_Check(obj)) {
-            type = &ffi_type_pointer;
-            subtype = COBJ_TYPE;
-#endif
-        } else if ( PyObject_TypeCheck(obj, &BasePtrType)) {
-            type = &ffi_type_pointer;
-            subtype = COBJ_TYPE;
-        } else if (CommonBaseWrapper::IsClassType(obj)) {
-            type = &ffi_type_pointer;
-            subtype = COBJ_TYPE;
-        } else if (CommonBaseWrapper::IsCFunctionType(obj)) {
-            subtype = FUNC_TYPE;
-            type = &ffi_type_pointer;
-        } else {
-            throw "Cannot conver Python object to C Object";
-        }
-        return subtype;
-    }
-
     PyTypeObject CommonBaseWrapper::_BaseType = {
 #if PY_MAJOR_VERSION == 3
             PyVarObject_HEAD_INIT(NULL, 0)
@@ -265,6 +215,57 @@ namespace __pyllars_internal {
             0,                          /*tp_version_tag*/
     };
 
+#ifndef _MSVC_STL_VERSION
+
+    int getType(PyObject *obj, ffi_type *&type) {
+        int subtype = 0;
+        if (!obj){
+            throw "SystemError: null object encountered when getting ffi type";
+        }
+        if ( PythonClassWrapper<char>::checkType(obj)||
+            PythonClassWrapper<char&>::checkType(obj)) {
+            type = &ffi_type_sint8;
+        } else if ( PythonClassWrapper<unsigned char>::checkType(obj)||
+               PythonClassWrapper<unsigned char&>::checkType(obj)) {
+            type = &ffi_type_uint8;
+        } else if (PyInt_Check(obj) || PythonClassWrapper<int>::checkType(obj)||
+                   PythonClassWrapper<int&>::checkType(obj)) {
+            type = &ffi_type_sint32;
+        } else if (PyLong_Check(obj)|| PythonClassWrapper<long long>::checkType(obj)||
+                   PythonClassWrapper<long long&>::checkType(obj)|| PythonClassWrapper<long>::checkType(obj)||
+                   PythonClassWrapper<long&>::checkType(obj)) {
+            type = &ffi_type_sint64;
+        } else if (PythonClassWrapper<float>::checkType(obj)||
+                   PythonClassWrapper<float&>::checkType(obj)) {
+            type = &ffi_type_float;
+        }else if (PyFloat_Check(obj)|| PythonClassWrapper<double>::checkType(obj)||
+                  PythonClassWrapper<double&>::checkType(obj)) {
+            type = &ffi_type_double;
+        } else if (PyBool_Check(obj)) {
+            type = &ffi_type_uint8;
+        } else if (PyString_Check(obj) || PythonClassWrapper<const char*>::checkType(obj)||
+                    PythonClassWrapper<const char* const>::checkType(obj)) {
+            type = &ffi_type_pointer;
+            subtype = STRING_TYPE;
+#if PY_MAJOR_VERSION == 3
+        } else if (PyBytes_Check(obj)) {
+            type = &ffi_type_pointer;
+            subtype = COBJ_TYPE;
+#endif
+        } else if ( PyObject_TypeCheck(obj, &BasePtrType)) {
+            type = &ffi_type_pointer;
+            subtype = COBJ_TYPE;
+        } else if (CommonBaseWrapper::IsClassType(obj)) {
+            type = &ffi_type_pointer;
+            subtype = COBJ_TYPE;
+        } else if (CommonBaseWrapper::IsCFunctionType(obj)) {
+            subtype = FUNC_TYPE;
+            type = &ffi_type_pointer;
+        } else {
+            throw "Cannot conver Python object to C Object";
+        }
+        return subtype;
+    }
 
     void * toFFI(PyObject* arg){
 
@@ -324,7 +325,7 @@ namespace __pyllars_internal {
         }
         return arg_value;
     }
-
+#endif
 
     template<>
     const char*

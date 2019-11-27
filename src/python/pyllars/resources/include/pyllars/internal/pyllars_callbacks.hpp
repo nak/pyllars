@@ -82,7 +82,7 @@ namespace __pyllars_internal{
 
       };
 
-      __attribute__((noinline)) static PyObject* __pycb( PyObject *pycallback, PyObject* pyargs[], const Py_ssize_t size) {
+      static PyObject* __pycb( PyObject *pycallback, PyObject* pyargs[], const Py_ssize_t size) {
         if(!pycallback || !PyCallable_Check(pycallback)){
             PyErr_SetString( PyExc_RuntimeError,
                                 "Python callback is not callable!");
@@ -110,8 +110,8 @@ namespace __pyllars_internal{
                  typename... Args>
       class CBHelper{
       public:
-          __attribute__((noinline)) static ReturnType __cbBase( PyObject* const  pycallback,  Args...  args) {
-          (void)__pycb;
+          static ReturnType __cbBase( PyObject* const  pycallback,  Args...  args) {
+            (void)__pycb;
             PyObject *pyargs[] = { toPyObject<Args>(args, true, std::extent<Args>::value)...};
             PyObject* result =__pycb( pycallback, pyargs, sizeof...(args));
             if( std::is_pointer<ReturnType>::value && (result == Py_None)){
@@ -128,7 +128,7 @@ namespace __pyllars_internal{
       template < typename... Args>
       class CBHelper<void, Args...>{
       public:
-           __attribute__((noinline))  static void __cbBase( PyObject* const  pycallback,  Args...  args) {
+          static void __cbBase( PyObject* const  pycallback,  Args...  args) {
             PyObject *pyargs[] = { toPyObject<Args>(args, true,  std::extent<Args>::value)...};
             __pycb( pycallback, pyargs, sizeof...(args));
         }

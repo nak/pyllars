@@ -13,6 +13,9 @@ pyllars/pyllars_floating_point.cpp
 pyllars/pyllars_integer.cpp ../python/pyllars/resources/include/pyllars/pyllars_namespacewrapper.hpp ../python/pyllars/resources/include/pyllars/pyllars_class.hpp ../python/pyllars/resources/include/pyllars/pyllars_classmethod.hpp pyllars/pyllars_class.cpp ../python/pyllars/resources/include/pyllars/internal/pyllars_classwrapper-methods.impl.hpp ../python/pyllars/resources/include/pyllars/internal/pyllars_funttraits.hpp)
 
 
-
 set_target_properties(pyllars PROPERTIES LIBRARY_OUTPUT_DIRECTORY ../python/pyllars/resources/lib)
-target_link_libraries(pyllars PUBLIC -Wl,-rpath '$ORIGIN' ${PYTHON_LD})
+
+if(MSVC)
+else()
+	target_link_libraries(pyllars PUBLIC -Wl,-rpath '$ORIGIN' ${PYTHON_LD})
+endif()

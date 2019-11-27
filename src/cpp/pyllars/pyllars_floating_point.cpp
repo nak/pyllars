@@ -170,7 +170,8 @@ namespace __pyllars_internal {
             if (!ret) {
                 return nullptr;
             }
-            *const_cast<typename std::remove_const<number_type_basic>::type *>(ret->_CObject) = ret_value;
+            *const_cast<std::remove_cv_t<number_type_basic> *>(ret->_CObject) =
+                    static_cast<std::remove_volatile_t <number_type_basic > >(ret_value);
             return (PyObject *) ret;
         }
 
@@ -189,7 +190,8 @@ namespace __pyllars_internal {
             if (PyErr_Occurred()) {
                 return nullptr;
             }
-            *const_cast<typename std::remove_const<number_type_basic>::type *>(((PyFloatingPtCustomObject<number_type> *) v1)->_CObject) = ret_value;
+            *const_cast<typename std::remove_cv_t<number_type_basic> *>(((PyFloatingPtCustomObject<number_type> *) v1)->_CObject) =
+                    static_cast<std::remove_cv_t <number_type_basic > >(ret_value);
             Py_INCREF(v1);
             return v1;
         }
@@ -209,7 +211,8 @@ namespace __pyllars_internal {
             auto *ret = (PyFloatingPtCustomObject<number_type> *) PyObject_Call(
                     (PyObject *) PyFloatingPtCustomObject<number_type>::getPyType(), emptyargs, nullptr);
             if (ret) {
-                *const_cast<typename std::remove_const<number_type_basic>::type *>(ret->_CObject) = ret_value;
+                *const_cast<typename std::remove_cv_t<number_type_basic> *>(ret->_CObject) =
+                        static_cast< std::remove_cv_t <number_type_basic > >(ret_value);
             }
             return (PyObject *) ret;
         }
@@ -229,7 +232,8 @@ namespace __pyllars_internal {
         }
 
         static double multiply(double value1, double value2, const bool check) {
-            const number_type_basic result = value1 * value2;
+            const std::remove_volatile_t <number_type_basic> result =
+                    static_cast< std::remove_volatile_t <number_type_basic > >(value1 * value2);
             if (check && value1 != 0 && result / value1 != value2) {
                 PyErr_SetString(PyExc_ValueError, "multiplication of values is out of range");
             }
@@ -255,13 +259,14 @@ namespace __pyllars_internal {
             const double value1 = toDouble(v1);
             const double value2 = toDouble(v2);
             const double result = ::pow(value1, value2);
-            *const_cast<typename std::remove_const<number_type_basic>::type *>(ret->_CObject) = (number_type) result;
+            *const_cast<typename std::remove_const<number_type_basic>::type *>(ret->_CObject) =
+                    static_cast<std::remove_volatile_t <number_type> >(result);
             return (PyObject *) ret;
         }
 
         static double remainder(double value1, double value2, const bool check) {
             double result;
-            if (((value1 < 0.0 and value2 > 0.0) || (value1 > 0.0 && value2 < 0.0)) && fmod(value1, value2) != 0.0) {
+            if (((value1 < 0.0 && value2 > 0.0) || (value1 > 0.0 && value2 < 0.0)) && fmod(value1, value2) != 0.0) {
                 result = value1 - (floor_div(value1, value2, false) * value2);
             } else {
                 result = fmod(value1, value2);
@@ -275,11 +280,11 @@ namespace __pyllars_internal {
         }
 
         static number_type_basic absolute(double value1) {
-            return fabs(value1);
+            return static_cast<std::remove_volatile_t<number_type_basic > >(fabs(value1));
         }
 
         static number_type_basic negative(double value) {
-            return -value;
+            return static_cast<std::remove_volatile_t <number_type_basic> >(-value);
         }
 
         static PyObject *divmod(PyObject *v1, PyObject *v2) {
@@ -306,8 +311,9 @@ namespace __pyllars_internal {
                 return nullptr;
             }
             PyObject *tuple = PyTuple_New(2);
-            *const_cast<typename std::remove_const<number_type_basic>::type *>(retq->_CObject) = (number_type_basic) quotient;
-            *const_cast<typename std::remove_const<number_type_basic>::type *>(retr->_CObject) = (number_type_basic) remainder;
+            typedef std::remove_volatile_t <number_type> nonv_number_t;
+            *const_cast<typename std::remove_const<number_type_basic>::type *>(retq->_CObject) = (nonv_number_t) quotient;
+            *const_cast<typename std::remove_const<number_type_basic>::type *>(retr->_CObject) = (nonv_number_t) remainder;
             PyTuple_SetItem(tuple, 0, reinterpret_cast<PyObject *>(retq));
             PyTuple_SetItem(tuple, 1, reinterpret_cast<PyObject *>(retr));
             return tuple;
@@ -325,7 +331,7 @@ namespace __pyllars_internal {
 
 
         static PyObject *to_pyint(PyObject *value) {
-            return PyLong_FromLong((long long) toDouble(value));
+            return PyLong_FromLongLong(static_cast<long long>(toDouble(value)));
         }
 
         static PyObject *to_pyfloat(PyObject *value) {
@@ -353,7 +359,7 @@ namespace __pyllars_internal {
             auto intv2 = (__int128_t) value2;
             intv1 /= intv2;
 
-            if (((intv1 < 0 and intv2 > 0) || (intv1 > 0 && intv2 < 0)) && (intv1 % intv2 != 0)) {
+            if (((intv1 < 0 && intv2 > 0) || (intv1 > 0 && intv2 < 0)) && (intv1 % intv2 != 0)) {
                 intv1 -= 1;
             }
             value1 = (double) intv1;
@@ -494,7 +500,7 @@ namespace __pyllars_internal {
                 PyErr_SetString(PyExc_ValueError, "Argument out of range");
                 return nullptr;
             }
-            value = (number_type) fvalue;
+            value = static_cast<std::remove_volatile_t <number_type> >(fvalue);
         }
         size_t count = 1;
         if (size == 2) {
@@ -664,7 +670,7 @@ namespace __pyllars_internal {
                     }
                     self->_CObject = reinterpret_cast<PyFloatingPtCustomObject<number_type> *>(value)->get_CObject();
                 } else {
-                    self->_CObject = new number_type_basic(fvalue);
+                    self->_CObject = new nonv_number_t(static_cast<nonv_number_t >(fvalue));
                 }
             } else {
                 PyErr_SetString(PyExc_TypeError, "Should only call with at most one arument");
@@ -694,31 +700,31 @@ namespace __pyllars_internal {
     }
 
     template
-    class PyFloatingPtCustomObject<float>;
+    struct PyFloatingPtCustomObject<float>;
 
     template
-    class PyFloatingPtCustomObject<double>;
-
-
-    template
-    class PyFloatingPtCustomObject<const float>;
-
-    template
-    class PyFloatingPtCustomObject<const double>;
+    struct PyFloatingPtCustomObject<double>;
 
 
     template
-    class PyFloatingPtCustomObject<volatile float>;
+    struct PyFloatingPtCustomObject<const float>;
 
     template
-    class PyFloatingPtCustomObject<volatile double>;
+    struct PyFloatingPtCustomObject<const double>;
 
 
     template
-    class PyFloatingPtCustomObject<volatile const float>;
+    struct PyFloatingPtCustomObject<volatile float>;
 
     template
-    class PyFloatingPtCustomObject<volatile const double>;
+    struct PyFloatingPtCustomObject<volatile double>;
+
+
+    template
+    struct PyFloatingPtCustomObject<volatile const float>;
+
+    template
+    struct PyFloatingPtCustomObject<volatile const double>;
 }
 #include "pyllars_namespacewrapper.hpp"
 #include "pyllars_class.hpp"

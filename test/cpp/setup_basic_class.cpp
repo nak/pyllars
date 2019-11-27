@@ -19,7 +19,7 @@
 #include "setup_basic_class.h"
 
 int BasicClass::class_member = 6234;
-const int BasicClass::class_const_member;
+//const int BasicClass::class_const_member;
 
 long long convertEnum(const EnumClass &val){
     return (long long)val;

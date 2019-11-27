@@ -13,7 +13,8 @@ import pytest
 TEST_RESOURCES_DIR=os.path.join(os.path.dirname(__file__), "resources")
 TEST_LIBS_DIR = os.path.join(os.path.dirname(__file__), "libs")
 os.makedirs(TEST_LIBS_DIR, exist_ok=True)
-
+sys.path.insert(0, os.path.join(".", "modules"))
+sys.path.insert(0, os.path.join("..", "..", "src", "python"))
 sys.path.insert(0, TEST_LIBS_DIR)
 
 PYLLARS_RESOURCE_DIR=pkg_resources.resource_filename("pyllars", "resources")

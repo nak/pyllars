@@ -719,7 +719,9 @@ class FieldDeclGenerator(Generator):
             return self.generate_bitfield(bitfield_specs)
 
         body_stream = open(
-            os.path.join(self.my_root_dir, self._source_path_root,  (parent.name or f"anon_{parent.node_id}") + '::' + (self._node.name or "anon_" + self._node.node_id) + '.cpp'), 'w',
+            os.path.join(self.my_root_dir, self._source_path_root,
+                         (parent.name or f"anon_{parent.node_id}") + '  ' +
+                         (self._node.name or "anon_" + self._node.node_id) + '.cpp'), 'w',
             encoding='utf-8')
         try:
             parent_name = parent.name
@@ -752,7 +754,7 @@ class FieldDeclGenerator(Generator):
         name = self._node.name or f"anon_{self._node.node_id}"
         wrapper, parent_type_name, attribute_type_name, attribute_full_cpp_name = _parent_wrapper_name(self._node)
         body_stream = open(
-            os.path.join(self.my_root_dir, self._source_path_root, (self._node.parent.name or f"anon_{self._node.parent.node_id}") + '::' +
+            os.path.join(self.my_root_dir, self._source_path_root, (self._node.parent.name or f"anon_{self._node.parent.node_id}") + '  ' +
                          (self._node.name or "anon_{self._node.node_id}") + '.cpp'), 'w',
             encoding='utf-8')
         try:

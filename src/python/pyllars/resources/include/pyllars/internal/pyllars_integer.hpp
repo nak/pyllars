@@ -1,3 +1,5 @@
+
+
 //
 // Created by jrusnak on 5/8/19.
 //
@@ -8,7 +10,11 @@
 #include "pyllars/internal/pyllars_defns.hpp"
 #include "pyllars/internal/pyllars_classwrapper.hpp"
 #include "pyllars/pyllars_namespacewrapper.hpp"
-
+#ifdef _MSC_VER
+typedef  long long __int128_t;
+#else
+asdfasdf
+#endif
 namespace  __pyllars_internal {
 
     /**
@@ -19,7 +25,7 @@ namespace  __pyllars_internal {
         PyObject_HEAD
 
         static PyTypeObject _Type;
-         __int128_t(*toInt)(PyObject* obj);
+         __int128_t (*toInt)(PyObject*);
 
          static PyTypeObject* getRawType(){
              return &_Type;
@@ -29,6 +35,7 @@ namespace  __pyllars_internal {
 
     template<typename number_type>
     struct NumberType{
+        typedef std::remove_volatile_t<number_type> nonv_number_t;
 
         static __int128_t toLongLong(PyObject *obj){
             if (PyLong_Check(obj)) {
@@ -61,22 +68,22 @@ namespace  __pyllars_internal {
         static constexpr number_type max = std::numeric_limits<number_type>::max();
 
         static bool is_out_of_bounds_add(__int128_t value1, __int128_t value2) {
-            return ((value1 > 0 && value1 > max - value2) ||
-                    (value1 < 0 && value1 < min() - value2));
+            return ((value1 > 0 && value1 > static_cast<__int128_t>(max) - value2) ||
+                    (value1 < 0 && value1 < static_cast<__int128_t>(min()) - value2));
         }
 
         static bool is_out_of_bounds_subtract(__int128_t value1, __int128_t value2) {
-            return ((value1 > 0 && value1 > max + value2) ||
-                    (value1 < 0 && value1 < min() + value2));
+            return ((value1 > 0 && value1 > static_cast<__int128_t>(max) + value2) ||
+                    (value1 < 0 && value1 < static_cast<__int128_t>(min()) + value2));
         }
 
         template<__int128_t(*func)(__int128_t, __int128_t, const bool check)>
         static PyObject *_baseBinaryFunc(PyObject *v1, PyObject *v2) ;
 
-        template<void(*func)(__int128_t &, number_type)>
+        template<void(*func)(__int128_t &, nonv_number_t)>
         static PyObject *_baseInplaceBinaryFunc(PyObject *v1, PyObject *v2);
 
-        template<number_type (*func)(__int128_t)>
+        template<nonv_number_t (*func)(__int128_t)>
         static PyObject *_baseUnaryFunc(PyObject *obj);
 
         static __int128_t add(__int128_t value1, __int128_t value2, const bool check) {
@@ -88,7 +95,7 @@ namespace  __pyllars_internal {
         }
 
         static __int128_t multiply(__int128_t value1, __int128_t value2, const bool check) {
-            const number_type result = value1 * value2;
+            const __int128_t result = value1 * value2;
             if (check && value1 != 0 && result / value1 != value2) {
                 PyErr_SetString(PyExc_ValueError, "multiplication of values is out of range");
             }
@@ -112,10 +119,10 @@ namespace  __pyllars_internal {
 
         static __int128_t remainder(__int128_t value1, __int128_t value2, const bool check){
             __int128_t result = value1 % value2;
-            if (((value1 < 0 and value2 > 0) || (value1 > 0 && value2 < 0)) && (value1 % value2 != 0)) {
+            if (((value1 < 0 && value2 > 0) || (value1 > 0 && value2 < 0)) && (value1 % value2 != 0)) {
                 result = value1 - (floor_div(value1, value2, false) * value2);
             }
-            if (check && (result > max || result < min())) {
+            if (check && (result > static_cast<__int128_t>(max) || result < static_cast<__int128_t>(min()))) {
                 PyErr_SetString(PyExc_ValueError, "Result is out of range");
             }
             return result;
@@ -127,45 +134,51 @@ namespace  __pyllars_internal {
             return v1;
         }
 
-        static number_type absolute(__int128_t value1){
-            if (value1 == min()) {
+        static nonv_number_t absolute(__int128_t value1){
+            if (value1 == static_cast<__int128_t>(min())) {
                 PyErr_SetString(PyExc_ValueError, "Result is out of bounds");
             }
-            return value1 > 0 ? value1 : -value1;
+            return static_cast<nonv_number_t >(value1 > 0 ? value1 : -value1);
         }
 
-        static number_type negative(__int128_t value){
-            const __int128_t result = -value;
-            if (result < min() || result > max) {
+        static nonv_number_t negative(__int128_t value){
+            const __int128_t result = -static_cast<__int128_t >(value);
+            if (result < static_cast<__int128_t>(min()) || result > static_cast<__int128_t>(max)) {
                 PyErr_SetString(PyExc_ValueError, "Result is out of range");
             }
-            return result;
+            return static_cast<nonv_number_t >(result);
         }
 
         static PyObject *divmod(PyObject *v1, PyObject *v2);
 
-        static number_type invert(__int128_t value) {
-            return ~(number_type) value;
+        typedef std::remove_volatile_t <number_type> nonv_number_t;
+
+        static nonv_number_t invert(__int128_t value) {
+            if constexpr(std::is_same<std::remove_cv_t <nonv_number_t> , bool>::value){
+                return value != 0;
+            } else {
+                return ~static_cast<nonv_number_t>(value);
+            }
         }
 
         static __int128_t lshift(__int128_t value1, __int128_t value2, const bool) {
-            return ((number_type) value1) << ((number_type) value2);
+            return  value1 <<  value2;
         }
 
         static __int128_t rshift(__int128_t value1, __int128_t value2, const bool) {
-            return ((number_type) value1) >> ((number_type) value2);
+            return value1 >> value2;
         }
 
         static __int128_t and_(__int128_t value1, __int128_t value2, const bool) {
-            return (number_type) value1 & (number_type) value2;
+            return  value1 &  value2;
         }
 
         static __int128_t or_(__int128_t value1, __int128_t value2, const bool) {
-            return ((number_type) value1) | ((number_type) value2);
+            return value1 | value2;
         }
 
         static __int128_t xor_(__int128_t value1, __int128_t value2, const bool) {
-            return ((number_type) value1) ^ ((number_type) value2);
+            return value1 ^  value2;
         }
 
         static PyObject *to_pyint(PyObject *value) {
@@ -198,39 +211,40 @@ namespace  __pyllars_internal {
             }
         }
 
-        static void inplace_remainder(__int128_t &value1, number_type value2) {
-            value1 %= value2;
+        static void inplace_remainder(__int128_t &value1, nonv_number_t value2) {
+            value1 %= static_cast<__int128_t>(value2);
         }
 
-        static void inplace_lshift(__int128_t &value1, number_type value2) {
-            value1 <<= value2;
+        static void inplace_lshift(__int128_t &value1, nonv_number_t value2) {
+            value1 <<= static_cast<__int128_t>(value2);
         }
 
-        static void inplace_rshift(__int128_t &value1, number_type value2) {
-            value1 >>= value2;
+        static void inplace_rshift(__int128_t &value1, nonv_number_t value2) {
+            value1 >>= static_cast<__int128_t>(value2);
         }
 
-        static void inplace_and(__int128_t &value1, number_type value2) {
-            value1 &= value2;
+        static void inplace_and(__int128_t &value1, nonv_number_t value2) {
+            value1 &= static_cast<__int128_t>(value2);
         }
 
-        static void inplace_or(__int128_t &value1, number_type value2) {
-            value1 |= value2;
+        static void inplace_or(__int128_t &value1, nonv_number_t value2) {
+            value1 |= static_cast<__int128_t>(value2);
         }
 
-        static void inplace_xor(__int128_t &value1, number_type value2) {
-            value1 ^= value2;
+        static void inplace_xor(__int128_t &value1, nonv_number_t  value2) {
+            value1 ^= static_cast<__int128_t>(value2);
         }
 
-        static void inplace_floor_div(__int128_t &value1, number_type value2) {
-            value1 /= value2;
-            if (((value1 < 0 and value2 > 0) || (value1 > 0 && value2 < 0)) && (value1 % value2 != 0)) {
+        static void inplace_floor_div(__int128_t &value1, nonv_number_t value2) {
+            auto  v2 = static_cast<__int128_t>(value2);
+            value1 /= v2;
+            if (((value1 < 0 && v2 > 0) || (value1 > 0 && v2 < 0)) && (value1 % v2 != 0)) {
                 value1 -= 1;
             }
         }
 
         static __int128_t floor_div(__int128_t value1, __int128_t value2, const bool check) {
-            if (((value1 < 0 and value2 > 0) || (value1 > 0 && value2 < 0)) && (value1 % value2 != 0)) {
+            if (((value1 < 0 && value2 > 0) || (value1 > 0 && value2 < 0)) && (value1 % value2 != 0)) {
                 return value1 / value2 - 1;
             }
             return value1 / value2;
@@ -372,13 +386,14 @@ namespace  __pyllars_internal {
 
         static void _free(void* self){}
 
+#ifndef _MSC_VER
         // all instances will be allocated a'la Python so constructor should never be invoked (no linkage should be present)
-        explicit PyNumberCustomObject();
+        PyNumberCustomObject(int, int);
+#endif
     };
 
-
     template<>
-    class PythonClassWrapper<bool> : public PyNumberCustomObject<bool> {
+    struct PythonClassWrapper<bool> : public PyNumberCustomObject<bool> {
     };
 
     template<>

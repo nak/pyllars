@@ -4,8 +4,10 @@ import logging
 import os
 import shlex
 import subprocess
+import sys
 import sysconfig
 import tempfile
+from abc import abstractproperty, abstractmethod
 from contextlib import contextmanager
 from dataclasses import dataclass
 from io import TextIOBase
@@ -29,8 +31,25 @@ class CompilationModel:
     compile_flags: str
     linker_flags: str
 
+class AbstractCompiler:
 
-class Compiler(object):
+    def __init__(self, flags):
+        self._compiler_flags = flags
+
+    @property
+    def compiler_flags(self):
+        return self._compiler_flags
+
+    @abstractmethod
+    def compile(self, path: str):
+        pass
+
+    @abstractmethod
+    async def compile_async(self, target_path: str):
+        pass
+
+
+class POSIXCompiler(AbstractCompiler):
 
     CFLAGS = sysconfig.get_config_var('CFLAGS') or ""
     LDFLAGS = sysconfig.get_config_var('LDFLAGS') or ""
@@ -42,15 +61,11 @@ class Compiler(object):
     PYLIB = sysconfig.get_config_var('BLDLIBRARY')
 
     def __init__(self, compiler_flags: List[str]=[], output_dir="./objects", optimization_level="-O3", debug=False):
+        super().__init__(compiler_flags)
         self._output_dir = output_dir
         os.makedirs(output_dir, exist_ok=True)
-        self._compiler_flags = compiler_flags
         self._optimization_level = optimization_level
         self._debug = debug
-
-    @property
-    def compiler_flags(self):
-        return self._compiler_flags
 
     def compile(self, path: str):
         import uuid
@@ -60,8 +75,8 @@ class Compiler(object):
         uuid = uuid.UUID(hex)
         target =  os.path.join(self._output_dir, os.path.basename(path) + str(uuid) + ".o")
         includes = " ".join(self._compiler_flags)
-        cmd = f"{Compiler.CXX} -ftemplate-backtrace-limit=0 -g -O -std=c++1z {Compiler.CFLAGS} -c -fPIC {includes} -I{PYLLARS_INCLUDE_DIR} " + \
-              f"-I{Compiler.PYINCLUDE} -o \"{target}\" \"{path}\""
+        cmd = f"{POSIXCompiler.CXX} -ftemplate-backtrace-limit=0 -g -O -std=c++1z {POSIXCompiler.CFLAGS} -c -fPIC {includes} -I{PYLLARS_INCLUDE_DIR} " + \
+              f"-I{POSIXCompiler.PYINCLUDE} -o \"{target}\" \"{path}\""
         cmd = cmd.replace("-O2", self._optimization_level)
         cmd = cmd.replace("-O3", self._optimization_level)
         if not self._debug:
@@ -76,7 +91,7 @@ class Compiler(object):
         assert os.path.exists(target)
         return target
 
-    async def compile_async(self, path: str, asynchronous=False):
+    async def compile_async(self, path: str):
         import uuid
         m = hashlib.md5()
         m.update(("pyllars" + path).encode('utf-8'))
@@ -84,8 +99,8 @@ class Compiler(object):
         uuid = uuid.UUID(hex)
         target =  os.path.join(self._output_dir, os.path.basename(path) + str(uuid) + ".o")
         includes = " ".join(self._compiler_flags)
-        cmd = f"{Compiler.CXX} -ftemplate-backtrace-limit=0 -g -O -std=c++1z {Compiler.CFLAGS} -c -fPIC {includes} -I{PYLLARS_INCLUDE_DIR} " + \
-              f"-I{Compiler.PYINCLUDE} -o \"{target}\" \"{path}\""
+        cmd = f"{POSIXCompiler.CXX} -ftemplate-backtrace-limit=0 -g -O -std=c++1z {POSIXCompiler.CFLAGS} -c -fPIC {includes} -I{PYLLARS_INCLUDE_DIR} " + \
+              f"-I{POSIXCompiler.PYINCLUDE} -o \"{target}\" \"{path}\""
         cmd = cmd.replace("-O2", self._optimization_level)
         cmd = cmd.replace("-O3", self._optimization_level)
         if not self._debug:
@@ -115,6 +130,21 @@ class Compiler(object):
             print("DONE %s" % cmd)
         assert os.path.exists(target)
         return target
+
+
+class MSCCompiler(AbstractCompiler):
+
+    def __init__(self, compiler_flags):
+        super().__init__(compiler_flags)
+
+    def compile(self, target_path: str):
+        raise Exception("Unsupporter")
+
+
+if sys.platform.lower() == 'win32':
+    Compiler = MSCCompiler
+else:
+    Compiler = POSIXCompiler
 
 
 class Linker:
@@ -153,10 +183,10 @@ extern "C"{
             f.write(code)
             f.flush()
             cmd = "%(cxx)s -O2 -fPIC -std=c++1z %(cxxflags)s -I%(python_include)s -shared -o %(objfile)s  %(codefile)s -I%(pyllars_include)s" % {
-                      'cxx': Compiler.LDCXXSHARED,
-                      'cxxflags': Compiler.CFLAGS + " " + " ".join(self._compiler_flags),
+                      'cxx': POSIXCompiler.LDCXXSHARED,
+                      'cxxflags': POSIXCompiler.CFLAGS + " " + " ".join(self._compiler_flags),
                       'pyllars_include': PYLLARS_INCLUDE_DIR,
-                      'python_include': Compiler.PYINCLUDE,
+                      'python_include': POSIXCompiler.PYINCLUDE,
                       'codefile': f.name,
                       'objfile': f.name + ".o"
                   }
@@ -173,12 +203,12 @@ extern "C"{
                 print(p.stderr)
                 raise Exception("Failed to build common code file %s" % f.name)
             objs = " ".join(["\"%s\"" % o for o in objects])
-            cxx = Compiler.LDCXXSHARED
-            cxxflags = Compiler.CFLAGS + " " + " ".join(self._compiler_flags)
+            cxx = POSIXCompiler.LDCXXSHARED
+            cxxflags = POSIXCompiler.CFLAGS + " " + " ".join(self._compiler_flags)
             linker_flags = " ".join(self._link_flags +["-L", PYLLARS_LIBS_DIR, "-Wl,-rpath", PYLLARS_LIBS_DIR, "-lpyllars"])
-            python_lib_name = os.path.join(Compiler.LIBDIR, Compiler.LDLIBRARY)
+            python_lib_name = os.path.join(POSIXCompiler.LIBDIR, POSIXCompiler.LDLIBRARY)
 
-            cmd2 = f"{cxx} -fPIC -std=c++1z {cxxflags} -I{Compiler.PYINCLUDE} -o {output_module_path}/{module_name}.so "\
+            cmd2 = f"{cxx} -fPIC -std=c++1z {cxxflags} -I{POSIXCompiler.PYINCLUDE} -o {output_module_path}/{module_name}.so "\
                   f"{objs} {python_lib_name} {linker_flags} -Wl,--no-undefined -Wl,-R,'$ORIGIN' -lpthread -lffi -I{PYLLARS_INCLUDE_DIR} {f.name}.o"
             cmd2 = cmd2.replace("-O2", self._optimization_level)
             cmd2 = cmd2.replace("-O3", self._optimization_level)
@@ -192,8 +222,8 @@ extern "C"{
     def link_bare(self, objects, output_lib_path):
         cmd = "%(cxx)s -shared -O -fPIC -std=c++14 %(cxxflags)s -shared -o %(output_lib_path)s -Wl,--no-undefined " \
                   "%(objs)s %(linker_flags)s -Wl,-R,'$ORIGIN' -lpthread -lffi" % {
-                      'cxx': Compiler.LDCXXSHARED,
-                      'cxxflags': Compiler.CFLAGS + " " + " ".join(self._compiler_flags),
+                      'cxx': POSIXCompiler.LDCXXSHARED,
+                      'cxxflags': POSIXCompiler.CFLAGS + " " + " ".join(self._compiler_flags),
                       'linker_flags': " ".join(self._link_flags +["-L", PYLLARS_LIBS_DIR, "-Wl,-rpath", PYLLARS_LIBS_DIR,
                                                                   "-lpyllars"]),
                       'output_lib_path': output_lib_path,

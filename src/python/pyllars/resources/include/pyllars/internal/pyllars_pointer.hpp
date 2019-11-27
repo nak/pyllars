@@ -28,10 +28,10 @@ namespace __pyllars_internal {
     struct PythonPointerWrapperBase: public CommonBaseWrapper{
 
         template<typename Other, typename EE>
-        friend class PythonClassWrapper;
+        friend struct PythonClassWrapper;
 
         template<typename Other>
-        friend class PythonPointerWrapperBase;
+        friend struct PythonPointerWrapperBase;
 
         typedef typename std::remove_pointer<typename extent_as_pointer<typename std::remove_reference<T>::type>::type>::type T_base;
 
@@ -175,7 +175,7 @@ namespace __pyllars_internal {
         typedef PythonClassWrapper<typename std::remove_const<T>::type> NonConstWrapper;
         typedef typename std::remove_reference<T>::type T_NoRef;
         template<typename Other>
-        friend class PythonPointerWrapperBase;
+        friend struct PythonPointerWrapperBase;
 
         PythonClassWrapper():PythonPointerWrapperBase<T>(){
            Base::_depth = ptr_depth<T>::value;
@@ -300,8 +300,8 @@ namespace __pyllars_internal {
         struct Iter{
             PyObject_HEAD
             PythonClassWrapper* obj;
-            size_t max;
-            size_t i;
+            long long max;
+            long long i;
             static const std::string name;
             static PyTypeObject _Type;
 

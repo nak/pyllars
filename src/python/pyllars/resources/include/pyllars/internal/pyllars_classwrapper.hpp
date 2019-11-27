@@ -78,7 +78,7 @@ namespace __pyllars_internal {
     struct PythonClassWrapper<T, typename std::enable_if< is_rich_class<T>::value>::type>: public CommonBaseWrapper {
         // Convenience typedefs
         typedef T WrappedType;
-        typedef CommonBaseWrapper::Base Base;
+        //typedef CommonBaseWrapper::Base Base;
 
         typedef typename std::remove_reference<T>::type T_NoRef;
         typedef typename core_type<T>::type CClass;
@@ -166,18 +166,16 @@ namespace __pyllars_internal {
                 typename std::function< FieldType(const T_NoRef&)> &getter,
                 typename std::function< FieldType(T_NoRef&, const FieldType&)>  *setter=nullptr);
 
-        template <typename FieldType, typename E= void>
-        struct MemberPtr;
-
         template <typename FieldType>
-        struct MemberPtr<FieldType, std::enable_if_t<!is_scoped_enum<T_NoRef>::value > >{
+        struct MemberPtr{;
+            static_assert(!is_scoped_enum<T_NoRef>::value);
             typedef FieldType T_NoRef::*member_t;
         };
         /**
          * add a getter method for the given compile-time-known named public class member
          **/
         template<const char *const name, typename FieldType>
-        static void addAttribute(typename MemberPtr<FieldType>::member_t member);//MemberContainer<name, T_NoRef, FieldType>::member_t member);
+        static void addAttribute(typename MemberPtr<FieldType >::member_t member);//MemberContainer<name, T_NoRef, FieldType>::member_t member);
 
         /**
          * add a getter method for the given compile-time-known named public static class member
@@ -219,7 +217,7 @@ namespace __pyllars_internal {
         friend struct PythonFunctionWrapper;
 
         template<typename Y, typename YY>
-        friend class PythonClassWrapper;
+        friend struct PythonClassWrapper;
 
         friend
         void * toFFI(PyObject*);
@@ -241,12 +239,16 @@ namespace __pyllars_internal {
 
         template<OpUnaryEnum kind, typename ReturnType, ReturnType(CClass::*method)()>
         struct Op<kind, ReturnType(CClass::*)(), method>{
-            static void addUnaryOperator();
+            static void addUnaryOperator() {
+                PythonClassWrapper<T>::_unaryOperators()[kind] = (unaryfunc) MethodContainer<pyllars_empty_kwlist, ReturnType(T::*)(), method>::callAsUnaryFunc;
+            }
         };
 
         template<OpUnaryEnum kind, typename ReturnType, ReturnType(CClass::*method)() const>
         struct Op<kind, ReturnType(CClass::*)() const, method>{
-            static void addUnaryOperator();
+            static void addUnaryOperator() {
+                PythonClassWrapper<T>::_unaryOperatorsConst()[kind] = (unaryfunc) MethodContainer<pyllars_empty_kwlist, ReturnType(T::*)() const, method>::callAsUnaryFunc;
+            }
         };
 
 
@@ -263,7 +265,7 @@ namespace __pyllars_internal {
             static void addBinaryOperator();
         };
 
-        friend class CommonBaseWrapper;
+        friend struct CommonBaseWrapper;
 
     protected:
 

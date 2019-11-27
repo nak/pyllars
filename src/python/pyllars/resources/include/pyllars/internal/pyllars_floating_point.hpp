@@ -24,6 +24,7 @@ namespace __pyllars_internal{
     struct PyFloatingPtCustomObject: public PyFloatingPtCustomBase{
     public:
         typedef typename std::remove_reference<number_type>::type number_type_basic;
+        typedef std::remove_volatile_t <number_type> nonv_number_t;
 
         static PythonClassWrapper<number_type_basic *> *alloc(PyObject *cls, PyObject *args, PyObject *kwds);
         static PyObject* to_float(PyObject *cls, PyObject *args, PyObject *kwds);
@@ -99,9 +100,10 @@ namespace __pyllars_internal{
 
         static int _init(PyFloatingPtCustomObject *subtype, PyObject *args, PyObject *kwds);
 
+#ifndef _MSC_VER
         // all instances will be allocated a'la Python so constructor should never be invoked (no linkage should be present)
         explicit PyFloatingPtCustomObject();
-
+#endif
         std::function<double()> asDouble;
 
         PyObject *_referenced;
@@ -116,48 +118,47 @@ namespace __pyllars_internal{
 
         static PyTypeObject _Type;
 
-        friend class FloatingPointType<const number_type>;
-        friend class FloatingPointType<typename std::remove_const<number_type>::type>;
+        friend struct FloatingPointType<const number_type>;
+        friend struct FloatingPointType<typename std::remove_const<number_type>::type>;
 
     private:
         static PyMethodDef _methods[];
-
-
     };
 
 
     template<>
-    class PythonClassWrapper<float> : public PyFloatingPtCustomObject<float> {
+    struct PythonClassWrapper<float> : public PyFloatingPtCustomObject<float> {
     };
 
     template<>
-    class PythonClassWrapper<double> : public PyFloatingPtCustomObject<double> {
+    struct PythonClassWrapper<double> : public PyFloatingPtCustomObject<double> {
     };
 
     template<>
-    class PythonClassWrapper<const float> : public PyFloatingPtCustomObject<const float> {
+    struct PythonClassWrapper<const float> : public PyFloatingPtCustomObject<const float> {
     };
 
     template<>
-    class PythonClassWrapper<const double> : public PyFloatingPtCustomObject<const double> {
+    struct PythonClassWrapper<const double> : public PyFloatingPtCustomObject<const double> {
     };
 
 
     template<>
-    class PythonClassWrapper<volatile float> : public PyFloatingPtCustomObject<volatile float> {
+    struct PythonClassWrapper<volatile float> : public PyFloatingPtCustomObject<volatile float> {
     };
 
     template<>
-    class PythonClassWrapper<volatile double> : public PyFloatingPtCustomObject<volatile double> {
+    struct PythonClassWrapper<volatile double> : public PyFloatingPtCustomObject<volatile double> {
     };
 
     template<>
-    class PythonClassWrapper<const volatile float> : public PyFloatingPtCustomObject<const volatile float> {
+    struct PythonClassWrapper<const volatile float> : public PyFloatingPtCustomObject<const volatile float> {
     };
 
     template<>
-    class PythonClassWrapper<const volatile double> : public PyFloatingPtCustomObject<const volatile double> {
+    struct PythonClassWrapper<const volatile double> : public PyFloatingPtCustomObject<const volatile double> {
     };
 
 }
 #endif
+

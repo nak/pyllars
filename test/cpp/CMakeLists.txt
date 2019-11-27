@@ -1,27 +1,11 @@
-set(GTEST_INCLUDE "/usr/include/gtest")
 
-if(EXISTS "/usr/src/gtest")
-    set(GTEST_ROOT "/usr/src/gtest")
-else()
-    set(GTEST_ROOT "/usr/include/gtest")
-endif()
-if(EXISTS "/usr/src/gtest")
-    include_directories(/usr/src/gtest
-            ${PYTHON_INCLUDE}
-            ${GTEST_INCLUDE}
-            ../../src/cpp
-            ../../src/python/pyllars/resources/include
-            ../../src/python/pyllars/resources/include/pyllars
-            ../..)
-else()
-include_directories(.
+include_directories(
         ${PYTHON_INCLUDE}
         ${GTEST_INCLUDE}
         ../../src/cpp
         ../../src/python/pyllars/resources/include
         ../../src/python/pyllars/resources/include/pyllars
         ../..)
-endif()
 
 add_library(setupBasicClassLib SHARED setup_basic_class.cpp setup_basic_class-builder.cpp)
 add_library(setupInheritanceLib SHARED setup_inheritance_test.cpp )
@@ -33,8 +17,6 @@ add_library(setupTemplateClasses SHARED setup_template_class.cpp )
 
 
 add_executable(runAllPyllarsTest
-        ${GTEST_ROOT}/src/gtest_main.cc
-        ${GTEST_ROOT}/src/gtest-all.cc
         test_anon_enums.cpp
         setup_anon_enums.hpp
         test_conversions.cpp
@@ -45,62 +27,48 @@ add_executable(runAllPyllarsTest
         function_defns.hpp globals.h globals.cpp)
 
 
-target_link_libraries(runAllPyllarsTest PUBLIC -L/usr/local/lib64 ${PYTHON_LD}
+target_link_libraries(runAllPyllarsTest PUBLIC -L/usr/local/lib64 ${PYTHON_LD} gtest_main
         setupBasicClassLib setupInheritanceLib setupBitFieldsLib setupAnonEnumsLib setupFunctions
-        pyllars pthread  ffi dl util)
+        pyllars pthread  ffi dl util gtest_main)
 
 add_executable(runGlobalsTests
-        ${GTEST_ROOT}/src/gtest_main.cc
-        ${GTEST_ROOT}/src/gtest-all.cc
         test_globals.cpp
         globals.cpp
         )
-target_link_libraries(runGlobalsTests PUBLIC setupGlobals pthread  -L/usr/local/lib64  ${PYTHON_LD} pyllars ffi dl)
+target_link_libraries(runGlobalsTests PUBLIC setupGlobals pthread  -L/usr/local/lib64  ${PYTHON_LD} pyllars ffi dl gtest_main)
 
 add_executable(runBasicClassTests
-        ${GTEST_ROOT}/src/gtest_main.cc
-        ${GTEST_ROOT}/src/gtest-all.cc
         test_basic_classes.cpp)
-target_link_libraries(runBasicClassTests PUBLIC -L/usr/local/lib64 ${PYTHON_LD}
+target_link_libraries(runBasicClassTests PUBLIC -L/usr/local/lib64 ${PYTHON_LD} gtest_main
         setupBasicClassLib  pthread pyllars ffi dl util )
 
 
 add_executable(runTemplateClassTests
-        ${GTEST_ROOT}/src/gtest_main.cc
-        ${GTEST_ROOT}/src/gtest-all.cc
         test_template_classes.cpp)
-target_link_libraries(runTemplateClassTests PUBLIC -L/usr/local/lib64 ${PYTHON_LD}
+target_link_libraries(runTemplateClassTests PUBLIC -L/usr/local/lib64 ${PYTHON_LD} gtest_main
         setupTemplateClasses  pthread pyllars ffi dl util )
 
 
 add_executable(runInheritanceTests
-        ${GTEST_ROOT}/src/gtest_main.cc
-        ${GTEST_ROOT}/src/gtest-all.cc
         test_inheritance.cpp
         )
-target_link_libraries(runInheritanceTests PUBLIC -L/usr/local/lib64  ${PYTHON_LD}
+target_link_libraries(runInheritanceTests PUBLIC -L/usr/local/lib64  ${PYTHON_LD} gtest_main
         setupInheritanceLib setupBasicClassLib
         pthread pyllars ffi dl util
        )
 
 add_executable(runBitFieldTests
-        ${GTEST_ROOT}/src/gtest_main.cc
-        ${GTEST_ROOT}/src/gtest-all.cc
         test_bit_fields.cpp)
 target_link_libraries(runBitFieldTests PUBLIC -L/usr/local/lib64 ${PYTHON_LD} pthread setupBitFieldsLib
         pyllars ffi dl util)
 
 add_executable(runAnonEmumTests
-         ${GTEST_ROOT}/src/gtest_main.cc
-         ${GTEST_ROOT}/src/gtest-all.cc
         test_anon_enums.cpp
         )
 target_link_libraries(runAnonEmumTests PUBLIC -L/usr/local/lib64   ${PYTHON_LD}
         setupAnonEnumsLib pthread pyllars ffi dl util)
 
 add_executable(runFunctionTests
-         ${GTEST_ROOT}/src/gtest_main.cc
-         ${GTEST_ROOT}/src/gtest-all.cc
         test_functions.cpp
         )
 target_link_libraries(runFunctionTests PUBLIC -L/usr/local/lib64   ${PYTHON_LD}

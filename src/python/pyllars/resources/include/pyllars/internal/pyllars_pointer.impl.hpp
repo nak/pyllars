@@ -46,7 +46,7 @@ namespace __pyllars_internal {
         if (!*((PythonPointerWrapperBase*)self)->get_CObject()) {
             return 0;
         }
-        const Py_ssize_t length = (reinterpret_cast<PythonPointerWrapperBase*>(self))->_max + 1;
+        const Py_ssize_t length = (Py_ssize_t) (reinterpret_cast<PythonPointerWrapperBase*>(self))->_max + 1;
         return length > 0 ? length : 1;
     }
 
@@ -74,7 +74,7 @@ namespace __pyllars_internal {
                     return nullptr;
                 }
                 // TODO: FIX ME!!!!!
-                const ssize_t new_size = self_->_max + 1 + other_->_max + 1;
+                const ssize_t new_size = (ssize_t) self_->_max + 1 + other_->_max + 1;
                 auto values = new T_base[new_size];
                 auto *self__ = reinterpret_cast<PythonClassWrapper<T>*>(self);
                 T &cobj = *self__->get_CObject();
@@ -390,9 +390,16 @@ namespace __pyllars_internal {
 
             if (arraySize >= 0) {
                 try {
-                    pyobj->_CObject = new T();
                     typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
-                    *pyobj->_CObject = Constructor<T_base>::template allocate_array<Args...>((size_t) arraySize, args...);
+                    if constexpr (std::is_volatile<T>::value || std::is_volatile<T_base>::value){
+                        PyErr_SetString(PyExc_TypeError, "Unable to allocate array of volatile instances");
+                        return nullptr;
+                    } else {
+                        pyobj->_CObject = new T();
+                        auto result = Constructor<T_base>::template allocate_array<Args...>((size_t) arraySize,
+                                                                                            args...);
+                        *pyobj->_CObject = static_cast<T>(result);
+                    }
                 } catch (PyllarsException &e) {
                     e.raise();
                     return nullptr;
@@ -421,10 +428,10 @@ namespace __pyllars_internal {
         if (!self) return -1;
         self->_referenced = nullptr;
         self->_max = last;
-        if (((PyObject *) self)->ob_type->tp_base && CommonBaseWrapper::Base::TypePtr->tp_init) {
+        /*if (((PyObject *) self)->ob_type->tp_base && (->tp_init) {
             static PyObject *empty = PyTuple_New(0);
             CommonBaseWrapper::Base::TypePtr->tp_init((PyObject *) &self->baseClass, empty, nullptr);
-        }
+        }*/
         if (kwds && PyDict_Size(kwds) > 1) {
             PyErr_SetString(PyExc_TypeError, "Unexpected keyword argument(s) in Pointer cosntructor");
             return -1;
@@ -437,7 +444,7 @@ namespace __pyllars_internal {
                 }
                 if (PyLong_Check(sizeItem)) {
                     //if size arg is truly an integer and is positive or zero, set the property here (and if not a fixed-size array)
-                    self->_max = PyLong_AsLongLong(sizeItem) - 1;
+                    self->_max = (ssize_t)(PyLong_AsLongLong(sizeItem) - 1);
                     if (self->_max < 0) {
                         PyErr_SetString(PyExc_TypeError, "Invalid negative size _CObject in Pointer constructor");
                         return -1;
@@ -919,7 +926,7 @@ namespace __pyllars_internal {
     PythonClassWrapper<T, typename std::enable_if<is_pointer_like<T>::value &&  (ptr_depth<T>::value == 1)>::type>::Iter::iternext(PyObject *self) {
         auto *p = reinterpret_cast<Iter*>(self);
         if (p->i < p->max) {
-            PyObject *tmp = PythonClassWrapper::_get_item((PyObject *) p->obj, p->i);
+            PyObject *tmp = PythonClassWrapper::_get_item((PyObject *) p->obj, (size_t)p->i);
             (p->i)++;
             return tmp;
         } else {

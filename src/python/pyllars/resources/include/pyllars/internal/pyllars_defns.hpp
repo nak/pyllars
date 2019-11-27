@@ -112,371 +112,326 @@ namespace __pyllars_internal {
     template<typename T>
     struct Types<const T> {
         static const char *const type_name() {
-            static auto * namebase = new char[7 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+            static std::string name("const_");
             static bool init = false;
-            if(!init) {
-                memset(namebase, 0, 7 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
-                strcpy(namebase, "const_");
-                strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
-                init = true;
+            if (!init) {
+                name += Types<typename std::remove_const<T>::type>::type_name();
             }
-            return namebase;
+            init = true;
+            return name.c_str();
         }
     };
 
     template<typename T>
     struct Types<volatile T> {
         static const char *const type_name() {
-            static auto * namebase = new char[10 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+
+            static std::string name("volatile_");
             static bool init = false;
-            if(!init) {
-                memset(namebase, 0, 10 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
-                strcpy(namebase, "volatile_");
-                strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
-                init = true;
+            if (!init) {
+                name += Types<typename std::remove_const<T>::type>::type_name();
             }
-            return namebase;
+            init = true;
+            return name.c_str();
         }
     };
 
     template<typename T>
     struct Types<const volatile T> {
         static const char *const type_name() {
-            static auto * namebase = new char[16 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+
+            static std::string name("const_volatile_");
             static bool init = false;
-            if(!init) {
-                memset(namebase, 0, 16 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
-                strcpy(namebase, "const_volatile_");
-                strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
-                init = true;
+            if (!init) {
+                name += Types<typename std::remove_const<T>::type>::type_name();
             }
-            return namebase;
+            init = true;
+            return name.c_str();
         }
     };
 
     template<typename T>
     struct Types<T *> {
         static const char *const type_name() {
-            static auto * namebase = new char[2 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+
+            static std::string name(Types<typename std::remove_const<T>::type>::type_name());
             static bool init = false;
-            if(!init) {
-                memset(namebase, 0, 2 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
-                strcpy(namebase, Types<typename std::remove_const<T>::type>::type_name());
-                strcat(namebase, "*");
-                init = true;
+            if (!init) {
+                name += "*";
             }
-            return namebase;
+            init = true;
+            return name.c_str();
+
         }
     };
 
     template<typename T>
     struct Types<const T *> {
         static const char *const type_name() {
-            static auto * namebase = new char[8 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+
+            static std::string name;
             static bool init = false;
-            if(!init) {
-                memset(namebase, 0, 8 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
-                strcpy(namebase, "const_");
-                strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
-                strcat(namebase, "*");
-                init = true;
+            if(!init){
+                name = std::string("const_") + Types<typename std::remove_const<T>::type>::type_name() + "*";
             }
-            return namebase;
+            init = true;
+            return name.c_str();
         }
     };
 
     template<typename T>
     struct Types<volatile T *> {
         static const char *const type_name() {
-            static auto * namebase = new char[11 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+
+            static std::string name;
             static bool init = false;
-            if(!init) {
-                memset(namebase, 0, 11 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
-                strcpy(namebase, "volatile_");
-                strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
-                strcat(namebase, "*");
-                init = true;
+            if(!init){
+                name = std::string("volatile_") + Types<typename std::remove_const<T>::type>::type_name() + "*";
             }
-            return namebase;
+            init = true;
+            return name.c_str();
         }
     };
 
     template<typename T>
     struct Types<const volatile T *> {
         static const char *const type_name() {
-            static auto * namebase = new char[17 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+
+            static std::string name;
             static bool init = false;
-            if(!init) {
-                memset(namebase, 0, 17 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
-                strcpy(namebase, "const_volatile_");
-                strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
-                strcat(namebase, "*");
-                init = true;
+            if(!init){
+                name = std::string("const_volatile_") + Types<typename std::remove_const<T>::type>::type_name() + "*";
             }
-            return namebase;
+            init = true;
+            return name.c_str();
         }
     };
 
     template<typename T>
     struct Types<T &> {
         static const char *const type_name() {
-            static auto * namebase = new char[2 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+
+            static std::string name;
             static bool init = false;
-            if(!init) {
-                memset(namebase, 0, 2 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
-                strcpy(namebase, Types<typename std::remove_const<T>::type>::type_name());
-                strcat(namebase, "&");
-                init = true;
+            if(!init){
+                name = std::string(Types<typename std::remove_const<T>::type>::type_name()) + "&";
             }
-            return namebase;
+            init = true;
+            return name.c_str();
         }
     };
 
     template<typename T>
     struct Types<const T &> {
         static const char *const type_name() {
-            static auto * namebase = new char[8 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+
+            static std::string name;
             static bool init = false;
-            if(!init) {
-                memset(namebase, 0, 8 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
-                strcpy(namebase, "const_");
-                strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
-                strcat(namebase, "&");
-                init = true;
+            if(!init){
+                name = std::string("const_") + Types<typename std::remove_const<T>::type>::type_name() + "&";
             }
-            return namebase;
+            init = true;
+            return name.c_str();
         }
     };
 
     template<typename T>
     struct Types<volatile T &> {
         static const char *const type_name() {
-            static auto * namebase = new char[11 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+
+            static std::string name;
             static bool init = false;
-            if(!init) {
-                memset(namebase, 0, 11 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
-                strcpy(namebase, "volatile_");
-                strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
-                strcat(namebase, "&");
-                init = true;
+            if(!init){
+                name = std::string("volatile") + Types<typename std::remove_const<T>::type>::type_name() + "&";
             }
-            return namebase;
+            init = true;
+            return name.c_str();
         }
     };
 
     template<typename T>
     struct Types<const volatile T &> {
         static const char *const type_name() {
-            static auto * namebase = new char[17 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+
+            static std::string name;
             static bool init = false;
-            if(!init) {
-                memset(namebase, 0, 17 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
-                strcpy(namebase, "const_volatile_");
-                strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
-                strcat(namebase, "&");
-                init = true;
+            if(!init){
+                name = std::string("const_volatile_") + Types<typename std::remove_const<T>::type>::type_name() + "&";
             }
-            return namebase;
+            init = true;
+            return name.c_str();
         }
     };
 
     template<typename T>
     struct Types<T[]> {
         static const char *const type_name() {
-            static auto * namebase = new char[3 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+
+            static std::string name;
             static bool init = false;
-            if(!init) {
-                memset(namebase, 0, 3 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
-                strcpy(namebase, Types<typename std::remove_const<T>::type>::type_name());
-                strcat(namebase, "[]");
-                init = true;
+            if(!init){
+                name = std::string(Types<typename std::remove_const<T>::type>::type_name()) + "[]";
             }
-            return namebase;
+            init = true;
+            return name.c_str();
         }
     };
 
     template<typename T>
     struct Types<const T[]> {
         static const char *const type_name() {
-            static auto * namebase = new char[9 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+
+            static std::string name;
             static bool init = false;
-            if(!init) {
-                memset(namebase, 0, 9 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
-                strcpy(namebase, "const_");
-                strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
-                strcat(namebase, "[]");
-                init = true;
+            if(!init){
+                name = std::string("const_") + Types<typename std::remove_const<T>::type>::type_name() + "[]";
             }
-            return namebase;
+            init = true;
+            return name.c_str();
         }
     };
 
     template<typename T>
     struct Types<volatile T[]> {
         static const char *const type_name() {
-            static auto * namebase = new char[12 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+
+
+            static std::string name;
             static bool init = false;
-            if(!init) {
-                memset(namebase, 0, 12 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
-                strcpy(namebase, "volatile_");
-                strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
-                strcat(namebase, "[]");
-                init = true;
+            if(!init){
+                name = std::string("volatile_") + Types<typename std::remove_const<T>::type>::type_name() + "[]";
             }
-            return namebase;
+            init = true;
+            return name.c_str();
         }
     };
 
     template<typename T>
     struct Types<const volatile T[]> {
         static const char *const type_name() {
-            static auto * namebase = new char[18 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
-            strcpy(namebase, "const_volatile_");
-            strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
-            strcat(namebase, "[]");
-            return namebase;
+
+
+            static std::string name;
+            static bool init = false;
+            if(!init){
+                name = std::string("const_volatile") + Types<typename std::remove_const<T>::type>::type_name() + "[]";
+            }
+            init = true;
+            return name.c_str();
         }
     };
 
     template<typename T, size_t size>
     struct Types<T[size]> {
         static const char *const type_name() {
-            char intstr[32];
-            sprintf(intstr, "%ld", (long)size);
-            static auto * namebase = new char[44 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+            static std::string name;
             static bool init = false;
-            if(!init) {
-                memset(namebase, 0, 44 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
-                strcpy(namebase, Types<typename std::remove_const<T>::type>::type_name());
-                strcat(namebase, "[");
-                strcat(namebase, intstr);
-                strcat(namebase, "]");
-                init = true;
+            if(!init){
+                name = std::string(Types<typename std::remove_const<T>::type>::type_name()) + "[" +
+                  std::to_string(size) + "]";
             }
-            return namebase;
+            init = true;
+            return name.c_str();
         }
     };
 
     template<typename T, size_t size>
     struct Types<const T[size]> {
         static const char *const type_name() {
-            char intstr[32];
-            sprintf(intstr, "%ld", (long)size);
-            static auto * namebase = new char[50 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+
+            static std::string name;
             static bool init = false;
-            if(!init) {
-                memset(namebase, 0, 50 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
-                strcpy(namebase, "const_");
-                strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
-                strcat(namebase, "[");
-                strcat(namebase, intstr);
-                strcat(namebase, "]");
-                init = true;
+            if(!init){
+                name = std::string("const_") + Types<typename std::remove_const<T>::type>::type_name() + "[" +
+                    std::to_string(size) + "]";
             }
-            return namebase;
+            init = true;
+            return name.c_str();
         }
     };
 
     template<typename T, size_t size>
     struct Types<volatile T[size]> {
         static const char *const type_name() {
-            char intstr[32];
-            sprintf(intstr, "%ld", (long)size);
-            static auto * namebase = new char[53 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+
+            static std::string name;
             static bool init = false;
-            if(!init) {
-                memset(namebase, 0, 53 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
-                strcpy(namebase, "volatile");
-                strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
-                strcat(namebase, "[");
-                strcat(namebase, intstr);
-                strcat(namebase, "]");
-                init = true;
+            if(!init){
+                name = std::string("volatile_") + Types<typename std::remove_const<T>::type>::type_name() + "[" +
+                        std::to_string(size) + "]";
             }
-            return namebase;
+            init = true;
+            return name.c_str();
         }
     };
 
     template<typename T, size_t size>
     struct Types<const volatile T[size]> {
         static const char *const type_name() {
-            char intstr[32];
-            sprintf(intstr, "%ld", (long)size);
-            static auto * namebase = new char[59 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+
+
+            static std::string name;
             static bool init = false;
-            if(!init) {
-                memset(namebase, 0, 59 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
-                strcpy(namebase, "const_volatile");
-                strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
-                strcat(namebase, "[");
-                strcat(namebase, intstr);
-                strcat(namebase, "]");
-                init = true;
+            if(!init){
+                name = std::string("const_volatile") + Types<typename std::remove_const<T>::type>::type_name() + "[" +
+                        std::to_string(size) + "]";
             }
-            return namebase;
+            init = true;
+            return name.c_str();
         }
     };
 
     template<typename T>
     struct Types<T &&> {
         static const char *const type_name() {
-            static auto * namebase = new char[3 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+
+            static std::string name;
             static bool init = false;
-            if(!init) {
-                memset(namebase, 0, 3 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
-                strcpy(namebase, Types<typename std::remove_const<T>::type>::type_name());
-                strcat(namebase, "&&");
-                init = true;
+            if(!init){
+                name = std::string(Types<typename std::remove_const<T>::type>::type_name()) + "&&";
             }
-            return namebase;
+            init = true;
+            return name.c_str();
         }
     };
 
     template<typename T>
     struct Types<const T &&> {
-        static const char *const type_name() {
-            static auto * namebase = new char[9 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+        static const char *const type_name(){
+            static std::string name;
             static bool init = false;
-            if(!init) {
-                memset(namebase, 0, 9 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
-                strcpy(namebase, "const_");
-                strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
-                strcat(namebase, "&&");
-                init = true;
+            if(!init){
+                name = std::string("const_") + Types<typename std::remove_const<T>::type>::type_name() + "&&";
             }
-            return namebase;
+            init = true;
+            return name.c_str();
         }
     };
 
     template<typename T>
     struct Types<volatile T &&> {
         static const char *const type_name() {
-            static auto * namebase = new char[12 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+            static std::string name;
             static bool init = false;
-            if(!init) {
-                memset(namebase, 0, 12 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
-                strcpy(namebase, "volatile_");
-                strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
-                strcat(namebase, "&&");
-                init = true;
+            if(!init){
+                name = std::string("volatile_") + Types<typename std::remove_const<T>::type>::type_name() + "&&";
             }
-            return namebase;
+            init = true;
+            return name.c_str();
         }
     };
 
     template<typename T>
     struct Types<const volatile T &&> {
         static const char *const type_name() {
-            static auto * namebase = new char[18 + strlen(Types<typename std::remove_const<T>::type>::type_name())];
+
+            static std::string name;
             static bool init = false;
-            if(!init) {
-                memset(namebase, 0, 18 + strlen(Types<typename std::remove_const<T>::type>::type_name()));
-                strcpy(namebase, "const_volatile_");
-                strcat(namebase, Types<typename std::remove_const<T>::type>::type_name());
-                strcat(namebase, "&&");
-                init = true;
+            if(!init){
+                name = std::string("const_volatile_") + Types<typename std::remove_const<T>::type>::type_name() + "&&";
             }
-            return namebase;
+            init = true;
+            return name.c_str();
         }
     };
 
@@ -656,17 +611,17 @@ namespace __pyllars_internal {
 
 
         static PyTypeObject* getPyType(){return &_BaseType;}
-
+/*
         struct Base{
             PyObject_HEAD
-            /*Per Python API docs*/
+            //Per Python API docs
 
             typedef PyTypeObject *TypePtr_t;
 
             static auto constexpr TypePtr = &PyBaseObject_Type;
 
         } baseClass;
-
+*/
 
         static bool IsClassType(PyObject *obj);
 
@@ -777,32 +732,20 @@ namespace __pyllars_internal {
         template<int unused, typename ...Throws>
         struct Type {
         public:
-            ReturnType (*_cfunc)(Args...)
-#if __cplusplus < 201703L
-    throw(Throws...)
-#endif
-;
+            ReturnType (*_cfunc)(Args...);
             typedef decltype(_cfunc) func_type;
         };
 
         template<int unused>
         struct Type<unused, void> {
-            ReturnType (*_cfunc)(Args...)
-#if __cplusplus < 201703L
-    throw()
-#endif
-;
+            ReturnType (*_cfunc)(Args...);
 
             typedef decltype(_cfunc) func_type;
         };
 
         template<int unused>
         struct Type<unused> {
-            ReturnType (*_cfunc)(Args...)
-#if __cplusplus < 201703L
-    throw()
-#endif
-;
+            ReturnType (*_cfunc)(Args...);
 
             typedef decltype(_cfunc) func_type;
         };
@@ -813,22 +756,14 @@ namespace __pyllars_internal {
 
         template<int unused, typename ...Throws>
         struct Type {
-            ReturnType (*_cfunc)(Args... ...)
-#if __cplusplus < 201703L
-    throw(Throws...)
-#endif
-;
+            ReturnType (*_cfunc)(Args... ...);
 
             typedef decltype(_cfunc) func_type;
         };
 
         template<int unused>
         struct Type<unused, void> {
-            ReturnType (*_cfunc)(Args... ...)
-#if __cplusplus < 201703L
-    throw()
-#endif
-;
+            ReturnType (*_cfunc)(Args... ...);
 
             typedef decltype(_cfunc) func_type;
         };

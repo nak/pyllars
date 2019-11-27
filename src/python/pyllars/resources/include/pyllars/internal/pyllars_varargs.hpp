@@ -1,7 +1,9 @@
 #ifndef __PYLLARS__VARARGS__
 #define __PYLLARS__VARARGS__
 
+#ifndef _MSVC_STL_VERSION
 #include <ffi.h>
+
 #include <Python.h>
 #include "pyllars_type_traits.hpp"
 
@@ -90,4 +92,5 @@ namespace __pyllars_internal {
 
     void * toFFI(PyObject* arg);
 }
+#endif
 #endif

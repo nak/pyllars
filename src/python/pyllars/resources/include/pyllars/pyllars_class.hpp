@@ -83,7 +83,7 @@ namespace pyllars {
 
     template< typename Class, typename Parent, typename ...BaseClass>
     typename PyllarsClass<Class, Parent, BaseClass...>::Initializer *const
-            PyllarsClass<Class, Parent, BaseClass...>::initializer = new PyllarsClass<Class, Parent, BaseClass...>::Initializer();
+            PyllarsClass<Class, Parent, BaseClass...>::initializer = new typename PyllarsClass<Class, Parent, BaseClass...>::Initializer();
 
 
 }

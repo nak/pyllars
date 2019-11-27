@@ -170,11 +170,11 @@ namespace __pyllars_internal{
                 if constexpr (std::is_array<T>::value){
                     if constexpr (ArraySize<T>::size > 0){
                         typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_element;
-                        return new T_element[size][ArraySize<T>::size]{{T(std::forward<typename extent_as_pointer<Args>::type>>(args)...)}};
+                        return (T*)new T_element[size][ArraySize<T>::size]{{T(std::forward<typename extent_as_pointer<Args>::type>>(args)...)}};
                     }
                     throw PyllarsException(PyExc_TypeError, "Request to instantiate object of unknown size");
                 } else {
-                    return new T[size]{T(std::forward<typename extent_as_pointer<Args>::type>(args)...)};
+                    return (T*)new T[size]{T(std::forward<typename extent_as_pointer<Args>::type>(args)...)};
                 }
             }
             throw PyllarsException(PyExc_TypeError, "Request to instantiate non-constructible object");
