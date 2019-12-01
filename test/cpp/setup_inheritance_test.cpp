@@ -4,61 +4,46 @@
 #include <Python.h>
 
 #include "pyllars/pyllars.hpp"
-#include "pyllars/internal/pyllars_classwrapper.impl.hpp"
-#include "pyllars/internal/pyllars_classwrapper-type.impl.hpp"
-#include "pyllars/internal/pyllars_pointer.impl.hpp"
-#include "pyllars/internal/pyllars_membersemantics.impl.hpp"
-#include "pyllars/internal/pyllars_classmembersemantics.impl.hpp"
-#include "pyllars/internal/pyllars_staticfunctionsemantics.impl.hpp"
-#include "pyllars/internal/pyllars_conversions.impl.hpp"
 
 #include "class_test_defns.h"
 #include "setup_inheritance_test.h"
 
 #include "pyllars/pyllars_classmethod.hpp"
-#include "pyllars/pyllars_classstaticmethod.hpp"
 #include "pyllars/pyllars_classconstructor.hpp"
-#include "pyllars/pyllars_enum.hpp"
-#include "pyllars/pyllars_classoperator.hpp"
-#include "pyllars/pyllars_classstaticmember.hpp"
-#include "pyllars/pyllars_classmember.hpp"
-#include "pyllars/pyllars_classbitfield.hpp"
 #include "pyllars/pyllars_class.hpp"
 
-constexpr c_string new_method_name = "new_method";
+#include "pyllars/internal/pyllars_classwrapper-type.impl.hpp"
+#include "pyllars/internal/pyllars_classwrapper.impl.hpp"
+#include "pyllars/internal/pyllars_classwrapper-staticmethods.impl.hpp"
+#include "pyllars/internal/pyllars_classwrapper-xtors.impl.hpp"
 
-template<>
-const char* const __pyllars_internal::TypeInfo<InheritanceClass>::type_name = "InheritanceClass";
+namespace {
+    const char new_method_name[] = "new_method";
+    const char *const empty_list[] = {nullptr};
+    const char *const kwlist2[] = {"data", nullptr};
+}
+namespace pyllars_internal{
+    template<> class DLLEXPORT TypeInfo<InheritanceClass>{
+        static constexpr char * type_name = "InheritanceClass";
+    };
+    template<> class DLLEXPORT TypeInfo<MultiInheritanceClass>{
+        static constexpr char * type_name = "MultiInheritanceClass";
+    };
+}
 
-template<>
-const char* const __pyllars_internal::TypeInfo<MultiInheritanceClass>::type_name ="MultiInheritanceClass";
+template class DLLEXPORT pyllars::PyllarsClass<InheritanceClass, pyllars::GlobalNS , BasicClass>;
+template class DLLEXPORT pyllars::PyllarsClassConstructor<empty_list, InheritanceClass>;
+template class DLLEXPORT pyllars::PyllarsClassConstructor<empty_list, MultiInheritanceClass>;
+template class DLLEXPORT pyllars::PyllarsClassMethod<new_method_name, kwlist2, int(InheritanceClass::*)(const char* const) const,
+        &InheritanceClass::new_method >;
+
+template class DLLEXPORT pyllars::PyllarsClass<MultiInheritanceClass, pyllars::GlobalNS , BasicClass, BasicClass2>;
+template class DLLEXPORT pyllars::PyllarsClassConstructor<empty_list, MultiInheritanceClass>;
+template class DLLEXPORT pyllars::PyllarsClassMethod<create_bclass2_method_name, kwlist2, BasicClass2(MultiInheritanceClass::*)(),
+        &MultiInheritanceClass::createBasicClass2>;
 
 
 void
 SetupInheritanceTest::SetUpTestSuite() {
     SetupBasicClass::SetUpTestSuite();
-    using namespace __pyllars_internal;
-    static const char *const empty_list[] = {nullptr};
-    {
-        static const char *const kwlist2[] = {"data", nullptr};
-        typedef  PythonClassWrapper<InheritanceClass> Class;
-        Class::addConstructor<empty_list>();
-        Class::addMethod<new_method_name, kwlist2, int(InheritanceClass::*)(const char* const) const,
-                &InheritanceClass::new_method>();
-        Class::addBaseClass<BasicClass>();
-        ASSERT_EQ(Class::initialize(), 0);
-    }
-
-    {
-        typedef PythonClassWrapper<MultiInheritanceClass> Class;
-        Class::addConstructor<empty_list>();
-        static const char *const kwlist2[] = {"data", nullptr};
-        Class::addMethod<create_bclass2_method_name, kwlist2,
-          BasicClass2(MultiInheritanceClass::*)(),
-          &MultiInheritanceClass::createBasicClass2>();
-
-        Class::addBaseClass<BasicClass>();
-        Class::addBaseClass<BasicClass2>();
-        ASSERT_EQ(Class::initialize(), 0);
-    }
 }

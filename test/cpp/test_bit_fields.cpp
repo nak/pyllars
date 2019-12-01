@@ -8,7 +8,7 @@
 #include "class_test_defns.h"
 
 TEST_F(SetupBitfields, TestBitFields) {
-    using namespace __pyllars_internal;
+    using namespace pyllars_internal;
     PyObject *args = PyTuple_New(0);
     PyObject *obj = PyObject_Call((PyObject *) PythonClassWrapper<BitFieldContainerClass>::getPyType(),
                                   args, nullptr);

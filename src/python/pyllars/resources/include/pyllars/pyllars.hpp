@@ -10,10 +10,11 @@
 #include <functional>
 
 #include <pyllars/internal/pyllars_defns.hpp>
-
 typedef int status_t;
 
-
+#ifdef _MSC_VER
+__declspec(dllexport)
+#endif
 #if PY_MAJOR_VERSION == 3
 PyObject*
 #else
@@ -29,7 +30,7 @@ namespace pyllars{
 
 }
 
-namespace __pyllars_internal {
+namespace pyllars_internal {
 
     /**
      * Class to hold registered init functions (called first upon init of a Pyllars' module)
@@ -37,54 +38,18 @@ namespace __pyllars_internal {
      * calls populate statically the members of the PyType struct and ready calls PyType_Ready to ready
      * the type once it has the full definition.
      */
-    class Init {
+    class DLLEXPORT Init {
     public:
         typedef status_t (*ready_func_t)();
 
-        static void registerReady(ready_func_t func){
-            static std::vector<ready_func_t> _funcs;
-            _readyFuncs = &_funcs;
-            if (func) _readyFuncs->push_back(func);
-        }
+        static void registerReady(ready_func_t func);
 
-        static void registerInit(ready_func_t func){
-            static std::vector<ready_func_t> _funcs;
-            _initFuncs = &_funcs;
-            if (func) _initFuncs->push_back(func);
-        }
+        static void registerInit(ready_func_t func);
 
-        static status_t ready(){
-            status_t status = 0;
-            if(_readyFuncs) {
-                for (auto &func: *_readyFuncs) {
-                    if(func) {
-                        status |= func();
-                        if (status != 0 && PyErr_Occurred()){
-                            return status;
-                        }
-                    }
-                }
-                _readyFuncs->clear();
-            }
-            return status;
-        }
+        static status_t ready();
 
-        static status_t init(){
-            status_t status = 0;
-            if(_initFuncs) {
-                for (auto &func: *_initFuncs) {
-                    if(func) {
-                        status |= func();
-                        if (status != 0 && PyErr_Occurred()){
-                            return status;
-                        }
-                    }
-                }
-                _initFuncs->clear();
-            }
-            return status;
-        }
-
+        static status_t init();
+    private:
         static std::vector<ready_func_t> *_initFuncs;
         static std::vector<ready_func_t> *_readyFuncs;
 

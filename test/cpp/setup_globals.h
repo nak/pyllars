@@ -7,7 +7,7 @@
 
 #include "setup.h"
 
-class SetupGlobals: public PythonBased {
+class DLLEXPORT SetupGlobals: public PythonBased {
 public:
     static void SetUpTestCase(){
         SetUpTestSuite();

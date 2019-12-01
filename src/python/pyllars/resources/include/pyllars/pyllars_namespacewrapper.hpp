@@ -10,14 +10,21 @@
 
 namespace pyllars{
 
-    struct NSInfoBase{
+    struct DLLEXPORT NSInfoBase{
 
         static bool has_entry(const char* const name ){
+#ifdef _MSC_VER
+            return module_list().count(std::string(name)) != 0;
+#else
             return module_list.count(std::string(name)) != 0;
+#endif
         }
 
         static PyObject* module(const char* const fully_qualified_name, std::string name){
-            if (module_list.count(std::string(fully_qualified_name)) == 0){
+#ifdef _MSC_VER
+#else
+#endif
+            if (!has_entry(fully_qualified_name)){
                 std::ostringstream strstream;
                 strstream << "Module corresponding to C++ namespace " << fully_qualified_name;
                 auto *docs = new std::string(strstream.str());
@@ -31,25 +38,42 @@ namespace pyllars{
                         -1,
                         nullptr, nullptr, nullptr, nullptr, nullptr
                 };
-                module_list[std::string(fully_qualified_name)] = PyModule_Create(moddef);
-                if (!module_list[std::string(fully_qualified_name)]){
+                auto mod = PyModule_Create(moddef);
+                if (!mod){
                     PyErr_Print();
                     fprintf(stderr, "Failed to create module '%s':  '%s'\n\n  %s\n\n", fully_qualified_name, name.c_str(),
                             docs->c_str());
                 }
+#ifdef _MSC_VER
+                module_list()[std::string(fully_qualified_name)] = mod;
+#else
+                module_list[std::string(fully_qualified_name)] = mod;
+#endif
+
 #else
                 // Initialize Python2 module associated with this namespace
                     mod = Py_InitModule3(name, nullptr, docs().c_str());
 #endif
             }
+#ifdef _MSC_VER
+            return module_list()[std::string(fully_qualified_name)];
+#else
             return module_list[std::string(fully_qualified_name)];
+#endif
         }
     private:
+#ifdef _MSC_VER
+        static std::map<std::string, PyObject*> module_list(){
+            static std::map<std::string, PyObject*> map;
+            return map;
+        }
+#else
         static std::map<std::string, PyObject*> module_list;
+#endif
     };
 
     template <const char* const fully_qualified_name>
-    struct NSInfo: public NSInfoBase{
+    struct DLLEXPORT NSInfo: public NSInfoBase{
         static constexpr const char* qualified_name = fully_qualified_name;
 
         static std::string nsname(){
@@ -82,7 +106,7 @@ namespace pyllars{
     class PyllarsNamespace;
 
     template<typename NS, typename Parent>
-    class PyllarsNamespace<NS, Parent, std::enable_if_t<std::is_base_of<NSInfoBase, NS>::value && (std::is_base_of<NSInfoBase, Parent>::value|| std::is_void<Parent>::value)> >{
+    class DLLEXPORT PyllarsNamespace<NS, Parent, std::enable_if_t<std::is_base_of<NSInfoBase, NS>::value && (std::is_base_of<NSInfoBase, Parent>::value|| std::is_void<Parent>::value)> >{
     public:
         static PyObject* module() {
             return NS::module();
@@ -90,10 +114,10 @@ namespace pyllars{
 
     private:
 
-        class Initializer{
+        class DLLEXPORT Initializer{
         public:
             explicit Initializer() {
-                __pyllars_internal::Init::registerInit(init);
+                pyllars_internal::Init::registerInit(init);
             }
 
             static status_t init(){
@@ -103,7 +127,7 @@ namespace pyllars{
                 }
                 if constexpr (!std::is_void<Parent>::value){
                     if (!NS::module() || !Parent::module()) {
-                        status = __pyllars_internal::ERR_PYLLARS_ON_CREATE;
+                        status = pyllars_internal::ERR_PYLLARS_ON_CREATE;
   		                fprintf(stderr, "Unable to create module '%s' with non-void parent: '%s'\n", NS::nsname().c_str(), Parent::nsname().c_str());
         		        PyErr_SetString(PyExc_SystemError, "Unable to create module");
                     } else {

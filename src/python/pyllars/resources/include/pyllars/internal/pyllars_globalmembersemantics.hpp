@@ -7,13 +7,13 @@
 #include "pyllars/pyllars.hpp"
 #include "pyllars/internal/pyllars_classwrapper.hpp"
 
-namespace __pyllars_internal {
+namespace pyllars_internal {
 
 
     /**
      * struct to hold a global variable, mapping to Python semantics
      */
-    struct GlobalVariable {
+    struct DLLEXPORT GlobalVariable {
         template<typename T>
         static
         PyObject *createGlobalVariable(const char *const name,

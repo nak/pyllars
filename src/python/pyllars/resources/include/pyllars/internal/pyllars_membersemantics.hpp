@@ -11,10 +11,10 @@
 * define Python-to-C call semantics for invoking class instance methods
 **/
 
-namespace __pyllars_internal {
+namespace pyllars_internal {
 
     template<const char* const name, class CClass, typename T>
-    class MemberContainer {
+    class DLLEXPORT MemberContainer {
     public:
         typedef typename std::remove_reference<CClass>::type CClass_NoRef;
         typedef T CClass_NoRef::* member_t;
@@ -30,7 +30,7 @@ namespace __pyllars_internal {
 
 
     template<typename CClass>
-    class BitFieldContainer {
+    class DLLEXPORT BitFieldContainer {
     public:
 
         template<const char *const name, typename T, const size_t bits>

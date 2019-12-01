@@ -6,7 +6,7 @@
 #include "pyllars/internal/pyllars_templates.hpp"
 #include "pyllars/internal/pyllars_defns.hpp"
 
-namespace __pyllars_internal {
+namespace pyllars_internal {
 
 
 

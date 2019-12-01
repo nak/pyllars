@@ -17,16 +17,16 @@ namespace pyllars{
      * @tparam Args  list of argment types definitiong the signature of the constructor
      */
     template< const char* const kwlist[], typename Class, typename ...Args>
-    class PyllarsClassConstructor{
+    class DLLEXPORT PyllarsClassConstructor{
     private:
-        class Initializer{
+        class DLLEXPORT Initializer{
         public:
             Initializer() {
-                __pyllars_internal::Init::registerInit(init);
+                pyllars_internal::Init::registerInit(init);
             }
 
             static status_t init(){
-                using namespace __pyllars_internal;
+                using namespace pyllars_internal;
                 PythonClassWrapper<Class>::template addConstructor<kwlist, Args...>();
                 return 0;
             }
@@ -39,7 +39,7 @@ namespace pyllars{
     template< const char* const kwlist[], typename Class, typename ...Args>
     typename PyllarsClassConstructor<kwlist, Class, Args...>::Initializer* const
             PyllarsClassConstructor<kwlist, Class, Args...>::initializer = new
-                    PyllarsClassConstructor<kwlist, Class, Args...>::Initializer();
+                    typename PyllarsClassConstructor<kwlist, Class, Args...>::Initializer();
 
 
 }

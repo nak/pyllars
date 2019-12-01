@@ -15,9 +15,7 @@
 #include "pyllars/internal/pyllars_containment.hpp"
 
 
-namespace __pyllars_internal {
-
-    extern PyTypeObject BasePtrType;
+namespace pyllars_internal {
 
     /**
      * A class that wraps a c-pointer-like type to represent in Python
@@ -37,6 +35,15 @@ namespace __pyllars_internal {
 
         // last element of array, or -1 if unknown extent
         static constexpr ssize_t last = ArraySize<T>::size - 1;
+
+        static status_t preinit(){
+            return 0;
+        }
+
+        template<typename Unused>
+        static status_t ready(){
+            return 0;
+        }
 
     protected:
 
@@ -160,12 +167,12 @@ namespace __pyllars_internal {
         }
 
         //should never get called as Python uses malloc and such to allocate memory
-        PythonPointerWrapperBase();
+        PythonPointerWrapperBase(){}
 
     };
 
     template<typename T>
-    struct PythonClassWrapper<T, typename std::enable_if<is_pointer_like<T>::value && (ptr_depth<T>::value > 1)>::type> :
+    struct DLLEXPORT PythonClassWrapper<T, typename std::enable_if<is_pointer_like<T>::value && (ptr_depth<T>::value > 1)>::type> :
         public PythonPointerWrapperBase<T> {
 
         typedef PythonPointerWrapperBase<T> Base;
@@ -213,7 +220,6 @@ namespace __pyllars_internal {
          */
         template<typename ...Args>
         static PythonClassWrapper *allocateInstance(Args... args){
-
             return (PythonClassWrapper*) Base::_createPyFromAllocatedInstance(_Type, args...,  -1);
         }
 
@@ -236,13 +242,14 @@ namespace __pyllars_internal {
         static PyObject *_addr(PyObject *self, PyObject *args);
 
         static int _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds);
-        static PyTypeObject _Type;
         static PyMethodDef _methods[];
+    private:
+        static PyTypeObject _Type;
     };
 
 
     template<typename T>
-    struct PythonClassWrapper<T, typename std::enable_if<is_pointer_like<T>::value && (ptr_depth<T>::value == 1) >::type> : public PythonPointerWrapperBase<T> {
+    struct DLLEXPORT PythonClassWrapper<T, typename std::enable_if<is_pointer_like<T>::value && (ptr_depth<T>::value == 1) >::type> : public PythonPointerWrapperBase<T> {
     public:
         typedef PythonPointerWrapperBase<T>  Base;
         typedef typename std::remove_reference<T>::type T_NoRef;
@@ -274,7 +281,6 @@ namespace __pyllars_internal {
 
         template<typename ...Args>
         static PythonClassWrapper *allocateInstance(Args... args){
-
             return (PythonClassWrapper*) Base::template createAllocatedInstance<Args...>(_Type, args...,  -1);
         }
 
@@ -291,10 +297,10 @@ namespace __pyllars_internal {
     protected:
         static PyObject *_addr(PyObject *self_, PyObject *args);
         static int _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds);
-        static PyTypeObject _Type;
         static PyMethodDef _methods[];
 
      private:
+        static PyTypeObject _Type;
         PythonClassWrapper<T_NoRef *> *createPyReferenceToAddr();
 
         struct Iter{

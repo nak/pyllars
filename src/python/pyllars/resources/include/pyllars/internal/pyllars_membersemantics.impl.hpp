@@ -7,7 +7,7 @@
 #include "pyllars_conversions.impl.hpp"
 #include "pyllars_methodcallsemantics.impl.hpp"
 
-namespace __pyllars_internal {
+namespace pyllars_internal {
 
     template<const char *const name, typename CClass, typename T>
     PyObject *MemberContainer<name, CClass, T>::

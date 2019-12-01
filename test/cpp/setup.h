@@ -4,6 +4,10 @@
 
 #ifndef PYLLARS_SETUP_H
 #define PYLLARS_SETUP_H
+#ifdef _MSC_VER
+#pragma warning(disable:4251)
+#pragma warning(disable:4661)
+#endif
 
 #include <Python.h>
 
@@ -14,8 +18,6 @@
 
 #include <pyllars/internal/pyllars_integer.hpp>
 #include <pyllars/internal/pyllars_floating_point.hpp>
-
-
 
 class PythonBased: public ::testing::Test{
 public:

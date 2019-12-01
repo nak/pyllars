@@ -10,19 +10,22 @@
 #include "pyllars_staticfunctionsemantics.impl.hpp"
 #include "pyllars_classwrapper-staticmethods.impl.hpp"
 
-namespace __pyllars_internal {
+namespace pyllars_internal {
 
     template<typename Class>
-    template<bool is_const>
     void PythonClassWrapper<Class,
             typename std::enable_if<is_rich_class<Class>::value>::type>::
-    _addMethod(PyMethodDef method) {
+    _addMethodNonConst(PyMethodDef method) {
         //insert at beginning to keep null sentinel at end of list:
-        if constexpr(is_const) {
-            _methodCollectionConst()[method.ml_name] = method;
-        } else {
-            _methodCollection()[method.ml_name] = method;
-        }
+        _methodCollection()[method.ml_name] = method;
+    }
+
+    template<typename Class>
+    void PythonClassWrapper<Class,
+            typename std::enable_if<is_rich_class<Class>::value>::type>::
+    _addMethodConst(PyMethodDef method) {
+        //insert at beginning to keep null sentinel at end of list:
+        _methodCollectionConst()[method.ml_name] = method;
     }
 
 
@@ -31,16 +34,18 @@ namespace __pyllars_internal {
     void PythonClassWrapper<Class,
             typename std::enable_if<is_rich_class<Class>::value>::type>::
     addMethod() {
-        static const char *const doc = "Call method ";
-        char *doc_string = new char[func_traits<method_t>::type_name().size() + strlen(doc) + 1];
-        snprintf(doc_string, func_traits<method_t>::type_name().size() + strlen(doc) + 1, "%s%s", doc, func_traits<method_t>::type_name().c_str());
+        static std::string doc = std::string("Call method ") +  func_traits<method_t>::type_name();
         PyMethodDef pyMeth = {
                 name,
                 (PyCFunction) MethodContainer<kwlist, method_t, method>::call,
                 METH_KEYWORDS | METH_VARARGS,
-                doc_string
+                doc.c_str()
         };
-        _addMethod<func_traits<method_t>::is_const_method>(pyMeth);
+        if constexpr(func_traits<method_t>::is_const_method) {
+            _addMethodConst(pyMeth);
+        } else {
+            _addMethodNonConst(pyMeth);
+        }
     }
 
 }

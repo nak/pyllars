@@ -6,8 +6,9 @@
 #define PYLLARS_SETUP_BITFIELDS_H
 
 #include "setup.h"
+#include "class_test_defns.h"
 
-class SetupBitfields: public PythonBased {
+class DLLEXPORT SetupBitfields: public PythonBased {
 protected:
     static void SetUpTestSuite();
 
@@ -17,5 +18,12 @@ public:
     }
 };
 
+namespace pyllars_internal{
 
+    template<>
+    struct TypeInfo<BitFieldContainerClass>{
+        static constexpr const char* type_name = "BitFieldConstainer";
+    };
+
+}
 #endif //PYLLARS_SETUP_BITFIELDS_H

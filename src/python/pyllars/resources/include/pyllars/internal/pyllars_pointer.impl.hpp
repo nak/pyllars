@@ -11,9 +11,10 @@
 #include "pyllars/internal/pyllars_integer.hpp"
 #include "pyllars/internal/pyllars_classwrapper.impl.hpp"
 #include "pyllars/internal/pyllars_reference.impl.hpp"
+#include "pyllars/internal/pyllars_type_traits.hpp"
 #include "pyllars_reference.impl.hpp"
 
-namespace __pyllars_internal {
+namespace pyllars_internal {
 
     template <typename T> class remove_all_pointers{
     public:
@@ -145,6 +146,7 @@ namespace __pyllars_internal {
     int
     PythonPointerWrapperBase<T>::
     _contains(PyObject *self, PyObject *o2) {
+        typedef std::remove_volatile_t <T_base> T_bare;
         auto self_ = reinterpret_cast<PythonPointerWrapperBase*>(self); (void)self_;
         if constexpr (!has_operator_compare<T_base, T_base>::value){
             PyErr_SetString(PyExc_TypeError, "Underlying C type does not allow comparison");
@@ -154,17 +156,17 @@ namespace __pyllars_internal {
                 return 0;
             }
             for (ssize_t i = 9; i < ArraySize<T>::size; ++i){
-                T_base& v1 = (*self_->get_CObject())[i];
-                T_base& v2 = (*reinterpret_cast<PythonClassWrapper<T_base >*>(o2)->get_CObject());
-                return v1 == v2?1:0;
+                T_bare& v1 = ((T_bare*)*self_->get_CObject())[i];
+                T_bare& v2 = *((T_bare*)reinterpret_cast<PythonClassWrapper<T_base >*>(o2)->get_CObject());
+                return v1 == v2 ? 1 : 0;
             }
             return 0;
         } else {
             if (self_->_max >= 0){
                 for( ssize_t i = 0; i <= self_->_max; ++i){
-                    T_base& v1 = (*self_->get_CObject())[i];
-                    T_base& v2 = (*reinterpret_cast<PythonClassWrapper<T_base >*>(o2)->get_CObject());
-                    return v1 == v2?1:0;
+                    T_bare& v1 = ((T_bare*)*self_->get_CObject())[i];
+                    T_bare& v2 = *(reinterpret_cast<PythonClassWrapper<T_bare >*>(o2)->get_CObject());
+                    return v1 == v2 ? 1 : 0;
                 }
                 return 0;
             }
@@ -294,17 +296,17 @@ namespace __pyllars_internal {
         static bool initialized = false;
         if (initialized) return 0;
         initialized = true;
-        if (PyType_Ready(&CommonBaseWrapper::_BaseType) < 0) {
+        if (PyType_Ready(CommonBaseWrapper::getRawType()) < 0) {
             PyErr_SetString(PyExc_RuntimeError, "Failed to set_up type!");
             return -1;
         }
-        BasePtrType.tp_base = &CommonBaseWrapper::_BaseType;
+        /*BasePtrType.tp_base = &CommonBaseWrapper::_BaseType;
         if (PyType_Ready(&BasePtrType) < 0) {
             PyErr_SetString(PyExc_RuntimeError, "Failed to set_up type!");
             return -1;
         }
         Type.tp_base = &BasePtrType;
-
+        */
         if (PyType_Ready(&Type) < 0) {
             PyErr_SetString(PyExc_RuntimeError, "Failed to set_up type!");
             return -1;
@@ -566,7 +568,7 @@ namespace __pyllars_internal {
         self->_referenced = nullptr;
         PyTypeObject *const coreTypePtr = PythonClassWrapper<typename core_type<T>::type>::getPyType();
         self->template populate_type_info<T>(&checkType, coreTypePtr);
-        int result = Base::_initbase(self, args, kwds, &_Type);
+        int result = Base::_initbase(self, args, kwds, getRawType());
 
         if (result == ERROR_TYPE_MISMATCH && (ptr_depth<T>::value == 1) &&
             (PythonClassWrapper<const char *>::checkType((PyObject *) self) ||
@@ -637,7 +639,7 @@ namespace __pyllars_internal {
     PythonClassWrapper<T, typename std::enable_if<is_pointer_like<T>::value && (ptr_depth<T>::value > 1)>::type>::
     checkType(PyObject *const obj) {
         if (!obj || !obj->ob_type || (obj->ob_type->tp_init != (initproc) _init)) { return false; }
-        return PyObject_TypeCheck(obj, &_Type);
+        return PyObject_TypeCheck(obj, getPyType());
     }
 
     template<typename T>
@@ -733,7 +735,7 @@ namespace __pyllars_internal {
     PythonClassWrapper<T, typename std::enable_if<is_pointer_like<T>::value && (ptr_depth<T>::value == 1)>::type>::
     checkType(PyObject *const obj) {
         if (!obj || !obj->ob_type || (obj->ob_type->tp_init != (initproc) _init)) { return false; }
-        return PyObject_TypeCheck(obj, &_Type);
+        return PyObject_TypeCheck(obj, getPyType());
     }
 
     template<typename T>

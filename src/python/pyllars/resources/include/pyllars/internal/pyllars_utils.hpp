@@ -27,7 +27,7 @@
  * Some (perhaps odd) utility classes to aide in converting calls with python tuples
  * to full-blown argument lists used in C function calls
  **/
-namespace __pyllars_internal {
+namespace pyllars_internal {
 
     template<typename T>
     struct ptr_depth {
@@ -185,7 +185,8 @@ namespace __pyllars_internal {
 
     template<typename T>
     struct Sizeof{
-        static constexpr size_t value = Sizeof::typeSize();
+        static constexpr size_t value = (is_complete<T>::value && !std::is_void<T>::value)?sizeof(T):0;
+              //  Sizeof::typeSize();
 
     private:
         static constexpr size_t typeSize(){

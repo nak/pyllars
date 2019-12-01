@@ -7,7 +7,7 @@
 #include "pyllars_classwrapper.hpp"
 
 
-namespace __pyllars_internal {
+namespace pyllars_internal {
 
     template<typename T>
     template<typename EnumT>

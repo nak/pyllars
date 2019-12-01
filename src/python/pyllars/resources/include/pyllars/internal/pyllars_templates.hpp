@@ -1,11 +1,11 @@
 #ifndef __PYLLARS__TEMPLATES__H_
 #define __PYLLARS__TEMPLATES__H_
 
+#include <cstddef>
 #include <map>
 #include <vector>
 #include <Python.h>
-#include "pyllars/internal/pyllars_classwrapper.hpp"
-#include <stddef.h>
+#include "pyllars/internal/pyllars_classwrapper.impl.hpp"
 
 
 template<>
@@ -14,14 +14,14 @@ struct std::hash<PyObject*> {
         std::hash<void*> hasher;
         size_t result = 0;
         size_t h;
-        using namespace __pyllars_internal;
+        using namespace pyllars_internal;
         if (PyTuple_Check(key)) {
             for (ssize_t i = 0; i < PyTuple_Size(key); ++i) {
                 auto item = PyTuple_GetItem(key, i);
 
                 if (PyType_Check(item)) {
                     h = hasher((void *) item);
-                } else if (PyObject_TypeCheck(item, __pyllars_internal::CommonBaseWrapper::getPyType())) {
+                } else if (PyObject_TypeCheck(item, pyllars_internal::CommonBaseWrapper::getPyType())) {
                     if (!reinterpret_cast<CommonBaseWrapper *>(item)->hash) {
                         throw PyllarsException(PyExc_SystemError, "System Error: null hash function encountered");
                     }
@@ -34,7 +34,7 @@ struct std::hash<PyObject*> {
 
             if (PyType_Check(item)) {
                 h = hasher((void *) item);
-            } else if (PyObject_TypeCheck(item, __pyllars_internal::CommonBaseWrapper::getPyType())) {
+            } else if (PyObject_TypeCheck(item, pyllars_internal::CommonBaseWrapper::getPyType())) {
                 if (!reinterpret_cast<CommonBaseWrapper *>(item)->hash) {
                     throw PyllarsException(PyExc_SystemError, "System Error: null hash function encountered");
                 }
@@ -46,13 +46,10 @@ struct std::hash<PyObject*> {
     }
 };
 
-namespace __pyllars_internal{
-
-
-
+namespace pyllars_internal{
 
     template<typename ...Args>
-    struct BareArgBundle {
+    struct DLLEXPORT BareArgBundle {
         static PyObject** params() {
                 static PyObject* p[sizeof...(Args) + 1] = {(PyObject*)PythonClassWrapper<Args>::getPyType()..., nullptr};
                 return p;
@@ -62,7 +59,7 @@ namespace __pyllars_internal{
     };
 
     template <typename T, T value, typename ...Args>
-    struct ArgBundle{
+    struct DLLEXPORT ArgBundle{
         static PyObject** params(){
                 PyObject * p[sizeof...(Args) + 2] = {toPyObject<T>(value), (PyObject*) PythonClassWrapper<Args>::getPyType()..., nullptr};
                 return p;
@@ -71,7 +68,7 @@ namespace __pyllars_internal{
 
     };
 
-    struct TemplateDict{
+    struct DLLEXPORT TemplateDict{
         PyObject_HEAD
 
         static int _init(TemplateDict* self, PyObject* , PyObject*){
@@ -142,15 +139,15 @@ namespace __pyllars_internal{
             }
         };
 
-        static PyTypeObject _Type;
-
+        static PyTypeObject* getPyType();
     private:
         std::unordered_map<PyObject *, PyObject *, std::hash<PyObject *>, TemplateDict::EqualTo> *dictionary;
+        static PyTypeObject _Type;
 
     };
 
     template <const char* const template_name, typename T>
-    struct TemplateClassInstantiation{
+    struct DLLEXPORT TemplateClassInstantiation{
 
 
         template <typename ...ArgBundleT>
@@ -159,11 +156,12 @@ namespace __pyllars_internal{
             static int  instantiate(){
                 static auto empty_args = PyTuple_New(0);
                 if(!TemplateClassInstantiation::_dictionary){
-                    if(PyType_Ready(&TemplateDict::_Type) != 0){
+                    if(PyType_Ready(TemplateDict::getPyType()) != 0){
                         PyErr_SetString(PyExc_RuntimeError, "Unable to initialize TemplateDict Python Type");
                         return -1;
                     }
-                    TemplateClassInstantiation::_dictionary = PyObject_Call((PyObject*)&TemplateDict::_Type, empty_args, nullptr);
+                    TemplateClassInstantiation::_dictionary = PyObject_Call((PyObject*)TemplateDict::getPyType(),
+                            empty_args, nullptr);
                     if (!TemplateClassInstantiation::_dictionary){
                         PyErr_SetString(PyExc_RuntimeError, "Unable to initialize TemplateDict Python object");
                         return -1;

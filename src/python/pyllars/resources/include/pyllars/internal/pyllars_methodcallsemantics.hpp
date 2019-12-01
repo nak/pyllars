@@ -12,11 +12,11 @@
 * define Python-to-C call semantics for invoking class instance methods
 **/
 
-namespace __pyllars_internal {
+namespace pyllars_internal {
 
 
     template<typename CClass, typename RType, typename ...Args>
-    struct func_traits<RType(CClass::*)(Args...)>{
+    struct DLLEXPORT func_traits<RType(CClass::*)(Args...)>{
         constexpr static bool has_ellipsis = false;
         constexpr static ssize_t argsize = sizeof...(Args);
         constexpr static bool is_const_method = false;
@@ -31,15 +31,15 @@ namespace __pyllars_internal {
         };
 
         inline static ReturnType invoke(type &method, CClass & self, PyObject* extra_args_tuple, typename PyObjectPack<Args>::type... pyargs){
-            return (self.*method)(std::forward<Args>(__pyllars_internal::toCArgument<Args>(*pyargs).value())...);
+            return (self.*method)(std::forward<Args>(pyllars_internal::toCArgument<Args>(*pyargs).value())...);
         }
 
-        const static std::string type_name(){
+        static const char* type_name(){
 
             static std::string n;
             if (n.size()==0) {
-                n = std::string(__pyllars_internal::type_name<ReturnType>()) + std::string("(*")  +
-                    + __pyllars_internal::type_name<CClass>() + std::string(")(");
+                n = std::string(pyllars_internal::type_name<ReturnType>()) + std::string("(*") +
+                    + pyllars_internal::type_name<CClass>() + std::string(")(");
 
                 std::vector<std::string> arg_names{Types<Args>::type_name() + std::string(",")...};
                 for (auto &name: arg_names){
@@ -53,7 +53,7 @@ namespace __pyllars_internal {
     };
 
     template<typename CClass, typename RType, typename ...Args>
-    struct func_traits<RType(CClass::*)(Args..., ...)>{
+    struct DLLEXPORT func_traits<RType(CClass::*)(Args..., ...)>{
         constexpr static bool has_ellipsis = true;
         constexpr static bool is_const_method = false;
         constexpr static ssize_t argsize = sizeof...(Args);
@@ -62,11 +62,11 @@ namespace __pyllars_internal {
         typedef RType ReturnType;
         typedef CClass class_type;
 
-        const static std::string type_name(){
+        static const char* type_name(){
             static std::string n;
             if (n.size()==0) {
-                n = std::string(__pyllars_internal::type_name<ReturnType>()) + std::string("(*")  +
-                    + __pyllars_internal::type_name<CClass>() + std::string(")(");
+                n = std::string(pyllars_internal::type_name<ReturnType>()) + std::string("(*") +
+                    + pyllars_internal::type_name<CClass>() + std::string(")(");
 
                 std::vector<std::string> arg_names{Types<Args>::type_name() + std::string(",")...};
                 for (auto &name: arg_names){
@@ -88,7 +88,7 @@ namespace __pyllars_internal {
 
 
     template<typename CClass, typename RType, typename ...Args>
-    struct func_traits<RType(CClass::*)(Args...) const>{
+    struct DLLEXPORT func_traits<RType(CClass::*)(Args...) const>{
         constexpr static bool has_ellipsis = false;
         constexpr static ssize_t argsize = sizeof...(Args);
         constexpr static bool is_const_method = true;
@@ -107,11 +107,12 @@ namespace __pyllars_internal {
         inline static ReturnType invoke(type &method, const CClass & self, PyObject* extra_args_tuple, typename PyObjectPack<Args>::type... pyargs){
             return (self.* method)(toCArgument<Args>(*pyargs).value()...);
         }
-        const static std::string type_name(){
+
+        static const char* type_name(){
             static std::string n;
             if (n.size()==0) {
-                n = std::string(__pyllars_internal::type_name<ReturnType>()) + std::string("(*")  +
-                        + __pyllars_internal::type_name<CClass>() + std::string(")(");
+                n = std::string(pyllars_internal::type_name<ReturnType>()) + std::string("(*") +
+                    + pyllars_internal::type_name<CClass>() + std::string(")(");
 
                 std::vector<std::string> arg_names{Types<Args>::type_name() + std::string(",")...};
                 for (auto &name: arg_names){
@@ -125,7 +126,7 @@ namespace __pyllars_internal {
     };
 
     template<typename CClass, typename RType, typename ...Args>
-    struct func_traits<RType(CClass::*)(Args..., ...) const>{
+    struct DLLEXPORT func_traits<RType(CClass::*)(Args..., ...) const>{
         constexpr static bool has_ellipsis = true;
         constexpr static bool is_const_method = true;
         constexpr static ssize_t argsize = sizeof...(Args);
@@ -142,11 +143,11 @@ namespace __pyllars_internal {
         static ReturnType invoke(type &method, const CClass & self, PyObject* extra_args_tuple,
                 typename PyObjectPack<Args>::type... pyargs);
 
-        const static std::string type_name(){
+        static const char* type_name(){
             static std::string n;
             if (n.size()==0) {
-                n = std::string(__pyllars_internal::type_name<ReturnType>()) + std::string("(*")  +
-                    + __pyllars_internal::type_name<CClass>() + std::string(")(");
+                n = std::string(pyllars_internal::type_name<ReturnType>()) + std::string("(*") +
+                    + pyllars_internal::type_name<CClass>() + std::string(")(");
 
                 std::vector<std::string> arg_names{Types<Args>::type_name() + std::string(",")...};
                 for (auto &name : arg_names){
@@ -159,23 +160,25 @@ namespace __pyllars_internal {
 
     };
 
-
     /**
-     * class to hold reference to a class method and define
-     * method call semantics
-     *
-     * @param kwlist: null-terminated list of parameter names of method arguments
-     * @param method_t: type for method to be invokde of form ReturnType(Class::*)(Args...)
+     * Specialization for non-const class types
      **/
-    template< const char* const kwlist[],  typename method_t>
-    class MethodCallSemantics{
+    template<const char *const kwlist[], typename method_t, method_t method>
+    class DLLEXPORT MethodContainer{
     public:
-        typedef typename func_traits<method_t>::ReturnType ReturnType;
         typedef typename func_traits<method_t>::class_type CClass;
+        typedef typename func_traits<method_t>::ReturnType ReturnType;
 
-        static PyObject* call(PyObject* self, method_t method, PyObject *args, PyObject *kwds) ;
+        static const cstring type_name ;
 
-    protected:
+        static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds);
+
+        static PyObject *callAsUnaryFunc(PyObject *self);
+
+        static PyObject *callAsBinaryFunc(PyObject *self, PyObject* arg);
+
+    private:
+        static PyObject* call_base (PyObject* self,  PyObject *args, PyObject *kwds) ;
 
         /**
          * call that invokes method a la C:
@@ -191,53 +194,8 @@ namespace __pyllars_internal {
 
     };
 
-
-    /**
-     * Specialization for non-const class types
-     **/
     template<const char *const kwlist[], typename method_t, method_t method>
-    class MethodContainer{
-    public:
-        typedef typename func_traits<method_t>::class_type CClass;
-
-        static constexpr cstring type_name = func_traits<method_t>::type_name();
-
-        static PyObject *call(PyObject *self, PyObject *args, PyObject *kwds){
-            try {
-                PyTypeObject *baseTyp = PythonClassWrapper<CClass>::getPyType();
-                PyTypeObject *derivedTyp = self->ob_type;
-                auto key = std::pair{baseTyp, derivedTyp};
-                if (CommonBaseWrapper::castMap().count(key) == 0) {
-                    return MethodCallSemantics<kwlist, method_t>::call(self, method, args, kwds);
-                } else {
-                    return call(CommonBaseWrapper::castMap()[key](self), args, kwds);
-                }
-            } catch (PyllarsException & e){
-                PyErr_SetString(e.type(), e.msg());
-                return nullptr;
-            } catch (...){
-                PyErr_SetString(PyExc_SystemError, "Unknown exception in Pyllars");
-                return nullptr;
-            }
-        }
-
-        static PyObject *callAsUnaryFunc(PyObject *self){
-            static auto emptyargs = PyTuple_New(0);
-            return call(self, emptyargs, nullptr);
-        }
-
-        static PyObject *callAsBinaryFunc(PyObject *self, PyObject *arg){
-            auto args = PyTuple_New(1);
-            PyTuple_SetItem(args, 0, arg);
-            auto retval = call(self, /*Py_BuildValue("(O)",*/ args, nullptr);
-            Py_INCREF(arg); // because tuple setitem steals one
-            Py_DECREF(args);
-            return retval;
-        }
-
-
-    };
-
+    const char* const MethodContainer<kwlist, method_t, method>::type_name = func_traits<method_t>::type_name();
 
 
     /**

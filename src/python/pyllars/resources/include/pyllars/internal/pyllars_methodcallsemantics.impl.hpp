@@ -8,7 +8,7 @@
 #include "pyllars_methodcallsemantics.hpp"
 
 
-namespace __pyllars_internal {
+namespace pyllars_internal {
 
     template<typename CClass, typename ReturnType, typename... Args>
     ReturnType
@@ -110,9 +110,30 @@ namespace __pyllars_internal {
 
     }
 
-    template<const char *const kwlist[], typename method_t>
-    PyObject* MethodCallSemantics<kwlist, method_t>::
-    call(PyObject* self, method_t method, PyObject *args, PyObject *kwds) {
+    template<const char *const kwlist[], typename method_t, method_t method>
+    PyObject* MethodContainer<kwlist, method_t, method>::
+    call(PyObject* self,  PyObject *args, PyObject *kwds) {
+        try {
+            PyTypeObject *baseTyp = PythonClassWrapper<CClass>::getPyType();
+            PyTypeObject *derivedTyp = self->ob_type;
+            auto key = std::pair{baseTyp, derivedTyp};
+            if (CommonBaseWrapper::castMap().count(key) == 0) {
+                return call_base(self, args, kwds);
+            } else {
+                return call(CommonBaseWrapper::castMap()[key](self), args, kwds);
+            }
+        } catch (PyllarsException & e){
+            PyErr_SetString(e.type(), e.msg());
+            return nullptr;
+        } catch (...){
+            PyErr_SetString(PyExc_SystemError, "Unknown exception in Pyllars");
+            return nullptr;
+        }
+    }
+
+    template<const char *const kwlist[], typename method_t, method_t method>
+    PyObject* MethodContainer<kwlist, method_t, method>::
+    call_base(PyObject* self,  PyObject *args, PyObject *kwds) {
         constexpr ssize_t argsize = func_traits<method_t>::argsize;
         const ssize_t pyargsize = PyTuple_Size(args) + (kwds ? PyDict_Size(kwds) : 0);
         if constexpr(func_traits<method_t>::has_ellipsis) {
@@ -128,7 +149,7 @@ namespace __pyllars_internal {
         auto self_ = reinterpret_cast<PythonClassWrapper<CClass>*>(self);
         CClass &this_ = *self_->get_CObject();
         if(!&this_){
-          PyErr_SetString(PyExc_SystemError, "Null object encountered unxpectedly in call to method");
+          PyErr_SetString(PyExc_SystemError, "Null object encountered unexpectedly in call to method");
           return nullptr;
         }
         if constexpr (std::is_void<ReturnType>::value) {
@@ -159,12 +180,26 @@ namespace __pyllars_internal {
         }
     }
 
+    template<const char *const kwlist[], typename method_t, method_t method>
+    PyObject *MethodContainer<kwlist, method_t, method>::callAsUnaryFunc(PyObject *self){
+        static auto emptyargs = PyTuple_New(0);
+        return call(self, emptyargs, nullptr);
+    }
 
+    template<const char *const kwlist[], typename method_t, method_t method>
+    PyObject *MethodContainer<kwlist, method_t, method>::callAsBinaryFunc(PyObject *self, PyObject *arg) {
+        auto args = PyTuple_New(1);
+        PyTuple_SetItem(args, 0, arg);
+        auto retval = call(self, /*Py_BuildValue("(O)",*/ args, nullptr);
+        Py_INCREF(arg); // because tuple setitem steals one
+        Py_DECREF(args);
+        return retval;
+    }
 
-    template<const char *const kwlist[], typename method_t>
+    template<const char *const kwlist[], typename method_t, method_t method>
     template<typename ...PyO>
     typename func_traits<method_t>::ReturnType
-    MethodCallSemantics<kwlist, method_t>::
+    MethodContainer<kwlist, method_t, method>::
     call_methodC(
             CClass & self,
             method_t method,
@@ -196,10 +231,10 @@ namespace __pyllars_internal {
     /**
      * call that converts python given arguments to make C call:
      **/
-    template<const char *const kwlist[], typename method_t>
+    template<const char *const kwlist[], typename method_t, method_t method>
     template<int ...S>
     typename func_traits<method_t>::ReturnType
-    MethodCallSemantics<kwlist, method_t>::
+    MethodContainer<kwlist, method_t, method>::
     call_methodBase(
             CClass & self,
             method_t method,

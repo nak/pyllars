@@ -11,7 +11,7 @@
 
 namespace pyllars {
 
-    using namespace __pyllars_internal;
+    using namespace pyllars_internal;
 
     /**
      * Instantiate a given Class, inheriting from all its BaseClass's
@@ -23,17 +23,20 @@ namespace pyllars {
      * @tparam BaseClass  List of base classes this class inherits from, if any
      */
     template<typename Class, typename Parent, typename ...BaseClass>
-    class PyllarsClass{
+    class DLLEXPORT PyllarsClass{
     public:
+        static PyTypeObject* getPyType(){
+            return pyllars_internal::PythonClassWrapper<Class>::getPyType();
+        }
     private:
         static_assert(!is_complete<Parent>::value
         || is_base_of<pyllars::NSInfoBase, Parent>::value
         || is_rich_class<Parent>::value);
 
-        class Initializer {
+        class DLLEXPORT Initializer {
         public:
             explicit Initializer() {
-                using namespace __pyllars_internal;
+                using namespace pyllars_internal;
                 Init::registerInit(PythonClassWrapper<Class>::preinit);
                 Init::registerInit(init);
                 Init::registerReady(ready);
@@ -60,7 +63,7 @@ namespace pyllars {
             };
 
             static status_t ready(){
-                using namespace __pyllars_internal;
+                using namespace pyllars_internal;
                 //add each base class in parameter pack...
                 static std::vector<int> unused{(ForEach<BaseClass, const BaseClass, volatile BaseClass, const volatile BaseClass>(), 0)...};
                 (void)unused;

@@ -9,7 +9,11 @@
 #include <pyllars/internal/pyllars_reference.impl.hpp>
 
 
-namespace __pyllars_internal {
+namespace pyllars_internal {
+
+    PyTypeObject* PyFloatingPtCustomBase::getRawType() {
+        return &_Type;
+    }
 
     PyTypeObject PyFloatingPtCustomBase::_Type = {
 #if PY_MAJOR_VERSION == 3
@@ -380,23 +384,32 @@ namespace __pyllars_internal {
         }
     };
 
+    template <typename number_type>
+    PyTypeObject *PyFloatingPtCustomObject<number_type>::getPyType() {
+        return (initialize() == 0)?&_Type: nullptr;
+    }
+
+    template <typename number_type>
+    status_t PyFloatingPtCustomObject<number_type>::initialize(){
+        return _initialize(_Type);
+    }
 
     template<typename number_type>
     PyMethodDef PyFloatingPtCustomObject<number_type>::_methods[] = {
             {
-                    alloc_name_,
-                             (PyCFunction) alloc,
-                    METH_KEYWORDS | METH_CLASS | METH_VARARGS,
-                    "allocate array of numbers"
+                alloc_name_,
+                         (PyCFunction) alloc,
+                METH_KEYWORDS | METH_CLASS | METH_VARARGS,
+                "allocate array of numbers"
             },
             {
-                    "to_float",
-                             (PyCFunction) to_float,
-                    METH_KEYWORDS | METH_VARARGS,
-                    "convert to Python float type"
+                "to_float",
+                         (PyCFunction) to_float,
+                METH_KEYWORDS | METH_VARARGS,
+                "convert to Python float type"
             },
             {
-                    nullptr, nullptr, 0, nullptr /**sentinel **/
+                nullptr, nullptr, 0, nullptr /**sentinel **/
             }
     };
 
@@ -408,7 +421,7 @@ namespace __pyllars_internal {
     PyObject_HEAD_INIT(nullptr)
     0,                         /*ob_size*/
 #endif
-            __pyllars_internal::type_name<number_type>(), /*tp_name*/
+            pyllars_internal::type_name<number_type>(), /*tp_name*/
             sizeof(PyFloatingPtCustomObject<number_type>), /*tp_basicsize*/
             0, /*tp_itemsize*/
             nullptr, /*tp_dealloc*/
@@ -460,7 +473,7 @@ namespace __pyllars_internal {
     template<typename number_type>
     PyObject *PyFloatingPtCustomObject<number_type>::repr(PyObject *o) {
         auto *obj = (PyFloatingPtCustomObject<number_type> *) o;
-        std::string name = std::string("<pyllars.") + std::string(__pyllars_internal::type_name<number_type>()) +
+        std::string name = std::string("<pyllars.") + std::string(pyllars_internal::type_name<number_type>()) +
                            std::string("> _CObject=") + std::to_string(*obj->_CObject);
         return PyString_FromString(name.c_str());
     }
@@ -605,7 +618,7 @@ namespace __pyllars_internal {
     }
 
     template<typename number_type>
-    __pyllars_internal::PythonClassWrapper<number_type> *PyFloatingPtCustomObject<number_type>::fromCObject
+    pyllars_internal::PythonClassWrapper<number_type> *PyFloatingPtCustomObject<number_type>::fromCObject
             (number_type &cobj, PyObject *referencing) {
         static PyObject *kwds = PyDict_New();
         static PyObject *emptyargs = PyTuple_New(0);
@@ -616,13 +629,33 @@ namespace __pyllars_internal {
             PyErr_SetString(PyExc_SystemError, "fault in pyllars to initialize an underlying Python type");
             return nullptr;
         }
-        auto *pyobj = (__pyllars_internal::PythonClassWrapper<number_type> *) PyObject_Call((PyObject *) type,
-                                                                                            emptyargs, kwds);
+        auto *pyobj = (pyllars_internal::PythonClassWrapper<number_type> *) PyObject_Call((PyObject *) type,
+                                                                                          emptyargs, kwds);
         if (pyobj) {
             pyobj->_CObject = new number_type(cobj);//ObjectLifecycleHelpers::Copy<number_type_basic>::new_copy(cobj);
             pyobj->make_reference(referencing);
         }
         return pyobj;
+    }
+    template<typename number_type>
+    status_t PyFloatingPtCustomObject<number_type>::preinit(){
+        static int rc = -1;
+        static bool inited = false;
+        if (inited) {
+            return rc;
+        }
+        static PyObject *module = pyllars::GlobalNS::module();
+        rc = PyType_Ready(CommonBaseWrapper::getPyType()) |
+             PyType_Ready(&PyFloatingPtCustomBase::_Type) |
+             PyType_Ready(&PyFloatingPtCustomObject::_Type);
+        Py_INCREF(&PyFloatingPtCustomBase::_Type);
+        Py_INCREF(&PyFloatingPtCustomObject::_Type);
+        if (module && rc == 0) {
+            PyModule_AddObject(module, pyllars_internal::type_name<number_type>(),
+                               (PyObject *) &PyFloatingPtCustomObject::_Type);
+        }
+        rc |= PyType_Ready(&_Type);
+        return rc;
     }
 
     template<typename number_type>
@@ -685,7 +718,7 @@ namespace __pyllars_internal {
 
     template<typename number_type>
     typename std::remove_const<number_type>::type &
-    __pyllars_internal::PyFloatingPtCustomObject<number_type>::toCArgument() {
+    pyllars_internal::PyFloatingPtCustomObject<number_type>::toCArgument() {
         if constexpr (std::is_const<number_type>::value) {
             throw PyllarsException(PyExc_TypeError, "Cannot pass const value as non-const reference argument");
         } else {
@@ -695,7 +728,7 @@ namespace __pyllars_internal {
 
     template<typename number_type>
     const number_type &
-    __pyllars_internal::PyFloatingPtCustomObject<number_type>::toCArgument() const {
+    pyllars_internal::PyFloatingPtCustomObject<number_type>::toCArgument() const {
         return *const_cast<const number_type *>(get_CObject());
     }
 
@@ -725,34 +758,4 @@ namespace __pyllars_internal {
 
     template
     struct PyFloatingPtCustomObject<volatile const double>;
-}
-#include "pyllars_namespacewrapper.hpp"
-#include "pyllars_class.hpp"
-
-namespace pyllars{
-
-    template
-    class PyllarsClass<float, GlobalNS >;
-
-    template
-    class PyllarsClass<double, GlobalNS >;
-
-    template
-    class PyllarsClass<const float, GlobalNS >;
-
-    template
-    class PyllarsClass<const double, GlobalNS >;
-
-    template
-    class PyllarsClass<volatile float, GlobalNS >;
-
-    template
-    class PyllarsClass<volatile double, GlobalNS >;
-
-    template
-    class PyllarsClass<const volatile float, GlobalNS >;
-
-    template
-    class PyllarsClass<const volatile double, GlobalNS >;
-
 }

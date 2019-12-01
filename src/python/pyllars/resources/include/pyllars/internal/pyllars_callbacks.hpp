@@ -11,16 +11,16 @@
 #include "pyllars_classwrapper.hpp"
 #include "pyllars_conversions.hpp"
 
-namespace __pyllars_internal{
+namespace pyllars_internal{
 
         template<typename T>
         T toCObject(PyObject* pyobj);
 
         template <typename ReturnType, typename ...Args>
-        struct CallbackContainer;
+        struct DLLEXPORT CallbackContainer;
 
         template <typename ReturnType, typename ...Args>
-        struct CallbackContainer<ReturnType(Args...)>{
+        struct DLLEXPORT CallbackContainer<ReturnType(Args...)>{
 
             template<std::function<ReturnType(Args...)> **func>
             struct StaticInstantiation {
@@ -62,7 +62,7 @@ namespace __pyllars_internal{
         };
 
       /**
-       * template class for a pool of C-style callbacks
+       * template struct for a pool of C-style callbacks
        * mapped to python-function-callbacks.  There is
        * probably some magic way through ffi to do this,
        * but didn't want to go that route just yet.  so a
@@ -70,7 +70,7 @@ namespace __pyllars_internal{
        **/
       template <  typename ReturnType,
                   typename... Args >
-      class CallbackPool{
+      struct DLLEXPORT CallbackPool{
       public:
 
         typedef ReturnType(*callback_t)( Args...);
@@ -108,7 +108,7 @@ namespace __pyllars_internal{
 
       template < typename ReturnType,
                  typename... Args>
-      class CBHelper{
+      struct DLLEXPORT CBHelper{
       public:
           static ReturnType __cbBase( PyObject* const  pycallback,  Args...  args) {
             (void)__pycb;
@@ -126,7 +126,7 @@ namespace __pyllars_internal{
      };
 
       template < typename... Args>
-      class CBHelper<void, Args...>{
+      struct DLLEXPORT CBHelper<void, Args...>{
       public:
           static void __cbBase( PyObject* const  pycallback,  Args...  args) {
             PyObject *pyargs[] = { toPyObject<Args>(args, true,  std::extent<Args>::value)...};
@@ -138,16 +138,16 @@ namespace __pyllars_internal{
                typename ReturnType,
                typename... Args
               >
-    class CBContainer: public CBHelper<ReturnType, Args...>{
+    struct DLLEXPORT CBContainer: public CBHelper<ReturnType, Args...>{
     public:
 
         static ReturnType __cb( Args...  args){
-            //only chain to a lower level class with fewer instanitaions
+            //only chain to a lower level struct with fewer instanitaions
             return CBHelper<ReturnType, Args...>::__cbBase(CallbackPool<ReturnType, Args...>::pycallbacks[index], args...);
         }
 
       static ReturnType __cbvar( Args...  args,...){
-            //only chain to a lower level class with fewer instanitaions
+            //only chain to a lower level struct with fewer instanitaions
             return CBHelper<ReturnType, Args...>::__cbBase(CallbackPool<ReturnType, Args...>::pycallbacks[index], args...);
         }
     };
@@ -157,7 +157,7 @@ namespace __pyllars_internal{
     **/
     template < const size_t index ,
                typename... Args >
-    class CBContainer<index, void, Args...>:public CBHelper<void, Args...>{
+    struct DLLEXPORT CBContainer<index, void, Args...>:public CBHelper<void, Args...>{
     public:
         static void __cb( Args...  args){
             return CBHelper<void, Args...>::__cbBase(CallbackPool< void, Args...>::pycallbacks[index], args...);
@@ -174,7 +174,7 @@ namespace __pyllars_internal{
     template < const size_t index,
                typename ReturnType,
                typename... Args >
-    class CBPoolInitializer{
+    struct DLLEXPORT CBPoolInitializer{
     public:
 
         CBPoolInitializer(){
@@ -187,7 +187,7 @@ namespace __pyllars_internal{
         };
 
     template <  typename ReturnType, typename... Args >
-    class CBPoolInitializer<0, ReturnType, Args...>{
+    struct DLLEXPORT CBPoolInitializer<0, ReturnType, Args...>{
     public:
         typedef CallbackPool<ReturnType, Args...> Pool;
 
@@ -203,7 +203,7 @@ namespace __pyllars_internal{
     * wrapper to python callback, mapping to C-style callback
     **/
     template<typename ReturnType, typename... Args>
-    class PyCallbackWrapper{
+    struct DLLEXPORT PyCallbackWrapper{
     public:
 
         typedef CallbackPool< ReturnType, Args...> Pool;
@@ -243,7 +243,7 @@ namespace __pyllars_internal{
     * wrapper to python callback, mapping to C-style callback
     **/
     template<typename ReturnType, typename... Args>
-    class PyCallbackWrapperVar{
+    struct DLLEXPORT PyCallbackWrapperVar{
     public:
         typedef CallbackPool< ReturnType, Args...> Pool;
 

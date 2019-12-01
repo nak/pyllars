@@ -9,7 +9,7 @@
 #include "pyllars_pointer.impl.hpp"
 
 
-namespace __pyllars_internal{
+namespace pyllars_internal{
 
     template<typename T>
     PyObject *

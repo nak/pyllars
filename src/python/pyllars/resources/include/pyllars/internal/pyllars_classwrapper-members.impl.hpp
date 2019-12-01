@@ -7,7 +7,7 @@
 #include "pyllars_membersemantics.impl.hpp"
 #include "pyllars_classwrapper.hpp"
 
-namespace __pyllars_internal {
+namespace pyllars_internal {
     template<typename T>
     template<const char *const name, typename FieldType>
     void PythonClassWrapper<T,

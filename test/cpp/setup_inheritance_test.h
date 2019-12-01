@@ -7,7 +7,7 @@
 #include "setup.h"
 #include "setup_basic_class.h"
 
-class SetupInheritanceTest : public SetupBasicClass{
+class DLLEXPORT SetupInheritanceTest : public SetupBasicClass{
 protected:
     static void SetUpTestSuite();
 

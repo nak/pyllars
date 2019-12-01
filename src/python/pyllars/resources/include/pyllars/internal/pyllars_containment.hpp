@@ -7,7 +7,7 @@
 #include "pyllars_type_traits.hpp"
 #include "pyllars_utils.hpp"
 
-namespace __pyllars_internal{
+namespace pyllars_internal{
 
     //////////////////////////////////////
     // Containers for Cobjects in varoious forms.  Containers allow for a wrapper that can
@@ -28,16 +28,21 @@ namespace __pyllars_internal{
         struct FixedArrayHelper<T[size]>{
             typedef T T_array[size];
 
+#ifndef _MSC_VER
             void * operator new(const std::size_t count,  T_array& from){
                 auto bytes = ::operator new(count);
+                assert (count >= sizeof(T)*size);
                 T* values = reinterpret_cast<T*>(bytes);
                 for(int i = 0; i < size; ++i){
                     new (values+i) T(from[i]);
                 }
                 return bytes;
             }
+#endif
+
             void * operator new(const std::size_t count,  const T* const from){
                 auto bytes = ::operator new(count);
+                assert (count >= sizeof(T)*size);
                 T* values = reinterpret_cast<T*>(bytes);
                 typedef typename std::remove_volatile<T>::type T_base;
                 for(int i = 0; i < size; ++i){
@@ -123,7 +128,7 @@ namespace __pyllars_internal{
     // for compatibility in Python
 
     template<typename T>
-    struct Constructor{
+    struct DLLEXPORT Constructor{
         template<typename ...Args>
         static T* inplace_allocate(T& obj, Args ...args){
             if constexpr (std::is_constructible<T>::value){

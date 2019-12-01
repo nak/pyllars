@@ -3,7 +3,7 @@
 
 #include "pyllars_classwrapper.hpp"
 
-namespace __pyllars_internal {
+namespace pyllars_internal {
 
 //Implementations are in subfile pyllars_classwrapper-*.impl.hpp
 
@@ -17,6 +17,18 @@ namespace __pyllars_internal {
         }
 
         return status;
+    }
+
+    template<typename T>
+    PyTypeObject*
+    PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::getRawType(){
+        return &_Type;
+    }
+
+    template<typename T>
+    PyTypeObject*
+    PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::getPyType(){
+        return (initialize() == 0)?&_Type:nullptr;
     }
 
     template<typename T>

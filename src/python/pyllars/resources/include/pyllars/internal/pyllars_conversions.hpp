@@ -9,12 +9,7 @@
 /**
  * This header file defines conversions from Python to C objects
  **/
-namespace __pyllars_internal {
-
-    namespace {
-        /** for use in asReference/asArgument parameters **/
-        constexpr bool AS_REFERNCE = true;
-    }
+namespace pyllars_internal {
 
 
     /////////////////////////
@@ -29,7 +24,7 @@ namespace __pyllars_internal {
      * @tparam T : Type of instance reference to capture
      */
     template<typename T>
-    struct argument_capture{
+    struct DLLEXPORT argument_capture{
         typedef typename std::remove_reference<T>::type T_bare;
         static constexpr auto empty_func = [](){};
 

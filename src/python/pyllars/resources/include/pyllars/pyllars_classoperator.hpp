@@ -10,32 +10,32 @@
 
 namespace pyllars{
 
-    using OpUnaryEnum = __pyllars_internal::OpUnaryEnum;
-    using OpBinaryEnum = __pyllars_internal::OpBinaryEnum;
+    using OpUnaryEnum = pyllars_internal::OpUnaryEnum;
+    using OpBinaryEnum = pyllars_internal::OpBinaryEnum;
 
 
     template<typename method_t>
     struct OpKind;
 
     template< typename Class, typename ReturnType>
-    struct OpKind<ReturnType(Class::*)()>{
+    struct DLLEXPORT OpKind<ReturnType(Class::*)()>{
         typedef OpUnaryEnum OpEnum;
     };
 
 
     template< typename Class, typename ReturnType>
-    struct OpKind<ReturnType(Class::*)() const>{
+    struct DLLEXPORT OpKind<ReturnType(Class::*)() const>{
         typedef OpUnaryEnum OpEnum;
     };
 
     template< typename Class, typename ReturnType, typename ArgType>
-    struct OpKind<ReturnType(Class::*)(ArgType)>{
+    struct DLLEXPORT OpKind<ReturnType(Class::*)(ArgType)>{
         typedef OpBinaryEnum OpEnum;
     };
 
 
     template< typename Class, typename ReturnType, typename ArgType>
-    struct OpKind<ReturnType(Class::*)(ArgType) const>{
+    struct DLLEXPORT OpKind<ReturnType(Class::*)(ArgType) const>{
         typedef OpBinaryEnum OpEnum;
     };
 
@@ -51,16 +51,16 @@ namespace pyllars{
     class PyllarsClassOperator;
 
     template<OpUnaryEnum kind, typename Class, typename ReturnType,  ReturnType(Class::*method)()>
-    class PyllarsClassOperator<ReturnType(Class::*)(), method, kind>{
+    class DLLEXPORT PyllarsClassOperator<ReturnType(Class::*)(), method, kind>{
     private:
         class Initializer{
         public:
             Initializer(){
-                __pyllars_internal::Init::registerInit(init);
+                pyllars_internal::Init::registerInit(init);
             }
 
             static status_t init(){
-                using namespace __pyllars_internal;
+                using namespace pyllars_internal;
                 PythonClassWrapper<Class>::template Op<kind,  ReturnType(Class::*)(), method>::addUnaryOperator();
                 return 0;
             }
@@ -78,16 +78,16 @@ namespace pyllars{
 
 
     template<OpUnaryEnum kind, typename Class, typename ReturnType,  ReturnType(Class::*method)() const>
-    class PyllarsClassOperator<ReturnType(Class::*)() const, method, kind>{
+    class DLLEXPORT PyllarsClassOperator<ReturnType(Class::*)() const, method, kind>{
     private:
         class Initializer{
         public:
             Initializer(){
-                __pyllars_internal::Init::registerInit(init);
+                pyllars_internal::Init::registerInit(init);
             }
 
             static status_t init(){
-                using namespace __pyllars_internal;
+                using namespace pyllars_internal;
                 PythonClassWrapper<Class>::template Op<kind,  ReturnType(Class::*)() const, method>::addUnaryOperator();
                 return 0;
             }
@@ -105,16 +105,16 @@ namespace pyllars{
 
 
     template<OpBinaryEnum kind, typename Class, typename ReturnType,  typename ArgType, ReturnType(Class::*method)(ArgType)>
-    class PyllarsClassOperator<ReturnType(Class::*)(ArgType), method, kind>{
+    class DLLEXPORT PyllarsClassOperator<ReturnType(Class::*)(ArgType), method, kind>{
     private:
         class Initializer{
         public:
             Initializer(){
-                __pyllars_internal::Init::registerInit(init);
+                pyllars_internal::Init::registerInit(init);
             }
 
             static status_t init(){
-                using namespace __pyllars_internal;
+                using namespace pyllars_internal;
                 PythonClassWrapper<Class>::template BinaryOp<kind,  ReturnType(Class::*)(ArgType), method>::addBinaryOperator();
                 return 0;
             }
@@ -132,16 +132,16 @@ namespace pyllars{
 
 
     template<OpBinaryEnum kind, typename Class, typename ReturnType,  typename ArgType, ReturnType(Class::*method)(ArgType) const>
-    class PyllarsClassOperator<ReturnType(Class::*)(ArgType) const, method, kind>{
+    class DLLEXPORT PyllarsClassOperator<ReturnType(Class::*)(ArgType) const, method, kind>{
     private:
-        class Initializer{
+        class DLLEXPORT Initializer{
         public:
             Initializer(){
-                __pyllars_internal::Init::registerInit(init);
+                pyllars_internal::Init::registerInit(init);
             }
 
             static status_t init(){
-                using namespace __pyllars_internal;
+                using namespace pyllars_internal;
                 PythonClassWrapper<Class>::template BinaryOp<kind,  ReturnType(Class::*)(ArgType) const, method>::addBinaryOperator();
                 return 0;
             }

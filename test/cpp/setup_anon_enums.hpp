@@ -6,8 +6,7 @@
 #define PYLLARS_SETUP_STUFF_HPP
 #include "setup.h"
 
-
-class SetupAnonEnums: public PythonBased {
+class DLLEXPORT SetupAnonEnums: public PythonBased {
 public:
     static void SetUpTestSuite();
 

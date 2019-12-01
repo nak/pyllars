@@ -26,11 +26,10 @@ static struct PyModuleDef spammodule = {
 void
 SetupGlobals::SetUpTestSuite() {
     PythonBased::SetUpTestSuite();
-    using namespace __pyllars_internal;
     static const char *const empty_list[] = {nullptr};
     {
         SetupGlobals::pymod = PyModule_Create(&spammodule);
-        GlobalVariable::createGlobalVariable("const_str_ptr", &const_ptr_str, pymod, 1);
+        pyllars_internal::GlobalVariable::createGlobalVariable("const_str_ptr", &const_ptr_str, pymod, 1);
         ASSERT_FALSE(PyErr_Occurred());
     }
 }

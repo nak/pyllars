@@ -9,32 +9,31 @@
 
 #include "pyllars/internal/pyllars_defns.hpp"
 #include "pyllars/internal/pyllars_classwrapper.hpp"
+#include "pyllars/internal/pyllars_pointer.hpp"
 #include "pyllars/pyllars_namespacewrapper.hpp"
 #ifdef _MSC_VER
 typedef  long long __int128_t;
 #else
 asdfasdf
 #endif
-namespace  __pyllars_internal {
+namespace  pyllars_internal {
 
     /**
      Struct (non-template) to hold a common number (integer) base Type that is not instantiable,
      but provide for common reference base type
     */
-    struct PyNumberCustomBase : public CommonBaseWrapper{
+    struct DLLEXPORT PyNumberCustomBase : public CommonBaseWrapper{
         PyObject_HEAD
 
-        static PyTypeObject _Type;
+        DLLIMPORT static PyTypeObject _Type;
          __int128_t (*toInt)(PyObject*);
 
-         static PyTypeObject* getRawType(){
-             return &_Type;
-         }
+         static PyTypeObject* getRawType();
     };
 
 
     template<typename number_type>
-    struct NumberType{
+    struct DLLEXPORT NumberType{
         typedef std::remove_volatile_t<number_type> nonv_number_t;
 
         static __int128_t toLongLong(PyObject *obj){
@@ -44,7 +43,7 @@ namespace  __pyllars_internal {
                 } else {
                     return PyLong_AsLongLong(obj);
                 }
-            } else if (PyObject_TypeCheck(obj, &PyNumberCustomBase::_Type)) {
+            } else if (PyObject_TypeCheck(obj, PyNumberCustomBase::getPyType())) {
                 auto self = (PyNumberCustomBase*)obj;
                 if (!self->toInt){
                     PyErr_SetString(PyExc_SystemError, "Uninitialized integer conversion function pointer encountered!!");
@@ -58,7 +57,7 @@ namespace  __pyllars_internal {
         }
 
         static bool isIntegerObject(PyObject *obj){
-            return bool(PyLong_Check(obj)) || bool(PyObject_TypeCheck(obj, &PyNumberCustomBase::_Type));
+            return bool(PyLong_Check(obj)) || bool(PyObject_TypeCheck(obj, PyNumberCustomBase::getPyType()));
         }
 
         static PyNumberMethods *instance();
@@ -261,17 +260,14 @@ namespace  __pyllars_internal {
      Python's number methods
     */
     template<typename number_type>
-    struct PyNumberCustomObject :  public PyNumberCustomBase {
+    struct DLLEXPORT PyNumberCustomObject :  public PyNumberCustomBase {
     public:
-
-
-        static PyTypeObject _Type;
 
         /**
          * Initialize the Python Type associated with this class
          * @return 0 on success, negative integer otherwise
          */
-        static int initialize(){return _initialize(_Type);}
+        static status_t initialize();
 
         /**
          * Create Python Object that wrapps the given C object instance
@@ -309,14 +305,9 @@ namespace  __pyllars_internal {
         /**
          * @return the PyTypeObject associated with this class;  initialize the type if not already initialized
          */
-        static PyTypeObject *getPyType() {
-            if (initialize() != 0) { return nullptr; }
-            return &_Type;
-        }
+        static PyTypeObject *getPyType();
 
-        static PyTypeObject* getRawType(){
-            return &_Type;
-        }
+        static PyTypeObject* getRawType();
 
         friend struct NumberType<number_type>;
 
@@ -324,29 +315,10 @@ namespace  __pyllars_internal {
 
         template<typename Parent, bool enabled = std::is_base_of<CommonBaseWrapper, Parent>::value>
         static status_t ready() {
-            return _initialize(_Type);
+            return initialize();
         }
 
-        static status_t preinit(){
-            static PyObject *module = pyllars::GlobalNS::module();
-            static bool inited = false;
-            static int rc = -1;
-            if (inited) return rc;
-            inited = true;
-
-            rc = PyType_Ready(&PyNumberCustomBase::_Type);
-            rc |= PyType_Ready(&_Type);
-            rc |= PyType_Ready(&CommonBaseWrapper::_BaseType);
-            rc |= PyType_Ready(&PyNumberCustomObject::_Type);
-            Py_INCREF(&_Type);
-            Py_INCREF(&PyNumberCustomBase::_Type);
-            Py_INCREF(&PyNumberCustomObject::_Type);
-                    if (module && rc == 0) {
-                        PyModule_AddObject(module, __pyllars_internal::type_name<number_type>(),
-                                           (PyObject *) &PyNumberCustomObject::_Type);
-                    }
-                    return rc;
-        }
+        static status_t preinit();
 
 
     protected:
@@ -390,204 +362,209 @@ namespace  __pyllars_internal {
         // all instances will be allocated a'la Python so constructor should never be invoked (no linkage should be present)
         PyNumberCustomObject(int, int);
 #endif
+    private:
+        DLLIMPORT static PyTypeObject _Type;
+
     };
 
     template<>
-    struct PythonClassWrapper<bool> : public PyNumberCustomObject<bool> {
+    struct DLLEXPORT PythonClassWrapper<bool> : public PyNumberCustomObject<bool> {
     };
 
     template<>
-    class PythonClassWrapper<char> : public PyNumberCustomObject<char> {
+    struct DLLEXPORT PythonClassWrapper<char> : public PyNumberCustomObject<char> {
     };
 
     template<>
-    class PythonClassWrapper<signed char> : public PyNumberCustomObject<signed char> {
+    struct DLLEXPORT PythonClassWrapper<signed char> : public PyNumberCustomObject<signed char> {
     };
 
     template<>
-    class PythonClassWrapper<short> : public PyNumberCustomObject<short> {
+    struct DLLEXPORT PythonClassWrapper<short> : public PyNumberCustomObject<short> {
     };
 
     template<>
-    class PythonClassWrapper<int> : public PyNumberCustomObject<int> {
+    struct DLLEXPORT PythonClassWrapper<int> : public PyNumberCustomObject<int> {
     };
 
     template<>
-    class PythonClassWrapper<long> : public PyNumberCustomObject<long> {
+    struct DLLEXPORT PythonClassWrapper<long> : public PyNumberCustomObject<long> {
     };
 
     template<>
-    class PythonClassWrapper<long long> : public PyNumberCustomObject<long long> {
+    struct DLLEXPORT PythonClassWrapper<long long> : public PyNumberCustomObject<long long> {
     };
 
     template<>
-    class PythonClassWrapper<unsigned char> : public PyNumberCustomObject<unsigned char> {
-    };
-
-
-    template<>
-    class PythonClassWrapper<unsigned short> : public PyNumberCustomObject<unsigned short> {
-    };
-
-    template<>
-    class PythonClassWrapper<unsigned int> : public PyNumberCustomObject<unsigned int> {
-    };
-
-    template<>
-    class PythonClassWrapper<unsigned long> : public PyNumberCustomObject<unsigned long> {
+    struct DLLEXPORT PythonClassWrapper<unsigned char> : public PyNumberCustomObject<unsigned char> {
     };
 
 
     template<>
-    class PythonClassWrapper<unsigned long long> : public PyNumberCustomObject<unsigned long long> {
+    struct DLLEXPORT PythonClassWrapper<unsigned short> : public PyNumberCustomObject<unsigned short> {
+    };
+
+    template<>
+    struct DLLEXPORT PythonClassWrapper<unsigned int> : public PyNumberCustomObject<unsigned int> {
+    };
+
+    template<>
+    struct DLLEXPORT PythonClassWrapper<unsigned long> : public PyNumberCustomObject<unsigned long> {
+    };
+
+
+    template<>
+    struct DLLEXPORT PythonClassWrapper<unsigned long long> : public PyNumberCustomObject<unsigned long long> {
     };
 
 
 
     template<>
-    class PythonClassWrapper<volatile bool> : public PyNumberCustomObject<volatile bool> {
+    struct DLLEXPORT PythonClassWrapper<volatile bool> : public PyNumberCustomObject<volatile bool> {
     };
 
     template<>
-    class PythonClassWrapper<volatile char> : public PyNumberCustomObject<volatile char> {
+    struct DLLEXPORT PythonClassWrapper<volatile char> : public PyNumberCustomObject<volatile char> {
     };
 
     template<>
-    class PythonClassWrapper<volatile signed char> : public PyNumberCustomObject<volatile signed char> {
+    struct DLLEXPORT PythonClassWrapper<volatile signed char> : public PyNumberCustomObject<volatile signed char> {
     };
 
     template<>
-    class PythonClassWrapper<volatile short> : public PyNumberCustomObject<volatile short> {
+    struct DLLEXPORT PythonClassWrapper<volatile short> : public PyNumberCustomObject<volatile short> {
     };
     template<>
-    class PythonClassWrapper<volatile int> : public PyNumberCustomObject<volatile int> {
-    };
-
-    template<>
-    class PythonClassWrapper<volatile long> : public PyNumberCustomObject<volatile long> {
+    struct DLLEXPORT PythonClassWrapper<volatile int> : public PyNumberCustomObject<volatile int> {
     };
 
     template<>
-    class PythonClassWrapper<volatile long long> : public PyNumberCustomObject<volatile long long> {
+    struct DLLEXPORT PythonClassWrapper<volatile long> : public PyNumberCustomObject<volatile long> {
     };
 
     template<>
-    class PythonClassWrapper<volatile unsigned char> : public PyNumberCustomObject<volatile unsigned char> {
-    };
-
-
-    template<>
-    class PythonClassWrapper<volatile unsigned short> : public PyNumberCustomObject<volatile unsigned short> {
+    struct DLLEXPORT PythonClassWrapper<volatile long long> : public PyNumberCustomObject<volatile long long> {
     };
 
     template<>
-    class PythonClassWrapper<volatile unsigned int> : public PyNumberCustomObject<volatile unsigned int> {
-    };
-
-    template<>
-    class PythonClassWrapper<volatile unsigned long> : public PyNumberCustomObject<volatile unsigned long> {
+    struct DLLEXPORT PythonClassWrapper<volatile unsigned char> : public PyNumberCustomObject<volatile unsigned char> {
     };
 
 
     template<>
-    class PythonClassWrapper<volatile unsigned long long> : public PyNumberCustomObject<volatile unsigned long long> {
-    };
-
-    
-    template<>
-    class PythonClassWrapper<const bool> : public PyNumberCustomObject<const bool> {
+    struct DLLEXPORT PythonClassWrapper<volatile unsigned short> : public PyNumberCustomObject<volatile unsigned short> {
     };
 
     template<>
-    class PythonClassWrapper<const char> : public PyNumberCustomObject<const char> {
+    struct DLLEXPORT PythonClassWrapper<volatile unsigned int> : public PyNumberCustomObject<volatile unsigned int> {
     };
 
     template<>
-    class PythonClassWrapper<const signed char> : public PyNumberCustomObject<const signed char> {
+    struct DLLEXPORT PythonClassWrapper<volatile unsigned long> : public PyNumberCustomObject<volatile unsigned long> {
+    };
+
+
+    template<>
+    struct DLLEXPORT PythonClassWrapper<volatile unsigned long long> : public PyNumberCustomObject<volatile unsigned long long> {
+    };
+
+
+    template<>
+    struct DLLEXPORT PythonClassWrapper<const bool> : public PyNumberCustomObject<const bool> {
     };
 
     template<>
-    class PythonClassWrapper<const signed short> : public PyNumberCustomObject<const short> {
+    struct DLLEXPORT PythonClassWrapper<const char> : public PyNumberCustomObject<const char> {
     };
 
     template<>
-    class PythonClassWrapper<const signed int> : public PyNumberCustomObject<const int> {
+    struct DLLEXPORT PythonClassWrapper<const signed char> : public PyNumberCustomObject<const signed char> {
     };
 
     template<>
-    class PythonClassWrapper<const signed long> : public PyNumberCustomObject<const long> {
+    struct DLLEXPORT PythonClassWrapper<const signed short> : public PyNumberCustomObject<const short> {
     };
 
     template<>
-    class PythonClassWrapper<const signed long long> : public PyNumberCustomObject<const long long> {
+    struct DLLEXPORT PythonClassWrapper<const signed int> : public PyNumberCustomObject<const int> {
     };
 
     template<>
-    class PythonClassWrapper<const unsigned char> : public PyNumberCustomObject<const unsigned char> {
+    struct DLLEXPORT PythonClassWrapper<const signed long> : public PyNumberCustomObject<const long> {
     };
 
     template<>
-    class PythonClassWrapper<const unsigned short> : public PyNumberCustomObject<const unsigned short> {
+    struct DLLEXPORT PythonClassWrapper<const signed long long> : public PyNumberCustomObject<const long long> {
     };
 
     template<>
-    class PythonClassWrapper<const unsigned int> : public PyNumberCustomObject<const unsigned int> {
+    struct DLLEXPORT PythonClassWrapper<const unsigned char> : public PyNumberCustomObject<const unsigned char> {
     };
 
     template<>
-    class PythonClassWrapper<const unsigned long> : public PyNumberCustomObject<const unsigned long> {
+    struct DLLEXPORT PythonClassWrapper<const unsigned short> : public PyNumberCustomObject<const unsigned short> {
     };
 
     template<>
-    class PythonClassWrapper<const unsigned long long> : public PyNumberCustomObject<const unsigned long long> {
+    struct DLLEXPORT PythonClassWrapper<const unsigned int> : public PyNumberCustomObject<const unsigned int> {
     };
 
     template<>
-    class PythonClassWrapper<const volatile bool> : public PyNumberCustomObject<const volatile bool> {
+    struct DLLEXPORT PythonClassWrapper<const unsigned long> : public PyNumberCustomObject<const unsigned long> {
     };
 
     template<>
-    class PythonClassWrapper<const volatile char> : public PyNumberCustomObject<const volatile char> {
+    struct DLLEXPORT PythonClassWrapper<const unsigned long long> : public PyNumberCustomObject<const unsigned long long> {
     };
 
     template<>
-    class PythonClassWrapper<const volatile signed char> : public PyNumberCustomObject<const volatile signed char> {
+    struct DLLEXPORT PythonClassWrapper<const volatile bool> : public PyNumberCustomObject<const volatile bool> {
     };
 
     template<>
-    class PythonClassWrapper<const volatile short> : public PyNumberCustomObject<const volatile short> {
+    struct DLLEXPORT PythonClassWrapper<const volatile char> : public PyNumberCustomObject<const volatile char> {
     };
 
     template<>
-    class PythonClassWrapper<const volatile int> : public PyNumberCustomObject<const volatile int> {
+    struct DLLEXPORT PythonClassWrapper<const volatile signed char> : public PyNumberCustomObject<const volatile signed char> {
     };
 
     template<>
-    class PythonClassWrapper<const volatile long> : public PyNumberCustomObject<const volatile long> {
+    struct DLLEXPORT PythonClassWrapper<const volatile short> : public PyNumberCustomObject<const volatile short> {
     };
 
     template<>
-    class PythonClassWrapper<const volatile long long> : public PyNumberCustomObject<const volatile long long> {
+    struct DLLEXPORT PythonClassWrapper<const volatile int> : public PyNumberCustomObject<const volatile int> {
     };
 
     template<>
-    class PythonClassWrapper<const volatile unsigned char> : public PyNumberCustomObject<const volatile unsigned char> {
+    struct DLLEXPORT PythonClassWrapper<const volatile long> : public PyNumberCustomObject<const volatile long> {
     };
 
     template<>
-    class PythonClassWrapper<const volatile unsigned short> : public PyNumberCustomObject<const volatile unsigned short> {
+    struct DLLEXPORT PythonClassWrapper<const volatile long long> : public PyNumberCustomObject<const volatile long long> {
     };
 
     template<>
-    class PythonClassWrapper<const volatile unsigned int> : public PyNumberCustomObject<const volatile unsigned int> {
+    struct DLLEXPORT PythonClassWrapper<const volatile unsigned char> : public PyNumberCustomObject<const volatile unsigned char> {
     };
 
     template<>
-    class PythonClassWrapper<const volatile unsigned long> : public PyNumberCustomObject<const volatile unsigned long> {
+    struct DLLEXPORT PythonClassWrapper<const volatile unsigned short> : public PyNumberCustomObject<const volatile unsigned short> {
     };
 
     template<>
-    class PythonClassWrapper<const volatile unsigned long long> : public PyNumberCustomObject<const volatile unsigned long long> {
+    struct DLLEXPORT PythonClassWrapper<const volatile unsigned int> : public PyNumberCustomObject<const volatile unsigned int> {
     };
+
+    template<>
+    struct DLLEXPORT PythonClassWrapper<const volatile unsigned long> : public PyNumberCustomObject<const volatile unsigned long> {
+    };
+
+    template<>
+    struct DLLEXPORT PythonClassWrapper<const volatile unsigned long long> : public PyNumberCustomObject<const volatile unsigned long long> {
+    };
+
+
 }
 #endif //PYLLARS_PYLLARS_INTEGER_H

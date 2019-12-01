@@ -3,23 +3,21 @@
 //
 #include "setup.h"
 #include "setup_inheritance_test.h"
-#include "pyllars/pyllars.hpp"
 #include "class_test_defns.h"
-#include "pyllars/internal/pyllars_classwrapper.hpp"
+#include "pyllars/pyllars.hpp"
+#include "pyllars/pyllars_class.hpp"
 
 TEST_F(SetupInheritanceTest, TestInheritance){
-    using namespace __pyllars_internal;
 
     PyObject* args = PyTuple_New(0);
-    PyObject* obj = PyObject_Call((PyObject*) PythonClassWrapper<InheritanceClass>::getPyType(),
-                                  args, nullptr);
+    PyObject* PyInheritanceClass = PyObject_GetAttrString(pyllars::GlobalNS::module(), "InheritanceClass");
+    auto obj = PyObject_Call(PyInheritanceClass, args, nullptr);
     ASSERT_NE(obj, nullptr);
-    auto dbl_ptr = (PythonClassWrapper<const double* const>*) PyObject_GetAttrString(obj, dbl_ptr_member_name);
+    auto dbl_ptr = PyObject_GetAttrString(obj, dbl_ptr_member_name);
     ASSERT_NE(dbl_ptr, nullptr);
-    PyObject* at = PyObject_GetAttrString((PyObject*)dbl_ptr, "at");
+    PyObject* at = PyObject_GetAttrString(dbl_ptr, "at");
     ASSERT_NE(at, nullptr);
-    PyObject* at_args = PyTuple_New(1);
-    PyTuple_SetItem(at_args, 0, PyLong_FromLong(0));
+    PyObject* at_args = PyTuple_Pack(1, PyLong_FromLong(0));
     PyObject* dbl_value = PyObject_Call(at, at_args, nullptr);
     ASSERT_NE(dbl_value, nullptr);
     ASSERT_NEAR(PyFloat_AsDouble(dbl_value), 2.3, 0.000001);
@@ -28,7 +26,7 @@ TEST_F(SetupInheritanceTest, TestInheritance){
     ASSERT_NE(public_method, nullptr);
     PyObject* dargs = PyTuple_New(1);
     PyTuple_SetItem(dargs, 0, PyFloat_FromDouble(12.3));
-    PyObject* dbl = PyObject_Call((PyObject*)PythonClassWrapper<double>::getPyType(), dargs, nullptr);
+    PyObject* dbl = PyObject_Call(PyInheritanceClass, dargs, nullptr);
     ASSERT_NE(dbl, nullptr);
     PyTuple_SetItem(dargs, 0, dbl);
     PyObject* intValue = PyObject_Call(public_method, dargs, nullptr);
@@ -38,14 +36,13 @@ TEST_F(SetupInheritanceTest, TestInheritance){
 
 
 TEST_F(SetupInheritanceTest, TestMultipleInheritance){
-    using namespace __pyllars_internal;
-    typedef PythonClassWrapper<BasicClass> Class;
-
+    auto PyBasicClass = PyObject_GetAttrString(pyllars::GlobalNS::module(), "BasicClass");
+    ASSERT_NE(PyBasicClass, nullptr);
+    ASSERT_TRUE(PyType_Check(PyBasicClass));
     PyObject* args = PyTuple_New(0);
-    auto* obj = PyObject_Call((PyObject*) PythonClassWrapper<MultiInheritanceClass>::getPyType(),
-                              args, nullptr);
+    auto* obj = PyObject_Call(PyBasicClass, args, nullptr);
     ASSERT_NE(obj, nullptr);
-    auto dbl_ptr = (PythonClassWrapper<const double* const>*) PyObject_GetAttrString(obj, dbl_ptr_member_name);
+    auto dbl_ptr = PyObject_GetAttrString(obj, dbl_ptr_member_name);
     ASSERT_NE(dbl_ptr, nullptr);
     PyObject* at = PyObject_GetAttrString((PyObject*)dbl_ptr, "at");
     ASSERT_NE(at, nullptr);
@@ -59,7 +56,10 @@ TEST_F(SetupInheritanceTest, TestMultipleInheritance){
     ASSERT_NE(public_method, nullptr);
     PyObject* dargs = PyTuple_New(1);
     PyTuple_SetItem(dargs, 0, PyFloat_FromDouble(12.3));
-    PyObject* dbl = PyObject_Call((PyObject*)PythonClassWrapper<double>::getPyType(), dargs, nullptr);
+    auto c_dbl = PyObject_GetAttrString(pyllars::GlobalNS::module(), "c_double");
+    ASSERT_NE(c_dbl, nullptr);
+    ASSERT_TRUE(PyType_Check(c_dbl));
+    PyObject* dbl = PyObject_Call(c_dbl, dargs, nullptr);
     ASSERT_NE(dbl, nullptr);
     PyTuple_SetItem(dargs, 0, dbl);
     PyObject* intValue = PyObject_Call(public_method, dargs, nullptr);
@@ -69,5 +69,8 @@ TEST_F(SetupInheritanceTest, TestMultipleInheritance){
     ASSERT_NE(createBaseClass2_method, nullptr);
     PyObject* bclass2 = PyObject_Call(createBaseClass2_method, PyTuple_New(0), nullptr);
     ASSERT_NE(bclass2, nullptr);
-    ASSERT_TRUE(PyObject_TypeCheck(bclass2, PythonClassWrapper<BasicClass2>::getPyType()));
+    auto PyBasicClass2 = PyObject_GetAttrString(pyllars::GlobalNS::module(), "BasicClass2");
+    ASSERT_NE(PyBasicClass2, nullptr);
+    ASSERT_TRUE(PyType_Check(PyBasicClass2));
+    ASSERT_TRUE(PyObject_TypeCheck(bclass2, (PyTypeObject*) PyBasicClass2));
 }

@@ -8,7 +8,7 @@
 #include "pyllars/internal/pyllars_classmembersemantics.impl.hpp"
 #include "pyllars/internal/pyllars_classwrapper-methods.impl.hpp"
 
-namespace __pyllars_internal {
+namespace pyllars_internal {
 
 
     template<typename Class>
@@ -26,7 +26,7 @@ namespace __pyllars_internal {
                               METH_VARARGS | METH_KEYWORDS | METH_CLASS,
                               doc_string
         };
-        _addMethod<true>(pyMeth);
+        _addMethodConst(pyMeth);
     }
 
 }

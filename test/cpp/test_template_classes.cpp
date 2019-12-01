@@ -3,14 +3,9 @@
 //
 #include "setup.h"
 #include "setup_template_class.h"
-#include "template_class_defns.h"
 #include "pyllars/pyllars.hpp"
-#include "pyllars/internal/pyllars_classwrapper.hpp"
-#include "pyllars/internal/pyllars_reference.impl.hpp"
-#include "pyllars/internal/pyllars_conversions.impl.hpp"
-#include <pyllars/internal/pyllars_templates.hpp>
 
-
+/*
 template<typename T>
 class TemplateClassTest : public SetupTemplateClass,
                            public testing::WithParamInterface<PyObject*>{
@@ -31,7 +26,7 @@ typedef ::testing::Types<int, const char*> SingleTypeImplementations;
 TYPED_TEST_CASE(TemplateClassTest, SingleTypeImplementations);
 
 TYPED_TEST(TemplateClassTest, TestTemplateInstantiation){
-    using namespace __pyllars_internal;
+    using namespace pyllars_internal;
     PyObject* classTemplate = TemplateClassInstantiation<single_type_template_name, SingleTypeParamTemplateClass<TypeParam> >::addDefinition(nullptr);
     ASSERT_NE(classTemplate, nullptr);
     PyObject* clazz = PyObject_GetItem(classTemplate, (PyObject*)PythonClassWrapper<TypeParam>::getPyType());
@@ -44,6 +39,4 @@ TYPED_TEST(TemplateClassTest, TestTemplateInstantiation){
     ASSERT_EQ(((PythonClassWrapper<SingleTypeParamTemplateClass<TypeParam> >*)instance)->get_CObject()->val(),
            TemplateClassTest<TypeParam>::value);
 }
-
-template
-PyObject* __pyllars_internal::toPyObject<const char*>(const char*, ssize_t);
+ */

@@ -7,7 +7,7 @@
 #include "setup.h"
 
 
-class SetupFunctions: public PythonBased {
+class DLLEXPORT SetupFunctions: public PythonBased {
 public:
     static void SetUpTestSuite();
 

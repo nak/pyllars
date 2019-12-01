@@ -18,17 +18,26 @@
 #include "pyllars_pointer.hpp"
 
 
-namespace __pyllars_internal {
+namespace pyllars_internal {
 
 
     template<typename T>
-    struct PythonClassWrapper<T&, void> : protected PythonClassWrapper<T> {
+    struct DLLEXPORT PythonClassWrapper<T&, void> : protected PythonClassWrapper<T> {
 
         typedef PythonClassWrapper<T> Base;
         typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
 
         PythonClassWrapper():PythonClassWrapper<T>(){
            Base::_depth = 1;
+        }
+
+        static status_t preinit(){
+            return PythonClassWrapper<T>::preinit();
+        }
+
+        template<typename Unused>
+        static status_t ready(){
+            return PythonClassWrapper<T>::template ready<Unused>();
         }
 
         T * get_CObject() const;
@@ -138,12 +147,21 @@ namespace __pyllars_internal {
 
 
     template<typename T>
-    struct PythonClassWrapper<T&&, void> : protected PythonClassWrapper<T> {
+    struct DLLEXPORT PythonClassWrapper<T&&, void> : protected PythonClassWrapper<T> {
 
         typedef PythonClassWrapper<T> Base;
 
         PythonClassWrapper():PythonClassWrapper<T>(){
             Base::_depth = 1;
+        }
+
+        static status_t preinit(){
+            return PythonClassWrapper<T>::preinit();
+        }
+
+        template<typename Unused>
+        static status_t ready(){
+            return PythonClassWrapper<T>::template ready<Unused>();
         }
 
         T * get_CObject() const{
@@ -183,9 +201,9 @@ namespace __pyllars_internal {
     protected:
 
         static int _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds);
-        static PyTypeObject _Type;
 
     private:
+        static PyTypeObject _Type;
 
         static void _free(void* self){
             //this is a reference, so prevent base from deleting it by setting it to nullptr

@@ -9,7 +9,7 @@
 
 #include <functional>
 
-namespace __pyllars_internal {
+namespace pyllars_internal {
     template<typename T>
     template<typename KeyType, typename method_t, method_t method>
     void PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::
@@ -26,11 +26,11 @@ namespace __pyllars_internal {
     template<typename KeyType, typename ValueType, typename method_t, method_t method>
     void PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::
     _addMapOperatorMethod() {
-        constexpr bool method_is_const = func_traits<method_t>::is_const_method;
+        static constexpr bool method_is_const = func_traits<method_t>::is_const_method;
         std::function<PyObject *(PyObject *, PyObject *)> getter = [](PyObject *self, PyObject *item) -> PyObject * {
             PythonClassWrapper *self_ = (PythonClassWrapper *) self;
             try {
-                auto c_key = __pyllars_internal::toCArgument<KeyType>(*item);
+                auto c_key = pyllars_internal::toCArgument<KeyType>(*item);
                 return toPyObject<ValueType>((self_->get_CObject()->*method)(c_key.value()), 1);
             } catch (PyllarsException &e) {
                 e.raise();
@@ -52,46 +52,30 @@ namespace __pyllars_internal {
                         PyErr_SetString(PyExc_TypeError, "Cannot operate on nullptr");
                         return -1;
                     }
+
                     try {
                         if constexpr (std::is_reference<ValueType>::value) {
-                            //the value here is something we will be assigning TO and NOT FROM.  So make const
-                            //in order to avoid type conversion issue as is it not really an argument to a function call
-                            typedef typename to_const<ValueType>::type safe_value_type;
-                            argument_capture<safe_value_type > c_value = __pyllars_internal::template toCArgument<safe_value_type >(*value);
-                            argument_capture<KeyType> c_key = __pyllars_internal::template toCArgument<KeyType>(*item);
-                            if (obj_is_const){
-                                if constexpr(method_is_const) {
-                                    //mutable fields are still settable against const-ness of owning object
-                                    //NOTE: we re-use this std::function for PythonClassWrapper<const T>, so need
-                                    //   to get const bool to determine if this really should be a const-C object
-                                    auto const_cobj = reinterpret_cast<const T_NoRef *>(cobj);
-                                    try {
-                                        Assignment<ValueType>::assign((const_cobj->*method)(c_key.value()), c_value.value());
-                                    } catch (PyllarsException &e) {
-                                        e.raise();
-                                        return -1;
-                                    } catch(std::exception const & e) {
-                                        PyllarsException::raise_internal_cpp(e.what());
-                                        return -1;
-                                    } catch (...){
-                                        PyllarsException::raise_internal_cpp();
-                                        return -1;
-                                    }
-                                } else {
-
-                                    PyErr_SetString(PyExc_TypeError, "Cannot call non-const method with const this");
-                                    return -1;
-                                }
+                            if constexpr(std::is_const<ValueType>::value){
+                                PyErr_SetString(PyExc_TypeError, "Cannot call assign to const return value");
+                                return -1;
                             } else {
-                                try{
+                                //the value here is something we will be assigning TO and NOT FROM.  So make const
+                                //in order to avoid type conversion issue as is it not really an argument to a function call
+                                typedef typename to_const<ValueType>::type safe_value_type;
+                                argument_capture <safe_value_type> c_value = pyllars_internal::template toCArgument<safe_value_type>(
+                                        *value);
+                                argument_capture <KeyType> c_key = pyllars_internal::template toCArgument<KeyType>(
+                                        *item);
+
+                                try {
                                     Assignment<ValueType>::assign((cobj->*method)(c_key.value()), c_value.value());
-                                } catch (PyllarsException &e){
+                                } catch (PyllarsException &e) {
                                     e.raise();
                                     return -1;
-                                } catch(std::exception const & e) {
+                                } catch (std::exception const &e) {
                                     PyllarsException::raise_internal_cpp(e.what());
                                     return -1;
-                                } catch (...){
+                                } catch (...) {
                                     PyllarsException::raise_internal_cpp();
                                     return -1;
                                 }

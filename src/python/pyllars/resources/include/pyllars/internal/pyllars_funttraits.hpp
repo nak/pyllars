@@ -4,7 +4,7 @@
 
 #ifndef PYLLARS_PYLLARS_FUNTTRAITS_HPP
 #define PYLLARS_PYLLARS_FUNTTRAITS_HPP
-namespace __pyllars_internal{
+namespace pyllars_internal{
 
     template<typename T>
     struct func_traits;
@@ -18,8 +18,8 @@ namespace __pyllars_internal{
         typedef RType(*type)(Args...);
         typedef RType ReturnType;
 
-        const static std::string type_name(){
-            return __pyllars_internal::type_name<RType(Args...)>();
+        static const char* type_name(){
+            return pyllars_internal::type_name<RType(Args...)>();
         }
 
         template<type func>
@@ -41,8 +41,8 @@ namespace __pyllars_internal{
         typedef RType(*type)(Args...);
         typedef RType ReturnType;
 
-        const static std::string type_name(){
-            return __pyllars_internal::type_name<RType(Args...)>();
+        static const char* type_name(){
+            return pyllars_internal::type_name<RType(Args...)>();
         }
 
     };
@@ -56,8 +56,8 @@ namespace __pyllars_internal{
         typedef RType(*type)(Args...) noexcept;
         typedef RType ReturnType;
 
-        const static std::string type_name(){
-            return __pyllars_internal::type_name<RType(Args...)>();
+        static const char* type_name(){
+            return pyllars_internal::type_name<RType(Args...)>();
         }
 
     };
@@ -71,8 +71,8 @@ namespace __pyllars_internal{
         typedef RType(*type)(Args...) noexcept;
         typedef RType ReturnType;
 
-        const static std::string type_name(){
-            return __pyllars_internal::type_name<RType(Args...)>();
+        static const char* type_name(){
+            return pyllars_internal::type_name<RType(Args...)>();
         }
 
         template<type func>
@@ -92,8 +92,8 @@ namespace __pyllars_internal{
 
         typedef RType(*type)(Args..., ...);
         typedef RType ReturnType;
-        const static std::string type_name(){
-            return __pyllars_internal::type_name<RType(Args..., ...)>();
+        static const char* type_name(){
+            return pyllars_internal::type_name<RType(Args..., ...)>();
         }
 
     };
@@ -105,8 +105,8 @@ namespace __pyllars_internal{
 
         typedef RType(*type)(Args..., ...);
         typedef RType ReturnType;
-        const static std::string type_name(){
-            return __pyllars_internal::type_name<RType(Args..., ...)>();
+        static const char* type_name(){
+            return pyllars_internal::type_name<RType(Args..., ...)>();
         }
 
         template<type func, typename ...VarArgs>
@@ -126,8 +126,8 @@ namespace __pyllars_internal{
 
         typedef RType(*type)(Args..., ...) noexcept;
         typedef RType ReturnType;
-        const static std::string type_name(){
-            return __pyllars_internal::type_name<RType(Args..., ...)>();
+        static const char* type_name(){
+            return pyllars_internal::type_name<RType(Args..., ...)>();
         }
 
     };
@@ -139,8 +139,8 @@ namespace __pyllars_internal{
 
         typedef RType(*type)(Args..., ...) noexcept;
         typedef RType ReturnType;
-        const static std::string type_name(){
-            return __pyllars_internal::type_name<RType(Args..., ...)>();
+        static const char* type_name(){
+            return pyllars_internal::type_name<RType(Args..., ...)>();
         }
 
         template<type func, typename ...VarArgs>

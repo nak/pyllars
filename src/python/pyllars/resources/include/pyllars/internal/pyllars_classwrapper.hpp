@@ -14,6 +14,7 @@
 #include "pyllars/pyllars_namespacewrapper.hpp"
 #include "pyllars/pyllars.hpp"
 #include "pyllars_containment.hpp"
+#include "pyllars_reference.hpp"
 #include "pyllars_type_traits.hpp"
 
 typedef const char cstring[];
@@ -23,19 +24,19 @@ static constexpr cstring operatormapnameconst = "operator[]const";
 static const char* const emptylist[] = {nullptr};
 
 namespace pyllars{
-    class CommonNamespaceWrapper;
+    struct CommonNamespaceWrapper;
 }
 
-namespace __pyllars_internal {
+namespace pyllars_internal {
 
 
-    enum class OpUnaryEnum : unsigned char{
+    enum class DLLEXPORT OpUnaryEnum : unsigned char{
         INV,
         POS,
         NEG
     };
 
-    enum class OpBinaryEnum : unsigned char{
+    enum class DLLEXPORT OpBinaryEnum : unsigned char{
         ADD = 3,
         SUB,
         MUL,
@@ -62,20 +63,14 @@ namespace __pyllars_internal {
     typedef int (*_setattrfunc)(PyObject*, PyObject*, void*);
     typedef PyObject* (*_getattrfunc)(PyObject*, void*);
 
-    template<typename T>
-    struct ObjectContainer;
-
-    template<typename T>
-    class InitHelper;
-
     template<typename functype>
-    struct PythonFunctionWrapper;
+    struct DLLEXPORT PythonFunctionWrapper;
 
     /**
      * Class to define Python wrapper to C class/type
      **/
     template<typename T>
-    struct PythonClassWrapper<T, typename std::enable_if< is_rich_class<T>::value>::type>: public CommonBaseWrapper {
+    struct DLLEXPORT PythonClassWrapper<T, typename std::enable_if< is_rich_class<T>::value>::type>: public CommonBaseWrapper {
         // Convenience typedefs
         typedef T WrappedType;
         //typedef CommonBaseWrapper::Base Base;
@@ -85,7 +80,7 @@ namespace __pyllars_internal {
 
         template<typename C>
         friend
-        class InitHelper;
+        struct InitHelper;
 
 
         /**
@@ -94,7 +89,7 @@ namespace __pyllars_internal {
          *
          * @param name: Python simple-name of the type
          **/
-        static int initialize(){return _initialize(_Type);}
+        static int initialize(){return _initialize(*getRawType());}
 
         template<typename Parent>
         static status_t ready();
@@ -104,7 +99,7 @@ namespace __pyllars_internal {
         }
 
         /**
-         * create a Python object of this class type
+         * create a Python object of this struct type
          **/
         static PythonClassWrapper *fromCObject(T_NoRef & cobj);
 
@@ -114,7 +109,7 @@ namespace __pyllars_internal {
         static PyObject *addr(PyObject *self, PyObject *args) ;
 
         /**
-         * Add a base class to this Python definition (called before initialize)
+         * Add a base struct to this Python definition (called before initialize)
          **/
         template<typename Base>
         static void addBaseClass() ;
@@ -172,13 +167,13 @@ namespace __pyllars_internal {
             typedef FieldType T_NoRef::*member_t;
         };
         /**
-         * add a getter method for the given compile-time-known named public class member
+         * add a getter method for the given compile-time-known named public struct member
          **/
         template<const char *const name, typename FieldType>
-        static void addAttribute(typename MemberPtr<FieldType >::member_t member);//MemberContainer<name, T_NoRef, FieldType>::member_t member);
+        static void addAttribute(typename MemberPtr<FieldType>::member_t member);
 
         /**
-         * add a getter method for the given compile-time-known named public static class member
+         * add a getter method for the given compile-time-known named public static struct member
          **/
         template<const char *const name, typename FieldType>
         static void addStaticAttribute(FieldType *member);
@@ -199,9 +194,7 @@ namespace __pyllars_internal {
 
         static bool checkType(PyObject * obj);
 
-        static PyTypeObject *getPyType(){
-            return (initialize() == 0)?&_Type:nullptr;
-        }
+        static PyTypeObject *getPyType();
 
         /**
          * Return underlying PyTypeObject, possibly uninitialized (no call to PyType_Ready is guaranteed)
@@ -209,9 +202,7 @@ namespace __pyllars_internal {
          *
          * @return  PyTypeObject associated with this class
          */
-        static PyTypeObject * getRawType(){
-            return &_Type;
-        }
+        static PyTypeObject * getRawType();
 
         template<typename functype>
         friend struct PythonFunctionWrapper;
@@ -267,11 +258,11 @@ namespace __pyllars_internal {
 
         friend struct CommonBaseWrapper;
 
-    protected:
 
         void set_CObject(T_NoRef * value ){
             _CObject = value;
         }
+    protected:
 
         PythonClassWrapper();// never invoked as Python allocates memory directly
 
@@ -295,7 +286,7 @@ namespace __pyllars_internal {
             return _member_getters()[attrname](self, nullptr);
         }
 
-        template <class Base>
+        template <typename Base>
         static PyObject* cast(PyObject* self){
             static_assert(std::is_base_of<std::remove_reference_t <Base>, T_NoRef >::value);
             auto self_ = (PythonClassWrapper<T>*)self;
@@ -395,8 +386,8 @@ namespace __pyllars_internal {
         /**
          * helper methods
          **/
-         template<bool is_const>
-        static void _addMethod(PyMethodDef method);
+        static void _addMethodNonConst(PyMethodDef method);
+        static void _addMethodConst(PyMethodDef method);
 
         static PyObject* _mapGet(PyObject* self, PyObject* key);
         static int _mapSet(PyObject* self, PyObject* key, PyObject* value);
@@ -479,14 +470,12 @@ namespace __pyllars_internal {
             static std::map<OpBinaryEnum , binaryfunc> container;
             return container;
         }
-
+    private:
         static  PyTypeObject _Type;
 
     };
 
 
-  template<>
-  struct PythonClassWrapper<const double>;
 
   /**
    * for inner structs like:
@@ -497,7 +486,7 @@ namespace __pyllars_internal {
    * };
    */
   template<typename T>
-  class PythonAnonymousClassWrapper: protected PythonClassWrapper<T>{
+  struct DLLEXPORT PythonAnonymousClassWrapper: protected PythonClassWrapper<T>{
   public:
        typedef PythonClassWrapper<T> Parent;
        typedef typename Parent::T_NoRef T_NoRef ;
@@ -540,7 +529,7 @@ namespace __pyllars_internal {
          }
 
         /**
-         * add a getter method for the given compile-time-known named public class member
+         * add a getter method for the given compile-time-known named public struct member
          **/
         template<const char *const name, typename FieldType>
         static void addAttribute(FieldType T_NoRef::*member){

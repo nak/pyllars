@@ -14,21 +14,13 @@
 
 #include "pyllars/pyllars_enum.hpp"
 
-template<>
-const char* const __pyllars_internal::TypeInfo<ClassWithEnum>::type_name = "ClassWithEnum";
-
-template<>
-const char* const __pyllars_internal::TypeInfo<decltype(ClassWithEnum::FIRST)>::type_name = "anonymous enum";
-
-template<>
-const char* const __pyllars_internal::TypeInfo<Enum>::type_name = "Enum";
-
-
 
 TEST_F(SetupAnonEnums, TestPythonClassWrappperChar){
-    ASSERT_EQ(PyType_Ready(__pyllars_internal::PythonClassWrapper<char>::getPyType()), 0);
+    auto c_char = PyObject_GetAttrString(pyllars::GlobalNS::module(), "c_char");
+    ASSERT_NE(c_char, nullptr);
+    ASSERT_TRUE(PyType_Check((PyTypeObject*)c_char));
     PyObject* args = PyTuple_New(0);
-    PyObject* obj = PyObject_Call((PyObject*) __pyllars_internal::PythonClassWrapper<char>::getPyType(), args, nullptr);
+    PyObject* obj = PyObject_Call(c_char, args, nullptr);
     ASSERT_NE(obj, nullptr);
     ASSERT_NE(obj->ob_type->tp_as_number, nullptr);
     ASSERT_NE(obj->ob_type->tp_as_number->nb_add, nullptr);
@@ -42,20 +34,21 @@ TEST_F(SetupAnonEnums, TestPythonClassWrappperChar){
 }
 
 TEST(TypesName, TestTypeNameVariants){
-    ASSERT_STREQ(__pyllars_internal::Types<char>::type_name(), "c_char");
-    ASSERT_STREQ(__pyllars_internal::Types<int>::type_name(), "c_int");
-    ASSERT_STREQ(__pyllars_internal::Types<unsigned long long>::type_name(), "c_unsigned_long_long");
-    ASSERT_STREQ(__pyllars_internal::Types<double>::type_name(), "c_double");
-    ASSERT_STREQ(__pyllars_internal::Types<const double>::type_name(), "const_c_double");
+    ASSERT_STREQ(pyllars_internal::Types<char>::type_name(), "c_char");
+    ASSERT_STREQ(pyllars_internal::Types<int>::type_name(), "c_int");
+    ASSERT_STREQ(pyllars_internal::Types<unsigned long long>::type_name(), "c_unsigned_long_long");
+    ASSERT_STREQ(pyllars_internal::Types<double>::type_name(), "c_double");
+    ASSERT_STREQ(pyllars_internal::Types<const double>::type_name(), "const_c_double");
 }
 
 
 
 TEST_F(SetupAnonEnums, TestClassWithEnum){
-    using namespace __pyllars_internal;
+    auto PyClassWithEnum = PyObject_GetAttrString(pyllars::GlobalNS::module(), "ClassWithEnum");
+    ASSERT_NE(PyClassWithEnum, nullptr);
+    ASSERT_TRUE(PyType_Check((PyTypeObject*)PyClassWithEnum));
     PyObject* args = PyTuple_New(0);
-    PyObject* obj = PyObject_Call((PyObject*) PythonClassWrapper<ClassWithEnum>::getPyType(),
-                                  args, nullptr);
+    PyObject* obj = PyObject_Call(PyClassWithEnum, args, nullptr);
     ASSERT_NE(obj, nullptr);
     auto first = PyObject_GetAttrString(obj, "FIRST");
     ASSERT_NE(first, nullptr);
@@ -74,10 +67,10 @@ TEST_F(SetupAnonEnums, TestClassWithEnum){
 }
 
 TEST_F(SetupAnonEnums, TestEnums){
-    using namespace __pyllars_internal;
-    typedef PythonClassWrapper<Enum> Class;
-
-    PyObject* ZERO_E = PyObject_GetAttrString((PyObject*)Class::getPyType(), "ZERO");
+    auto PyEnum = PyObject_GetAttrString(pyllars::GlobalNS::module(), "Enum");
+    ASSERT_NE(PyEnum, nullptr);
+    ASSERT_TRUE(PyType_Check((PyTypeObject*)PyEnum));
+    PyObject* ZERO_E = PyObject_GetAttrString(PyEnum, "ZERO");
 
     auto value_f = PyObject_GetAttrString(ZERO_E, "value");
     if (!value_f){

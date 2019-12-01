@@ -13,7 +13,7 @@
 #include "pyllars_pointer.impl.hpp"
 #include "pyllars_reference.impl.hpp"
 
-namespace __pyllars_internal {
+namespace pyllars_internal {
 
     namespace {
 
@@ -76,6 +76,13 @@ namespace __pyllars_internal {
         static argument_capture<T> toCArgument(PyObject &pyobj) ;
     };
 
+    template<typename T, size_t size >
+    class CObjectConversionHelper<T[size]> {
+    public:
+        typedef typename T T_bare;
+
+        static argument_capture<T[size]> toCArgument(PyObject &pyobj) ;
+    };
     /**
      * Specialization for callbacks (functions)
      **/
@@ -104,7 +111,7 @@ namespace __pyllars_internal {
         return CObjectConversionHelper<T>::toCArgument(pyobj);
     }
 
-    template<typename T, const size_t size >
+    template<typename T, size_t size >
     argument_capture<T[size]>
     toCArgument(PyObject &pyobj) {
         return CObjectConversionHelper<T[size] >::toCArgument(pyobj);

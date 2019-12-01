@@ -23,17 +23,17 @@ namespace pyllars{
     template<const char *const name, typename Class, typename AttrType, size_t bits,
             std::function<AttrType(const Class &)> *getter,
             std::function<AttrType(Class &, const AttrType &)> *setter = nullptr>
-    class PyllarsClassBitField{
+    class DLLEXPORT PyllarsClassBitField{
     private:
-        class Initializer{
+        class DLLEXPORT Initializer{
         public:
             Initializer() {
-                using namespace __pyllars_internal;
-                __pyllars_internal::Init::registerInit(init);
+                using namespace pyllars_internal;
+                pyllars_internal::Init::registerInit(init);
             }
 
             static status_t init(){
-                __pyllars_internal::PythonClassWrapper<Class>::template addBitField<name, AttrType, bits>(*getter, setter);
+                pyllars_internal::PythonClassWrapper<Class>::template addBitField<name, AttrType, bits>(*getter, setter);
                 return 0;
             }
         };

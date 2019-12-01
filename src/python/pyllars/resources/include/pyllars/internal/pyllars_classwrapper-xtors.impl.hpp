@@ -7,7 +7,7 @@
 #include "pyllars_conversions.impl.hpp"
 #include "pyllars_classwrapper.hpp"
 
-namespace __pyllars_internal {
+namespace pyllars_internal {
 
 
     template<typename T>
@@ -62,7 +62,7 @@ namespace __pyllars_internal {
             return nullptr;
         }
 
-        return _createBaseBase<Args...>(__pyllars_internal::toCArgument<Args>(*pyobjs[S])...);
+        return _createBaseBase<Args...>(pyllars_internal::toCArgument<Args>(*pyobjs[S])...);
     }
 
     template<typename T>

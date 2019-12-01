@@ -4,15 +4,21 @@
 
 #include <pyllars/internal/pyllars_integer.hpp>
 #include <pyllars/internal/pyllars_classwrapper.impl.hpp>
-#include <pyllars/internal/pyllars_pointer.impl.hpp>
 #include <pyllars/internal/pyllars_reference.impl.hpp>
 
 #include "pyllars_class.hpp"
 #include "pyllars_namespacewrapper.hpp"
 
-namespace __pyllars_internal {
+namespace pyllars_internal {
 
-    PyTypeObject PyNumberCustomBase::_Type = {
+#ifdef _MSC_VER
+    __declspec(noinline)
+#endif
+    PyTypeObject *PyNumberCustomBase::getRawType() {
+        return &_Type;
+    }
+
+    DLLEXPORT PyTypeObject PyNumberCustomBase::_Type = {
 #if PY_MAJOR_VERSION == 3
             PyVarObject_HEAD_INIT(NULL, 0)
 #else
@@ -113,6 +119,47 @@ namespace __pyllars_internal {
         return &obj;
     }
 
+    template<typename number_type>
+    status_t PyNumberCustomObject<number_type>::initialize() { return _initialize(*getRawType()); }
+
+    template<typename number_type>
+#ifdef _MSC_VER
+    __declspec(noinline)
+#endif
+    PyTypeObject *PyNumberCustomObject<number_type>::getPyType() {
+        if (initialize() != 0) { return nullptr; }
+        return &_Type;
+    }
+
+    template<typename number_type>
+#ifdef _MSC_VER
+    __declspec(noinline)
+#endif
+    PyTypeObject *PyNumberCustomObject<number_type>::getRawType() {
+        return &_Type;
+    }
+
+    template<typename number_type>
+    status_t PyNumberCustomObject<number_type>::preinit() {
+        static PyObject *module = pyllars::GlobalNS::module();
+        static bool inited = false;
+        static int rc = -1;
+        if (inited) return rc;
+        inited = true;
+
+        rc = PyType_Ready(PyNumberCustomBase::getRawType());
+        rc |= PyType_Ready(getRawType());
+        rc |= PyType_Ready(CommonBaseWrapper::getPyType());
+        rc |= PyType_Ready(PyNumberCustomObject::getRawType());
+        Py_INCREF(getRawType());
+        Py_INCREF(PyNumberCustomBase::getRawType());
+        Py_INCREF(PyNumberCustomObject::getRawType());
+        if (module && rc == 0) {
+            PyModule_AddObject(module, pyllars_internal::type_name<number_type>(),
+                               (PyObject *) PyNumberCustomObject::getRawType());
+        }
+        return rc;
+    }
 
     template<typename number_type>
     template<__int128_t(*func)(__int128_t, __int128_t, const bool check)>
@@ -151,13 +198,13 @@ namespace __pyllars_internal {
             if (!ret) {
                 return nullptr;
             }
-            ret->_CObject = static_cast<number_type*>(new nonv_number_t(static_cast<nonv_number_t >(ret_value)));
+            ret->_CObject = static_cast<number_type *>(new nonv_number_t(static_cast<nonv_number_t >(ret_value)));
             return (PyObject *) ret;
         }
     }
 
     template<typename number_type>
-    template<void(*func)(__int128_t &, std::remove_volatile_t <number_type>)>
+    template<void(*func)(__int128_t &, std::remove_volatile_t<number_type>)>
     PyObject *
     NumberType<number_type>::_baseInplaceBinaryFunc(PyObject *v1, PyObject *v2) {
         if (!PyObject_TypeCheck(v1, PyNumberCustomObject<number_type>::getPyType())) {
@@ -174,7 +221,7 @@ namespace __pyllars_internal {
         if (PyErr_Occurred()) {
             return nullptr;
         }
-        if (ret_value < static_cast<__int128_t>(min()) || ret_value >  static_cast<__int128_t>(max)) {
+        if (ret_value < static_cast<__int128_t>(min()) || ret_value > static_cast<__int128_t>(max)) {
             PyErr_SetString(PyExc_ValueError, "Result out of range");
             return nullptr;
         }
@@ -182,14 +229,14 @@ namespace __pyllars_internal {
             auto v1_ = (PyNumberCustomObject<number_type> *) v1;
             *const_cast<typename std::remove_const<number_type>::type *>(v1_->_CObject) = static_cast<nonv_number_t >(ret_value);
         } else {
-            *((PyNumberCustomObject<number_type> *) v1)->_CObject =  static_cast<nonv_number_t >(ret_value);
+            *((PyNumberCustomObject<number_type> *) v1)->_CObject = static_cast<nonv_number_t >(ret_value);
         }
         Py_INCREF(v1);
         return v1;
     }
 
     template<typename number_type>
-    template<std::remove_volatile_t <number_type> (*func)(__int128_t)>
+    template<std::remove_volatile_t<number_type> (*func)(__int128_t)>
     PyObject *
     NumberType<number_type>::_baseUnaryFunc(PyObject *obj) {
         static PyObject *emptyargs = PyTuple_New(0);
@@ -243,12 +290,12 @@ namespace __pyllars_internal {
             const __int128_t result = v3 ?
                                       pow(value1, value2) % value3 :
                                       pow(value1, value2);
-            if (result <  static_cast<__int128_t>(min()) || result > static_cast<__int128_t>(max)) {
+            if (result < static_cast<__int128_t>(min()) || result > static_cast<__int128_t>(max)) {
                 static const char *const msg = "Result is out of range";
                 PyErr_SetString(PyExc_ValueError, msg);
                 return nullptr;
             }
-            ret->_CObject = static_cast<number_type*>(new nonv_number_t(static_cast<nonv_number_t >(result)));
+            ret->_CObject = static_cast<number_type *>(new nonv_number_t(static_cast<nonv_number_t >(result)));
             return (PyObject *) ret;
         }
     }
@@ -261,7 +308,7 @@ namespace __pyllars_internal {
             PyErr_SetString(PyExc_TypeError, "Cannot instantiate reference type for resulting expression");
             return nullptr;
         } else {
-            typedef std::remove_volatile_t <number_type> bare_t;
+            typedef std::remove_volatile_t<number_type> bare_t;
             static PyObject *emptyargs = PyTuple_New(0);
             auto *retq = (PyNumberCustomObject<number_type> *) PyObject_Call(
                     (PyObject *) PyNumberCustomObject<number_type>::getPyType(), emptyargs, nullptr);
@@ -280,7 +327,7 @@ namespace __pyllars_internal {
             const __int128_t quotient = value1 / value2;
             const __int128_t remainder = value1 % value2;
             if (quotient < static_cast<__int128_t>(min()) || quotient > static_cast<__int128_t>(max) ||
-                    remainder <  static_cast<__int128_t>(min()) || remainder >  static_cast<__int128_t>(max)) {
+                remainder < static_cast<__int128_t>(min()) || remainder > static_cast<__int128_t>(max)) {
                 static const char *const msg = "Invalid types for arguments";
                 PyErr_SetString(PyExc_ValueError, msg);
                 return nullptr;
@@ -360,7 +407,7 @@ namespace __pyllars_internal {
     PyObject_HEAD_INIT(nullptr)
     0,                         /*ob_size*/
 #endif
-            __pyllars_internal::type_name<number_type>(), /*tp_name*/
+            pyllars_internal::type_name<number_type>(), /*tp_name*/
             sizeof(PyNumberCustomObject<number_type>), /*tp_basicsize*/
             0, /*tp_itemsize*/
             nullptr, /*tp_dealloc*/
@@ -413,7 +460,7 @@ namespace __pyllars_internal {
     template<typename number_type>
     PyObject *PyNumberCustomObject<number_type>::repr(PyObject *o) {
         auto *obj = (PyNumberCustomObject<number_type> *) o;
-        std::string name = std::string("<pyllars.") + std::string(__pyllars_internal::type_name<number_type>()) +
+        std::string name = std::string("<pyllars.") + std::string(pyllars_internal::type_name<number_type>()) +
                            std::string("> _CObject=") + std::to_string(*obj->_CObject);
         return PyString_FromString(name.c_str());
     }
@@ -449,28 +496,30 @@ namespace __pyllars_internal {
                     PyErr_SetString(PyExc_ValueError, "Argument must be of integral type");
                     return nullptr;
                 }
-                typedef std::remove_volatile_t <number_type> bare_t;
-                const __int128_t long_value = NumberType<bare_t >::toLongLong(item);
-                if (long_value < (__int128_t) NumberType<bare_t >::min() || long_value > (__int128_t)NumberType<bare_t >::max) {
+                typedef std::remove_volatile_t<number_type> bare_t;
+                const __int128_t long_value = NumberType<bare_t>::toLongLong(item);
+                if (long_value < (__int128_t) NumberType<bare_t>::min() ||
+                    long_value > (__int128_t) NumberType<bare_t>::max) {
                     PyErr_SetString(PyExc_ValueError, "Argument out of range");
                     return nullptr;
                 }
                 value = (bare_t) long_value;
             }
             ssize_t count = 1;
-            typedef std::remove_volatile_t <number_type> bare_t;
+            typedef std::remove_volatile_t<number_type> bare_t;
             if (size == 2) {
                 PyObject *item = PyTuple_GetItem(args, 1);
                 if (!item) {
                     PyErr_SetString(PyExc_SystemError, "Internal error getting tuple _CObject");
                     return nullptr;
                 }
-                if (!NumberType<bare_t >::isIntegerObject(item)) {
+                if (!NumberType<bare_t>::isIntegerObject(item)) {
                     PyErr_SetString(PyExc_ValueError, "Argument must be of integral type");
                     return nullptr;
                 }
                 const __int128_t long_value = NumberType<bare_t>::toLongLong(item);
-                if (long_value < (__int128_t) NumberType<bare_t>::min() || long_value > (__int128_t) NumberType<bare_t>::max) {
+                if (long_value < (__int128_t) NumberType<bare_t>::min() ||
+                    long_value > (__int128_t) NumberType<bare_t>::max) {
                     PyErr_SetString(PyExc_ValueError, "Argument out of range");
                     return nullptr;
                 }
@@ -481,9 +530,11 @@ namespace __pyllars_internal {
                 }
             }
             if (count == 1) {
-                return (PyObject *) PythonClassWrapper<number_type *>::template allocateInstance<number_type>(value);
+                return (PyObject *) PythonClassWrapper<number_type *>::template allocateInstance<number_type>(
+                        value);
             } else {
-                return (PyObject *) PythonClassWrapper<number_type *>::template allocateArray<number_type>(value, count);
+                return (PyObject *) PythonClassWrapper<number_type *>::template allocateArray<number_type>(value,
+                                                                                                           count);
             }
         }
     }
@@ -492,7 +543,6 @@ namespace __pyllars_internal {
     status_t PyNumberCustomObject<number_type>::_initialize(PyTypeObject &type) {
         return 0;
     }
-
 
 
     template<typename number_type>
@@ -567,7 +617,7 @@ namespace __pyllars_internal {
         PyObject *args = PyTuple_New(0);
         PyDict_SetItemString(kwds, "__internal_allow_null", Py_True);
 
-        auto *pyobj = (__pyllars_internal::PythonClassWrapper<number_type> *) PyObject_Call(
+        auto *pyobj = (pyllars_internal::PythonClassWrapper<number_type> *) PyObject_Call(
                 (PyObject *) getPyType(), args, kwds);
         if (pyobj) {
             pyobj->_CObject = new number_type(cobj);
@@ -579,7 +629,7 @@ namespace __pyllars_internal {
 
     template<typename number_type>
     typename std::remove_const<number_type>::type &
-    __pyllars_internal::PyNumberCustomObject<number_type>::toCArgument() {
+    pyllars_internal::PyNumberCustomObject<number_type>::toCArgument() {
         if constexpr (std::is_const<number_type>::value) {
             throw PyllarsException(PyExc_TypeError, "Cannot pass const value as non-const reference argument");
         } else {
@@ -589,7 +639,7 @@ namespace __pyllars_internal {
 
     template<typename number_type>
     const number_type &
-    __pyllars_internal::PyNumberCustomObject<number_type>::toCArgument() const {
+    pyllars_internal::PyNumberCustomObject<number_type>::toCArgument() const {
         return *const_cast<const number_type *>(get_CObject());
     }
 
@@ -603,7 +653,7 @@ namespace __pyllars_internal {
         };
         self->hash = [](CommonBaseWrapper *self) -> size_t {
             static std::hash<typename std::remove_cv<number_type>::type> hasher;
-            return hasher((std::remove_volatile_t<number_type>)*((PyNumberCustomObject *) self)->get_CObject());
+            return hasher((std::remove_volatile_t<number_type>) *((PyNumberCustomObject *) self)->get_CObject());
         };
 
         auto toInt = [](PyObject *obj) -> __int128_t {
@@ -618,7 +668,8 @@ namespace __pyllars_internal {
 
             if (PyTuple_Size(args) == 0) {
                 if constexpr (std::is_reference<number_type>::value) {
-                    PyErr_SetString(PyExc_TypeError, "Cannot instantiate a reference type without an acutal object");
+                    PyErr_SetString(PyExc_TypeError,
+                                    "Cannot instantiate a reference type without an acutal object");
                     return -1;
                 } else {
                     self->_CObject = new number_type(0);
@@ -627,11 +678,13 @@ namespace __pyllars_internal {
                 PyObject *value = PyTuple_GetItem(args, 0);
                 if constexpr (std::is_reference<number_type>::value) {
                     if (PyObject_TypeCheck(value, PythonClassWrapper<number_type *>::getPyType())) {
-                        self->_CObject = *reinterpret_cast<PythonClassWrapper<number_type *> *>(value)->get_CObject();
+                        self->_CObject =
+                                *reinterpret_cast<PythonClassWrapper<number_type *> * > (value)->get_CObject();
                     } else if (PyObject_TypeCheck(value, PyNumberCustomObject::getPyType())) {
                         self->_CObject = reinterpret_cast<PyNumberCustomObject *>(value)->_CObject;
                     } else {
-                        PyErr_SetString(PyExc_TypeError, "instantiating reference-to-object from incompatible type");
+                        PyErr_SetString(PyExc_TypeError,
+                                        "instantiating reference-to-object from incompatible type");
                         return -1;
                     }
                 } else {
@@ -645,7 +698,7 @@ namespace __pyllars_internal {
                         PyErr_SetString(PyExc_ValueError, "Argument _CObject out of range");
                         return -1;
                     }
-                    self->_CObject = new number_type((std::remove_volatile_t <number_type>)longvalue);
+                    self->_CObject = new number_type((std::remove_volatile_t<number_type>) longvalue);
                 }
             } else {
                 PyErr_SetString(PyExc_TypeError, "Should only call with at most one arument");
@@ -660,347 +713,155 @@ namespace __pyllars_internal {
 
 
     template
-    struct PyNumberCustomObject<const bool>;
+    struct DLLEXPORT PyNumberCustomObject<const bool>;
 
     template
-    struct PyNumberCustomObject<const char>;
+    struct DLLEXPORT PyNumberCustomObject<const char>;
 
     template
-    struct PyNumberCustomObject<const short>;
+    struct DLLEXPORT PyNumberCustomObject<const short>;
 
     template
-    struct PyNumberCustomObject<const int>;
+    struct DLLEXPORT PyNumberCustomObject<const int>;
 
     template
-    struct PyNumberCustomObject<const long>;
+    struct DLLEXPORT PyNumberCustomObject<const long>;
 
     template
-    struct PyNumberCustomObject<const long long>;
+    struct DLLEXPORT PyNumberCustomObject<const long long>;
 
     template
-    struct PyNumberCustomObject<const unsigned char>;
+    struct DLLEXPORT PyNumberCustomObject<const unsigned char>;
 
     template
-    struct PyNumberCustomObject<const signed char>;
+    struct DLLEXPORT PyNumberCustomObject<const signed char>;
 
     template
-    struct PyNumberCustomObject<const unsigned short>;
+    struct DLLEXPORT PyNumberCustomObject<const unsigned short>;
 
     template
-    struct PyNumberCustomObject<const unsigned int>;
+    struct DLLEXPORT PyNumberCustomObject<const unsigned int>;
 
     template
-    struct PyNumberCustomObject<const unsigned long>;
+    struct DLLEXPORT PyNumberCustomObject<const unsigned long>;
 
     template
-    struct PyNumberCustomObject<const unsigned long long>;
-
-
-    template
-    struct PyNumberCustomObject<bool>;
-
-    template
-    struct PyNumberCustomObject<char>;
-
-    template
-    struct PyNumberCustomObject<signed char>;
-
-    template
-    struct PyNumberCustomObject<short>;
-
-    template
-    struct PyNumberCustomObject<int>;
-
-    template
-    struct PyNumberCustomObject<long>;
-
-    template
-    struct PyNumberCustomObject<long long>;
-
-    template
-    struct PyNumberCustomObject<unsigned char>;
-
-    template
-    struct PyNumberCustomObject<unsigned short>;
-
-    template
-    struct PyNumberCustomObject<unsigned int>;
-
-    template
-    struct PyNumberCustomObject<unsigned long>;
-
-    template
-    struct PyNumberCustomObject<unsigned long long>;
+    struct DLLEXPORT PyNumberCustomObject<const unsigned long long>;
 
 
     template
-    struct PyNumberCustomObject<volatile const bool>;
+    struct DLLEXPORT PyNumberCustomObject<bool>;
 
     template
-    struct PyNumberCustomObject<volatile const char>;
+    struct DLLEXPORT PyNumberCustomObject<char>;
 
     template
-    struct PyNumberCustomObject<volatile const signed char>;
+    struct DLLEXPORT PyNumberCustomObject<signed char>;
 
     template
-    struct PyNumberCustomObject<volatile const short>;
+    struct DLLEXPORT PyNumberCustomObject<short>;
 
     template
-    struct PyNumberCustomObject<volatile const int>;
+    struct DLLEXPORT PyNumberCustomObject<int>;
 
     template
-    struct PyNumberCustomObject<volatile const long>;
+    struct DLLEXPORT PyNumberCustomObject<long>;
 
     template
-    struct PyNumberCustomObject<volatile const long long>;
+    struct DLLEXPORT PyNumberCustomObject<long long>;
 
     template
-    struct PyNumberCustomObject<volatile const unsigned char>;
+    struct DLLEXPORT PyNumberCustomObject<unsigned char>;
 
     template
-    struct PyNumberCustomObject<volatile const unsigned short>;
+    struct DLLEXPORT PyNumberCustomObject<unsigned short>;
 
     template
-    struct PyNumberCustomObject<volatile const unsigned int>;
+    struct DLLEXPORT PyNumberCustomObject<unsigned int>;
 
     template
-    struct PyNumberCustomObject<volatile const unsigned long>;
+    struct DLLEXPORT PyNumberCustomObject<unsigned long>;
 
     template
-    struct PyNumberCustomObject<volatile const unsigned long long>;
+    struct DLLEXPORT PyNumberCustomObject<unsigned long long>;
 
 
     template
-    struct PyNumberCustomObject<volatile bool>;
+    struct DLLEXPORT PyNumberCustomObject<volatile const bool>;
 
     template
-    struct PyNumberCustomObject<volatile char>;
+    struct DLLEXPORT PyNumberCustomObject<volatile const char>;
 
     template
-    struct PyNumberCustomObject<volatile signed char>;
+    struct DLLEXPORT PyNumberCustomObject<volatile const signed char>;
 
     template
-    struct PyNumberCustomObject<volatile short>;
+    struct DLLEXPORT PyNumberCustomObject<volatile const short>;
 
     template
-    struct PyNumberCustomObject<volatile int>;
+    struct DLLEXPORT PyNumberCustomObject<volatile const int>;
 
     template
-    struct PyNumberCustomObject<volatile long>;
+    struct DLLEXPORT PyNumberCustomObject<volatile const long>;
 
     template
-    struct PyNumberCustomObject<volatile long long>;
+    struct DLLEXPORT PyNumberCustomObject<volatile const long long>;
 
     template
-    struct PyNumberCustomObject<volatile unsigned char>;
+    struct DLLEXPORT PyNumberCustomObject<volatile const unsigned char>;
 
     template
-    struct PyNumberCustomObject<volatile unsigned short>;
+    struct DLLEXPORT PyNumberCustomObject<volatile const unsigned short>;
 
     template
-    struct PyNumberCustomObject<volatile unsigned int>;
+    struct DLLEXPORT PyNumberCustomObject<volatile const unsigned int>;
 
     template
-    struct PyNumberCustomObject<volatile unsigned long>;
+    struct DLLEXPORT PyNumberCustomObject<volatile const unsigned long>;
 
     template
-    struct PyNumberCustomObject<volatile unsigned long long>;
+    struct DLLEXPORT PyNumberCustomObject<volatile const unsigned long long>;
+
+
+    template
+    struct DLLEXPORT PyNumberCustomObject<volatile bool>;
+
+    template
+    struct DLLEXPORT PyNumberCustomObject<volatile char>;
+
+    template
+    struct DLLEXPORT PyNumberCustomObject<volatile signed char>;
+
+    template
+    struct DLLEXPORT PyNumberCustomObject<volatile short>;
+
+    template
+    struct DLLEXPORT PyNumberCustomObject<volatile int>;
+
+    template
+    struct DLLEXPORT PyNumberCustomObject<volatile long>;
+
+    template
+    struct DLLEXPORT PyNumberCustomObject<volatile long long>;
+
+    template
+    struct DLLEXPORT PyNumberCustomObject<volatile unsigned char>;
+
+    template
+    struct DLLEXPORT PyNumberCustomObject<volatile unsigned short>;
+
+    template
+    struct DLLEXPORT PyNumberCustomObject<volatile unsigned int>;
+
+    template
+    struct DLLEXPORT PyNumberCustomObject<volatile unsigned long>;
+
+    template
+    struct DLLEXPORT PyNumberCustomObject<volatile unsigned long long>;
 }
+
 
 namespace pyllars{
 
-
-    template
-    class PyllarsClass<bool, GlobalNS>;
-
-    template
-    class PyllarsClass<const bool, GlobalNS>;
-
-
-    template
-    class PyllarsClass<volatile bool, GlobalNS>;
-
-
-    template
-    class PyllarsClass<const volatile bool, GlobalNS>;
-
-
-    template
-    class PyllarsClass<char, GlobalNS>;
-
-
-    template
-    class PyllarsClass<unsigned char, GlobalNS >;
-
-
-    template
-    class PyllarsClass<signed char, GlobalNS >;
-
-
-    template
-    class PyllarsClass<short, GlobalNS>;
-
-
-    template
-    class PyllarsClass<unsigned short, GlobalNS>;
-
-
-    template
-    class PyllarsClass<int, GlobalNS >;
-
-
-    template
-    class PyllarsClass<unsigned int, GlobalNS >;
-
-
-    template
-    class PyllarsClass<long, GlobalNS >;
-
-
-    template
-    class PyllarsClass<unsigned long, GlobalNS >;
-
-
-    template
-    class PyllarsClass<long long, GlobalNS >;
-
-
-    template
-    class PyllarsClass<unsigned long long, GlobalNS >;
-
-    ///////////////////
-
-    template
-    class PyllarsClass<const char, GlobalNS >;
-
-
-    template
-    class PyllarsClass<const unsigned char, GlobalNS >;
-
-
-    template
-    class PyllarsClass<const signed char, GlobalNS >;
-
-
-    template
-    class PyllarsClass<const short, GlobalNS >;
-
-
-    template
-    class PyllarsClass<const unsigned short, GlobalNS >;
-
-
-    template
-    class PyllarsClass<const int, GlobalNS >;
-
-
-    template
-    class PyllarsClass<const unsigned int, GlobalNS >;
-
-
-    template
-    class PyllarsClass<const long, GlobalNS >;
-
-
-    template
-    class PyllarsClass<const unsigned long, GlobalNS >;
-
-
-    template
-    class PyllarsClass<const long long, GlobalNS >;
-
-
-    template
-    class PyllarsClass<const unsigned long long, GlobalNS >;
-
-   ////////////////////
-
-    template
-    class PyllarsClass<volatile char, GlobalNS >;
-
-
-    template
-    class PyllarsClass<volatile unsigned char, GlobalNS >;
-
-
-    template
-    class PyllarsClass<volatile signed char, GlobalNS >;
-
-
-    template
-    class PyllarsClass<volatile short, GlobalNS >;
-
-
-    template
-    class PyllarsClass<volatile unsigned short, GlobalNS >;
-
-
-    template
-    class PyllarsClass<volatile int, GlobalNS >;
-
-
-    template
-    class PyllarsClass<volatile unsigned int, GlobalNS >;
-
-
-    template
-    class PyllarsClass<volatile long, GlobalNS >;
-
-
-    template
-    class PyllarsClass<volatile unsigned long, GlobalNS >;
-
-
-    template
-    class PyllarsClass<volatile long long, GlobalNS >;
-
-
-    template
-    class PyllarsClass<volatile unsigned long long, GlobalNS >;
-
-    //////////
-
-    template
-    class PyllarsClass<const volatile char, GlobalNS >;
-
-
-    template
-    class PyllarsClass<const volatile unsigned char, GlobalNS >;
-
-
-    template
-    class PyllarsClass<const volatile signed char, GlobalNS >;
-
-
-    template
-    class PyllarsClass<const volatile short, GlobalNS >;
-
-
-    template
-    class PyllarsClass<const volatile unsigned short, GlobalNS >;
-
-
-    template
-    class PyllarsClass<const volatile int, GlobalNS >;
-
-
-    template
-    class PyllarsClass<const volatile unsigned int, GlobalNS >;
-
-
-    template
-    class PyllarsClass<const volatile long, GlobalNS >;
-
-
-    template
-    class PyllarsClass<const volatile unsigned long, GlobalNS >;
-
-
-    template
-    class PyllarsClass<const volatile long long, GlobalNS >;
-
-
-    template
-    class PyllarsClass<const volatile unsigned long long, GlobalNS >;
 
 }

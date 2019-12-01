@@ -13,9 +13,9 @@ namespace pyllars{
     class PyllarsFunction;
 
     template<const char *const name, const char* kwlist[], typename function_t, function_t f, typename Parent>
-    class PyllarsFunction<name, kwlist, function_t, f, Parent, std::enable_if_t<std::is_base_of<CommonNamespaceWrapper, Parent>::value> >{
+    class DLLEXPORT PyllarsFunction<name, kwlist, function_t, f, Parent, std::enable_if_t<std::is_base_of<CommonNamespaceWrapper, Parent>::value> >{
     private:
-        class Initializer{
+        class DLLEXPORT Initializer{
         public:
             Initializer(){
                 __pyllars_internal::Init::registerReady(&ready);

@@ -18,16 +18,16 @@ namespace pyllars{
      * @tparam attr  pointer to the static attribute
      */
     template<const char *const name, typename Class, typename Attr, Attr* attr>
-    class PyllarsClassStaticMember{
+    class DLLEXPORT PyllarsClassStaticMember{
     private:
-        class Initializer{
+        class DLLEXPORT Initializer{
         public:
             Initializer(){
-                __pyllars_internal::Init::registerInit(init);
+                pyllars_internal::Init::registerInit(init);
             }
 
             static status_t init(){
-                using namespace __pyllars_internal;
+                using namespace pyllars_internal;
                 PythonClassWrapper<Class>::template addStaticAttribute<name, Attr>(attr);
                 return 0;
             }

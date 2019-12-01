@@ -25,7 +25,10 @@
 #include "pyllars/pyllars_classbitfield.hpp"
 #include "pyllars/pyllars_class.hpp"
 #include "pyllars/internal/pyllars_classwrapper-type.impl.hpp"
-
+namespace {
+    const char* const empty[] = {nullptr};
+    const char* const kwlist[]= {"obj", nullptr};
+}
 struct A{
     int ivalue;
 
@@ -38,11 +41,8 @@ struct A{
     }
 };
 
-template _object* __pyllars_internal::toPyArgument<A>(A&, const long);
-
 class DisparateType{
 };
-
 
 class PythonSetup: public ::testing::Test{
 public:
@@ -63,11 +63,9 @@ protected:
     }
 
     static void SetUpTestSuite() {
-        using namespace __pyllars_internal;
+        using namespace pyllars_internal;
 
         Py_Initialize();
-        static const char* const empty[] = {nullptr};
-        static const char* const kwlist[]= {"obj", nullptr};
         PythonClassWrapper<A>::addConstructor<kwlist, const A&>();
         PythonClassWrapper<A>::addConstructor<empty>();
     }
@@ -82,16 +80,20 @@ protected:
 
 enum {ONE, TWO, THREE};
 
-
-template<>
-const char* const __pyllars_internal::TypeInfo<A>::type_name = "A";
-
-
-template<>
-const char* const __pyllars_internal::TypeInfo<DisparateType>::type_name = "DisparateType";
-
-template<>
-const char* const __pyllars_internal::TypeInfo<decltype(ONE)>::type_name = "anon_enum";
+namespace pyllars_internal {
+    template<>
+    struct DLLEXPORT TypeInfo<A> {
+        static constexpr char type_name[] = "A";
+    };
+    template<>
+    struct DLLEXPORT TypeInfo<DisparateType> {
+        static constexpr char type_name[] = "DisparateType";
+    };
+    template<>
+    struct DLLEXPORT TypeInfo<decltype(ONE)> {
+        static constexpr char type_name[] = "anon_enum";
+    };
+}
 
 template<typename T>
 struct Assertion {
@@ -131,7 +133,7 @@ struct Assertion<char*>{
 };
 
 TEST_F(PythonSetup, test_convert_basic_convert_pybasic){
-    using namespace __pyllars_internal;
+    using namespace pyllars_internal;
     static constexpr long const_long = 123445567678l;
     static constexpr unsigned int const_uint = 212;
 
@@ -149,7 +151,7 @@ TEST_F(PythonSetup, test_convert_basic_convert_pybasic){
 }
 
 TEST_F(PythonSetup, test_convert_pyfloat_to_cfloat){
-    using namespace __pyllars_internal;
+    using namespace pyllars_internal;
     static constexpr double const_double = 19823.34432;
 
     auto double_obj = PyFloat_FromDouble(const_double);
@@ -160,7 +162,7 @@ TEST_F(PythonSetup, test_convert_pyfloat_to_cfloat){
 
 
 TEST_F(PythonSetup, test_convert_pylong_to_c){
-    using namespace __pyllars_internal;
+    using namespace pyllars_internal;
     static constexpr long const_long = 19823;
 
     auto long_obj = PyLong_FromLong(const_long);
@@ -171,20 +173,19 @@ TEST_F(PythonSetup, test_convert_pylong_to_c){
 
 template<typename T>
 void test_convert_basic(T val, PyObject* (*PyFrom)(T)){
-    using namespace __pyllars_internal;
+    using namespace pyllars_internal;
     PyObject* obj;
     obj = PyFrom(val);
     ASSERT_NE(obj, nullptr);
     argument_capture<T> value = toCArgument<T>(*obj);
     Assertion<T>::assert_equal(value.value(), val);
-    typedef const char* cstring;
     ASSERT_THROW( (toCArgument<DisparateType>(*obj)), PyllarsException);
 
 }
 
 template<typename T>
 PyObject* PyLong_FromInt(T v){
-    return PyLong_FromLong(v);
+    return PyLong_FromLong((long)v);
 }
 
 PyObject* PyFloat_FromFloat(float v){
@@ -192,7 +193,7 @@ PyObject* PyFloat_FromFloat(float v){
 }
 
 PyObject* PyClass_FromClass(A v){
-    using namespace __pyllars_internal;
+    using namespace pyllars_internal;
     auto args = PyTuple_New(1);
     PyTuple_SetItem(args, 0, toPyObject<A>(v, 1));
     return PyObject_Call((PyObject*)PythonClassWrapper<A>::getPyType(), args, nullptr);
@@ -262,7 +263,7 @@ void array_call(T v[3], T to[3]){
 
 template<typename T>
 void test_conversion(T vals[3]){
-    using namespace __pyllars_internal;
+    using namespace pyllars_internal;
     T array[3] = {vals[0], vals[1], vals[2]};
     PythonClassWrapper<T[3]>::initialize();
     auto obj = toPyObject<T[3]>(array, 3);
@@ -301,7 +302,7 @@ TEST_F(PythonSetup, convert_array_class) {
 
 template<typename T, void(*call)(T v[3], T y[3]), PyObject* (*PyFrom)(T), T (*PyTo)(PyObject*)>
 void test_conversion_from_native_py(T vals[3], T toVals[3]) {
-    using namespace __pyllars_internal;
+    using namespace pyllars_internal;
 
     auto obj = PyList_New(3);
     PythonClassWrapper<T>* o= (PythonClassWrapper<T>*)PyFrom(vals[0]);
@@ -336,13 +337,13 @@ T __PyLong_AsInt(PyObject* obj){
 
 template<typename T>
 PyObject* PyWrapper_FromValue(T v){
-    using namespace __pyllars_internal;
+    using namespace pyllars_internal;
     return toPyObject<T>(v, 1);
 }
 
 template<typename T>
 T PyWrapper_AsValue(PyObject* obj){
-    using namespace __pyllars_internal;
+    using namespace pyllars_internal;
     assert(PyObject_TypeCheck(obj, PythonClassWrapper<T>::getPyType()));
     assert(((PythonClassWrapper<T>*)obj)->get_CObject());
     return *((PythonClassWrapper<T>*)obj)->get_CObject();
@@ -432,7 +433,7 @@ TYPED_TEST_SUITE(ToPyTest, TypeList);
 TYPED_TEST(ToPyTest, convert_to_py ) {
     using T =typename TestFixture::Type;
 
-    using namespace __pyllars_internal;
+    using namespace pyllars_internal;
     PythonClassWrapper<T>::initialize();
     typedef typename std::remove_reference<T>::type T_NoRef;
     T_NoRef *a = new T_NoRef();
@@ -472,7 +473,7 @@ TYPED_TEST(ToPyTest2, convert_to_py_array ) {
     using T =typename TestFixture::Type[size];
     using T_element = typename TestFixture::Type;
 
-    using namespace __pyllars_internal;
+    using namespace pyllars_internal;
     PythonClassWrapper<T>::initialize();
     typedef typename std::remove_reference<T>::type T_NoRef;
     T values = {T_element()};

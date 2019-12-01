@@ -15,9 +15,9 @@ long long long_long_return(const int i, double * d){
 
 #include <stdarg.h>
 
-void void_return_varargs(double & value, ...){
+void void_return_varargs(double & value, int spacer, ...){
     va_list argp;
-    va_start(argp, value);
+    va_start(argp, spacer);
     double v = va_arg(argp, double);
     value = v;
     va_end(argp);

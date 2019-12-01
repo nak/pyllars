@@ -19,16 +19,16 @@ namespace pyllars{
      * @tparam function   pointer to the static method
      */
     template<const char *const name, const char* const kwlist[], typename Class, typename function_t, function_t function>
-    class PyllarsClassStaticMethod{
+    class DLLEXPORT PyllarsClassStaticMethod{
     private:
-        class Initializer{
+        class DLLEXPORT Initializer{
         public:
             Initializer(){
-                __pyllars_internal::Init::registerInit(init);
+                pyllars_internal::Init::registerInit(init);
             }
 
             static status_t init(){
-                using namespace __pyllars_internal;
+                using namespace pyllars_internal;
                 PythonClassWrapper<Class>::template addStaticMethod<name, kwlist, function_t, function>();
                 return 0;
             }

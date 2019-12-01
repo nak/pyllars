@@ -32,7 +32,7 @@ static void _pyllars_import_to_top(PyObject* pyllars_mod, PyObject* module){
 
 #if PY_MAJOR_VERSION == 3
 
-PyObject*
+DLLEXPORT PyObject*
 PyllarsInit(const char* const name){
   static PyObject *const pyllars_mod = PyImport_ImportModule("pyllars");
   const char* const doc = "Pyllars top-level module";
@@ -50,10 +50,10 @@ PyllarsInit(const char* const name){
     PyObject_SetAttrString(pyllars_mod, name, mod);
   }
   int status = 0;
-  if ((status = __pyllars_internal::Init::init())!= 0){
+  if ((status = pyllars_internal::Init::init()) != 0){
         printf("Failed to init all types");
   } else {
-    if ((status |= __pyllars_internal::Init::ready()) != 0){
+    if ((status |= pyllars_internal::Init::ready()) != 0){
       printf("Failed to ready all types");
     }
   }
@@ -84,16 +84,61 @@ int PyllarsInit(const char* const name){
 #include "pyllars/internal/pyllars_classwrapper.impl.hpp"
 
 
-namespace __pyllars_internal {
-    std::vector<Init::ready_func_t> *Init::_readyFuncs = nullptr;
-    std::vector<Init::ready_func_t> *Init::_initFuncs = nullptr;
+namespace pyllars_internal {
+
+    void Init::registerReady(pyllars_internal::Init::ready_func_t func) {
+        static std::vector<ready_func_t> _funcs;
+        _readyFuncs = &_funcs;
+        if (func) _readyFuncs->push_back(func);
+    }
+
+    void Init::registerInit(ready_func_t func){
+        static std::vector<ready_func_t> _funcs;
+        _initFuncs = &_funcs;
+        if (func) _initFuncs->push_back(func);
+    }
+
+    int Init::ready() {
+        status_t status = 0;
+        if(_readyFuncs) {
+            for (auto &func: *_readyFuncs) {
+                if(func) {
+                    status |= func();
+                    if (status != 0 && PyErr_Occurred()){
+                        return status;
+                    }
+                }
+            }
+            _readyFuncs->clear();
+        }
+        return status;
+    }
+
+    status_t Init::init(){
+        status_t status = 0;
+        if(_initFuncs) {
+            for (auto &func: *_initFuncs) {
+                if(func) {
+                    status |= func();
+                    if (status != 0 && PyErr_Occurred()){
+                        return status;
+                    }
+                }
+            }
+            _initFuncs->clear();
+        }
+        return status;
+    }
+
+    DLLEXPORT std::vector<Init::ready_func_t> *Init::_readyFuncs = nullptr;
+    DLLEXPORT std::vector<Init::ready_func_t> *Init::_initFuncs = nullptr;
 
     PyObject* NULL_ARGS(){
         static PyObject* args = PyTuple_Pack(1, PyFloat_FromDouble(0.129726362));  // bogus vale to make unique
         return args;
     }
 
-    PyTypeObject CommonBaseWrapper::_BaseType = {
+    DLLEXPORT PyTypeObject CommonBaseWrapper::_BaseType = {
 #if PY_MAJOR_VERSION == 3
             PyVarObject_HEAD_INIT(NULL, 0)
 #else
@@ -159,61 +204,6 @@ namespace __pyllars_internal {
 
 
     }
-
-    PyTypeObject BasePtrType = {
-#if PY_MAJOR_VERSION == 3
-            PyVarObject_HEAD_INIT(NULL, 0)
-#else
-    PyObject_HEAD_INIT(nullptr)
-            0,                         /*ob_size*/
-#endif
-            "C++ ptr type",             /*tp_name*/  //set on call to initialize
-            sizeof(PythonClassWrapper<void*>) + 8,             /*tp_basicsize*/
-            0,                         /*tp_itemsize*/
-            nullptr, /*tp_dealloc*/
-            nullptr,                         /*tp_print*/
-            nullptr,                         /*tp_getattr*/
-            nullptr,                         /*tp_setattr*/
-            nullptr,                         /*tp_compare*/
-            nullptr,                         /*tp_repr*/
-            nullptr,                         /*tp_as_number*/
-            nullptr,                         /*tp_as_sequence*/
-            nullptr,                         /*tp_as_mapping*/
-            nullptr,                         /*tp_hash */
-            nullptr,                         /*tp_call*/
-            nullptr,                         /*tp_str*/
-            nullptr,                         /*tp_getattro*/
-            nullptr,                         /*tp_setattro*/
-            nullptr,                         /*tp_as_buffer*/
-            Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /*tp_flags*/
-            "base pointer wrapper object",           /* tp_doc */
-            nullptr,                               /* tp_traverse */
-            nullptr,                               /* tp_clear */
-            nullptr,                               /* tp_richcompare */
-            0,                             /* tp_weaklistoffset */
-            nullptr,                               /* tp_iter */
-            nullptr,                               /* tp_iternext */
-            nullptr,             /* tp_methods */
-            nullptr,             /* tp_members */
-            nullptr,                         /* tp_getset */
-            nullptr,                         /* tp_base */
-            nullptr,                         /* tp_dict */
-            nullptr,                         /* tp_descr_get */
-            nullptr,                         /* tp_descr_set */
-            0,                         /* tp_dictoffset */
-            (initproc) _base_init,      /* tp_init */
-            nullptr,                         /* tp_alloc */
-            nullptr,                 /* tp_new */
-            nullptr,                         /*tp_free*/ // no freeing of fixed-array
-            nullptr,                         /*tp_is_gc*/
-            nullptr,                         /*tp_base*/
-            nullptr,                         /*tp_mro*/
-            nullptr,                         /*tp_cache*/
-            nullptr,                         /*tp_subclasses*/
-            nullptr,                          /*tp_weaklist*/
-            nullptr,                          /*tp_del*/
-            0,                          /*tp_version_tag*/
-    };
 
 #ifndef _MSVC_STL_VERSION
 
@@ -328,7 +318,7 @@ namespace __pyllars_internal {
 #endif
 
     template<>
-    const char*
+    DLLEXPORT const char*
     fromPyStringLike<const char>(PyObject* obj){
         if (PyString_Check(obj)) {
             return PyString_AsString(obj);
@@ -339,7 +329,7 @@ namespace __pyllars_internal {
     }
 
     template<>
-    char*
+    DLLEXPORT char*
     fromPyStringLike<char>(PyObject* obj){
         if (PyBytes_Check(obj)) {
             return PyBytes_AsString(obj);
@@ -396,6 +386,9 @@ namespace __pyllars_internal {
         _referenced = obj;
     }
 
+    PyTypeObject* CommonBaseWrapper::getPyType() {return &_BaseType;}
+    PyTypeObject* CommonBaseWrapper::getRawType() {return &_BaseType;}
+
     std::map< std::pair<PyTypeObject*, PyTypeObject*>, PyObject* (*)(PyObject*)> & CommonBaseWrapper::castMap() {
         static std::map< std::pair<PyTypeObject*, PyTypeObject*>, PyObject* (*)(PyObject*)> map;
         return map;
@@ -426,5 +419,15 @@ namespace __pyllars_internal {
 #include "pyllars_namespacewrapper.hpp"
 
 namespace pyllars{
+#ifndef _MSC_VER
     std::map<std::string, PyObject*> NSInfoBase::module_list;
+#endif
+}
+
+#include <pyllars/internal/pyllars_templates.hpp>
+
+namespace pyllars_internal{
+    PyTypeObject* TemplateDict::getPyType() {
+        return &_Type;
+    }
 }

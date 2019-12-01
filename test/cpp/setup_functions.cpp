@@ -12,11 +12,11 @@
 void
 SetupFunctions::SetUpTestSuite(){
     PythonBased::SetUpTestSuite();
-    using namespace __pyllars_internal;
+    using namespace pyllars_internal;
 
     PythonClassWrapper<void(double&)>::initialize();
     PythonClassWrapper<long long(const int i, double*)>::initialize();
-    PythonClassWrapper<void(double&, ...)>::initialize();
+    PythonClassWrapper<void(double&, int, ...)>::initialize();
     PythonClassWrapper<long long(const int i, double*, ...)>::initialize();
 
     ASSERT_FALSE(PyErr_Occurred());

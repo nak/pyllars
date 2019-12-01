@@ -12,12 +12,13 @@
 #include "pyllars/internal/pyllars_classwrapper.hpp"
 #include "pyllars/internal/pyllars_integer.hpp"
 
-constexpr const char* const kwlist_void_return[] = {"_CObject", nullptr};
-constexpr const char* const kwlist_long_long_return[] = {"i", "d", nullptr};
-
+namespace{
+     const char* const kwlist_void_return[] = {"_CObject", "spacer", nullptr};
+     const char* const kwlist_long_long_return[] = {"i", "d", nullptr};
+}
 
 TEST_F(SetupFunctions, TestVoidReturn){
-    using namespace __pyllars_internal;
+    using namespace pyllars_internal;
     typedef PythonClassWrapper<void(double&)> Wrapper;
     PyObject* obj = (PyObject*) Wrapper::template createPy<kwlist_void_return, void_return>("void_return");
     double dvalue = 98.6;
@@ -34,7 +35,7 @@ TEST_F(SetupFunctions, TestVoidReturn){
 
 
 TEST_F(SetupFunctions, TestLongLongReturn){
-    using namespace __pyllars_internal;
+    using namespace pyllars_internal;
     typedef PythonClassWrapper<long long(const int, double*)> Wrapper;
     PyObject* obj = (PyObject*) Wrapper::template createPy<kwlist_long_long_return, long_long_return>("long_long_return");
     double dv = 98.6;
@@ -54,8 +55,8 @@ TEST_F(SetupFunctions, TestLongLongReturn){
 
 
 TEST_F(SetupFunctions, TestVoidReturnVarArgs){
-    using namespace __pyllars_internal;
-    typedef PythonClassWrapper<void(double&, ...)> Wrapper;
+    using namespace pyllars_internal;
+    typedef PythonClassWrapper<void(double&, int, ...)> Wrapper;
     PyObject* obj = (PyObject*) Wrapper::template createPy<kwlist_void_return, void_return_varargs>("void_return_varargs");
     double dvalue = 98.6;
     double dvalue2 = 12335.43;
@@ -74,7 +75,7 @@ TEST_F(SetupFunctions, TestVoidReturnVarArgs){
 
 
 TEST_F(SetupFunctions, TestLongLongReturnVarArgs){
-    using namespace __pyllars_internal;
+    using namespace pyllars_internal;
     typedef PythonClassWrapper<long long(const int, double*, ...)> Wrapper;
     PyObject* obj = (PyObject*) Wrapper::template createPy<kwlist_long_long_return, long_long_return_varargs>("long_long_return_varargs");
     double dv = 98.6;

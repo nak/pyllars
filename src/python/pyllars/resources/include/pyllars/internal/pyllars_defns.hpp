@@ -1,6 +1,17 @@
 #ifndef __PYLLARS_INTERNAL_DEFNS_H_
 #define __PYLLARS_INTERNAL_DEFNS_H_
 
+#include <vector>
+#include <cstddef>
+#include <Python.h>
+#include <functional>
+
+#include <pyllars/internal/pyllars_defns.hpp>
+#ifdef _MSC_VER
+#pragma warning(disable:4251)
+#pragma warning(disable:4661)
+#endif
+
 #include <type_traits>
 #include <map>
 
@@ -8,9 +19,16 @@
 
 #include "pyllars_type_traits.hpp"
 
+#ifdef _MSC_VER
+#define DLLEXPORT __declspec(dllexport)
+#define DLLIMPORT
+#else
+#define DLLEXPORT
+#define DLLIMPORT
+#endif
 
-namespace __pyllars_internal {
-    extern PyObject* NULL_ARGS();
+namespace pyllars_internal {
+    DLLEXPORT PyObject* NULL_ARGS();
 
     constexpr size_t ct_strlen( const char* s ) noexcept{
         return *s ? 1 + ct_strlen(s + 1) : 0;
@@ -28,77 +46,77 @@ namespace __pyllars_internal {
 
 
     template<typename T>
-    struct TypeInfo {
-        static const char* const type_name;
+    struct DLLEXPORT TypeInfo {
+        static const char type_name[];
     };
 
     template<>
-    struct TypeInfo<double> {
+    struct DLLEXPORT TypeInfo<double> {
         static constexpr cstring type_name = "c_double";
     };
 
     template<>
-    struct TypeInfo<float> {
+    struct DLLEXPORT TypeInfo<float> {
         static constexpr cstring type_name = "c_float";
     };
 
     template<>
-    struct TypeInfo<signed char> {
+    struct DLLEXPORT TypeInfo<signed char> {
         static constexpr cstring type_name = "c_signed_char";
     };
 
     template<>
-    struct TypeInfo<char> {
+    struct DLLEXPORT TypeInfo<char> {
         static constexpr cstring type_name = "c_char";
     };
 
     template<>
-    struct TypeInfo<short> {
+    struct DLLEXPORT TypeInfo<short> {
         static constexpr cstring type_name = "c_short";
     };
 
     template<>
-    struct TypeInfo<int> {
+    struct DLLEXPORT TypeInfo<int> {
         static constexpr cstring type_name = "c_int";
     };
 
     template<>
-    struct TypeInfo<long> {
+    struct DLLEXPORT TypeInfo<long> {
         static constexpr cstring type_name = "c_long";
     };
 
     template<>
-    struct TypeInfo<long long> {
+    struct DLLEXPORT TypeInfo<long long> {
         static constexpr cstring type_name = "c_long_long";
     };
 
     template<>
-    struct TypeInfo<unsigned char> {
+    struct DLLEXPORT TypeInfo<unsigned char> {
         static constexpr cstring type_name = "c_unsigned_char";
     };
 
     template<>
-    struct TypeInfo<unsigned short> {
+    struct DLLEXPORT TypeInfo<unsigned short> {
         static constexpr cstring type_name = "c_unsigned_short";
     };
 
     template<>
-    struct TypeInfo<unsigned int> {
+    struct DLLEXPORT TypeInfo<unsigned int> {
         static constexpr cstring type_name = "c_unsigned_int";
     };
 
     template<>
-    struct TypeInfo<unsigned long> {
+    struct DLLEXPORT TypeInfo<unsigned long> {
         static constexpr cstring type_name = "c_unsigned_long";
     };
 
     template<>
-    struct TypeInfo<unsigned long long> {
+    struct DLLEXPORT TypeInfo<unsigned long long> {
         static constexpr cstring type_name = "c_unsigned_long_long";
     };
 
     template<typename T>
-    struct Types {
+    struct DLLEXPORT Types {
         static const char *const type_name() {
             if constexpr(std::is_function<T>::value){
                 static const char* const name = "<function>";
@@ -110,7 +128,7 @@ namespace __pyllars_internal {
     };
 
     template<typename T>
-    struct Types<const T> {
+    struct DLLEXPORT Types<const T> {
         static const char *const type_name() {
             static std::string name("const_");
             static bool init = false;
@@ -123,7 +141,7 @@ namespace __pyllars_internal {
     };
 
     template<typename T>
-    struct Types<volatile T> {
+    struct DLLEXPORT Types<volatile T> {
         static const char *const type_name() {
 
             static std::string name("volatile_");
@@ -137,7 +155,7 @@ namespace __pyllars_internal {
     };
 
     template<typename T>
-    struct Types<const volatile T> {
+    struct DLLEXPORT Types<const volatile T> {
         static const char *const type_name() {
 
             static std::string name("const_volatile_");
@@ -151,7 +169,7 @@ namespace __pyllars_internal {
     };
 
     template<typename T>
-    struct Types<T *> {
+    struct DLLEXPORT Types<T *> {
         static const char *const type_name() {
 
             static std::string name(Types<typename std::remove_const<T>::type>::type_name());
@@ -166,7 +184,7 @@ namespace __pyllars_internal {
     };
 
     template<typename T>
-    struct Types<const T *> {
+    struct DLLEXPORT Types<const T *> {
         static const char *const type_name() {
 
             static std::string name;
@@ -180,7 +198,7 @@ namespace __pyllars_internal {
     };
 
     template<typename T>
-    struct Types<volatile T *> {
+    struct DLLEXPORT Types<volatile T *> {
         static const char *const type_name() {
 
             static std::string name;
@@ -194,7 +212,7 @@ namespace __pyllars_internal {
     };
 
     template<typename T>
-    struct Types<const volatile T *> {
+    struct DLLEXPORT Types<const volatile T *> {
         static const char *const type_name() {
 
             static std::string name;
@@ -208,7 +226,7 @@ namespace __pyllars_internal {
     };
 
     template<typename T>
-    struct Types<T &> {
+    struct DLLEXPORT Types<T &> {
         static const char *const type_name() {
 
             static std::string name;
@@ -222,7 +240,7 @@ namespace __pyllars_internal {
     };
 
     template<typename T>
-    struct Types<const T &> {
+    struct DLLEXPORT Types<const T &> {
         static const char *const type_name() {
 
             static std::string name;
@@ -236,7 +254,7 @@ namespace __pyllars_internal {
     };
 
     template<typename T>
-    struct Types<volatile T &> {
+    struct DLLEXPORT Types<volatile T &> {
         static const char *const type_name() {
 
             static std::string name;
@@ -250,7 +268,7 @@ namespace __pyllars_internal {
     };
 
     template<typename T>
-    struct Types<const volatile T &> {
+    struct DLLEXPORT Types<const volatile T &> {
         static const char *const type_name() {
 
             static std::string name;
@@ -264,7 +282,7 @@ namespace __pyllars_internal {
     };
 
     template<typename T>
-    struct Types<T[]> {
+    struct DLLEXPORT Types<T[]> {
         static const char *const type_name() {
 
             static std::string name;
@@ -278,7 +296,7 @@ namespace __pyllars_internal {
     };
 
     template<typename T>
-    struct Types<const T[]> {
+    struct DLLEXPORT Types<const T[]> {
         static const char *const type_name() {
 
             static std::string name;
@@ -292,7 +310,7 @@ namespace __pyllars_internal {
     };
 
     template<typename T>
-    struct Types<volatile T[]> {
+    struct DLLEXPORT Types<volatile T[]> {
         static const char *const type_name() {
 
 
@@ -307,7 +325,7 @@ namespace __pyllars_internal {
     };
 
     template<typename T>
-    struct Types<const volatile T[]> {
+    struct DLLEXPORT Types<const volatile T[]> {
         static const char *const type_name() {
 
 
@@ -322,7 +340,7 @@ namespace __pyllars_internal {
     };
 
     template<typename T, size_t size>
-    struct Types<T[size]> {
+    struct DLLEXPORT Types<T[size]> {
         static const char *const type_name() {
             static std::string name;
             static bool init = false;
@@ -336,7 +354,7 @@ namespace __pyllars_internal {
     };
 
     template<typename T, size_t size>
-    struct Types<const T[size]> {
+    struct DLLEXPORT Types<const T[size]> {
         static const char *const type_name() {
 
             static std::string name;
@@ -351,7 +369,7 @@ namespace __pyllars_internal {
     };
 
     template<typename T, size_t size>
-    struct Types<volatile T[size]> {
+    struct DLLEXPORT Types<volatile T[size]> {
         static const char *const type_name() {
 
             static std::string name;
@@ -366,7 +384,7 @@ namespace __pyllars_internal {
     };
 
     template<typename T, size_t size>
-    struct Types<const volatile T[size]> {
+    struct DLLEXPORT Types<const volatile T[size]> {
         static const char *const type_name() {
 
 
@@ -382,7 +400,7 @@ namespace __pyllars_internal {
     };
 
     template<typename T>
-    struct Types<T &&> {
+    struct DLLEXPORT Types<T &&> {
         static const char *const type_name() {
 
             static std::string name;
@@ -396,7 +414,7 @@ namespace __pyllars_internal {
     };
 
     template<typename T>
-    struct Types<const T &&> {
+    struct DLLEXPORT Types<const T &&> {
         static const char *const type_name(){
             static std::string name;
             static bool init = false;
@@ -409,7 +427,7 @@ namespace __pyllars_internal {
     };
 
     template<typename T>
-    struct Types<volatile T &&> {
+    struct DLLEXPORT Types<volatile T &&> {
         static const char *const type_name() {
             static std::string name;
             static bool init = false;
@@ -422,7 +440,7 @@ namespace __pyllars_internal {
     };
 
     template<typename T>
-    struct Types<const volatile T &&> {
+    struct DLLEXPORT Types<const volatile T &&> {
         static const char *const type_name() {
 
             static std::string name;
@@ -437,7 +455,7 @@ namespace __pyllars_internal {
 
 
     template<>
-    struct Types<void> {
+    struct DLLEXPORT Types<void> {
         static const char *const type_name() {
             static constexpr cstring name = "void";
             return name;
@@ -445,7 +463,7 @@ namespace __pyllars_internal {
     };
 
     template<>
-    struct Types<bool> {
+    struct DLLEXPORT Types<bool> {
         static const char *const type_name() {
             static constexpr cstring name = "c_bool";
             return name;
@@ -458,11 +476,11 @@ namespace __pyllars_internal {
     }
 
     template<typename ReturnType, typename ...Args>
-    struct Types<ReturnType(Args...)>{
+    struct DLLEXPORT Types<ReturnType(Args...)>{
         static const char* const type_name(){
             static std::string n;
             if (n.size()==0) {
-                n = std::string(__pyllars_internal::type_name<ReturnType>()) + std::string("(*)(");
+                n = std::string(pyllars_internal::type_name<ReturnType>()) + std::string("(*)(");
 
                 std::string arg_names[] = {Types<Args>::type_name()...};
                 for (unsigned long i = 0; i < sizeof...(Args); ++i) {
@@ -475,11 +493,11 @@ namespace __pyllars_internal {
     };
 
     template<typename ReturnType, typename ...Args>
-    struct Types<ReturnType(Args..., ...)>{
+    struct DLLEXPORT Types<ReturnType(Args..., ...)>{
         static const char* type_name(){
             static std::string n;
             if (n.size()==0) {
-                n = std::string(__pyllars_internal::type_name<ReturnType>()) + std::string("(*)(");
+                n = std::string(pyllars_internal::type_name<ReturnType>()) + std::string("(*)(");
 
                 std::string arg_names[] = {Types<Args>::type_name()...};
                 for (unsigned int i = 0; i < sizeof...(Args); ++i) {
@@ -493,12 +511,12 @@ namespace __pyllars_internal {
 
 
     template<typename CClass, typename ReturnType, typename ...Args>
-    struct Types<ReturnType(CClass::*)(Args...)>{
+    struct DLLEXPORT Types<ReturnType(CClass::*)(Args...)>{
         static const char* type_name(){
             static std::string n;
             if (n.size()==0) {
-                n = std::string(__pyllars_internal::type_name<ReturnType>()) + std::string("(") +
-                        __pyllars_internal::type_name<CClass>() + std::string("*)(");
+                n = std::string(pyllars_internal::type_name<ReturnType>()) + std::string("(") +
+                    pyllars_internal::type_name<CClass>() + std::string("*)(");
 
                 std::string arg_names[] = {Types<Args>::type_name()...};
                 for (unsigned int i = 0; i < sizeof...(Args); ++i) {
@@ -511,12 +529,12 @@ namespace __pyllars_internal {
     };
 
     template<typename CClass, typename ReturnType, typename ...Args>
-    struct Types<ReturnType(CClass::*)(Args..., ...)>{
+    struct DLLEXPORT Types<ReturnType(CClass::*)(Args..., ...)>{
         static const char* type_name(){
             static std::string n;
             if (n.size()==0) {
-                n = std::string(__pyllars_internal::type_name<ReturnType>()) + std::string("(") +
-                        __pyllars_internal::type_name<CClass>() + std::string("*)(");
+                n = std::string(pyllars_internal::type_name<ReturnType>()) + std::string("(") +
+                    pyllars_internal::type_name<CClass>() + std::string("*)(");
 
                 std::string arg_names[] = {Types<Args>::type_name()...};
                 for (unsigned int i = 0; i < sizeof...(Args); ++i) {
@@ -529,12 +547,12 @@ namespace __pyllars_internal {
     };
 
     template<typename CClass, typename ReturnType, typename ...Args>
-    struct Types<ReturnType(CClass::*)(Args...) const>{
+    struct DLLEXPORT Types<ReturnType(CClass::*)(Args...) const>{
         static const char* type_name(){
             static std::string n;
             if (n.size()==0) {
-                n = std::string(__pyllars_internal::type_name<ReturnType>()) + std::string("(") +
-                    __pyllars_internal::type_name<CClass>() + std::string("*)(");
+                n = std::string(pyllars_internal::type_name<ReturnType>()) + std::string("(") +
+                    pyllars_internal::type_name<CClass>() + std::string("*)(");
 
                 std::string arg_names[] = {Types<Args>::type_name()...};
                 for (unsigned int i = 0; i < sizeof...(Args); ++i) {
@@ -547,12 +565,12 @@ namespace __pyllars_internal {
     };
 
     template<typename CClass, typename ReturnType, typename ...Args>
-    struct Types<ReturnType(CClass::*)(Args..., ...) const>{
+    struct DLLEXPORT Types<ReturnType(CClass::*)(Args..., ...) const>{
         static const char* type_name(){
             static std::string n;
             if (n.size()==0) {
-                n = std::string(__pyllars_internal::type_name<ReturnType>()) + std::string("(") +
-                    __pyllars_internal::type_name<CClass>() + std::string("*)(");
+                n = std::string(pyllars_internal::type_name<ReturnType>()) + std::string("(") +
+                    pyllars_internal::type_name<CClass>() + std::string("*)(");
 
                 std::string arg_names[] = {Types<Args>::type_name()...};
                 for (unsigned int i = 0; i < sizeof...(Args); ++i) {
@@ -577,10 +595,10 @@ namespace __pyllars_internal {
 
 
     template<typename T>
-    struct argument_capture;
+    struct DLLEXPORT argument_capture;
 
     template<typename T, typename E = void>
-    struct PythonClassWrapper;
+    struct DLLEXPORT PythonClassWrapper;
 
     template<>
     class PythonClassWrapper<const float>;
@@ -593,7 +611,7 @@ namespace __pyllars_internal {
     /**
      * Class common to all C++ wrapper classes
      **/
-    struct CommonBaseWrapper{
+    struct DLLEXPORT CommonBaseWrapper {
         PyObject_HEAD
 
         typedef bool (*comparison_func_t)(CommonBaseWrapper*, CommonBaseWrapper*);
@@ -610,9 +628,10 @@ namespace __pyllars_internal {
         hash_t hash;
 
 
-        static PyTypeObject* getPyType(){return &_BaseType;}
+        static PyTypeObject* getPyType();
+        static PyTypeObject* getRawType();
 /*
-        struct Base{
+        struct DLLEXPORT Base{
             PyObject_HEAD
             //Per Python API docs
 
@@ -646,7 +665,7 @@ namespace __pyllars_internal {
             static constexpr bool to_is_reference = std::is_reference<T>::value;
             typedef typename core_type<T>::type core_t;
             auto const self = reinterpret_cast<CommonBaseWrapper*>(obj);
-            return (bool) PyObject_TypeCheck(obj, &CommonBaseWrapper::_BaseType) && // is truly wrapping a C object
+            return (bool) PyObject_TypeCheck(obj, CommonBaseWrapper::getRawType()) && // is truly wrapping a C object
                    (self->_coreTypePtr == PythonClassWrapper<core_t>::getPyType()) && //core type match
                    (to_is_const || !to_is_reference || !self->_is_const); // logic for conversion-is-allowed
         }
@@ -669,8 +688,9 @@ namespace __pyllars_internal {
         template <class Class, class Other>
         static PyObject* interpret_cast(PyObject* self){
             auto self_ = (PythonClassWrapper<Class>*)self;
-            auto castWrapper = (PythonClassWrapper<Other>*) PyObject_Call((PyObject*)PythonClassWrapper<Other>::getPyType(),
-                                                                            NULL_ARGS(), nullptr);
+            auto castWrapper = reinterpret_cast<PythonClassWrapper<Other>*>(
+                    PyObject_Call((PyObject*)PythonClassWrapper<Other>::getPyType(),
+                            NULL_ARGS(), nullptr));
             typedef typename std::remove_reference_t <Other> Other_NoRef;
             castWrapper->set_CObject(const_cast<Other_NoRef *>(self_->get_CObject()));
             return (PyObject*) castWrapper;
@@ -678,11 +698,9 @@ namespace __pyllars_internal {
 
         static std::map<std::pair<PyTypeObject*, PyTypeObject*>, PyObject*(*)(PyObject*)>& _castAsCArgument();
 
+
     protected:
 
-
-
-        static PyTypeObject _BaseType;
 
         static int
         inline __init(PyObject *self, PyObject *args, PyObject *kwds){
@@ -710,7 +728,13 @@ namespace __pyllars_internal {
         PyObject *_referenced;
         bool (*__checkType)(PyObject * typ);
         PyTypeObject* _coreTypePtr;
-        CommonBaseWrapper(); // never invoked as Python allocates memory directly
+
+        CommonBaseWrapper(){} // never invoked as Python allocates memory directly
+
+    private:
+        DLLIMPORT static PyTypeObject _BaseType;
+
+
     };
 
     template<typename T, bool is_array, const ssize_t array_size, typename E = void>
@@ -724,27 +748,27 @@ namespace __pyllars_internal {
                                                                PyObject *referenced);
 
     template<bool varargs, typename ReturnType, typename ...Args>
-    struct FuncContainer;
+    struct DLLEXPORT FuncContainer;
 
     template<typename ReturnType, typename ...Args>
-    struct FuncContainer<false, ReturnType, Args...> {
+    struct DLLEXPORT FuncContainer<false, ReturnType, Args...> {
     public:
         template<int unused, typename ...Throws>
-        struct Type {
+        struct DLLEXPORT Type {
         public:
             ReturnType (*_cfunc)(Args...);
             typedef decltype(_cfunc) func_type;
         };
 
         template<int unused>
-        struct Type<unused, void> {
+        struct DLLEXPORT Type<unused, void> {
             ReturnType (*_cfunc)(Args...);
 
             typedef decltype(_cfunc) func_type;
         };
 
         template<int unused>
-        struct Type<unused> {
+        struct DLLEXPORT Type<unused> {
             ReturnType (*_cfunc)(Args...);
 
             typedef decltype(_cfunc) func_type;
@@ -752,24 +776,24 @@ namespace __pyllars_internal {
     };
 
     template<typename ReturnType, typename ...Args>
-    struct FuncContainer<true, ReturnType, Args...> {
+    struct DLLEXPORT FuncContainer<true, ReturnType, Args...> {
 
         template<int unused, typename ...Throws>
-        struct Type {
+        struct DLLEXPORT Type {
             ReturnType (*_cfunc)(Args... ...);
 
             typedef decltype(_cfunc) func_type;
         };
 
         template<int unused>
-        struct Type<unused, void> {
+        struct DLLEXPORT Type<unused, void> {
             ReturnType (*_cfunc)(Args... ...);
 
             typedef decltype(_cfunc) func_type;
         };
 
         template<int unused>
-        struct Type<unused> {
+        struct DLLEXPORT Type<unused> {
             ReturnType (*_cfunc)(Args... ...);
 
             typedef decltype(_cfunc) func_type;
@@ -779,7 +803,7 @@ namespace __pyllars_internal {
 
 
     template<typename const_or_nonconst_char>
-    const_or_nonconst_char* fromPyStringLike(PyObject* obj);
+    DLLEXPORT const_or_nonconst_char* fromPyStringLike(PyObject* obj);
 
 
     class PyllarsException{

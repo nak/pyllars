@@ -18,17 +18,17 @@ namespace pyllars{
      * @tparam AttrType  The type of the attribute
      * @tparam attr  Pointer to the class attribute
      */
-    template<const char *const name, typename Class, typename AttrType,typename __pyllars_internal::MemberContainer<name, Class, AttrType>::member_t attr>
-    class PyllarsClassMember{
+    template<const char *const name, typename Class, typename AttrType,typename pyllars_internal::MemberContainer<name, Class, AttrType>::member_t attr>
+    class DLLEXPORT PyllarsClassMember{
     private:
-        class Initializer{
+        class DLLEXPORT Initializer{
         public:
             Initializer(){
-                __pyllars_internal::Init::registerInit(init);
+                pyllars_internal::Init::registerInit(init);
             }
 
             static status_t init(){
-                using namespace __pyllars_internal;
+                using namespace pyllars_internal;
                 PythonClassWrapper<Class>::template addAttribute<name, AttrType>(attr);
                 return 0;
             }
@@ -37,7 +37,7 @@ namespace pyllars{
         static Initializer * const initializer;
     };
 
-    template<const char *const name, typename Class, typename AttrType, typename __pyllars_internal::MemberContainer<name, Class, AttrType>::member_t attr>
+    template<const char *const name, typename Class, typename AttrType, typename pyllars_internal::MemberContainer<name, Class, AttrType>::member_t attr>
     typename PyllarsClassMember<name, Class, AttrType, attr>::Initializer * const
             PyllarsClassMember<name, Class, AttrType, attr>::initializer = new
                     PyllarsClassMember<name, Class, AttrType, attr>::Initializer();

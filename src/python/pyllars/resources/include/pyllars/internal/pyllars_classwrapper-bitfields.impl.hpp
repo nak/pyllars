@@ -7,7 +7,7 @@
 #include "pyllars_classwrapper.hpp"
 #include "pyllars_membersemantics.impl.hpp"
 
-namespace __pyllars_internal {
+namespace pyllars_internal {
 
     template<typename T>
     template<const char *const name, typename FieldType, const size_t bits>

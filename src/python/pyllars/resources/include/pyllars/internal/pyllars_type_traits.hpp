@@ -5,7 +5,7 @@
 #include <functional>
 #include <stddef.h>
 
-namespace __pyllars_internal {
+namespace pyllars_internal {
     template<typename T>
     struct is_bool{
         static constexpr bool value = false;
@@ -219,25 +219,25 @@ namespace __pyllars_internal {
     struct to_const<T&>{
         typedef const T& type;
     };
+    namespace check {
+        struct No {
+        };
 
+        template<typename X, typename Y>
+        No operator==(const X &, const Y &);
 
-    template<class X, class Y, class Op>
-    struct op_valid_impl
-    {
-        template<class U, class L, class R>
-        static auto test(int) -> decltype(std::declval<U>()(std::declval<L>(), std::declval<R>()),
-                void(), std::true_type());
-
-        template<class U, class L, class R>
-        static auto test(...) -> std::false_type;
-
-        using type = decltype(test<Op, X, Y>(0));
-
-    };
-
-    template<class X, class Y, class Op> using op_valid = typename op_valid_impl<X, Y, Op>::type;
-
-    template<class X, class Y> using has_operator_compare = typename op_valid_impl<X, Y, std::equal_to<> >::type;
+        template<typename X, typename Y=X>
+        struct ComparisonExists {
+            typedef std::remove_volatile_t <X> X_bare;
+            typedef std::remove_volatile_t <Y> Y_bare;
+            typedef decltype(std::declval<X_bare>() == std::declval<Y_bare>()) Candidate;
+            static constexpr bool value =
+            std::is_constructible<std::remove_reference_t <X> >::value &&
+            std::is_constructible<std::remove_reference_t <Y> >::value &&
+            !std::is_same< Candidate, No>::value ;
+        };
+    }
+    template<typename X, typename Y> using has_operator_compare = typename check::ComparisonExists<X, Y>;
 
 }
 

@@ -14,7 +14,7 @@
 #include "pyllars_varargs.hpp"
 #include "pyllars_staticfunctionsemantics.hpp"
 
-namespace __pyllars_internal {
+namespace pyllars_internal {
 
     template<typename func_type>
     struct PythonFunctionWrapper : public CommonBaseWrapper {
@@ -89,7 +89,7 @@ namespace __pyllars_internal {
     PyObject_HEAD_INIT(nullptr)
     0,                               /*ob_size*/
 #endif
-            __pyllars_internal::type_name<func_type>(), /*tp_name*/
+            pyllars_internal::type_name<func_type>(), /*tp_name*/
             sizeof(PythonFunctionWrapper),   /*tp_basicsize*/
             0,                               /*tp_itemsize*/
             nullptr,                         /*tp_dealloc*/

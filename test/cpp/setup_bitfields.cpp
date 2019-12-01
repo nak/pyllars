@@ -13,7 +13,6 @@
 #include "pyllars/internal/pyllars_staticfunctionsemantics.impl.hpp"
 #include "pyllars/internal/pyllars_conversions.impl.hpp"
 
-#include "class_test_defns.h"
 
 #include "pyllars/pyllars_classmethod.hpp"
 #include "pyllars/pyllars_classstaticmethod.hpp"
@@ -25,25 +24,22 @@
 #include "pyllars/pyllars_classbitfield.hpp"
 #include "pyllars/pyllars_class.hpp"
 
+namespace {
+    const char bit_name[] = "bit";
+    const char *const empty_list[] = {nullptr};
+}
 
-typedef const char c_string[];
-
-constexpr c_string bit_name = "bit";
-
-template<>
-const char* const __pyllars_internal::TypeInfo<BitFieldContainerClass>::type_name = "BitFieldContainer";
 
 void
 SetupBitfields::SetUpTestSuite() {
     PythonBased::SetUpTestSuite();
-    using namespace __pyllars_internal;
-    static const char *const empty_list[] = {nullptr};
+    using namespace pyllars_internal;
     {
         typedef PythonClassWrapper<BitFieldContainerClass> Class;
         Class::addConstructor<empty_list>();
-        __pyllars_internal::BitFieldContainer<BitFieldContainerClass>::Container<bit_name, unsigned char, 1>::getter_t getter =
+        pyllars_internal::BitFieldContainer<BitFieldContainerClass>::Container<bit_name, unsigned char, 1>::getter_t getter =
                 [](const BitFieldContainerClass &c) -> unsigned char { return c.bit; };
-        __pyllars_internal::BitFieldContainer<BitFieldContainerClass>::Container<bit_name, unsigned char, 1>::setter_t setter =
+        pyllars_internal::BitFieldContainer<BitFieldContainerClass>::Container<bit_name, unsigned char, 1>::setter_t setter =
                 [](BitFieldContainerClass &c, const unsigned char &value) -> unsigned char {
                     c.bit = value;
                     return value;

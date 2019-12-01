@@ -4,15 +4,17 @@
 
 #ifndef PYLLARS_PYLLARS_CLASSWRAPPER_TYPE_IMPL_HPP
 #define PYLLARS_PYLLARS_CLASSWRAPPER_TYPE_IMPL_HPP
+#include <algorithm>
 #include "pyllars_classwrapper.hpp"
 #include "pyllars_pointer.impl.hpp"
 #include "pyllars_staticfunctionsemantics.impl.hpp"
 
 namespace {
-    constexpr cstring value_name = "value";
+    const cstring value_name = "value";
+    const char* const value_kwlist[] = {"obj", nullptr};
 }
 
-namespace __pyllars_internal {
+namespace pyllars_internal {
     namespace{
         template <typename T>
         struct Shadow {
@@ -73,7 +75,7 @@ namespace __pyllars_internal {
             int unused[] = {(CommonBaseWrapper::_castAsCArgument().insert(
                     std::pair{std::pair{PythonClassWrapper<T>::getRawType(),
                                         PythonClassWrapper<Other>::getRawType()},
-                              &PythonClassWrapper<T>::template interpret_cast<T, Other>}), 0)...};
+                              &CommonBaseWrapper::template interpret_cast<T, Other>}), 0)...};
         }
     }
 
@@ -121,7 +123,7 @@ namespace __pyllars_internal {
                     PyErr_Clear();
                     break;
                 }
-            } catch (PyllarsException &e){
+            } catch (PyllarsException &){
                 //just try the next one, as most likely an argumnet conversion exception thrown
             } catch(std::exception const & e) {
                 PyllarsException::raise_internal_cpp(e.what());
@@ -238,11 +240,10 @@ namespace __pyllars_internal {
                 if (size < 0) {
                     throw PyllarsException(PyExc_SystemError, "Internal error getting size of list");
                 }
-                typedef T_NoRef  T_fixed_array[size];
-                typedef T_fixed_array *T_fixed_array_ptr;
+                typedef T_NoRef * T_fixed_array;//[size];
 
                 auto bytebucket = new unsigned char[size * sizeof(T_NoRef)];
-                T_fixed_array_ptr cobj_ptr = (T_fixed_array_ptr) bytebucket;
+                T_fixed_array cobj_ptr = (T_fixed_array) bytebucket;
                 for (ssize_t i = 0; i < size; ++i) {
                     PyObject *constructor_args = PyList_GetItem(arg, i);
                     if (!constructor_args || !PyTuple_Check(constructor_args)) {
@@ -255,7 +256,7 @@ namespace __pyllars_internal {
                         try {
                             cobj = constructor_(kwlist_, constructor_args, nullptr, bytebucket + i);
                             if (cobj) break;
-                        } catch (PyllarsException &e) {
+                        } catch (PyllarsException &) {
                             //try next one
                         } catch(std::exception const & e) {
                             PyllarsException::raise_internal_cpp(e.what());
@@ -269,7 +270,7 @@ namespace __pyllars_internal {
                     if (!cobj) {
                         if constexpr (std::is_destructible<T_NoRef>::value) {
                             for (ssize_t j = 0; j < i; ++j) {
-                                (*cobj_ptr)[j].~T_NoRef();
+                                cobj_ptr[j].~T_NoRef();
                             }
                         }
                         PyErr_SetString(PyExc_TypeError, "Invalid constructor argsument");
@@ -284,7 +285,7 @@ namespace __pyllars_internal {
     }
 
     template<typename T>
-    class InitHelper {
+    struct InitHelper {
     public:
         static int init(PythonClassWrapper<T> *self, PyObject *args, PyObject *kwds);
 
@@ -308,27 +309,34 @@ namespace __pyllars_internal {
             PyErr_SetString(PyExc_SystemError, "Error in initializing class type");
             return -1;
         }
-        self->compare = [](CommonBaseWrapper* self_, CommonBaseWrapper* other)->bool{
-            if constexpr (has_operator_compare<T&, T>::value) {
-                return PyObject_TypeCheck(other, getPyType()) &&
-                       (*reinterpret_cast<PythonClassWrapper *>(self_)->get_CObject() ==
-                        *reinterpret_cast<PythonClassWrapper *>(other)->get_CObject());
-            } else {
+        if constexpr ( has_operator_compare<T, T>::value) {
+            self->compare = [](CommonBaseWrapper *self_, CommonBaseWrapper *other) -> bool {
+                if constexpr(has_operator_compare<T, T>::value) {
+                    typedef std::remove_volatile_t <T> T_bare;
+                    return PyObject_TypeCheck(other, getPyType()) &&
+                           (*((T_bare*)reinterpret_cast<PythonClassWrapper *>(self_)->get_CObject()) ==
+                           * ((T_bare*)reinterpret_cast<PythonClassWrapper *>(other)->get_CObject()));
+                } else {
+                    return false;
+                }
+            };
+        } else {
+            self->compare = [](CommonBaseWrapper *self_, CommonBaseWrapper *other) -> bool {
                 return false;
-            }
-        };
-
+            };
+        }
         self->hash = [](CommonBaseWrapper* self)->size_t{
             static std::hash<typename std::remove_cv<T>::type*> hasher;
             return hasher(const_cast<typename std::remove_cv<T>::type*>(((PythonClassWrapper*)self)->get_CObject()));
         };
 
-        if (_Type.tp_base && Base::TypePtr->tp_init) {
-            PyObject *empty = PyTuple_New(0);
-            Base::TypePtr->tp_init((PyObject *) &self->baseClass, empty, nullptr);
-            PyErr_Clear();
-            Py_DECREF(empty);
-        }
+        //if (_Type.tp_base && self->baseClass) {
+            //PyType_Ready(self->baseClass);
+            //PyObject *empty = PyTuple_New(0);
+            //Base::TypePtr->tp_init((PyObject *) &self->baseClass, empty, nullptr);
+            //PyErr_Clear();
+            //Py_DECREF(empty);
+        //}
         self->_referenced = nullptr;
         PyTypeObject *const coreTypePtr = PythonClassWrapper<typename core_type<T>::type>::getPyType();
         self->template populate_type_info<T>(&checkType, coreTypePtr);
@@ -360,8 +368,8 @@ namespace __pyllars_internal {
         inited = true;
 
         if constexpr (std::is_enum<T_NoRef >::value){
-            static const char* const kwlist[] = {"obj", nullptr};
-            addStaticMethod<value_name, kwlist, long long (*)(const T_NoRef &), enum_convert<T_NoRef> >();
+            typedef long long (*func_t)(const T_NoRef&);
+            addStaticMethod<value_name, value_kwlist, func_t, enum_convert<T_NoRef> >();
         }
         if constexpr (std::is_const<T_NoRef >::value){
             for ( auto & element : Basic::_constructors()){
@@ -446,7 +454,7 @@ namespace __pyllars_internal {
         for (auto const&[key, getter]: Basic::_member_getters()) {
             auto it = _member_setters().find(key);
             _setattrfunc setter = nullptr;
-            if (not std::is_const<T>::value && it != _member_setters().end()) {
+            if (! std::is_const<T>::value && it != _member_setters().end()) {
                 setter = it->second;
             } else {
                 setter = nullptr;
@@ -524,11 +532,11 @@ namespace __pyllars_internal {
         }
         _baseClasses() = Basic::_baseClasses();
         if (!Type.tp_base && _baseClasses().size() == 0) {
-            if (PyType_Ready(&CommonBaseWrapper::_BaseType) < 0) {
+            if (PyType_Ready(CommonBaseWrapper::getRawType()) < 0) {
                 PyErr_SetString(PyExc_RuntimeError, "Failed to set_up type!");
                 return -1;
             }
-            Type.tp_base = &CommonBaseWrapper::_BaseType;
+            Type.tp_base = CommonBaseWrapper::getRawType();
         }
 
 
@@ -550,7 +558,7 @@ namespace __pyllars_internal {
                 if (pyval) {
                     PyDict_SetItemString(Type.tp_dict, name_.c_str(),
                                          (PyObject *) reinterpret_cast<PythonClassWrapper<const T_NoRef> *>(pyval));
-                    ((PyObject*)pyval)->ob_type = &PythonClassWrapper::_Type;
+                    ((PyObject*)pyval)->ob_type = PythonClassWrapper::getRawType();
                 } else {
                     return -1;
                 }
@@ -638,15 +646,15 @@ namespace __pyllars_internal {
     }
 
     template<typename T>
-    PyTypeObject  PythonClassWrapper<T,
+    DLLEXPORT PyTypeObject  PythonClassWrapper<T,
             typename std::enable_if<is_rich_class<T>::value>::type>::_Type = {
 #if PY_MAJOR_VERSION == 3
-                    PyVarObject_HEAD_INIT(NULL, 0)
+            PyVarObject_HEAD_INIT(NULL, 0)
 #else
             PyObject_HEAD_INIT(nullptr)
             0,                         /*ob_size*/
 #endif
-                    __pyllars_internal::type_name<T>(),             /*tp_name*/
+            pyllars_internal::type_name<T>(),             /*tp_name*/
                     sizeof(PythonClassWrapper),             /*tp_basicsize*/
                     0,                         /*tp_itemsize*/
                     (destructor) PythonClassWrapper::_dealloc, /*tp_dealloc*/

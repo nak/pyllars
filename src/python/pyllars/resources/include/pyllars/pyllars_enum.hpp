@@ -19,41 +19,46 @@ namespace pyllars{
      *    the Class to which the enum belongs (if inside a class)
      */
     template<const char* name, typename EnumType, typename Parent, const char* const vnames[], EnumType ...values>
-    class PyllarsEnum{
+    class DLLEXPORT PyllarsEnum{
     public:
     private:
 
-        class Initializer{
+        class DLLEXPORT Initializer{
         public:
             Initializer() {
-                __pyllars_internal::Init::registerInit(init);
-                __pyllars_internal::Init::registerReady(ready);
+                pyllars_internal::Init::registerInit(init);
+                pyllars_internal::Init::registerReady(ready);
             }
             static status_t init() {
-                using namespace __pyllars_internal;
-                if constexpr(name != nullptr) {
-                    if constexpr (!is_base_of<pyllars::NSInfoBase, Parent>::value) {
-                        PythonClassWrapper<Parent>::addStaticType(name, &PythonClassWrapper<EnumType>::getPyType);
-                    }
-                }
+                using namespace pyllars_internal;
                 static std::vector<EnumType> evalues{values...};
                 unsigned int counter = 0;
                 for(auto &v: evalues){
                     PythonClassWrapper<EnumType>::addEnumValue(vnames[counter++], v);
                 }
+
+                if constexpr(name != nullptr) {
+                    if constexpr (!is_base_of<pyllars::NSInfoBase, Parent>::value) {
+                       PythonClassWrapper<Parent>::addStaticType(name, &PythonClassWrapper<EnumType>::getPyType);
+                    }
+                }
+
                 if constexpr (!is_base_of<pyllars::NSInfoBase, Parent>::value && !is_scoped_enum<EnumType>::value) {
                     unsigned int counter = 0;
                     for (auto &v: evalues) {
                         //since all elements in place for EnumType definition, toPyObject can be called
                         // (and will init the pyhconclasswrapper for EnumType)
-                        PythonClassWrapper<Parent>::addClassObject(vnames[counter++],  toPyObject(v, 1));
+                        auto obj = PyObject_Call ((PyObject*)PythonClassWrapper<EnumType>::getPyType(), NULL_ARGS(), nullptr);
+                        ((PythonClassWrapper<EnumType>*)obj)->set_CObject(&v);
+                        PythonClassWrapper<Parent>::addClassObject(vnames[counter++], obj);
                     }
                 }
+
                 return 0;
             }
 
             static status_t ready(){
-                using namespace __pyllars_internal;
+                using namespace pyllars_internal;
                 if constexpr(name != nullptr) {
                     if constexpr (is_base_of<pyllars::NSInfoBase, Parent>::value) {
                         PyModule_AddObject(Parent::module(), name,
@@ -75,7 +80,7 @@ namespace pyllars{
     template<const char * name, typename EnumType, typename Parent, const char* const vnames[], EnumType ...values>
     typename PyllarsEnum<name, EnumType, Parent, vnames, values...>::Initializer * const
        PyllarsEnum<name, EnumType, Parent, vnames, values...>::initializer =
-                new PyllarsEnum<name, EnumType, Parent, vnames, values...>::Initializer();
+                new typename PyllarsEnum<name, EnumType, Parent, vnames, values...>::Initializer();
 
 }
 

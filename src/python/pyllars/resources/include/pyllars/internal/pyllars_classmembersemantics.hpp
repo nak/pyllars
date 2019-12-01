@@ -11,7 +11,7 @@
 **/
 
 
-namespace __pyllars_internal {
+namespace pyllars_internal {
 
     /**
      * Class to hold pointer to a public static member of a class
@@ -21,7 +21,7 @@ namespace __pyllars_internal {
      * @tparam FieldType: type of field within class to contain
      **/
     template<const char *const name, typename CClass, typename FieldType>
-    class ClassMember {
+    class DLLEXPORT ClassMember {
     public:
 
             typedef FieldType *member_t;

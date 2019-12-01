@@ -11,176 +11,196 @@
 #include "pyllars/internal/pyllars_conversions.impl.hpp"
 #include <cstddef>
 
-namespace __pyllars_internal{
+namespace pyllars_internal{
 
-    namespace {
+    namespace staticfunctions {
         struct Arbitrary{
             float fdata;
             int idata;
         };
 
-        template<typename func_type, typename... PyO>
-        typename func_traits<func_type>::ReturnType
-        __call_static_func(func_type func, PyObject *extra_args, PyO *...pyobjs);
+        template<typename func_type>
+        struct Helper ;
 
-        template<typename ReturnType, typename ...Args, typename... PyO>
-        ReturnType
-        __call_static_func(ReturnType (*func)(Args..., ...), PyObject *extra_args, PyO *...pyargs) {
-            typedef ReturnType (func_type)(Args..., ...);
 
-            if (!extra_args || PyTuple_Size(extra_args) == 0) {
-                if constexpr (std::is_void<ReturnType>::value) {
-                    func(toCArgument<Args>(*pyargs).value()...);
-                } else {
-                    return func(toCArgument<Args>(*pyargs).value()...);
-                }
-            } else {
-                const ssize_t extra_args_size = PyTuple_Size(extra_args);
+        template<typename ReturnType, typename ...Args>
+        struct Helper<ReturnType(*)(Args...,...)> {
+            template< typename... PyO>
+            ReturnType
+            static __call_static_func
+                    (ReturnType (*func)(Args..., ...), PyObject *extra_args, PyO *...pyargs) {
+                typedef ReturnType (func_type)(Args..., ...);
 
-                ffi_cif cif;
-                ffi_type *arg_types[func_traits<func_type>::argsize + extra_args_size] = {FFIType<Args>::type()...};
-                bool is_reference[] = {std::is_reference<Args>::value...};
-                void *arg_values_bare[func_traits<func_type>::argsize + extra_args_size] = {(void*)toCArgument<Args>(*pyargs).ptr()...};
-                void *arg_values[func_traits<func_type>::argsize + extra_args_size] = {(void*)toCArgument<Args>(*pyargs).ptr()...};
-                for (int i = 0; i < sizeof...(Args); ++i){
-                    if (is_reference[i]){
-                        arg_values[i] = &arg_values_bare[i];
-                        arg_types[i] = &ffi_type_pointer;
+                if (!extra_args || PyTuple_Size(extra_args) == 0) {
+                    if constexpr (std::is_void<ReturnType>::value) {
+                        func(toCArgument<Args>(*pyargs).value()...);
+                    } else {
+                        return func(toCArgument<Args>(*pyargs).value()...);
                     }
-                }
-                ffi_status status;
+                } else {
+#if _MSC_VER
+                    throw PyllarsException(PyExc_TypeError,
+                                           "var args not currently supported through Pyllars on Windows");
 
-                // Because the return _CObject from foo() is smaller than sizeof(long), it
-                // must be passed as ffi_arg or ffi_sarg.
-                ffi_arg result_small;
-                void *result = &result_small;
+#else
+                    const ssize_t extra_args_size = PyTuple_Size(extra_args);
 
-                // Specify the data type of each argument. Available types are defined
-                // in <ffi/ffi.h>.
-                union ArgType {
-                    char charvalue;
-                    short shortvalue;
-                    int intvalue;
-                    long longvalue;
-                    long long longlongvalue;
-                    unsigned char ucharvalue;
-                    unsigned short ushortvalue;
-                    unsigned int uintvalue;
-                    unsigned long ulongvalue;
-                    unsigned long long ulonglongvalue;
-                    float floatvalue;
-                    double doublevalue;
-                    bool boolvalue;
-                    void *ptrvalue;
-                };
-                ArgType extra_arg_values[func_traits<func_type>::argsize + extra_args_size];
-                for (size_t i = func_traits<func_type>::argsize;
-                     i < func_traits<func_type>::argsize + extra_args_size; ++i) {
-                    PyObject *const nextArg = PyTuple_GetItem(extra_args, i - func_traits<func_type>::argsize);
-                    const int subtype = getType(nextArg, arg_types[i]);
-                    switch (arg_types[i]->type) {
-                        case FFI_TYPE_SINT8:
-                            extra_arg_values[i].charvalue = static_cast<char>(PyInt_AsLong(nextArg));
-                            arg_values[i] = &extra_arg_values[i].charvalue;
-                            break;
-                        case FFI_TYPE_SINT16:
-                            extra_arg_values[i].shortvalue = static_cast<short>(PyInt_AsLong(nextArg));
-                            arg_values[i] = &extra_arg_values[i].shortvalue;
-                            break;
-                        case FFI_TYPE_SINT32:
-                            extra_arg_values[i].intvalue = static_cast<int>(PyInt_AsLong(nextArg));
-                            arg_values[i] = &extra_arg_values[i].intvalue;
-                            break;
-                        case FFI_TYPE_SINT64:
-                            extra_arg_values[i].longvalue = PyLong_AsLong(nextArg);
-                            arg_values[i] = &extra_arg_values[i].longvalue;
-                            break;
-                        case FFI_TYPE_UINT8:
-                            extra_arg_values[i].boolvalue = (nextArg == Py_True);
-                            arg_values[i] = &extra_arg_values[i].boolvalue;
-                            break;
-                        case FFI_TYPE_UINT16:
-                            extra_arg_values[i].ushortvalue = static_cast<unsigned short>(PyInt_AsLong(nextArg));
-                            arg_values[i] = &extra_arg_values[i].ushortvalue;
-                            break;
-                        case FFI_TYPE_UINT32:
-                            extra_arg_values[i].uintvalue = static_cast<unsigned int>(PyInt_AsLong(nextArg));
-                            arg_values[i] = &extra_arg_values[i].uintvalue;
-                            break;
-                        case FFI_TYPE_UINT64:
-                            extra_arg_values[i].ulongvalue = PyLong_AsUnsignedLongLong(nextArg);
-                            arg_values[i] = &extra_arg_values[i].ulonglongvalue;
-                            break;
-                        case FFI_TYPE_FLOAT:
-                            extra_arg_values[i].floatvalue = PyFloat_AsDouble(nextArg);
-                            arg_values[i] = &extra_arg_values[i].floatvalue;
-                            break;
-                        case FFI_TYPE_DOUBLE:
-                            extra_arg_values[i].doublevalue = PyFloat_AsDouble(nextArg);
-                            arg_values[i] = &extra_arg_values[i].doublevalue;
-                            break;
-                        case FFI_TYPE_POINTER:
-                            if (STRING_TYPE == subtype) {
-                                extra_arg_values[i].ptrvalue = (void*) PyString_AsString(nextArg);
+                    ffi_cif cif;
+                    ffi_type *arg_types[func_traits<func_type>::argsize + extra_args_size] = {FFIType<Args>::type()...};
+                    bool is_reference[] = {std::is_reference<Args>::value...};
+                    void *arg_values_bare[func_traits<func_type>::argsize + extra_args_size] = {
+                            (void *) toCArgument<Args>(*pyargs).ptr()...};
+                    void *arg_values[func_traits<func_type>::argsize + extra_args_size] = {
+                            (void *) toCArgument<Args>(*pyargs).ptr()...};
+                    for (int i = 0; i < sizeof...(Args); ++i) {
+                        if (is_reference[i]) {
+                            arg_values[i] = &arg_values_bare[i];
+                            arg_types[i] = &ffi_type_pointer;
+                        }
+                    }
+                    ffi_status status;
+
+                    // Because the return _CObject from foo() is smaller than sizeof(long), it
+                    // must be passed as ffi_arg or ffi_sarg.
+                    ffi_arg result_small;
+                    void *result = &result_small;
+
+                    // Specify the data type of each argument. Available types are defined
+                    // in <ffi/ffi.h>.
+                    union ArgType {
+                        char charvalue;
+                        short shortvalue;
+                        int intvalue;
+                        long longvalue;
+                        long long longlongvalue;
+                        unsigned char ucharvalue;
+                        unsigned short ushortvalue;
+                        unsigned int uintvalue;
+                        unsigned long ulongvalue;
+                        unsigned long long ulonglongvalue;
+                        float floatvalue;
+                        double doublevalue;
+                        bool boolvalue;
+                        void *ptrvalue;
+                    };
+                    ArgType extra_arg_values[func_traits<func_type>::argsize + extra_args_size];
+                    for (size_t i = func_traits<func_type>::argsize;
+                         i < func_traits<func_type>::argsize + extra_args_size; ++i) {
+                        PyObject *const nextArg = PyTuple_GetItem(extra_args, i - func_traits<func_type>::argsize);
+                        const int subtype = getType(nextArg, arg_types[i]);
+                        switch (arg_types[i]->type) {
+                            case FFI_TYPE_SINT8:
+                                extra_arg_values[i].charvalue = static_cast<char>(PyInt_AsLong(nextArg));
+                                arg_values[i] = &extra_arg_values[i].charvalue;
+                                break;
+                            case FFI_TYPE_SINT16:
+                                extra_arg_values[i].shortvalue = static_cast<short>(PyInt_AsLong(nextArg));
+                                arg_values[i] = &extra_arg_values[i].shortvalue;
+                                break;
+                            case FFI_TYPE_SINT32:
+                                extra_arg_values[i].intvalue = static_cast<int>(PyInt_AsLong(nextArg));
+                                arg_values[i] = &extra_arg_values[i].intvalue;
+                                break;
+                            case FFI_TYPE_SINT64:
+                                extra_arg_values[i].longvalue = PyLong_AsLong(nextArg);
+                                arg_values[i] = &extra_arg_values[i].longvalue;
+                                break;
+                            case FFI_TYPE_UINT8:
+                                extra_arg_values[i].boolvalue = (nextArg == Py_True);
+                                arg_values[i] = &extra_arg_values[i].boolvalue;
+                                break;
+                            case FFI_TYPE_UINT16:
+                                extra_arg_values[i].ushortvalue = static_cast<unsigned short>(PyInt_AsLong(nextArg));
+                                arg_values[i] = &extra_arg_values[i].ushortvalue;
+                                break;
+                            case FFI_TYPE_UINT32:
+                                extra_arg_values[i].uintvalue = static_cast<unsigned int>(PyInt_AsLong(nextArg));
+                                arg_values[i] = &extra_arg_values[i].uintvalue;
+                                break;
+                            case FFI_TYPE_UINT64:
+                                extra_arg_values[i].ulongvalue = PyLong_AsUnsignedLongLong(nextArg);
+                                arg_values[i] = &extra_arg_values[i].ulonglongvalue;
+                                break;
+                            case FFI_TYPE_FLOAT:
+                                extra_arg_values[i].floatvalue = PyFloat_AsDouble(nextArg);
+                                arg_values[i] = &extra_arg_values[i].floatvalue;
+                                break;
+                            case FFI_TYPE_DOUBLE:
+                                extra_arg_values[i].doublevalue = PyFloat_AsDouble(nextArg);
+                                arg_values[i] = &extra_arg_values[i].doublevalue;
+                                break;
+                            case FFI_TYPE_POINTER:
+                                if (STRING_TYPE == subtype) {
+                                    extra_arg_values[i].ptrvalue = (void *) PyString_AsString(nextArg);
+                                    arg_values[i] = &extra_arg_values[i].ptrvalue;
+                                } else if (COBJ_TYPE == subtype) {
+                                    static const size_t offset = offset_of<Arbitrary *, PythonClassWrapper<Arbitrary> >
+                                            (&PythonClassWrapper<Arbitrary>::_CObject);
+                                    auto **ptrvalue = (Arbitrary **) (((char *) nextArg) + offset);
+                                    extra_arg_values[i].ptrvalue = ptrvalue;
+                                } else if (FUNC_TYPE == subtype) {
+                                    static constexpr bool with_ellipsis = true;
+
+
+                                    typedef PythonFunctionWrapper<func_type> wtype;
+                                    static const size_t offset = offset_of(&wtype::_function);
+                                    void **ptrvalue = (void **) (((char *) nextArg) + offset);
+                                    extra_arg_values[i].ptrvalue = *ptrvalue;
+                                } else {
+                                    throw PyllarsException(PyExc_TypeError,
+                                                           "Unable to convert Python object to C Object");
+                                }
                                 arg_values[i] = &extra_arg_values[i].ptrvalue;
-                            } else if (COBJ_TYPE == subtype) {
-                                static const size_t offset = offset_of<Arbitrary *, PythonClassWrapper<Arbitrary> >
-                                        (&PythonClassWrapper<Arbitrary>::_CObject);
-                                auto **ptrvalue = (Arbitrary **) (((char *) nextArg) + offset);
-                                extra_arg_values[i].ptrvalue = ptrvalue;
-                            } else if (FUNC_TYPE == subtype) {
-                                static constexpr bool with_ellipsis = true;
-
-
-                                typedef PythonFunctionWrapper<func_type> wtype;
-                                static const size_t offset = offset_of(&wtype::_function);
-                                void **ptrvalue = (void **) (((char *) nextArg) + offset);
-                                extra_arg_values[i].ptrvalue = *ptrvalue;
-                            } else {
-                                throw PyllarsException(PyExc_TypeError, "Unable to convert Python object to C Object");
-                            }
-                            arg_values[i] = &extra_arg_values[i].ptrvalue;
-                            break;
-                        default:
-                            throw PyllarsException(PyExc_TypeError, "Python object cannot be converted to C object");
+                                break;
+                            default:
+                                throw PyllarsException(PyExc_TypeError,
+                                                       "Python object cannot be converted to C object");
+                        }
                     }
-                }
-                ffi_type *return_type = nullptr;
-                if constexpr(std::is_void<ReturnType>::value) {
-                    return_type = &ffi_type_void;
-                } else {
-                    return_type = FFIType<ReturnType>::type();//&ffi_type_sint;
-                }
-                // Prepare the ffi_cif structure.
-                if ((status = ffi_prep_cif_var(&cif,
-                                               FFI_DEFAULT_ABI,
-                                               func_traits<func_type>::argsize,
-                                               func_traits<func_type>::argsize + extra_args_size,
-                                               return_type, arg_types)) != FFI_OK) {
-                    throw PyllarsException(PyExc_TypeError, "FFI error calling variadic function");
-                }
-                // Invoke the function.
-                ffi_call(&cif, FFI_FN(func), result, arg_values);
-                if constexpr(!std::is_void<ReturnType>::value){
-                    return *reinterpret_cast<ReturnType*>(result);
+                    ffi_type *return_type = nullptr;
+                    if constexpr(std::is_void<ReturnType>::value) {
+                        return_type = &ffi_type_void;
+                    } else {
+                        return_type = FFIType<ReturnType>::type();//&ffi_type_sint;
+                    }
+                    // Prepare the ffi_cif structure.
+                    if ((status = ffi_prep_cif_var(&cif,
+                                                   FFI_DEFAULT_ABI,
+                                                   func_traits<func_type>::argsize,
+                                                   func_traits<func_type>::argsize + extra_args_size,
+                                                   return_type, arg_types)) != FFI_OK) {
+                        throw PyllarsException(PyExc_TypeError, "FFI error calling variadic function");
+                    }
+                    // Invoke the function.
+                    ffi_call(&cif, FFI_FN(func), result, arg_values);
+                    if constexpr(!std::is_void<ReturnType>::value) {
+                        return *reinterpret_cast<ReturnType *>(result);
+                    }
+#endif
                 }
             }
-        }
+        };
 
-        template<typename ReturnType, typename ...Args, typename... PyO>
-        ReturnType
-        __call_static_func(ReturnType (*func)(Args...), PyObject *extra_args, PyO *...pyargs) {
-            if (!extra_args || PyTuple_Size(extra_args) == 0) {
-                if constexpr (std::is_void<ReturnType>::value) {
-                    func(toCArgument<Args>(*pyargs).value()...);
+
+        template< typename ReturnType, typename ...Args>
+        struct Helper<ReturnType(*)(Args...)> {
+            template< typename... PyO>
+            ReturnType
+            static __call_static_func(ReturnType (*func)(Args...), PyObject *extra_args, PyO *...pyargs) {
+                if (!extra_args || PyTuple_Size(extra_args) == 0) {
+                    if constexpr (std::is_void<ReturnType>::value) {
+                        func(toCArgument<Args>(*pyargs).value()...);
+                    } else {
+                        return func(toCArgument<Args>(*pyargs).value()...);
+                    }
                 } else {
-                    return func(toCArgument<Args>(*pyargs).value()...);
+                    throw PyllarsException(PyExc_TypeError, "Too many arguments provided to function call");
                 }
-            } else {
-                throw PyllarsException(PyExc_TypeError, "Too many arguments provided to function call");
             }
-        }
+        };
     }
+
+    using namespace staticfunctions;
 
     /**
     * Used for regular methods:
@@ -238,18 +258,16 @@ namespace __pyllars_internal{
             tuple = args;
         }
         (void) s;
-        PyObject *pyobjs[func_traits<func_type>::argsize];
-        memset(pyobjs, 0, func_traits<func_type>::argsize*sizeof(PyObject*));
+        PyObject *pyobjs[func_traits<func_type>::argsize+1] = {nullptr};
         (void) pyobjs;
         if (func_traits<func_type>::argsize > 0 && !PyArg_ParseTupleAndKeywords(tuple, kwds, format, (char **) kwlist, &pyobjs[S]...)) {
             throw PyllarsException(PyExc_TypeError, "Invalid arguments to method call");
         }
 
         if constexpr (std::is_void<ReturnType>::value) {
-            __call_static_func(method, extra_args, pyobjs[S]...);
+            Helper<func_type>::__call_static_func(method, extra_args, pyobjs[S]...);
         } else {
-            return __call_static_func(method, extra_args, pyobjs[S]...);
-
+            return Helper<func_type>::__call_static_func(method, extra_args, pyobjs[S]...);
         }
     }
 

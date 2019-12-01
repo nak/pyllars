@@ -18,7 +18,7 @@
 **/
 
 
-namespace __pyllars_internal {
+namespace pyllars_internal {
 
     /**
      * class to hold reference to a global or static class method and define
@@ -29,12 +29,12 @@ namespace __pyllars_internal {
      * @tparam func_type: the function type (signature), typically specified in form ReturnType(Args...)
      **/
     template<typename func_type>
-    class StaticCallSemantics {
+    class DLLEXPORT StaticCallSemantics {
     public:
 
-        static constexpr bool has_ellipsis = __pyllars_internal::func_traits<func_type>::has_ellipsis;
+        static constexpr bool has_ellipsis = pyllars_internal::func_traits<func_type>::has_ellipsis;
 
-        typedef typename __pyllars_internal::func_traits<func_type>::ReturnType ReturnType;
+        typedef typename pyllars_internal::func_traits<func_type>::ReturnType ReturnType;
 
 
         /**
@@ -73,7 +73,7 @@ namespace __pyllars_internal {
       * @tparam function: the instance of the function this instantiation is associated with
      **/
     template<const char* const kwlist[], typename func_type, func_type function>
-    class StaticFunctionContainer{
+    class DLLEXPORT StaticFunctionContainer{
     public:
         static PyObject *call(PyObject *cls, PyObject *args, PyObject *kwds);
 

@@ -4,11 +4,12 @@
 #include "pyllars_reference.hpp"
 #include "pyllars/internal/pyllars_defns.impl.hpp"
 
-namespace __pyllars_internal{
+namespace pyllars_internal{
 
     template <typename T>
     int PythonClassWrapper<T&, void>::_init(PythonClassWrapper *self, PyObject *args, PyObject *kwds){
         // Must have at least one arg to reference or we ar bootstrapping
+        getRawType()->tp_base = PythonClassWrapper<T>::getRawType();
         const bool allow_null = args == NULL_ARGS();
         __initAddCArgCasts();
         PyObject *arg = nullptr;
@@ -19,7 +20,7 @@ namespace __pyllars_internal{
         } else if (!allow_null) {
             arg = PyTuple_GetItem(args, 0);
             if (!PythonClassWrapper<T>::checkType(arg) &&
-                !PyObject_TypeCheck(arg, &_Type)) {
+                !PyObject_TypeCheck(arg, getPyType())) {
                 PyErr_SetString(PyExc_ValueError, "Type mismatch create wrapper to reference to C object");
                 return -1;
             }
@@ -46,8 +47,8 @@ namespace __pyllars_internal{
     template<typename T>
     int PythonClassWrapper<T&, void>::initialize() {
         if (Base::initialize() == 0) {
-            _Type.tp_base = &PythonClassWrapper<T>::_Type;
-            return PyType_Ready(&_Type);
+            getRawType()->tp_base = PythonClassWrapper<T>::getRawType();
+            return PyType_Ready(getRawType());
         } else {
             PyErr_SetString(PyExc_SystemError, "Failed to initializer Python type wrapper to C object reference");
             return -1;
@@ -56,7 +57,7 @@ namespace __pyllars_internal{
 
     template<typename T>
     bool PythonClassWrapper<T&, void>::checkType(PyObject *obj){
-        return PyObject_TypeCheck(obj, &_Type);
+        return PyObject_TypeCheck(obj, getRawType());
     }
 
     template <typename T>
@@ -88,7 +89,7 @@ namespace __pyllars_internal{
         auto pyobj = (PythonClassWrapper *) PyObject_Call(reinterpret_cast<PyObject *>(type_), NULL_ARGS(), nullptr);
         if (pyobj) {
             pyobj->_CObject = &cobj;
-            pyobj->_max = size-1;
+           // pyobj->_max = size-1;
         }
         return pyobj;
     }
@@ -96,12 +97,12 @@ namespace __pyllars_internal{
     template<typename T>
     PyTypeObject PythonClassWrapper<T&, void>::_Type = {
         #if PY_MAJOR_VERSION == 3
-        PyVarObject_HEAD_INIT(NULL, 0)
+            PyVarObject_HEAD_INIT(NULL, 0)
         #else
         PyObject_HEAD_INIT(nullptr)
                     0,                         /*ob_size*/
         #endif
-        __pyllars_internal::type_name<T&>(),             /*tp_name*/ /*filled on init*/
+            pyllars_internal::type_name<T&>(),             /*tp_name*/ /*filled on init*/
         sizeof(PythonClassWrapper),             /*tp_basicsize*/
         0,                         /*tp_itemsize*/
         (destructor) PythonClassWrapper::_dealloc, /*tp_dealloc*/
@@ -130,7 +131,7 @@ namespace __pyllars_internal{
         nullptr,             /* tp_methods */
         nullptr,             /* tp_members */
         nullptr,                         /* tp_getset */
-        &PythonClassWrapper<T>::_Type,                         /* tp_base */
+        nullptr,                         /* tp_base */
         nullptr,                         /* tp_dict */
         nullptr,                         /* tp_descr_get */
         nullptr,                         /* tp_descr_set */
@@ -153,13 +154,13 @@ namespace __pyllars_internal{
 
     template<typename T>
     bool PythonClassWrapper<T&&, void>::checkType(PyObject *obj){
-        return PyObject_TypeCheck(obj, &_Type);
+        return PyObject_TypeCheck(obj, getRawType());
     }
 
     template <typename T>
     int PythonClassWrapper<T&&, void>::_init(PythonClassWrapper *self, PyObject *args, PyObject *kwds){
         // Must have at least one arg to reference or we ar bootstrapping
-
+        getRawType()->tp_base = PythonClassWrapper<T>::getRawType();
         PyObject *arg = nullptr;
         if (args && PyTuple_Size(args) != 1){
             PyErr_SetString(PyExc_TypeError, "Must supply exactly  one object to reference when constructing wrapper to "
@@ -168,7 +169,7 @@ namespace __pyllars_internal{
         } else if (args) {
             PyObject *arg = PyTuple_GetItem(args, 0);
             if (!PythonClassWrapper<T>::checkType(arg) &&
-                !PyObject_TypeCheck(arg, &_Type)) {
+                !PyObject_TypeCheck(arg, getPyType())) {
                 PyErr_SetString(PyExc_ValueError, "Type mismatch create wrapper to reference to C object");
                 return -1;
             }
@@ -211,7 +212,7 @@ namespace __pyllars_internal{
     PyObject_HEAD_INIT(nullptr)
                     0,                         /*ob_size*/
 #endif
-            __pyllars_internal::type_name<T&&>(),             /*tp_name*/ /*filled on init*/
+            pyllars_internal::type_name<T&&>(),             /*tp_name*/ /*filled on init*/
             sizeof(PythonClassWrapper),             /*tp_basicsize*/
             0,                         /*tp_itemsize*/
             (destructor) PythonClassWrapper::_dealloc, /*tp_dealloc*/
@@ -240,7 +241,7 @@ namespace __pyllars_internal{
             nullptr,             /* tp_methods */
             nullptr,             /* tp_members */
             nullptr,                         /* tp_getset */
-            &PythonClassWrapper<T>::_Type,                         /* tp_base */
+            nullptr,                         /* tp_base */
             nullptr,                         /* tp_dict */
             nullptr,                         /* tp_descr_get */
             nullptr,                         /* tp_descr_set */

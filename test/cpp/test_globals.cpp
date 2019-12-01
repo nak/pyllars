@@ -10,11 +10,11 @@
 #include "globals.h"
 
 TEST_F(SetupGlobals, TestGlobals) {
-    using namespace __pyllars_internal;
-    auto obj = reinterpret_cast<GlobalVariable::Container<const char* const> *>(PyObject_GetAttrString(SetupGlobals::pymod, "const_str_ptr"));
+    using namespace pyllars_internal;
+    auto obj = PyObject_GetAttrString(pyllars::GlobalNS::module(), "const_str_ptr");
     ASSERT_NE(obj, nullptr);
-    ASSERT_TRUE(PyCallable_Check((PyObject*)obj));
-    PyObject* str = PyObject_Call((PyObject*)obj, PyTuple_New(0), nullptr);
+    ASSERT_TRUE(PyCallable_Check(obj));
+    PyObject* str = PyObject_Call(obj, PyTuple_New(0), nullptr);
     ASSERT_NE(str, nullptr);
     ASSERT_STREQ(*((PythonClassWrapper<const char* const>*)str)->get_CObject(), "global_string");
 }
