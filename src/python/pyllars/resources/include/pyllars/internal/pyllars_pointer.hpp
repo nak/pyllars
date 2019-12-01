@@ -200,6 +200,10 @@ namespace pyllars_internal {
             return &_Type;
         }
 
+        static PyTypeObject* getRawType(){
+            return &_Type;
+        }
+
         static int initialize(){
             return Base::_initialize(_Type);
         }

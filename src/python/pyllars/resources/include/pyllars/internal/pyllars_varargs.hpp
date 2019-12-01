@@ -7,7 +7,7 @@
 #include <Python.h>
 #include "pyllars_type_traits.hpp"
 
-namespace __pyllars_internal {
+namespace pyllars_internal {
 
     static constexpr int COBJ_TYPE = 1;
     static constexpr int FUNC_TYPE = 2;

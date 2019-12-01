@@ -27,30 +27,26 @@ public:
 protected:
     static void SetUpTestSuite();
 
-public:
-    static void SetUpTestCase(){
-        SetUpTestSuite();
-    }
 };
 
 namespace pyllars_internal {
     template<>
     struct DLLEXPORT TypeInfo<BasicClass> {
-        static constexpr const char *type_name = "BasicClass";
+        static constexpr const char type_name[] = "BasicClass";
     };
 
     template<>
     struct DLLEXPORT TypeInfo<BasicClass2> {
-        static constexpr const char *type_name = "BasicClass2";
+        static constexpr const char type_name[] = "BasicClass2";
     };
     template<>
     struct DLLEXPORT TypeInfo<NonDestructible> {
-        static constexpr const char *type_name = "NonDestructible";
+        static constexpr const char type_name[] = "NonDestructible";
     };
 
     template<>
     struct DLLEXPORT TypeInfo<EnumClass > {
-        static constexpr const char *type_name = "EnumClass";
+        static constexpr const char type_name[] = "EnumClass";
     };
 }
 #endif //PYLLARS_SETUP_BASIC_CLASS_H

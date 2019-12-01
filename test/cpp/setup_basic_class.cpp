@@ -29,7 +29,7 @@ static const char *const kwlist_copy_constr2[] = {"float_val", "unused", nullptr
 const char *const kwlist_copy_constr[] = {"obj", nullptr};
 const char *const kwlist[2] = {"_CObject", nullptr};
 
-template class DLLEXPORT pyllars::PyllarsClass<BasicClass const, pyllars::GlobalNS >;
+template class DLLEXPORT pyllars::PyllarsClass<BasicClass, pyllars::GlobalNS >;
 
 template class DLLEXPORT pyllars::PyllarsClassConstructor<empty_list, BasicClass>;
 

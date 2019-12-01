@@ -4,7 +4,7 @@
 
 #ifndef PYLLARS_SETUP_H
 #define PYLLARS_SETUP_H
-#ifdef _MSC_VER
+#ifdef MSVC
 #pragma warning(disable:4251)
 #pragma warning(disable:4661)
 #endif
@@ -22,13 +22,6 @@
 class PythonBased: public ::testing::Test{
 public:
 
-
-    static void SetUpTestCase() {
-        SetUpTestSuite();
-    }
-    static void TearDownTestCase(){
-        TearDownTestSuite();
-    }
 
 protected:
     void SetUp() override{

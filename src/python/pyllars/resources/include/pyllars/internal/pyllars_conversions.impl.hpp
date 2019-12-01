@@ -76,13 +76,6 @@ namespace pyllars_internal {
         static argument_capture<T> toCArgument(PyObject &pyobj) ;
     };
 
-    template<typename T, size_t size >
-    class CObjectConversionHelper<T[size]> {
-    public:
-        typedef typename T T_bare;
-
-        static argument_capture<T[size]> toCArgument(PyObject &pyobj) ;
-    };
     /**
      * Specialization for callbacks (functions)
      **/
@@ -109,12 +102,6 @@ namespace pyllars_internal {
     argument_capture<T>
     toCArgument(PyObject &pyobj) {
         return CObjectConversionHelper<T>::toCArgument(pyobj);
-    }
-
-    template<typename T, size_t size >
-    argument_capture<T[size]>
-    toCArgument(PyObject &pyobj) {
-        return CObjectConversionHelper<T[size] >::toCArgument(pyobj);
     }
 
     template<typename T>

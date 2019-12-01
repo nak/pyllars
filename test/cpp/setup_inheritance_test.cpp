@@ -23,17 +23,16 @@ namespace {
     const char *const kwlist2[] = {"data", nullptr};
 }
 namespace pyllars_internal{
-    template<> class DLLEXPORT TypeInfo<InheritanceClass>{
-        static constexpr char * type_name = "InheritanceClass";
+    template<> struct DLLEXPORT TypeInfo<InheritanceClass>{
+        static constexpr char type_name[] = "InheritanceClass";
     };
-    template<> class DLLEXPORT TypeInfo<MultiInheritanceClass>{
-        static constexpr char * type_name = "MultiInheritanceClass";
+    template<> struct DLLEXPORT TypeInfo<MultiInheritanceClass>{
+        static constexpr char type_name[] = "MultiInheritanceClass";
     };
 }
 
 template class DLLEXPORT pyllars::PyllarsClass<InheritanceClass, pyllars::GlobalNS , BasicClass>;
 template class DLLEXPORT pyllars::PyllarsClassConstructor<empty_list, InheritanceClass>;
-template class DLLEXPORT pyllars::PyllarsClassConstructor<empty_list, MultiInheritanceClass>;
 template class DLLEXPORT pyllars::PyllarsClassMethod<new_method_name, kwlist2, int(InheritanceClass::*)(const char* const) const,
         &InheritanceClass::new_method >;
 

@@ -28,7 +28,7 @@ namespace pyllars_internal{
         struct FixedArrayHelper<T[size]>{
             typedef T T_array[size];
 
-#ifndef _MSC_VER
+#ifndef MSVC
             void * operator new(const std::size_t count,  T_array& from){
                 auto bytes = ::operator new(count);
                 assert (count >= sizeof(T)*size);

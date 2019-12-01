@@ -242,7 +242,7 @@ namespace pyllars_internal {
             type = &ffi_type_pointer;
             subtype = COBJ_TYPE;
 #endif
-        } else if ( PyObject_TypeCheck(obj, &BasePtrType)) {
+        } else if ( PyObject_TypeCheck(obj, &PyType_Type)) {
             type = &ffi_type_pointer;
             subtype = COBJ_TYPE;
         } else if (CommonBaseWrapper::IsClassType(obj)) {
@@ -252,7 +252,7 @@ namespace pyllars_internal {
             subtype = FUNC_TYPE;
             type = &ffi_type_pointer;
         } else {
-            throw "Cannot conver Python object to C Object";
+            throw "Cannot convert Python object to C Object";
         }
         return subtype;
     }

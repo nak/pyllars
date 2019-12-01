@@ -191,6 +191,17 @@ namespace pyllars_internal {
         typedef const volatile T *type;
     };
 
+    template<typename T>
+    struct has_finite_extent{
+        static constexpr  bool value = false;
+    };
+
+
+    template<typename T, size_t size>
+    struct has_finite_extent<T[size]>{
+        static constexpr  bool value = true;
+    };
+
     template <bool asReference, typename T>
     struct apply_const;
 

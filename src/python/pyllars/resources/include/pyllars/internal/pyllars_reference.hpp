@@ -27,9 +27,6 @@ namespace pyllars_internal {
         typedef PythonClassWrapper<T> Base;
         typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
 
-        PythonClassWrapper():PythonClassWrapper<T>(){
-           Base::_depth = 1;
-        }
 
         static status_t preinit(){
             return PythonClassWrapper<T>::preinit();
@@ -91,6 +88,9 @@ namespace pyllars_internal {
         typedef PyObject* (*get_t)(PyObject* self,  char* attrname);
 
 
+        PythonClassWrapper():PythonClassWrapper<T>(){
+            Base::_depth = 1;
+        }
 
         template<typename Other>
         static void insert(){

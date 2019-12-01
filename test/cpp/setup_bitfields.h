@@ -12,10 +12,6 @@ class DLLEXPORT SetupBitfields: public PythonBased {
 protected:
     static void SetUpTestSuite();
 
-public:
-    static void SetUpTestCase(){
-        SetUpTestSuite();
-    }
 };
 
 namespace pyllars_internal{

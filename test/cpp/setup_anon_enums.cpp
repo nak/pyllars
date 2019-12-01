@@ -30,10 +30,16 @@ namespace {
 }
 
 namespace pyllars_internal{
-    template<> class TypeInfo<ClassWithEnum>{
+
+    template<> struct TypeInfo<ClassWithEnum>{
         static  constexpr char type_name[] = "ClassWithEnum";
     };
-    template<> class TypeInfo<Enum>{
+
+    template<> struct TypeInfo<decltype(ClassWithEnum::FIRST)>{
+        static  constexpr char type_name[] = "ClassWithEnum::anon enum";
+    };
+
+    template<> struct TypeInfo<Enum>{
         static  constexpr char type_name[] = "Enum";
     };
 }
@@ -43,7 +49,8 @@ template class pyllars::PyllarsClassConstructor<emptylist, ClassWithEnum>;
 template class pyllars::PyllarsClassConstructor<emptylist, Enum>;
 template class pyllars::PyllarsClassConstructor<emptylist, decltype(ClassWithEnum::FIRST)>;
 template class pyllars::PyllarsEnum<EnumName, Enum, pyllars::GlobalNS , enum_names, ZERO, ONE, TWO>;
-#ifndef _MSC_VER
+
+#ifndef MSVC
 typedef decltype(ClassWithEnum::FIRST) ClassWithEnumType;
 template class pyllars::PyllarsEnum<ClassWithEnumName, ClassWithEnumType, ClassWithEnum, cwenum_names,
         ClassWithEnum::FIRST, ClassWithEnum::SECOND, ClassWithEnum::THIRD>;

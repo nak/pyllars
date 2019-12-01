@@ -18,7 +18,7 @@ endif()
 # Prevent overriding the parent project's compiler/linker
 # settings on Windows
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-
+set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
 # Add googletest directly to our build. This defines
 # the gtest and gtest_main targets.
 add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/googletest-src
@@ -28,10 +28,11 @@ add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/googletest-src
 # The gtest/gtest_main targets carry header search path
 # dependencies automatically when using CMake 2.8.11 or
 # later. Otherwise we have to add them here ourselves.
-    include_directories("${gtest_SOURCE_DIR}/include")
+include_directories("${gtest_SOURCE_DIR}/include")
 
 
 if(MSVC)
+    set (CMAKE_CXX_FLAGS "/IGNORE:C4251" ${CMAKE_CXX_FLAGS})
 else()
     set(GCC_COVERAGE_COMPILE_FLAGS "-fprofile-arcs -ftest-coverage --coverage -O0 -fno-inline")
     set(GCC_COVERAGE_LINK_FLAGS    "--coverage -lgcov")
@@ -40,7 +41,11 @@ else()
 endif()
 set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_CXX_STANDARD 17)
-find_package (Python COMPONENTS Development)
+
+if (MSVC)
+else()
+endif()
+find_package (Python3 COMPONENTS Development)
 
 if (MSVC)
     SET (LIBFFI_ROOT "libffi")
@@ -49,23 +54,16 @@ if (MSVC)
     set (LIBFFI_LIB ${CMAKE_BINARY_DIR}/../${LIBFFI_ROOT}/bin/libffi-6.dll)
     message("#################LIBFFI: ${LIBFFI_LIB}")
 else()
-    if (EXISTS "/usr/local/include/python3.7dm")
-        set (PYTHON_LINK_DIR "/usr/local/lib64")
-        set (PYTHON_LD "-lpython3.7dm")
-        set (PYTHON_INCLUDE "/usr/local/include/python3.7dm")
-    elseif(EXISTS "C:\\Users\\johnj\\venv37")
-        set(PYTHON_INCLUDE "C:\\Users\\johnj\\AppData\\Local\\Programs\\Python\\Python37\\include")
-        set(PYTHON_LINK_DIR "C:\\Users\\johnj\\AppData\\Local\\Programs\\Python\\Python37\\libs")
-    else()
-        set (PYTHON_LD "-lpython3.6m")
-        set (PYTHON_INCLUDE "/usr/include/python3.6m")
+    string(REPLACE "python3.7m" "python3.7dm" Python3dm_INCLUDE_DIRS "${Python3_INCLUDE_DIRS}")
+    string(REPLACE "python3.7m" "python3.7dm" Python3dm_LIBRARIES "${Python3_LIBRARIES}")
+    if (EXISTS ${Python3dm_INCLUDE_DIRS})
+        message("#### USING DM Python build: ${Python3dm_INCLUDE_DIRS}")
+        set (Python3_INCLUDE_DIRS ${Python3dm_INCLUDE_DIRS})
+        set (Python3_LIBRARIES ${Python3dm_LIBRARIES})
     endif()
 endif()
-#set (PYTHON_INCLUDE ${PYTHON_INCLUDE})
-#set (PYTHON_LD "${PYTHON_LINK_DIR}}")
-include_directories(${Python_INCLUDE_DIRS})
-link_directories(${Python_LIBRARY_DIRS})
-message("##################### ${PYTHON_FOUND} ${Python_INCLUDE_DIRS} ${Python_LIBRARY_DIRS}")
-set (CMAKE_CXX_FLAGS "/IGNORE:C4251" ${CMAKE_CXX_FLAGS})
+include_directories(${Python3_INCLUDE_DIRS})
+link_directories(${Python3_LIBRARY_DIRS})
+message("##################### Python: ${Python3_FOUND} ${Python3_INCLUDE_DIRS} ${Python_3LIBRARY_DIRS} ${Python3_LIBRARIES}")
 add_subdirectory(./src)
 add_subdirectory(./test)

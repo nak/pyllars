@@ -12,7 +12,7 @@ namespace pyllars_internal {
 
     template<typename CClass, typename ReturnType, typename... Args>
     ReturnType
-    func_traits<ReturnType (CClass::*)(Args..., ...)>::invoke(type &method, CClass &self,
+    func_traits<ReturnType (CClass::*)(Args..., ...)>::invoke(type method, CClass &self,
                                                               PyObject *extra_args,
                                                               typename PyObjectPack<Args>::type... pyargs) {
         if (!extra_args){
@@ -62,7 +62,7 @@ namespace pyllars_internal {
 
     template<typename CClass, typename ReturnType, typename... Args>
     ReturnType
-    func_traits<ReturnType (CClass::*)(Args..., ...) const>::invoke(type &method, const CClass &self,
+    func_traits<ReturnType (CClass::*)(Args..., ...) const>::invoke(type method, const CClass &self,
                                                                     PyObject *extra_args,
                                                                     typename PyObjectPack<Args>::type... pyargs) {
         if (!extra_args){
@@ -176,7 +176,7 @@ namespace pyllars_internal {
                 }
                 return toPyObject(result, 1);
             }
-            return toPyObject<ReturnType>(call_methodBase(this_, method, args, kwds, arg_generator_t()), 1);
+            return toPyObject<ReturnType>(call_methodBase(this_, args, kwds, arg_generator_t()), 1);
         }
     }
 
@@ -202,7 +202,6 @@ namespace pyllars_internal {
     MethodContainer<kwlist, method_t, method>::
     call_methodC(
             CClass & self,
-            method_t method,
             PyObject *args, PyObject *kwds, PyO *...pyargs) {
         static char format[func_traits<method_t>::argsize + 1] = {0};
         const ssize_t arg_count = kwds ? PyDict_Size(kwds) : 0 + args ? PyTuple_Size(args) : 0;
@@ -237,7 +236,6 @@ namespace pyllars_internal {
     MethodContainer<kwlist, method_t, method>::
     call_methodBase(
             CClass & self,
-            method_t method,
             PyObject *args, PyObject *kwds, container<S...> s) {
         (void) s;
         PyObject pyobjs[func_traits<method_t>::argsize + 1];
@@ -245,7 +243,7 @@ namespace pyllars_internal {
         if (!method) {
             throw PyllarsException(PyExc_TypeError, "Null method pointer encountered");
         }
-        return call_methodC(self, method, args, kwds, &pyobjs[S]...);
+        return call_methodC(self, args, kwds, &pyobjs[S]...);
 
     }
 }

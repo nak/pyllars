@@ -49,7 +49,7 @@ else()
             test_bit_fields.cpp
             test_functions.cpp
             function_defns.hpp globals.h globals.cpp)
-    target_link_libraries(runAllPyllarsTest PUBLIC -L/usr/local/lib64 ${PYTHON_LD} gtest_main
+    target_link_libraries(runAllPyllarsTest PUBLIC -L/usr/local/lib64 ${Python3_LIBRARIES} gtest_main
         setupBasicClassLib setupInheritanceLib setupBitFieldsLib setupAnonEnumsLib setupFunctions
         pyllars pthread  ffi dl util gtest_main)
 endif()
@@ -61,7 +61,7 @@ add_executable(runGlobalsTests
 if (MSVC)
     target_link_libraries(runGlobalsTests PUBLIC setupGlobals pyllars gtest_main)
 else()
-    target_link_libraries(runGlobalsTests PUBLIC setupGlobals pthread  -L/usr/local/lib64  ${PYTHON_LD} pyllars ffi dl gtest_main)
+    target_link_libraries(runGlobalsTests PUBLIC setupGlobals pthread  -L/usr/local/lib64  ${Python3_LIBRARIES} pyllars ffi dl gtest_main)
 endif()
 
 add_executable(runBasicClassTests
@@ -69,7 +69,7 @@ add_executable(runBasicClassTests
 if (MSVC)
     target_link_libraries(runBasicClassTests PUBLIC  gtest_main setupBasicClassLib  pyllars )
 else()
-    target_link_libraries(runBasicClassTests PUBLIC ${PYTHON_LD} gtest_main
+    target_link_libraries(runBasicClassTests PUBLIC ${Python3_LIBRARIES} gtest_main
             setupBasicClassLib  pthread pyllars ffi dl util )
 endif()
 
@@ -78,7 +78,7 @@ add_executable(runTemplateClassTests
 if (MSVC)
     target_link_libraries(runTemplateClassTests PUBLIC gtest_main setupTemplateClasses  pyllars)
 else()
-    target_link_libraries(runTemplateClassTests PUBLIC -L/usr/local/lib64 ${PYTHON_LD} gtest_main
+    target_link_libraries(runTemplateClassTests PUBLIC -L/usr/local/lib64 ${Python3_LIBRARIES} gtest_main
             setupTemplateClasses  pthread pyllars ffi dl util )
 endif()
 
@@ -87,16 +87,16 @@ if (MSVC)
     target_link_libraries(runInheritanceTests PUBLIC gtest_main setupInheritanceLib setupBasicClassLib pyllars)
 
 else()
-    target_link_libraries(runInheritanceTests PUBLIC -L/usr/local/lib64  ${PYTHON_LD} gtest_main
+    target_link_libraries(runInheritanceTests PUBLIC -L/usr/local/lib64  ${Python3_LIBRARIES} gtest_main
             setupInheritanceLib setupBasicClassLib
             pthread pyllars ffi dl util
            )
 endif()
 add_executable(runBitFieldTests test_bit_fields.cpp)
 if (MSVC)
-    target_link_libraries(runBitFieldTests PUBLIC -L/usr/local/lib64 ${PYTHON_LD}  setupBitFieldsLib pyllars)
+    target_link_libraries(runBitFieldTests PUBLIC -L/usr/local/lib64 ${Python3_LIBRARIES}  setupBitFieldsLib pyllars)
 else()
-    target_link_libraries(runBitFieldTests PUBLIC -L/usr/local/lib64 ${PYTHON_LD} pthread setupBitFieldsLib
+    target_link_libraries(runBitFieldTests PUBLIC -L/usr/local/lib64 ${Python3_LIBRARIES} pthread setupBitFieldsLib
        pyllars ffi dl util)
 endif()
 
@@ -106,7 +106,7 @@ add_executable(runAnonEmumTests
 if (MSVC)
     target_link_libraries(runAnonEmumTests PUBLIC setupAnonEnumsLib  pyllars)
 else()
-    target_link_libraries(runAnonEmumTests PUBLIC -L/usr/local/lib64   ${PYTHON_LD}
+    target_link_libraries(runAnonEmumTests PUBLIC -L/usr/local/lib64   ${Python3_LIBRARIES}
             setupAnonEnumsLib pthread pyllars ffi dl util)
 endif()
 
@@ -115,7 +115,7 @@ add_executable(runFunctionTests test_functions.cpp)
 if (MSVC)
     target_link_libraries(runFunctionTests PUBLIC setupFunctions pyllars gtest_main)
 else()
-    target_link_libraries(runFunctionTests PUBLIC -L/usr/local/lib64   ${PYTHON_LD}
+    target_link_libraries(runFunctionTests PUBLIC -L/usr/local/lib64   ${Python3_LIBRARIES}
         setupFunctions pthread pyllars ffi dl util)
 endif()
 

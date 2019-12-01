@@ -19,9 +19,10 @@
 
 #include "pyllars_type_traits.hpp"
 
-#ifdef _MSC_VER
+#ifdef MSVC
 #define DLLEXPORT __declspec(dllexport)
 #define DLLIMPORT
+#define MSVC
 #else
 #define DLLEXPORT
 #define DLLIMPORT

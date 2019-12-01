@@ -74,10 +74,6 @@ namespace pyllars_internal{
 
         static int _init(PyFloatingPtCustomObject *subtype, PyObject *args, PyObject *kwds);
 
-#ifndef _MSC_VER
-        // all instances will be allocated a'la Python so constructor should never be invoked (no linkage should be present)
-        explicit PyFloatingPtCustomObject();
-#endif
         std::function<double()> asDouble;
 
         PyObject *_referenced;

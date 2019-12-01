@@ -11,10 +11,9 @@
 #include "pyllars/internal/pyllars_classwrapper.hpp"
 #include "pyllars/internal/pyllars_pointer.hpp"
 #include "pyllars/pyllars_namespacewrapper.hpp"
-#ifdef _MSC_VER
+#ifdef MSVC
 typedef  long long __int128_t;
 #else
-asdfasdf
 #endif
 namespace  pyllars_internal {
 
@@ -149,8 +148,6 @@ namespace  pyllars_internal {
         }
 
         static PyObject *divmod(PyObject *v1, PyObject *v2);
-
-        typedef std::remove_volatile_t <number_type> nonv_number_t;
 
         static nonv_number_t invert(__int128_t value) {
             if constexpr(std::is_same<std::remove_cv_t <nonv_number_t> , bool>::value){
@@ -358,10 +355,6 @@ namespace  pyllars_internal {
 
         static void _free(void* self){}
 
-#ifndef _MSC_VER
-        // all instances will be allocated a'la Python so constructor should never be invoked (no linkage should be present)
-        PyNumberCustomObject(int, int);
-#endif
     private:
         DLLIMPORT static PyTypeObject _Type;
 

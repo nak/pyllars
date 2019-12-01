@@ -11,10 +11,6 @@ class DLLEXPORT SetupInheritanceTest : public SetupBasicClass{
 protected:
     static void SetUpTestSuite();
 
-public:
-    static void SetUpTestCase(){
-        SetUpTestSuite();
-    }
 };
 
 

@@ -8,10 +8,7 @@
 #include "setup.h"
 
 class DLLEXPORT SetupGlobals: public PythonBased {
-public:
-    static void SetUpTestCase(){
-        SetUpTestSuite();
-    }
+
 protected:
     static void SetUpTestSuite();
 

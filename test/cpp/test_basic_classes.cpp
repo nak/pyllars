@@ -11,6 +11,8 @@
 
 TEST_F(SetupBasicClass, TestBasicClassNew) {
     PyObject* PyBasicClass = PyObject_GetAttrString(pyllars::GlobalNS::module(), "BasicClass");
+    ASSERT_NE(PyBasicClass, nullptr);
+    ASSERT_TRUE(PyType_Check(PyBasicClass));
     PyObject *new_op = PyObject_GetAttrString(PyBasicClass, "new");
 
     ASSERT_NE(new_op, nullptr);
@@ -56,6 +58,8 @@ TEST_F(SetupBasicClass, TestBasicClassNew) {
 
 TEST_F(SetupBasicClass, TestBasicClassConst) {
     PyObject* PyBasicClass = PyObject_GetAttrString(pyllars::GlobalNS::module(), "BasicClass");
+    ASSERT_NE(PyBasicClass, nullptr);
+    ASSERT_TRUE(PyType_Check(PyBasicClass));
     PyObject *const_type = PyObject_GetAttrString(PyBasicClass, "const");
     PyObject *new_op = PyObject_GetAttrString(const_type, "new");
 
@@ -103,6 +107,8 @@ TEST_F(SetupBasicClass, TestBasicClass){
     static const char* const empty_list[] = {nullptr};
     static const char* const kwlist_copy_constr[] = {"obj", nullptr};
     PyObject* PyBasicClass = PyObject_GetAttrString(pyllars::GlobalNS::module(), "BasicClass");
+    ASSERT_NE(PyBasicClass, nullptr);
+    ASSERT_TRUE(PyType_Check(PyBasicClass));
     PyObject* PyBasicClassConst = PyObject_GetAttrString(PyBasicClass, "const");
     PyObject* args = PyTuple_New(0);
     PyObject* obj = PyObject_Call(PyBasicClass, args, nullptr);
@@ -226,6 +232,8 @@ TEST_F(SetupBasicClass, TestBasicClass){
 
 TEST_F(SetupBasicClass, TestClassEnums){
     auto PyEnumClass = PyObject_GetAttrString(pyllars::GlobalNS::module(), "EnumClass");
+    ASSERT_NE(PyEnumClass, nullptr);
+    ASSERT_TRUE(PyType_Check(PyEnumClass));
 
     PyObject* ONE_E = PyObject_GetAttrString(PyEnumClass, "E_ONE");
     ASSERT_NE(ONE_E, nullptr);
@@ -264,6 +272,8 @@ TEST_F(SetupBasicClass, TestClassEnums){
 
 TEST_F(SetupBasicClass, TestBasicClassOffNominal) {
     PyObject* PyBasicClass = PyObject_GetAttrString(pyllars::GlobalNS::module(), "BasicClass");
+    ASSERT_NE(PyBasicClass, nullptr);
+    ASSERT_TRUE(PyType_Check(PyBasicClass));
     {
         PyObject *args = PyTuple_New(2);
         PyTuple_SetItem(args, 0, PyLong_FromLong(1));
@@ -285,6 +295,8 @@ TEST_F(SetupBasicClass, TestBasicClassOffNominal) {
 }
 TEST_F(SetupBasicClass, TestPointers){
     PyObject* PyBasicClass = PyObject_GetAttrString(pyllars::GlobalNS::module(), "BasicClass");
+    ASSERT_NE(PyBasicClass, nullptr);
+    ASSERT_TRUE(PyType_Check(PyBasicClass));
     static auto empty = PyTuple_New(0);
     PyObject* obj = PyObject_Call(PyBasicClass, empty, nullptr);
     ASSERT_NE(obj, nullptr);
@@ -328,6 +340,7 @@ TEST_F(SetupBasicClass, TestPointers){
 TEST_F(SetupBasicClass, TestPrivateCtrDestructor){
     static const char* const empty_list[] = {nullptr};
     PyObject* PyNonDestructible = PyObject_GetAttrString(pyllars::GlobalNS::module(), "NonDestructible");
+    ASSERT_NE(PyNonDestructible, nullptr);
     ASSERT_TRUE(PyType_Check(PyNonDestructible));
     PyObject* create = PyObject_GetAttrString(PyNonDestructible, create_method_name);
     ASSERT_NE(create, nullptr);
@@ -345,6 +358,7 @@ TEST_F(SetupBasicClass, TestPrivateCtrDestructor){
 }
 TEST_F(SetupBasicClass, TestBasicClassUnaryOperators){
     PyObject* PyBasicClass = PyObject_GetAttrString(pyllars::GlobalNS::module(), "BasicClass");
+    ASSERT_NE(PyBasicClass, nullptr);
     ASSERT_TRUE(PyType_Check(PyBasicClass));
     PyTypeObject* typ = (PyTypeObject*)PyBasicClass;
     ASSERT_NE(typ->tp_as_number->nb_positive, nullptr);
@@ -407,7 +421,8 @@ public testing::WithParamInterface<std::pair<pyllars::OpUnaryEnum, const BasicCl
 
 TEST_P(UnaryOperatorTest, InvokesOperator){
     PyObject* PyBasicClass = PyObject_GetAttrString(pyllars::GlobalNS::module(), "BasicClass");
-
+    ASSERT_NE(PyBasicClass, nullptr);
+    ASSERT_TRUE(PyType_Check(PyBasicClass));
 
     static const std::map<pyllars::OpUnaryEnum, const char*> opUnaryNameMap = {
             {pyllars::OpUnaryEnum::INV, "__invert__"},

@@ -30,7 +30,7 @@ namespace pyllars_internal {
             typedef PyObject* type;
         };
 
-        inline static ReturnType invoke(type &method, CClass & self, PyObject* extra_args_tuple, typename PyObjectPack<Args>::type... pyargs){
+        inline static ReturnType invoke(type method, CClass & self, PyObject* extra_args_tuple, typename PyObjectPack<Args>::type... pyargs){
             return (self.*method)(std::forward<Args>(pyllars_internal::toCArgument<Args>(*pyargs).value())...);
         }
 
@@ -82,7 +82,7 @@ namespace pyllars_internal {
             typedef PyObject* type;
         };
 
-        static ReturnType invoke(type &method, CClass & self, PyObject* extra_args_tuple,
+        static ReturnType invoke(type method, CClass & self, PyObject* extra_args_tuple,
                 typename PyObjectPack<Args>::type... pyargs);
     };
 
@@ -104,7 +104,7 @@ namespace pyllars_internal {
 
         class A;
 
-        inline static ReturnType invoke(type &method, const CClass & self, PyObject* extra_args_tuple, typename PyObjectPack<Args>::type... pyargs){
+        inline static ReturnType invoke(type method, const CClass & self, PyObject* extra_args_tuple, typename PyObjectPack<Args>::type... pyargs){
             return (self.* method)(toCArgument<Args>(*pyargs).value()...);
         }
 
@@ -140,7 +140,7 @@ namespace pyllars_internal {
             typedef PyObject* type;
         };
 
-        static ReturnType invoke(type &method, const CClass & self, PyObject* extra_args_tuple,
+        static ReturnType invoke(type method, const CClass & self, PyObject* extra_args_tuple,
                 typename PyObjectPack<Args>::type... pyargs);
 
         static const char* type_name(){
@@ -184,13 +184,13 @@ namespace pyllars_internal {
          * call that invokes method a la C:
          **/
         template<typename ...PyO>
-        static ReturnType call_methodC(CClass &self, method_t method, PyObject *args, PyObject *kwds, PyO *...pyargs);
+        static ReturnType call_methodC(CClass &self,  PyObject *args, PyObject *kwds, PyO *...pyargs);
 
         /**
          * call that converts python given arguments to make C call:
          **/
         template<int ...S>
-        static ReturnType call_methodBase(CClass &self, method_t method, PyObject *args, PyObject *kwds, container<S...> s);
+        static ReturnType call_methodBase(CClass &self, PyObject *args, PyObject *kwds, container<S...> s);
 
     };
 

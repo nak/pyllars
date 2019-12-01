@@ -18,10 +18,6 @@ public:
 protected:
     static void SetUpTestSuite();
 
-public:
-    static void SetUpTestCase(){
-        SetUpTestSuite();
-    }
 };
 
 
