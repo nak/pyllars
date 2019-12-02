@@ -389,6 +389,9 @@ namespace pyllars_internal {
         return (initialize() == 0)?&_Type: nullptr;
     }
 
+    template<typename number_type>
+    PyTypeObject *PyFloatingPtCustomObject<number_type>::getRawType(){return &_Type;}
+
     template <typename number_type>
     status_t PyFloatingPtCustomObject<number_type>::initialize(){
         return _initialize(_Type);

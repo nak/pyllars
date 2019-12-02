@@ -28,6 +28,8 @@ namespace pyllars_internal{
 
         static PyTypeObject *getPyType();
 
+        static PyTypeObject *getRawType();
+
         inline number_type_basic *get_CObject() const {
             return _CObject;
         }

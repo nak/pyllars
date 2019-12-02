@@ -651,10 +651,10 @@ namespace pyllars_internal {
     PyObject_HEAD_INIT(nullptr)
             0,                         /*ob_size*/
     #endif
-            type_name<T>(),             /*tp_name*/  //set on call to initialize
+            type_name<T>(),                   /*tp_name*/  //set on call to initialize
             sizeof(PythonClassWrapper) + 8,             /*tp_basicsize*/
-            0,                         /*tp_itemsize*/
-            (destructor) &Base::_dealloc, /*tp_dealloc*/
+            0,                               /*tp_itemsize*/
+            (destructor) &Base::_dealloc,    /*tp_dealloc*/
             nullptr,                         /*tp_print*/
             nullptr,                         /*tp_getattr*/
             nullptr,                         /*tp_setattr*/
@@ -671,23 +671,23 @@ namespace pyllars_internal {
             nullptr,                         /*tp_as_buffer*/
             Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /*tp_flags*/
             "PythonCPointerWrapper object",           /* tp_doc */
-            nullptr,                               /* tp_traverse */
-            nullptr,                               /* tp_clear */
-            nullptr,                               /* tp_richcompare */
-            0,                             /* tp_weaklistoffset */
-            nullptr,                               /* tp_iter */
-            nullptr,                               /* tp_iternext */
-            _methods,             /* tp_methods */
-            nullptr,             /* tp_members */
+            nullptr,                         /* tp_traverse */
+            nullptr,                         /* tp_clear */
+            nullptr,                         /* tp_richcompare */
+            0,                               /* tp_weaklistoffset */
+            nullptr,                         /* tp_iter */
+            nullptr,                         /* tp_iternext */
+            _methods,                        /* tp_methods */
+            nullptr,                         /* tp_members */
             nullptr,                         /* tp_getset */
             nullptr,                         /* tp_base */
             nullptr,                         /* tp_dict */
             nullptr,                         /* tp_descr_get */
             nullptr,                         /* tp_descr_set */
-            0,                         /* tp_dictoffset */
-            (initproc) _init,      /* tp_init */
+            0,                               /* tp_dictoffset */
+            (initproc) _init,                /* tp_init */
             nullptr,                         /* tp_alloc */
-            Base::_new,                 /* tp_new */
+            Base::_new,                      /* tp_new */
             nullptr,                         /*tp_free*/ // no freeing of fixed-array
             nullptr,                         /*tp_is_gc*/
             nullptr,                         /*tp_base*/
@@ -696,7 +696,7 @@ namespace pyllars_internal {
             nullptr,                         /*tp_subclasses*/
             nullptr,                          /*tp_weaklist*/
             nullptr,                          /*tp_del*/
-            0,                          /*tp_version_tag*/
+            0,                                /*tp_version_tag*/
     };
 
     template<typename T>

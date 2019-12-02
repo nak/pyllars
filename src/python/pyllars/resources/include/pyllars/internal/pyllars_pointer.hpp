@@ -166,9 +166,6 @@ namespace pyllars_internal {
             return _CObject;
         }
 
-        //should never get called as Python uses malloc and such to allocate memory
-        PythonPointerWrapperBase(){}
-
     };
 
     template<typename T>
@@ -266,6 +263,10 @@ namespace pyllars_internal {
             if(initialize() != 0){
                 return nullptr;
             }
+            return &_Type;
+        }
+
+        static PyTypeObject* getRawType(){
             return &_Type;
         }
 

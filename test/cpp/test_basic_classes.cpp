@@ -103,9 +103,6 @@ TEST_F(SetupBasicClass, TestBasicClassConst) {
 }
 
 TEST_F(SetupBasicClass, TestBasicClass){
-    static const char* const kwlist[] = {"_CObject", nullptr};
-    static const char* const empty_list[] = {nullptr};
-    static const char* const kwlist_copy_constr[] = {"obj", nullptr};
     PyObject* PyBasicClass = PyObject_GetAttrString(pyllars::GlobalNS::module(), "BasicClass");
     ASSERT_NE(PyBasicClass, nullptr);
     ASSERT_TRUE(PyType_Check(PyBasicClass));
@@ -118,7 +115,7 @@ TEST_F(SetupBasicClass, TestBasicClass){
     auto dbl_ptr = PyObject_GetAttrString(obj, dbl_ptr_member_name);
     ASSERT_NE(dbl_ptr, nullptr);
     ASSERT_FALSE(PyErr_Occurred());
-    PyObject* at = PyObject_GetAttrString((PyObject*)dbl_ptr, "at");
+    PyObject* at = PyObject_GetAttrString(dbl_ptr, "at");
     ASSERT_NE(at, nullptr);
     ASSERT_FALSE(PyErr_Occurred());
     PyObject* at_args = PyTuple_New(1);
@@ -346,7 +343,7 @@ TEST_F(SetupBasicClass, TestPrivateCtrDestructor){
     ASSERT_NE(create, nullptr);
     PyObject* instance = PyObject_Call(create, PyTuple_New(0), nullptr);
     ASSERT_NE(instance, nullptr);
-     ASSERT_TRUE(PyObject_TypeCheck(instance, (PyTypeObject*) PyNonDestructible));
+    ASSERT_TRUE(PyObject_TypeCheck(instance, (PyTypeObject*) PyNonDestructible));
 
     PyObject* create_const = PyObject_GetAttrString(PyNonDestructible, create_const_method_name);
     ASSERT_NE(create_const, nullptr);

@@ -9,7 +9,6 @@ namespace pyllars_internal{
     template <typename T>
     int PythonClassWrapper<T&, void>::_init(PythonClassWrapper *self, PyObject *args, PyObject *kwds){
         // Must have at least one arg to reference or we ar bootstrapping
-        getRawType()->tp_base = PythonClassWrapper<T>::getRawType();
         const bool allow_null = args == NULL_ARGS();
         __initAddCArgCasts();
         PyObject *arg = nullptr;
@@ -25,7 +24,6 @@ namespace pyllars_internal{
                 return -1;
             }
         }
-        Base::_init(self, args, kwds);
         if (arg) {
             self->_CObject = ((PythonClassWrapper *) arg)->get_CObject();
             if (!self->_CObject) {
@@ -46,7 +44,11 @@ namespace pyllars_internal{
 
     template<typename T>
     int PythonClassWrapper<T&, void>::initialize() {
+        static bool inited = false;
+        if (inited) return 0;
+
         if (Base::initialize() == 0) {
+            inited = true;
             getRawType()->tp_base = PythonClassWrapper<T>::getRawType();
             return PyType_Ready(getRawType());
         } else {
@@ -102,52 +104,52 @@ namespace pyllars_internal{
         PyObject_HEAD_INIT(nullptr)
                     0,                         /*ob_size*/
         #endif
-            pyllars_internal::type_name<T&>(),             /*tp_name*/ /*filled on init*/
+            pyllars_internal::type_name<T&>(),  /*tp_name*/
         sizeof(PythonClassWrapper),             /*tp_basicsize*/
-        0,                         /*tp_itemsize*/
+        0,                                 /*tp_itemsize*/
         (destructor) PythonClassWrapper::_dealloc, /*tp_dealloc*/
-        nullptr,                         /*tp_print*/
+        nullptr,                          /*tp_print*/
         getter(),                         /*tp_getattr*/
         setter(),                         /*tp_setattr*/
-        nullptr,                         /*tp_compare*/
-        nullptr,                         /*tp_repr*/
-        new PyNumberMethods{0},          /*tp_as_number*/
-        nullptr,                         /*tp_as_sequence*/
-        nullptr,                         /*tp_as_mapping*/
-        nullptr,                         /*tp_hash */
-        nullptr,                         /*tp_call*/
-        nullptr,                         /*tp_str*/
-        nullptr,                         /*tp_getattro*/
-        nullptr,                         /*tp_setattro*/
-        nullptr,                         /*tp_as_buffer*/
+        nullptr,                          /*tp_compare*/
+        nullptr,                          /*tp_repr*/
+        new PyNumberMethods{0},           /*tp_as_number*/
+        nullptr,                          /*tp_as_sequence*/
+        nullptr,                          /*tp_as_mapping*/
+        nullptr,                          /*tp_hash */
+        nullptr,                          /*tp_call*/
+        nullptr,                          /*tp_str*/
+        nullptr,                          /*tp_getattro*/
+        nullptr,                          /*tp_setattro*/
+        nullptr,                          /*tp_as_buffer*/
         Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_CHECKTYPES, /*tp_flags*/
-        "PythonClassWrapper object",           /* tp_doc */
-        nullptr,                       /* tp_traverse */
-        nullptr,                       /* tp_clear */
-        nullptr,                       /* tp_richcompare */
-        0,                               /* tp_weaklistoffset */
-        nullptr,                       /* tp_iter */
-        nullptr,                       /* tp_iternext */
-        nullptr,             /* tp_methods */
-        nullptr,             /* tp_members */
-        nullptr,                         /* tp_getset */
-        nullptr,                         /* tp_base */
-        nullptr,                         /* tp_dict */
-        nullptr,                         /* tp_descr_get */
-        nullptr,                         /* tp_descr_set */
-        0,                         /* tp_dictoffset */
+        "PythonClassWrapper object",      /* tp_doc */
+        nullptr,                          /* tp_traverse */
+        nullptr,                          /* tp_clear */
+        nullptr,                          /* tp_richcompare */
+        0,                                /* tp_weaklistoffset */
+        nullptr,                          /* tp_iter */
+        nullptr,                          /* tp_iternext */
+        nullptr,                          /* tp_methods */
+        nullptr,                          /* tp_members */
+        nullptr,                          /* tp_getset */
+        nullptr,                          /* tp_base */
+        nullptr,                          /* tp_dict */
+        nullptr,                          /* tp_descr_get */
+        nullptr,                          /* tp_descr_set */
+        0,                                /* tp_dictoffset */
         (initproc) PythonClassWrapper::_init,  /* tp_init */
-        nullptr,                         /* tp_alloc */
+        nullptr,                          /* tp_alloc */
         PythonClassWrapper::_new,             /* tp_new */
-        _free,                         /*tp_free*/
-        nullptr,                         /*tp_is_gc*/
-        nullptr,                         /*tp_bases*/
-        nullptr,                         /*tp_mro*/
-        nullptr,                         /*tp_cache*/
-        nullptr,                         /*tp_subclasses*/
+        _free,                            /*tp_free*/
+        nullptr,                          /*tp_is_gc*/
+        nullptr,                          /*tp_bases*/
+        nullptr,                          /*tp_mro*/
+        nullptr,                          /*tp_cache*/
+        nullptr,                          /*tp_subclasses*/
         nullptr,                          /*tp_weaklist*/
         nullptr,                          /*tp_del*/
-        0,                          /*tp_version_tag*/
+        0,                                /*tp_version_tag*/
         };
 
 ////////////////////////////////////////////////////////////////////////////
@@ -160,7 +162,6 @@ namespace pyllars_internal{
     template <typename T>
     int PythonClassWrapper<T&&, void>::_init(PythonClassWrapper *self, PyObject *args, PyObject *kwds){
         // Must have at least one arg to reference or we ar bootstrapping
-        getRawType()->tp_base = PythonClassWrapper<T>::getRawType();
         PyObject *arg = nullptr;
         if (args && PyTuple_Size(args) != 1){
             PyErr_SetString(PyExc_TypeError, "Must supply exactly  one object to reference when constructing wrapper to "
@@ -212,13 +213,13 @@ namespace pyllars_internal{
     PyObject_HEAD_INIT(nullptr)
                     0,                         /*ob_size*/
 #endif
-            pyllars_internal::type_name<T&&>(),             /*tp_name*/ /*filled on init*/
-            sizeof(PythonClassWrapper),             /*tp_basicsize*/
-            0,                         /*tp_itemsize*/
+            pyllars_internal::type_name<T&&>(),             /*tp_name*/
+            sizeof(PythonClassWrapper),      /*tp_basicsize*/
+            0,                               /*tp_itemsize*/
             (destructor) PythonClassWrapper::_dealloc, /*tp_dealloc*/
             nullptr,                         /*tp_print*/
-            (getattrfunc) getter(),                         /*tp_getattr*/
-            (setattrfunc) setter(),                         /*tp_setattr*/
+            (getattrfunc) getter(),          /*tp_getattr*/
+            (setattrfunc) setter(),          /*tp_setattr*/
             nullptr,                         /*tp_compare*/
             nullptr,                         /*tp_repr*/
             new PyNumberMethods{0},          /*tp_as_number*/
@@ -232,24 +233,24 @@ namespace pyllars_internal{
             nullptr,                         /*tp_as_buffer*/
             Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_CHECKTYPES, /*tp_flags*/
             "PythonClassWrapper object",           /* tp_doc */
-            nullptr,                       /* tp_traverse */
-            nullptr,                       /* tp_clear */
-            nullptr,                       /* tp_richcompare */
+            nullptr,                         /* tp_traverse */
+            nullptr,                         /* tp_clear */
+            nullptr,                         /* tp_richcompare */
             0,                               /* tp_weaklistoffset */
-            nullptr,                       /* tp_iter */
-            nullptr,                       /* tp_iternext */
-            nullptr,             /* tp_methods */
-            nullptr,             /* tp_members */
+            nullptr,                         /* tp_iter */
+            nullptr,                         /* tp_iternext */
+            nullptr,                         /* tp_methods */
+            nullptr,                         /* tp_members */
             nullptr,                         /* tp_getset */
             nullptr,                         /* tp_base */
             nullptr,                         /* tp_dict */
             nullptr,                         /* tp_descr_get */
             nullptr,                         /* tp_descr_set */
-            0,                         /* tp_dictoffset */
+            0,                               /* tp_dictoffset */
             (initproc) PythonClassWrapper<T>::_init,  /* tp_init */
             nullptr,                         /* tp_alloc */
-            PythonClassWrapper<T>::_new,             /* tp_new */
-            _free,                         /*tp_free*/
+            PythonClassWrapper<T>::_new,     /* tp_new */
+            _free,                           /*tp_free*/
             nullptr,                         /*tp_is_gc*/
             nullptr,                         /*tp_bases*/
             nullptr,                         /*tp_mro*/
@@ -257,7 +258,7 @@ namespace pyllars_internal{
             nullptr,                         /*tp_subclasses*/
             nullptr,                          /*tp_weaklist*/
             nullptr,                          /*tp_del*/
-            0,                          /*tp_version_tag*/
+            0,                                /*tp_version_tag*/
     };
 
 
