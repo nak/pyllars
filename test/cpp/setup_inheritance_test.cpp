@@ -20,6 +20,7 @@
 namespace {
     const char new_method_name[] = "new_method";
     const char *const empty_list[] = {nullptr};
+    const char *const xtor_list[] = {"value", nullptr};
     const char *const kwlist2[] = {"data", nullptr};
 }
 namespace pyllars_internal{

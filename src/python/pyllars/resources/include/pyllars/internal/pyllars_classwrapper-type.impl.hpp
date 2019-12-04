@@ -574,6 +574,7 @@ namespace pyllars_internal {
             typedef const typename std::remove_const_t<T> T_const;
             PyDict_SetItemString(Type.tp_dict, const_name, (PyObject *) PythonClassWrapper<T_const>::getPyType());
         }
+        PyDict_SetItemString(Type.tp_dict, "this", (PyObject*) PythonClassWrapper<T*>::getPyType());
         if constexpr(!std::is_volatile<T>::value) {
             static const char *const volatile_name = "volatile";
             typedef volatile typename std::remove_volatile_t<T> T_volatile;

@@ -217,20 +217,7 @@ TEST_F(SetupBasicClass, TestBasicClass){
             int res = PyLong_AsLong(PyObject_Call(member_at, PyTuple_Pack(1, PyLong_FromLong(i)), nullptr));
             ASSERT_EQ(res, int_vals[i]);
         }
-    }/*
-    {
-        int *int_vals = new int[3]{6, 7, 8};
-
-        PyObject *vals = pyllars_internal::toPyObject<int*>(int_vals, 3);
-        ASSERT_NE(vals, nullptr);
-        PyObject_SetAttrString(obj, int_array_member_name, vals);
-        vals = PyObject_GetAttrString(obj, int_array_member_name);
-        ASSERT_NE(vals, nullptr);
-        for (size_t i = 0; i < 3; ++i) {
-            ASSERT_EQ((*reinterpret_cast<pyllars_internal::PythonClassWrapper<int[3]> *>(vals)->get_CObject())[i], int_vals[i]);
-        }
-        delete[] int_vals;
-    }*/
+    }
     Py_DECREF(obj);
 }
 
@@ -342,7 +329,6 @@ TEST_F(SetupBasicClass, TestPointers){
 
 
 TEST_F(SetupBasicClass, TestPrivateCtrDestructor){
-    static const char* const empty_list[] = {nullptr};
     PyObject* PyNonDestructible = PyObject_GetAttrString(pyllars::GlobalNS::module(), "NonDestructible");
     ASSERT_NE(PyNonDestructible, nullptr);
     ASSERT_TRUE(PyType_Check(PyNonDestructible));
@@ -350,13 +336,19 @@ TEST_F(SetupBasicClass, TestPrivateCtrDestructor){
     ASSERT_NE(create, nullptr);
     PyObject* instance = PyObject_Call(create, PyTuple_New(0), nullptr);
     ASSERT_NE(instance, nullptr);
-    ASSERT_TRUE(PyObject_TypeCheck(instance, (PyTypeObject*) PyNonDestructible));
+    auto PyNonDestructiblePtr = PyObject_GetAttrString(PyNonDestructible, "this");
+    ASSERT_NE(PyNonDestructiblePtr, nullptr);
+    ASSERT_TRUE(PyObject_TypeCheck(instance, (PyTypeObject*) PyNonDestructiblePtr));
 
     PyObject* create_const = PyObject_GetAttrString(PyNonDestructible, create_const_method_name);
     ASSERT_NE(create_const, nullptr);
     PyObject* instance_const = PyObject_Call(create_const, PyTuple_New(0), nullptr);
     ASSERT_NE(instance_const, nullptr);
     auto typ = PyObject_GetAttrString(PyNonDestructible, "const");
+    ASSERT_NE(typ, nullptr);
+    ASSERT_TRUE(PyType_Check(typ));
+    typ = PyObject_GetAttrString(typ, "this");
+    ASSERT_NE(typ, nullptr);
     ASSERT_TRUE(PyType_Check(typ));
     ASSERT_TRUE(PyObject_TypeCheck(instance_const, (PyTypeObject*) typ));
 }

@@ -26,7 +26,8 @@ TEST_F(SetupInheritanceTest, TestInheritance){
     ASSERT_NE(public_method, nullptr);
     PyObject* dargs = PyTuple_New(1);
     PyTuple_SetItem(dargs, 0, PyFloat_FromDouble(12.3));
-    PyObject* dbl = PyObject_Call(PyInheritanceClass, dargs, nullptr);
+    auto c_double = PyObject_GetAttrString(pyllars::GlobalNS::module(), "c_double");
+    PyObject* dbl = PyObject_Call(c_double, dargs, nullptr);
     ASSERT_NE(dbl, nullptr);
     PyTuple_SetItem(dargs, 0, dbl);
     PyObject* intValue = PyObject_Call(public_method, dargs, nullptr);
@@ -36,7 +37,7 @@ TEST_F(SetupInheritanceTest, TestInheritance){
 
 
 TEST_F(SetupInheritanceTest, TestMultipleInheritance){
-    auto PyBasicClass = PyObject_GetAttrString(pyllars::GlobalNS::module(), "BasicClass");
+    auto PyBasicClass = PyObject_GetAttrString(pyllars::GlobalNS::module(), "MultiInheritanceClass");
     ASSERT_NE(PyBasicClass, nullptr);
     ASSERT_TRUE(PyType_Check(PyBasicClass));
     PyObject* args = PyTuple_New(0);
