@@ -18,17 +18,17 @@ namespace pyllars{
         class DLLEXPORT Initializer{
         public:
             Initializer(){
-                __pyllars_internal::Init::registerReady(&ready);
+                pyllars_internal::Init::registerReady(&ready);
             }
 
             static status_t ready(){
                 using namespace pyllars;
                 auto module = Parent::module();
-                if(__pyllars_internal::PythonFunctionWrapper<function_t>::initialize() != 0){
+                if(pyllars_internal::PythonFunctionWrapper<function_t>::initialize() != 0){
                     return -1;
                 }
                 if (module){
-                    PyObject * created = __pyllars_internal::PythonFunctionWrapper<function_t>::template createPy<kwlist, f>(name);
+                    PyObject * created = pyllars_internal::PythonFunctionWrapper<function_t>::template createPy<kwlist, f>(name);
                     if (!created){
                         return -1;
                     }

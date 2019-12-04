@@ -18,8 +18,8 @@ class CXXRecordDeclGenerator(Generator):
         def find_typename(node: NodeType.Node, recurse: bool=False):
             if node is None:
                 return None
-            if self._node.name:
-                typename = f"{typename_qualifier} ::{self._node.full_cpp_name}"
+            if node.name:
+                typename = f"{typename_qualifier} ::{node.full_cpp_name}"
             elif not self._node.parent:
                 typename = None
             else:
@@ -72,17 +72,19 @@ class CXXRecordDeclGenerator(Generator):
             else:
                 bases = ""
             body_stream.write("}\n\n")
-            body_stream.write(f"template class pyllars::PyllarsClass<{typename}, Parent{bases}>;\n")
             body_stream.write(f"""
 
-namespace __pyllars_internal{{
+namespace pyllars_internal{{
     
     template<>
-    const char* const TypeInfo<{typename}>::type_name = \"{self._node.name if self._node.name else "<<anonymous type>>"}\";
+    struct DLLEXPORT TypeInfo<{typename}>{{
+        static constexpr const char type_name[] = \"{self._node.name if self._node.name else "<<anonymous type>>"}\"; 
+    }};
     
 }}
 
             """)
+            body_stream.write(f"template class pyllars::PyllarsClass<{typename}, Parent{bases}>;\n")
         finally:
             header_stream.close()
             body_stream.close()
@@ -616,12 +618,12 @@ def _parent_wrapper_name(node: NodeType.Node, recursed: Optional[NodeType.Node] 
         is_named_attribute = False
     if parent.name:
         if recursed:
-            return f"__pyllars_internal::PythonAnonymousClassWrapper< ::{parent.full_cpp_name} >",\
+            return f"pyllars_internal::PythonAnonymousClassWrapper< ::{parent.full_cpp_name} >",\
                    f"::{parent.full_cpp_name}", \
                    f"decltype(::{parent.full_cpp_name}::{node.name})",\
                    f"::{parent.full_cpp_name}::{node.name}"
         else:
-            return f"__pyllars_internal::PythonClassWrapper< ::{parent.full_cpp_name} >", \
+            return f"pyllars_internal::PythonClassWrapper< ::{parent.full_cpp_name} >", \
                    f"::{parent.full_cpp_name}", \
                    f"decltype(::{parent.full_cpp_name}::{node.name})",\
                    f"::{parent.full_cpp_name}::{node.name}"
@@ -629,12 +631,12 @@ def _parent_wrapper_name(node: NodeType.Node, recursed: Optional[NodeType.Node] 
         # parent is anonymous type with a named field declaration, so this element is referenced to direct parent (field)
         parent_field_name = parent.parent.children[index + 1].name
         if parent_field_name:
-            return f"__pyllars_internal::PythonClassWrapper<decltype(::{parent.parent.full_cpp_name}::{parent_field_name})>", \
+            return f"pyllars_internal::PythonClassWrapper<decltype(::{parent.parent.full_cpp_name}::{parent_field_name})>", \
                    f"decltype(::{parent.parent.full_cpp_name}::{parent_field_name})", \
                    f"decltype(::{parent.parent.full_cpp_name}::{parent_field_name}.{node.name})", \
                    f"decltype(::{parent.parent.full_cpp_name}::{parent_field_name})::{node.name}"
         elif parent.parent.name:
-            return f"__pyllars_internal::PythonClassWrapper<::{parent.parent.full_cpp_name}>", \
+            return f"pyllars_internal::PythonClassWrapper<::{parent.parent.full_cpp_name}>", \
                    f"::{parent.parent.full_cpp_name}", \
                    f"decltype(::{parent.parent.full_cpp_name}::{node.name})", \
                    f"::{parent.parent.full_cpp_name}::{node.name}"
@@ -651,12 +653,12 @@ def _parent_wrapper_name(node: NodeType.Node, recursed: Optional[NodeType.Node] 
         # parent is anonymous type with a named field declaration, so this element is referenced to direct parent (field)
         parent_field_name = parent.parent.children[index + 1].name
         if parent_field_name:
-            return f"__pyllars_internal::PythonClassWrapper<decltype(::{parent.parent.full_cpp_name}::{parent_field_name})>", \
+            return f"pyllars_internal::PythonClassWrapper<decltype(::{parent.parent.full_cpp_name}::{parent_field_name})>", \
                    f"{parent.parent.full_cpp_name}", \
                    f"decltype(::{parent.parent.full_cpp_name}::{parent_field_name})",\
                    f"::{parent.parent.full_cpp_name}::{parent_field_name}"
         elif parent.parent.name:
-            return f"__pyllars_internal::PythonClassWrapper<decltype(::{parent.parent.full_cpp_name})>", \
+            return f"pyllars_internal::PythonClassWrapper<decltype(::{parent.parent.full_cpp_name})>", \
                    f"::{parent.parent.full_cpp_name}",\
                    f"decltype(::{parent.parent.full_cpp_name}::{node.name})",\
                    f"::{parent.parent.full_cpp_name}::{node.name}"
@@ -665,7 +667,7 @@ def _parent_wrapper_name(node: NodeType.Node, recursed: Optional[NodeType.Node] 
     else:
         # parent is anonymous type without associated field, so element belongs to parent's parent when referenced in code
         if parent.parent.name:
-            return f"__pyllars_internal::PythonAnonymousClassWrapper< ::{parent.parent.full_cpp_name} >", \
+            return f"pyllars_internal::PythonAnonymousClassWrapper< ::{parent.parent.full_cpp_name} >", \
                    f"::{parent.parent.full_cpp_name}", \
                    f"decltype(::{parent.parent.full_cpp_name}::{node.name})", \
                    f"::{parent.parent.full_cpp_name}::{node.name}"

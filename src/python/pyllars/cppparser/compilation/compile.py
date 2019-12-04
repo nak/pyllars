@@ -75,7 +75,7 @@ class POSIXCompiler(AbstractCompiler):
         uuid = uuid.UUID(hex)
         target =  os.path.join(self._output_dir, os.path.basename(path) + str(uuid) + ".o")
         includes = " ".join(self._compiler_flags)
-        cmd = f"{POSIXCompiler.CXX} -ftemplate-backtrace-limit=0 -g -O -std=c++1z {POSIXCompiler.CFLAGS} -c -fPIC {includes} -I{PYLLARS_INCLUDE_DIR} " + \
+        cmd = f"{POSIXCompiler.CXX} -ftemplate-backtrace-limit=0 -g -O0 -std=c++1z {POSIXCompiler.CFLAGS} -c -fPIC {includes} -I{PYLLARS_INCLUDE_DIR} " + \
               f"-I{POSIXCompiler.PYINCLUDE} -o \"{target}\" \"{path}\""
         cmd = cmd.replace("-O2", self._optimization_level)
         cmd = cmd.replace("-O3", self._optimization_level)

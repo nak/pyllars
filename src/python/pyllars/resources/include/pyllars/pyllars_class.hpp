@@ -4,6 +4,7 @@
 #include "pyllars/internal/pyllars_classwrapper.hpp"
 #include "pyllars/internal/pyllars_classwrapper-enums.impl.hpp"
 #include "pyllars/internal/pyllars_classwrapper.impl.hpp"
+#include "pyllars/internal/pyllars_classwrapper-type.impl.hpp"
 
 #ifndef PYLLARS_PYLLARS_CLASSINSTANTITATION_IMPL_HPP
 #define PYLLARS_PYLLARS_CLASSINSTANTITATION_IMPL_HPP
@@ -25,6 +26,7 @@ namespace pyllars {
     template<typename Class, typename Parent, typename ...BaseClass>
     class DLLEXPORT PyllarsClass{
     public:
+        static_assert(!std::is_same<Parent, Class>::value);
         static PyTypeObject* getPyType(){
             return pyllars_internal::PythonClassWrapper<Class>::getPyType();
         }
@@ -43,13 +45,7 @@ namespace pyllars {
             }
 
             static status_t init() {
-                if constexpr(is_complete<Parent>::value) {
-                    //for incomplete types the following will be evaled and cause compile errors if included in if constexpr above
-                    if constexpr(!std::is_base_of<pyllars::NSInfoBase, Parent>::value) {
-                        PythonClassWrapper<Parent>::addClassObject(Types<Class>::type_name(),
-                                                                   (PyObject*) PythonClassWrapper<Class>::getRawType());
-                    }
-                }
+              
                 return 0;
             }
 
@@ -64,6 +60,13 @@ namespace pyllars {
 
             static status_t ready(){
                 using namespace pyllars_internal;
+		if constexpr(is_complete<Parent>::value) {
+                    //for incomplete types the following will be evaled and cause compile errors if included in if constexpr above
+                    if constexpr(!std::is_base_of<pyllars::NSInfoBase, Parent>::value) {
+                        PythonClassWrapper<Parent>::addClassObject(Types<Class>::type_name(),
+                                                                   (PyObject*) PythonClassWrapper<Class>::getPyType());
+                    }
+                }
                 //add each base class in parameter pack...
                 static std::vector<int> unused{(ForEach<BaseClass, const BaseClass, volatile BaseClass, const volatile BaseClass>(), 0)...};
                 (void)unused;

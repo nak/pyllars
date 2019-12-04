@@ -76,6 +76,7 @@ namespace pyllars_internal {
                     std::pair{std::pair{PythonClassWrapper<T>::getRawType(),
                                         PythonClassWrapper<Other>::getRawType()},
                               &CommonBaseWrapper::template interpret_cast<T, Other>}), 0)...};
+            (void)unused;
         }
     }
 

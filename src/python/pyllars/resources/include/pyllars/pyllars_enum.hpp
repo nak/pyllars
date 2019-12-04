@@ -3,6 +3,8 @@
 //
 #include "pyllars/internal/pyllars_classwrapper.hpp"
 #include "pyllars/internal/pyllars_classwrapper-enums.impl.hpp"
+#include "pyllars/internal/pyllars_classwrapper-type.impl.hpp"
+#include "pyllars/internal/pyllars_classwrapper-staticmethods.impl.hpp"
 #include "pyllars/internal/pyllars_conversions.impl.hpp"
 
 #ifndef PYLLARS_PYLLARS_ENUM_HPP
@@ -11,7 +13,7 @@
 namespace pyllars{
 
     /**
-     * Explicitly instantiate to map a C-styl (non-class) enum to a Python construct
+     * Explicitly instantiate to map a C-style (non-class) enum to a Python construct
      *
      * @tparam name  name of the enum type; for anonymous enums, just use "<<anonymous>>"
      * @tparam EnumType  the type associated with the enum (can use decltype(enum-value) to get for anonymous type

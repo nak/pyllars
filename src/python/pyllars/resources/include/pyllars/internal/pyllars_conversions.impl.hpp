@@ -110,7 +110,7 @@ namespace pyllars_internal {
     toCArgument(PyObject &pyobj) {
         typedef typename std::remove_cv<typename std::remove_reference<T>::type>::type T_bare;
 
-        PyTypeObject* typ = PythonClassWrapper<T>::getPyType();
+       // PyTypeObject* typ = PythonClassWrapper<T>::getPyType();
         auto* casted = (PythonClassWrapper<T>*) CommonBaseWrapper::castToCArgument<T>(&pyobj);
         if (casted){
             return argument_capture<T>(casted->get_CObject());
@@ -156,9 +156,15 @@ namespace pyllars_internal {
             } else
             */
         typedef typename std::remove_reference<T_bare>::type T_NoRef;
-        if constexpr (is_bool<T_bare>::value){
-            if (&pyobj == Py_True || &pyobj == Py_False) {
-                return argument_capture<T>(new bool(&pyobj == Py_True), false);
+        if constexpr (is_bool<T_bare>::value && std::is_const<std::remove_reference_t <T> >::value){
+            static  bool TRUE = true;
+            static  bool FALSE = false;
+            TRUE = true;
+            FALSE = false;
+            if (&pyobj == Py_True){
+                return argument_capture<T>(TRUE);
+            } else if (&pyobj == Py_False){
+                return argument_capture<T>(FALSE);
             }
         } else if constexpr(std::is_enum<T_bare>::value || std::is_integral<T_bare>::value){
             if (PyInt_Check(&pyobj)) {

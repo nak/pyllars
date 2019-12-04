@@ -106,6 +106,7 @@ namespace pyllars_internal {
         template<typename ...Other>
         static void for_each_init() {
             int unused[] = {(insert<Other>(), 0)...};
+            (void)unused;
         }
 
         static void __initAddCArgCasts(){
