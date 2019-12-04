@@ -153,5 +153,6 @@ namespace pyllars_internal{
         }
 
     };
+
 }
 #endif //PYLLARS_PYLLARS_FUNTTRAITS_HPP

@@ -46,7 +46,6 @@ namespace pyllars{
                     typename PyllarsClassMethod<name, kwlist, ReturnType(Class::*)(Args...), method>::Initializer();
 
 
-
     template<const char *const name, const char* const kwlist[], typename Class, typename ReturnType, typename ...Args,  ReturnType(Class::*method)(Args...) const>
     class DLLEXPORT PyllarsClassMethod<name, kwlist, ReturnType(Class::*)(Args...) const, method>{
     private:
@@ -60,6 +59,7 @@ namespace pyllars{
             static status_t init(){
                 using namespace pyllars_internal;
                 PythonClassWrapper<Class>::template addMethod<name, kwlist, method_t, method>();
+                PythonClassWrapper<const Class>::template addMethod<name, kwlist, method_t, method>();
                 return 0;
             }
         };
@@ -73,7 +73,62 @@ namespace pyllars{
                   typename  PyllarsClassMethod<name, kwlist, ReturnType(Class::*)(Args...) const, method>::Initializer();
 
 
+    template<const char *const name, const char* const kwlist[], typename Class, typename ReturnType, typename ...Args,  ReturnType(Class::*method)(Args...) volatile >
+    class DLLEXPORT PyllarsClassMethod<name, kwlist, ReturnType(Class::*)(Args...) volatile, method>{
+    private:
+        class Initializer{
+        public:
+            typedef ReturnType(Class::*method_t)(Args...) volatile;
+            Initializer(){
+                pyllars_internal::Init::registerInit(init);
+            }
 
+            static status_t init(){
+                using namespace pyllars_internal;
+                PythonClassWrapper<volatile Class>::template addMethod<name, kwlist, method_t, method>();
+                return 0;
+            }
+        };
+
+        static Initializer* const initializer;
+    };
+
+    template<const char *const name, const char* const kwlist[], typename Class, typename ReturnType, typename ...Args,  ReturnType(Class::*method)(Args...) volatile >
+    typename PyllarsClassMethod<name, kwlist, ReturnType(Class::*)(Args...) volatile , method>::Initializer * const
+            PyllarsClassMethod<name, kwlist, ReturnType(Class::*)(Args...) volatile , method>::initializer = new
+                    typename  PyllarsClassMethod<name, kwlist, ReturnType(Class::*)(Args...) volatile , method>::Initializer();
+
+
+    template<const char *const name, const char* const kwlist[], typename Class, typename ReturnType, typename ...Args,  ReturnType(Class::*method)(Args...) const volatile >
+    class DLLEXPORT PyllarsClassMethod<name, kwlist, ReturnType(Class::*)(Args...) const volatile , method>{
+    private:
+        class Initializer{
+        public:
+            typedef ReturnType(Class::*method_t)(Args...) const volatile ;
+            Initializer(){
+                pyllars_internal::Init::registerInit(init);
+            }
+
+            static status_t init(){
+                using namespace pyllars_internal;
+                PythonClassWrapper<volatile Class>::template addMethod<name, kwlist, method_t, method>();
+                PythonClassWrapper<const volatile Class>::template addMethod<name, kwlist, method_t, method>();
+                return 0;
+            }
+        };
+
+        static Initializer* const initializer;
+    };
+
+    template<const char *const name, const char* const kwlist[], typename Class, typename ReturnType, typename ...Args,  ReturnType(Class::*method)(Args...) const volatile >
+    typename PyllarsClassMethod<name, kwlist, ReturnType(Class::*)(Args...) const volatile, method>::Initializer * const
+            PyllarsClassMethod<name, kwlist, ReturnType(Class::*)(Args...) const volatile , method>::initializer = new
+                    typename  PyllarsClassMethod<name, kwlist, ReturnType(Class::*)(Args...) const volatile , method>::Initializer();
+
+
+
+
+    ////////VARARGS//////////////
 
 
     template<const char *const name, const char* const kwlist[], typename Class, typename ReturnType, typename ...Args,  ReturnType(Class::*method)(Args..., ...)>
@@ -116,6 +171,7 @@ namespace pyllars{
             static status_t init(){
                 using namespace pyllars_internal;
                 PythonClassWrapper<Class>::template addMethod<name, kwlist, method_t, method>();
+                PythonClassWrapper<const Class>::template addMethod<name, kwlist, method_t, method>();
                 return 0;
             }
         };
@@ -127,6 +183,61 @@ namespace pyllars{
     typename PyllarsClassMethod<name, kwlist, ReturnType(Class::*)(Args..., ...) const, method>::Initializer * const
             PyllarsClassMethod<name, kwlist, ReturnType(Class::*)(Args..., ...) const, method>::initializer = new
                     PyllarsClassMethod<name, kwlist, ReturnType(Class::*)(Args..., ...) const, method>::Initializer();
+
+
+
+    template<const char *const name, const char* const kwlist[], typename Class, typename ReturnType, typename ...Args,  ReturnType(Class::*method)(Args..., ...) volatile >
+    class DLLEXPORT PyllarsClassMethod<name, kwlist, ReturnType(Class::*)(Args..., ...) volatile , method>{
+    private:
+        class DLLEXPORT Initializer{
+        public:
+            typedef ReturnType(Class::*method_t)(Args..., ...) volatile ;
+            Initializer(){
+                pyllars_internal::Init::registerInit(init);
+            }
+
+            static status_t init(){
+                using namespace pyllars_internal;
+                PythonClassWrapper<volatile Class>::template addMethod<name, kwlist, method_t, method>();
+                return 0;
+            }
+        };
+
+        static Initializer* const initializer;
+    };
+
+    template<const char *const name, const char* const kwlist[], typename Class, typename ReturnType, typename ...Args,  ReturnType(Class::*method)(Args..., ...) volatile >
+    typename PyllarsClassMethod<name, kwlist, ReturnType(Class::*)(Args..., ...) volatile , method>::Initializer * const
+            PyllarsClassMethod<name, kwlist, ReturnType(Class::*)(Args..., ...) volatile , method>::initializer = new
+                    PyllarsClassMethod<name, kwlist, ReturnType(Class::*)(Args..., ...) volatile , method>::Initializer();
+
+
+
+    template<const char *const name, const char* const kwlist[], typename Class, typename ReturnType, typename ...Args,  ReturnType(Class::*method)(Args..., ...) const volatile >
+    class DLLEXPORT PyllarsClassMethod<name, kwlist, ReturnType(Class::*)(Args..., ...) const volatile , method>{
+    private:
+        class DLLEXPORT Initializer{
+        public:
+            typedef ReturnType(Class::*method_t)(Args..., ...) const volatile ;
+            Initializer(){
+                pyllars_internal::Init::registerInit(init);
+            }
+
+            static status_t init(){
+                using namespace pyllars_internal;
+                PythonClassWrapper<volatile Class>::template addMethod<name, kwlist, method_t, method>();
+                PythonClassWrapper<const volatile Class>::template addMethod<name, kwlist, method_t, method>();
+                return 0;
+            }
+        };
+
+        static Initializer* const initializer;
+    };
+
+    template<const char *const name, const char* const kwlist[], typename Class, typename ReturnType, typename ...Args,  ReturnType(Class::*method)(Args..., ...) const volatile >
+    typename PyllarsClassMethod<name, kwlist, ReturnType(Class::*)(Args..., ...) const volatile, method>::Initializer * const
+            PyllarsClassMethod<name, kwlist, ReturnType(Class::*)(Args..., ...) const volatile , method>::initializer = new
+                    PyllarsClassMethod<name, kwlist, ReturnType(Class::*)(Args..., ...) const volatile , method>::Initializer();
 }
 
 #endif

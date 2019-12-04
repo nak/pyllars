@@ -26,7 +26,7 @@ namespace pyllars_internal {
     template<typename KeyType, typename ValueType, typename method_t, method_t method>
     void PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::
     _addMapOperatorMethod() {
-        static constexpr bool method_is_const = func_traits<method_t>::is_const_method;
+
         std::function<PyObject *(PyObject *, PyObject *)> getter = [](PyObject *self, PyObject *item) -> PyObject * {
             PythonClassWrapper *self_ = (PythonClassWrapper *) self;
             try {

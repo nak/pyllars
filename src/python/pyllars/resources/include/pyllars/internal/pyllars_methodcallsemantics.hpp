@@ -20,6 +20,7 @@ namespace pyllars_internal {
         constexpr static bool has_ellipsis = false;
         constexpr static ssize_t argsize = sizeof...(Args);
         constexpr static bool is_const_method = false;
+        constexpr static bool is_volatile_method = false;
 
         typedef RType(CClass::*type)(Args...);
         typedef RType ReturnType;
@@ -56,6 +57,7 @@ namespace pyllars_internal {
     struct DLLEXPORT func_traits<RType(CClass::*)(Args..., ...)>{
         constexpr static bool has_ellipsis = true;
         constexpr static bool is_const_method = false;
+        constexpr static bool is_volatile_method = false;
         constexpr static ssize_t argsize = sizeof...(Args);
 
         typedef RType(CClass::*type)(Args..., ...);
@@ -92,6 +94,7 @@ namespace pyllars_internal {
         constexpr static bool has_ellipsis = false;
         constexpr static ssize_t argsize = sizeof...(Args);
         constexpr static bool is_const_method = true;
+        constexpr static bool is_volatile_method = false;
 
         typedef RType(CClass::*type)(Args...) const;
         typedef RType ReturnType;
@@ -129,6 +132,7 @@ namespace pyllars_internal {
     struct DLLEXPORT func_traits<RType(CClass::*)(Args..., ...) const>{
         constexpr static bool has_ellipsis = true;
         constexpr static bool is_const_method = true;
+        constexpr static bool is_volatile_method = false;
         constexpr static ssize_t argsize = sizeof...(Args);
         typedef CClass class_type;
 
@@ -142,6 +146,124 @@ namespace pyllars_internal {
 
         static ReturnType invoke(type method, const CClass & self, PyObject* extra_args_tuple,
                 typename PyObjectPack<Args>::type... pyargs);
+
+        static const char* type_name(){
+            static std::string n;
+            if (n.size()==0) {
+                n = std::string(pyllars_internal::type_name<ReturnType>()) + std::string("(*") +
+                    + pyllars_internal::type_name<CClass>() + std::string(")(");
+
+                std::vector<std::string> arg_names{Types<Args>::type_name() + std::string(",")...};
+                for (auto &name : arg_names){
+                    n += name;
+                }
+                n += std::string(" ...) const");
+            }
+            return n.c_str();
+        }
+
+    };
+
+
+
+
+
+
+
+    template<typename CClass, typename RType, typename ...Args>
+    struct DLLEXPORT func_traits<RType(CClass::*)(Args..., ...) volatile >{
+        constexpr static bool has_ellipsis = true;
+        constexpr static bool is_const_method = false;
+        constexpr static bool is_volatile_method = true;
+        constexpr static ssize_t argsize = sizeof...(Args);
+
+        typedef RType(CClass::*type)(Args..., ...);
+        typedef RType ReturnType;
+        typedef CClass class_type;
+
+        static const char* type_name(){
+            static std::string n;
+            if (n.size()==0) {
+                n = std::string(pyllars_internal::type_name<ReturnType>()) + std::string("(*") +
+                    + pyllars_internal::type_name<CClass>() + std::string(")(");
+
+                std::vector<std::string> arg_names{Types<Args>::type_name() + std::string(",")...};
+                for (auto &name: arg_names){
+                    n += name;
+                }
+                n += std::string(" ...) volatile");
+            }
+            return n.c_str();
+        }
+
+        template<typename Arg>
+        struct PyObjectPack{
+            typedef PyObject* type;
+        };
+
+        static ReturnType invoke(type method, volatile CClass & self, PyObject* extra_args_tuple,
+                                 typename PyObjectPack<Args>::type... pyargs);
+    };
+
+
+    template<typename CClass, typename RType, typename ...Args>
+    struct DLLEXPORT func_traits<RType(CClass::*)(Args...) const volatile>{
+        constexpr static bool has_ellipsis = false;
+        constexpr static ssize_t argsize = sizeof...(Args);
+        constexpr static bool is_const_method = true;
+        constexpr static bool is_volatile_method = true;
+
+        typedef RType(CClass::*type)(Args...) const;
+        typedef RType ReturnType;
+        typedef CClass class_type;
+
+        template<typename Arg>
+        struct PyObjectPack{
+            typedef PyObject* type;
+        };
+
+        class A;
+
+        inline static ReturnType invoke(type method, const volatile CClass & self, PyObject* extra_args_tuple,
+                typename PyObjectPack<Args>::type... pyargs){
+            return (self.* method)(toCArgument<Args>(*pyargs).value()...);
+        }
+
+        static const char* type_name(){
+            static std::string n;
+            if (n.size()==0) {
+                n = std::string(pyllars_internal::type_name<ReturnType>()) + std::string("(*") +
+                    + pyllars_internal::type_name<CClass>() + std::string(")(");
+
+                std::vector<std::string> arg_names{Types<Args>::type_name() + std::string(",")...};
+                for (auto &name: arg_names){
+                    n += name;
+                }
+                n += std::string(") const volatile");
+            }
+            return n.c_str();
+        }
+
+    };
+
+    template<typename CClass, typename RType, typename ...Args>
+    struct DLLEXPORT func_traits<RType(CClass::*)(Args..., ...) const volatile>{
+        constexpr static bool has_ellipsis = true;
+        constexpr static bool is_const_method = true;
+        constexpr static bool is_volatile_method = true;
+        constexpr static ssize_t argsize = sizeof...(Args);
+        typedef CClass class_type;
+
+        typedef RType(CClass::*type)(Args..., ...) const;
+        typedef RType ReturnType;
+
+        template<typename Arg>
+        struct PyObjectPack{
+            typedef PyObject* type;
+        };
+
+        static ReturnType invoke(type method, const volatile CClass & self, PyObject* extra_args_tuple,
+                                 typename PyObjectPack<Args>::type... pyargs);
 
         static const char* type_name(){
             static std::string n;

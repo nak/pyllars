@@ -43,6 +43,9 @@ namespace pyllars_internal {
         };
         if constexpr(func_traits<method_t>::is_const_method) {
             _addMethodConst(pyMeth);
+            if constexpr (!std::is_const<Class>::value) {
+                PythonClassWrapper<const Class>::template addMethod<name, kwlist, method_t, method>();
+            }
         } else {
             _addMethodNonConst(pyMeth);
         }

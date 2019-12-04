@@ -13,8 +13,9 @@
 #include "pyllars/internal/pyllars_integer.hpp"
 
 namespace{
-     const char* const kwlist_void_return[] = {"_CObject", "spacer", nullptr};
-     const char* const kwlist_long_long_return[] = {"i", "d", nullptr};
+    const char* const kwlist_void_return[] = {"_CObject", nullptr};
+    const char* const kwlist_void_return_va[] = {"_CObject", "spacer", nullptr};
+    const char* const kwlist_long_long_return[] = {"i", "d", nullptr};
 }
 
 TEST_F(SetupFunctions, TestVoidReturn){
@@ -57,14 +58,15 @@ TEST_F(SetupFunctions, TestLongLongReturn){
 TEST_F(SetupFunctions, TestVoidReturnVarArgs){
     using namespace pyllars_internal;
     typedef PythonClassWrapper<void(double&, int, ...)> Wrapper;
-    PyObject* obj = (PyObject*) Wrapper::template createPy<kwlist_void_return, void_return_varargs>("void_return_varargs");
+    PyObject* obj = (PyObject*) Wrapper::template createPy<kwlist_void_return_va, void_return_varargs>("void_return_varargs");
     double dvalue = 98.6;
     double dvalue2 = 12335.43;
-    auto args = PyTuple_New(2);
+    auto args = PyTuple_New(3);
     auto value =  toPyObject<double&>(dvalue, 1);
     auto value2 =  toPyObject<double>(dvalue2, 1);
     PyTuple_SetItem(args, 0, value);
-    PyTuple_SetItem(args, 1, value2);
+    PyTuple_SetItem(args, 1, PyLong_FromLong(12));
+    PyTuple_SetItem(args, 2, value2);
     auto ret = PyObject_Call(obj, args, nullptr);
     ASSERT_FALSE(PyErr_Occurred());
     ASSERT_TRUE(ret == Py_None);

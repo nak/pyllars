@@ -358,9 +358,7 @@ namespace pyllars_internal {
     template<typename T>
     int
     PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::_initialize(PyTypeObject &Type) {
-        typedef typename std::remove_const<
-                typename std::remove_reference<T>::type
-        >::type basic_type;
+        typedef typename std::remove_cv_t<typename std::remove_reference_t<T> > basic_type;
         typedef PythonClassWrapper<basic_type> Basic;
         static bool inited = false;
         if (inited) return 0;
@@ -371,23 +369,23 @@ namespace pyllars_internal {
             typedef long long (*func_t)(const T_NoRef&);
             addStaticMethod<value_name, value_kwlist, func_t, enum_convert<T_NoRef> >();
         }
-        if constexpr (std::is_const<T_NoRef >::value){
-            for ( auto & element : Basic::_constructors()){
-                _constructors().push_back(*reinterpret_cast<ConstructorContainer*>(&element));
-            }
-        } else {
-            _constructors() = Basic::_constructors();
-        }
+        //if constexpr (std::is_const<T_NoRef >::value){
+        //    for ( auto & element : Basic::_constructors()){
+        //        _constructors().push_back(*reinterpret_cast<ConstructorContainer*>(&element));
+        //    }
+        //} else {
+        //    _constructors() = Basic::_constructors();
+       // }
         PyMethodDef pyMethAlloc = {
                 alloc_name_,
                 (PyCFunction) alloc,
                 METH_KEYWORDS | METH_CLASS | METH_VARARGS,
                 "allocate array of single dynamic instance of this class"
         };
-        _methodCollectionConst() = Basic::_methodCollectionConst(); // make this same as type with no garnishment
-        if constexpr(std::is_const<T>::value) {
-            _methodCollection() = Basic::_methodCollection(); // make this same as type with no garnishment
-        }
+        //_methodCollectionConst() = Basic::_methodCollectionConst(); // make this same as type with no garnishment
+        //if constexpr(!std::is_const<T>::value) {
+        //    _methodCollection() = Basic::_methodCollection(); // make this same as type with no garnishment
+        //}
         _methodCollection()[alloc_name_] = pyMethAlloc;
         if (!Basic::_baseClasses().empty()) {
             if (Basic::_baseClasses().size() > 1) {
@@ -428,9 +426,6 @@ namespace pyllars_internal {
         }
         Type.tp_methods = new PyMethodDef[_methodCollection().size() +_methodCollectionConst().size() + 1];
         Type.tp_methods[_methodCollection().size() + _methodCollectionConst().size()] = {nullptr};
-        // for const-style T, this converts calls to pass in a const T pointer in the std::function call,
-        // important for disallowing setting of a const *_CObject
-        _mapMethodCollection = Basic::_mapMethodCollection;
 
         static PyMappingMethods methods = {nullptr, _mapGet, _mapSet};
         Type.tp_as_mapping = &methods;

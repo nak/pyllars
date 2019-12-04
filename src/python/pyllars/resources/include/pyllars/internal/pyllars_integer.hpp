@@ -28,6 +28,13 @@ namespace  pyllars_internal {
          __int128_t (*toInt)(PyObject*);
 
          static PyTypeObject* getRawType();
+         static PyTypeObject* getPyType(){
+             if(!getRawType()->tp_base) {
+                 getRawType()->tp_base = CommonBaseWrapper::getRawType();
+                 PyType_Ready(getRawType());
+             }
+             return getRawType();
+         }
     };
 
 
@@ -42,7 +49,7 @@ namespace  pyllars_internal {
                 } else {
                     return PyLong_AsLongLong(obj);
                 }
-            } else if (PyObject_TypeCheck(obj, PyNumberCustomBase::getPyType())) {
+            } else if (PyObject_IsInstance(obj, (PyObject*) PyNumberCustomBase::getRawType())) {
                 auto self = (PyNumberCustomBase*)obj;
                 if (!self->toInt){
                     PyErr_SetString(PyExc_SystemError, "Uninitialized integer conversion function pointer encountered!!");
@@ -56,7 +63,7 @@ namespace  pyllars_internal {
         }
 
         static bool isIntegerObject(PyObject *obj){
-            return bool(PyLong_Check(obj)) || bool(PyObject_TypeCheck(obj, PyNumberCustomBase::getPyType()));
+            return bool(PyLong_Check(obj)) || bool(PyObject_TypeCheck(obj, PyNumberCustomBase::getRawType()));
         }
 
         static PyNumberMethods *instance();

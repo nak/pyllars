@@ -32,6 +32,7 @@ namespace pyllars_internal{
             }
             self->make_reference(arg);
         } else {
+            Base::_init(self, args, kwds);
             self->_CObject = nullptr;
         }
         return 0;

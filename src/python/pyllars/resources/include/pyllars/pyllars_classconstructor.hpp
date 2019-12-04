@@ -28,6 +28,9 @@ namespace pyllars{
             static status_t init(){
                 using namespace pyllars_internal;
                 PythonClassWrapper<Class>::template addConstructor<kwlist, Args...>();
+                PythonClassWrapper<const Class>::template addConstructor<kwlist, Args...>();
+                PythonClassWrapper<volatile Class>::template addConstructor<kwlist, Args...>();
+                PythonClassWrapper<const volatile Class>::template addConstructor<kwlist, Args...>();
                 return 0;
             }
 

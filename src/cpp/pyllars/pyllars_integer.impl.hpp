@@ -11,69 +11,6 @@
 
 namespace pyllars_internal {
 
-#ifdef _MSC_VER
-    __declspec(noinline)
-#endif
-    PyTypeObject *PyNumberCustomBase::getRawType() {
-        return &_Type;
-    }
-
-    DLLEXPORT PyTypeObject PyNumberCustomBase::_Type = {
-#if PY_MAJOR_VERSION == 3
-            PyVarObject_HEAD_INIT(NULL, 0)
-#else
-    PyObject_HEAD_INIT(nullptr)
-    0,                         /*ob_size*/
-#endif
-            "PyllarsNumberBase", /*tp_name*/
-            sizeof(PyNumberCustomBase), /*tp_basicsize*/
-            0, /*tp_itemsize*/
-            nullptr, /*tp_dealloc*/
-            nullptr, /*tp_print*/
-            nullptr, /*tp_getattr*/
-            nullptr, /*tp_setattr*/
-            nullptr, /*tp_as_sync*/
-            nullptr, /*tp_repr*/
-
-            nullptr, /*tp_as_number*/
-            nullptr,                         /*tp_as_sequence*/
-            nullptr,                         /*tp_as_mapping*/
-            nullptr,                         /*tp_hash */
-            nullptr,                         /*tp_call*/
-            nullptr,                         /*tp_str*/
-            nullptr,                         /*tp_getattro*/
-            nullptr,                         /*tp_setattro*/
-            nullptr,                         /*tp_as_buffer*/
-            Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_CHECKTYPES, /*tp_flags*/
-            "Base umber type in pyllars",           /* tp_doc */
-            nullptr,                       /* tp_traverse */
-            nullptr,                       /* tp_clear */
-            nullptr,                       /* tp_richcompare */
-            0,                               /* tp_weaklistoffset */
-            nullptr,                       /* tp_iter */
-            nullptr,                       /* tp_iternext */
-            nullptr,             /* tp_methods */
-            nullptr,             /* tp_members */
-            nullptr,                         /* tp_getset */
-            nullptr,                         /* tp_base */
-            nullptr,                         /* tp_dict */
-            nullptr,                         /* tp_descr_get */
-            nullptr,                         /* tp_descr_set */
-            0,                         /* tp_dictoffset */
-            nullptr,  /* tp_init */
-            nullptr,                         /* tp_alloc */
-            PyType_GenericNew,             /* tp_new */
-            nullptr,                         /*tp_free*/
-            nullptr,                         /*tp_is_gc*/
-            nullptr,                         /*tp_bases*/
-            nullptr,                         /*tp_mro*/
-            nullptr,                         /*tp_cache*/
-            nullptr,                         /*tp_subclasses*/
-            nullptr,                          /*tp_weaklist*/
-            nullptr,                          /*tp_del*/
-            0,                          /*tp_version_tag*/
-    };
-
     template<typename number_type>
     PyNumberMethods *
     NumberType<number_type>::instance() {
@@ -147,6 +84,7 @@ namespace pyllars_internal {
         if (inited) return rc;
         inited = true;
 
+        PyNumberCustomObject::getRawType()->tp_base = PyNumberCustomBase::getRawType();
         rc = PyType_Ready(PyNumberCustomBase::getRawType());
         rc |= PyType_Ready(getRawType());
         rc |= PyType_Ready(CommonBaseWrapper::getPyType());
@@ -381,21 +319,21 @@ namespace pyllars_internal {
 
     template<typename number_type>
     PyMethodDef PyNumberCustomObject<number_type>::_methods[] = {
-            {
-                    alloc_name_,
-                             (PyCFunction) alloc,
-                    METH_KEYWORDS | METH_CLASS | METH_VARARGS,
-                    "allocate array of numbers"
-            },
-            {
-                    "to_int",
-                             (PyCFunction) to_int,
-                    METH_KEYWORDS | METH_VARARGS,
-                    "convert to Python int type"
-            },
-            {
-                    nullptr, nullptr, 0, nullptr /**sentinel **/
-            }
+        {
+                alloc_name_,
+                         (PyCFunction) alloc,
+                METH_KEYWORDS | METH_CLASS | METH_VARARGS,
+                "allocate array of numbers"
+        },
+        {
+                "to_int",
+                         (PyCFunction) to_int,
+                METH_KEYWORDS | METH_VARARGS,
+                "convert to Python int type"
+        },
+        {
+                nullptr, nullptr, 0, nullptr /**sentinel **/
+        }
     };
 
 
@@ -485,18 +423,49 @@ namespace pyllars_internal {
             return nullptr;
         } else {
             typename std::remove_cv_t<number_type> value = 0;
+            typedef std::remove_volatile_t<number_type> bare_t;
             if (size >= 1) {
                 PyObject *item = PyTuple_GetItem(args, 0);
+                if (size ==1 && PyTuple_Check(item)){
+                    auto size = PyTuple_Size(item);
+                    auto result =  PythonClassWrapper<number_type *>::template allocateArray<number_type>(value,
+                            size);
+                    for (size_t i = 0; i < size; ++i){
+                        auto pyitem = PyTuple_GetItem(item, i);
+                        if  (!NumberType<number_type>::isIntegerObject(pyitem)){
+                            PyErr_SetString(PyExc_ValueError, "All argument values must be of integral type");
+                            return nullptr;
+                        }
+                        const __int128_t long_value = NumberType<bare_t>::toLongLong(pyitem);
+                        if (PyErr_Occurred()){
+                            return nullptr;
+                        }
+                        (const_cast<std::remove_const_t<number_type>*>(*result->get_CObject()))[i] = long_value;
+                    }
+                    return (PyObject*) result;
+                } else if (size ==1 && PyList_Check(item)){
+                    auto size = PyList_Size(item);
+                    auto result =  PythonClassWrapper<number_type *>::template allocateArray<number_type>(value,
+                                                                                                          size);
+                    for (size_t i = 0; i < size; ++i){
+                        auto pyitem = PyList_GetItem(item, i);
+                        if  (!NumberType<number_type>::isIntegerObject(pyitem)){
+                            PyErr_SetString(PyExc_ValueError, "All argument values must be of integral type");
+                            return nullptr;
+                        }
+                        const __int128_t long_value = NumberType<bare_t>::toLongLong(pyitem);
+                        (const_cast<std::remove_const_t<number_type>*>(*result->get_CObject()))[i] = long_value;
+                    }
+                    return (PyObject*) result;
+                }
                 if (!item) {
-                    static const char *const msg = "Internal error getting tuple _CObject";
-                    PyErr_SetString(PyExc_SystemError, msg);
+                    PyErr_SetString(PyExc_SystemError, "Internal error getting tuple _CObject");
                     return nullptr;
                 }
                 if (!NumberType<number_type>::isIntegerObject(item)) {
                     PyErr_SetString(PyExc_ValueError, "Argument must be of integral type");
                     return nullptr;
                 }
-                typedef std::remove_volatile_t<number_type> bare_t;
                 const __int128_t long_value = NumberType<bare_t>::toLongLong(item);
                 if (long_value < (__int128_t) NumberType<bare_t>::min() ||
                     long_value > (__int128_t) NumberType<bare_t>::max) {
@@ -710,158 +679,5 @@ namespace pyllars_internal {
         PyErr_SetString(PyExc_TypeError, "Recevied null self !?#");
         return -1;
     }
-
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<const bool>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<const char>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<const short>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<const int>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<const long>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<const long long>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<const unsigned char>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<const signed char>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<const unsigned short>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<const unsigned int>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<const unsigned long>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<const unsigned long long>;
-
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<bool>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<char>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<signed char>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<short>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<int>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<long>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<long long>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<unsigned char>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<unsigned short>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<unsigned int>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<unsigned long>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<unsigned long long>;
-
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<volatile const bool>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<volatile const char>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<volatile const signed char>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<volatile const short>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<volatile const int>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<volatile const long>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<volatile const long long>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<volatile const unsigned char>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<volatile const unsigned short>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<volatile const unsigned int>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<volatile const unsigned long>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<volatile const unsigned long long>;
-
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<volatile bool>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<volatile char>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<volatile signed char>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<volatile short>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<volatile int>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<volatile long>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<volatile long long>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<volatile unsigned char>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<volatile unsigned short>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<volatile unsigned int>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<volatile unsigned long>;
-
-    template
-    struct DLLEXPORT PyNumberCustomObject<volatile unsigned long long>;
-}
-
-
-namespace pyllars{
-
 
 }

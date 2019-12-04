@@ -153,9 +153,13 @@ namespace pyllars_internal {
                     Assignment<T>::assign(_this->get_CObject()->*member, *val);
                     return 0;
                 } else if (PythonClassWrapper<typename extent_as_pointer<T>::type>::checkType(pyVal)) {
-                    T_base **val = reinterpret_cast<PythonClassWrapper<typename extent_as_pointer<T>::type> *>(pyVal)->get_CObject();
-                    T_base * toVal = _this->get_CObject()->*member;
-                    Assignment<T_base*>::assign(toVal, *val, ArraySize<T>::size );
+                    if constexpr(std::is_array<T>::value && ArraySize<T>::size > 0){
+                        Assignment<T>::assign(_this->get_CObject()->*member, * reinterpret_cast<PythonClassWrapper<T> *>(pyVal)->get_CObject(), ArraySize<T>::size);
+                    } else {
+                        T_base **val = reinterpret_cast<PythonClassWrapper<typename extent_as_pointer<T>::type> *>(pyVal)->get_CObject();
+                        T_base * toVal = _this->get_CObject()->*member;
+                        Assignment<T_base *>::assign(toVal, *val, ArraySize<T>::size);
+                    }
                     return 0;
                 }
             } catch (PyllarsException & e) {

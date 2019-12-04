@@ -200,14 +200,21 @@ TEST_F(SetupBasicClass, TestBasicClass){
         auto tuple = PyTuple_Pack(3, PyLong_FromLong(6), PyLong_FromLong(7), PyLong_FromLong(8));
         auto c_int_new = PyObject_GetAttrString(c_int, "new");
 
-        PyObject *vals = PyObject_Call(c_int_new, tuple, nullptr);
-        ASSERT_NE(vals, nullptr);
-        PyObject_SetAttrString(obj, int_array_member_name, vals);
-        vals = PyObject_GetAttrString(obj, int_array_member_name);
+        PyObject *vals = PyObject_Call(c_int_new, PyTuple_Pack(1, tuple), nullptr);
         ASSERT_NE(vals, nullptr);
         auto c_int_ptr_at = PyObject_GetAttrString(vals, "at");
+        ASSERT_NE(c_int_ptr_at, nullptr);
         for (size_t i = 0; i < 3; ++i) {
-            int res = PyLong_AsLong(PyObject_Call(c_int_ptr_at, PyLong_FromLong(i), nullptr));
+            int res = PyLong_AsLong(PyObject_Call(c_int_ptr_at, PyTuple_Pack(1, PyLong_FromLong(i)), nullptr));
+            ASSERT_EQ(res, int_vals[i]);
+        }
+        PyObject_SetAttrString(obj, int_array_member_name, vals);
+        auto member = PyObject_GetAttrString(obj, int_array_member_name);
+        ASSERT_NE(member, nullptr);
+        auto member_at = PyObject_GetAttrString(vals, "at");
+        ASSERT_NE(c_int_ptr_at, nullptr);
+        for (size_t i = 0; i < 3; ++i) {
+            int res = PyLong_AsLong(PyObject_Call(member_at, PyTuple_Pack(1, PyLong_FromLong(i)), nullptr));
             ASSERT_EQ(res, int_vals[i]);
         }
     }/*
@@ -353,6 +360,7 @@ TEST_F(SetupBasicClass, TestPrivateCtrDestructor){
     ASSERT_TRUE(PyType_Check(typ));
     ASSERT_TRUE(PyObject_TypeCheck(instance_const, (PyTypeObject*) typ));
 }
+
 TEST_F(SetupBasicClass, TestBasicClassUnaryOperators){
     PyObject* PyBasicClass = PyObject_GetAttrString(pyllars::GlobalNS::module(), "BasicClass");
     ASSERT_NE(PyBasicClass, nullptr);
@@ -363,10 +371,13 @@ TEST_F(SetupBasicClass, TestBasicClassUnaryOperators){
     ASSERT_NE(typ->tp_as_number->nb_invert, nullptr);
     PyObject * obj = PyObject_Call(PyBasicClass, PyTuple_New(0), nullptr);
     ASSERT_NE(obj, nullptr);
+    ASSERT_FALSE(PyErr_Occurred());
     PyObject* negate = PyObject_GetAttrString(obj, "__neg__");
     ASSERT_NE(negate, nullptr);
+    ASSERT_FALSE(PyErr_Occurred());
     PyObject* negobj = PyObject_Call(negate, PyTuple_New(0), nullptr);
     ASSERT_NE(negobj, nullptr);
+    ASSERT_FALSE(PyErr_Occurred());
     ASSERT_TRUE(PyObject_TypeCheck(negobj, typ));
     auto int_array_obj = PyObject_GetAttrString(negobj, "int_array");
     ASSERT_NE(int_array_obj, nullptr);
@@ -374,9 +385,12 @@ TEST_F(SetupBasicClass, TestBasicClassUnaryOperators){
     ASSERT_NE(at, nullptr);
     auto val = PyObject_Call(at, PyTuple_Pack(1, PyLong_FromLong(0)), nullptr);
     ASSERT_NE(val, nullptr);
+    ASSERT_FALSE(PyErr_Occurred());
     ASSERT_EQ(PyLong_AsLong(val), -1);
+    ASSERT_FALSE(PyErr_Occurred());
     val = PyObject_Call(at, PyTuple_Pack(1, PyLong_FromLong(1)), nullptr);
     ASSERT_NE(val, nullptr);
+    ASSERT_FALSE(PyErr_Occurred());
     ASSERT_EQ(PyLong_AsLong(val), -2);
     val = PyObject_Call(at, PyTuple_Pack(1, PyLong_FromLong(2)), nullptr);
     ASSERT_NE(val, nullptr);
