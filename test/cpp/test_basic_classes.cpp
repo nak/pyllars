@@ -309,10 +309,14 @@ TEST_F(SetupBasicClass, TestPointers){
     auto args_index_0 = PyTuple_New(1);
     PyTuple_SetItem(args_index_0, 0, PyLong_FromLong(0));
     auto derefed = ptrs[MAX-1];
+    PyObject* old = nullptr;
     for(int i = MAX-2; i > 0; --i){
         auto at = PyObject_GetAttrString(derefed, "at");
         ASSERT_NE(at, nullptr);
         derefed = PyObject_Call(at, args_index_0, nullptr);
+        if (old){
+            Py_DECREF(old);
+        }
         if (PyErr_Occurred()){
             PyErr_Print();
         }
@@ -321,8 +325,7 @@ TEST_F(SetupBasicClass, TestPointers){
         ASSERT_NE(((pyllars_internal::PythonClassWrapper<BasicClass*>*) derefed)->get_CObject(), nullptr);
         ASSERT_EQ(*((pyllars_internal::PythonClassWrapper<BasicClass*>*) derefed)->get_CObject(),
                   *((pyllars_internal::PythonClassWrapper<BasicClass*>*)ptrs[i])->get_CObject());
-        Py_DECREF(derefed);
-        Py_DECREF(at);
+        old = derefed;
     }
     Py_DECREF(args_index_0);
 }
