@@ -18,19 +18,7 @@ namespace pyllars_internal {
         return 0;
     }
 
-    template<typename T>
-    void PythonClassWrapper<T,
-            typename std::enable_if<is_rich_class<T>::value>::type>::
-    addClassObject( const char* const name, PyObject* const obj){
-        _classObjects()[name] = obj;
-    }
 
-    template<typename T>
-    void PythonClassWrapper<T,
-            typename std::enable_if<is_rich_class<T>::value>::type>::
-    addStaticType(const char *const name, PyTypeObject *(*pyobj)()) {
-        _classTypes()[std::string(name)] = pyobj;
-    }
 }
 
 

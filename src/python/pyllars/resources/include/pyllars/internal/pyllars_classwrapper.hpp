@@ -1,7 +1,7 @@
 //  PREDECLARATIONS
 
-#ifndef __PYLLARS__INTERNAL__CLASS_WRAPPER_H
-#define __PYLLARS__INTERNAL__CLASS_WRAPPER_H
+#ifndef __PYLLARS__INTERNAL__CLASSWRAPPER_H
+#define __PYLLARS__INTERNAL__CLASSWRAPPER_H
 
 #include <Python.h>
 #include <structmember.h>
@@ -10,7 +10,6 @@
 #include <vector>
 #include <map>
 #include <functional>
-
 #include "pyllars/pyllars_namespacewrapper.hpp"
 #include "pyllars/pyllars.hpp"
 #include "pyllars_containment.hpp"
@@ -31,38 +30,6 @@ namespace pyllars{
 namespace pyllars_internal {
 
 
-    enum class DLLEXPORT OpUnaryEnum : unsigned char{
-        INV,
-        POS,
-        NEG
-    };
-
-    enum class DLLEXPORT OpBinaryEnum : unsigned char{
-        ADD = 3,
-        SUB,
-        MUL,
-        DIV,
-        AND,
-        OR,
-        XOR,
-        MOD,
-        LSHIFT,
-        RSHIFT,
-
-        IADD,
-        ISUB,
-        IMUL,
-        IDIV,
-        IAND,
-        IOR,
-        IXOR,
-        IMOD,
-        ILSHIFT,
-        IRSHIFT
-    };
-
-    typedef int (*_setattrfunc)(PyObject*, PyObject*, void*);
-    typedef PyObject* (*_getattrfunc)(PyObject*, void*);
 
     template<typename functype>
     struct DLLEXPORT PythonFunctionWrapper;
@@ -126,34 +93,11 @@ namespace pyllars_internal {
         static void addConstructor();
 
         /**
-         * add a method with a ReturnType to be avaialable in this classes' corresponding  Python type object
-         *
-         * @templateparameter name: name of the method (as it will appear in Python, but should be same as C name)
-         * @templateparam func_type: function signature in form ReturnType(Args...)
-         * @templateparam method: pointer to method to be added
-         *
-         * @param method: the pointer to the metho to be added
-         * @param kwlist: list of keyword names of araguments
-         **/
-        template<const char *const name, const char *const kwlist[], typename func_type, func_type method>
-        static void addStaticMethod();
-
-        /**
-         *  Adda a named type (a class-within-this-class), where typeobj may not have yet been
-         *  readied, but will be so during call to this's ready.  This allows us to handle a type
-         *  of chicken-and-egg situation
-         * @param name   name of type to add
-         * @param typeobj the type to add
-         */
-        static void addStaticType( const char* const name, PyTypeObject* (*typeobj)());
-
-        /**
          * Add an enum value to the class
          */
         template<typename EnumT>
         static int addEnumValue( const char* const name, const EnumT& value);
 
-        static void addClassObject(const char* const name, PyObject* const obj);
         /**
          * Add a mutable bit field to this Python type definition
          **/
@@ -179,11 +123,6 @@ namespace pyllars_internal {
         template<const char *const name, typename FieldType>
         static void addStaticAttribute(FieldType *member);
 
-        /**
-         * add a method with given compile-time-known name to the contained collection
-         **/
-        template<const char *const name, const char* const kwlist[], typename method_t, method_t method>
-        static void addMethod();
 
         template<OpUnaryEnum kind, typename method_t, method_t method>
         static void addUnaryOperator(){
@@ -192,8 +131,6 @@ namespace pyllars_internal {
 
         template<typename KeyType, typename method_t, method_t method>
         static void addMapOperator();
-
-        static bool checkType(PyObject * obj);
 
         static PyTypeObject *getPyType();
 
@@ -232,14 +169,14 @@ namespace pyllars_internal {
         template<OpUnaryEnum kind, typename ReturnType, ReturnType(CClass::*method)()>
         struct Op<kind, ReturnType(CClass::*)(), method>{
             static void addUnaryOperator() {
-                PythonClassWrapper<T>::_unaryOperators()[kind] = (unaryfunc) MethodContainer<pyllars_empty_kwlist, ReturnType(T::*)(), method>::callAsUnaryFunc;
+                PythonClassWrapper<T>::getTypeProxy()._unaryOperators[kind] = (unaryfunc) MethodContainer<pyllars_empty_kwlist, ReturnType(T::*)(), method>::callAsUnaryFunc;
             }
         };
 
         template<OpUnaryEnum kind, typename ReturnType, ReturnType(CClass::*method)() const>
         struct Op<kind, ReturnType(CClass::*)() const, method>{
             static void addUnaryOperator() {
-                PythonClassWrapper<T>::_unaryOperatorsConst()[kind] = (unaryfunc) MethodContainer<pyllars_empty_kwlist, ReturnType(T::*)() const, method>::callAsUnaryFunc;
+                PythonClassWrapper<T>::getTypeProxy()._unaryOperatorsConst[kind] = (unaryfunc) MethodContainer<pyllars_empty_kwlist, ReturnType(T::*)() const, method>::callAsUnaryFunc;
             }
         };
 
@@ -259,10 +196,12 @@ namespace pyllars_internal {
 
         friend struct CommonBaseWrapper;
 
+        inline void set_CObject(T_NoRef * value ){_CObject = value;}
 
-        void set_CObject(T_NoRef * value ){
-            _CObject = value;
-        }
+        inline static constexpr TypedProxy & getTypeProxy(){return _Type;}
+
+        inline static bool checkType(PyObject* o){return _Type.checkType(o);}
+
     protected:
 
         PythonClassWrapper();// never invoked as Python allocates memory directly
@@ -273,18 +212,18 @@ namespace pyllars_internal {
 
         static int
         _pySetAttr(PyObject* self,  char* attrname, PyObject* value){
-            if (!_member_setters().count(attrname)){
+            if (!_Type._member_setters.count(attrname)){
                 PyErr_SetString(PyExc_ValueError, "No such attribute or attempt to set const attribute");
                 return -1;
             }
-            return _member_setters()[attrname](self, value, nullptr);
+            return _Type._member_setters[attrname](self, value, nullptr);
         }
 
         static PyObject* _pyGetAttr(PyObject* self,  char* attrname){
-            if (!_member_getters().count(attrname)){
+            if (!_Type._member_getters.count(attrname)){
                 return PyObject_GenericGetAttr(self, PyString_FromString(attrname));
             }
-            return _member_getters()[attrname](self, nullptr);
+            return _Type._member_getters[attrname](self, nullptr);
         }
 
         template <typename Base>
@@ -297,11 +236,7 @@ namespace pyllars_internal {
             return (PyObject*) castWrapper;
         }
 
-        // must use object container, since code may have new and delete private and container
-        // will shield us from that
-        //ObjectContainer<T_NoRef> *_CObject;
         T_NoRef * _CObject;
-
 
 
     private:
@@ -311,10 +246,11 @@ namespace pyllars_internal {
         static bool _isInitialized;
 
         static void addAssigner(_setattrfunc func){
-            if(!_member_setters().count("this"))
-                _member_setters()["this"] = _pyAssign;
-            _assigners().push_back(func);
+            if(!_Type._member_setters.count("this"))
+                _Type._member_setters["this"] = _pyAssign;
+            _Type._assigners.push_back(func);
         }
+
         template<typename KeyType, typename ValueType, typename method_t, method_t method>
         static void _addMapOperatorMethod();
 
@@ -346,7 +282,7 @@ namespace pyllars_internal {
 
         static int
         _pyAssign(PyObject* self, PyObject* value, void*){
-            for ( _setattrfunc assigner: _assigners()){
+            for ( _setattrfunc assigner: _Type._assigners){
                 if( assigner(self, value, nullptr) == 0){
                     return 0;
                 }
@@ -367,7 +303,6 @@ namespace pyllars_internal {
         static bool _parsePyArgs(const char *const kwlist[], PyObject *args, PyObject *kwds, PyO *&...pyargs);
 
 
-
         template <typename Z>
         struct _____fake{
 
@@ -384,56 +319,10 @@ namespace pyllars_internal {
         static T_NoRef* _createBase(PyObject *args, PyObject *kwds,
                  const char *const kwlist[], container<S...> unused1, _____fake<Args> *... unused2);
 
-        /**
-         * helper methods
-         **/
-        static void _addMethodNonConst(PyMethodDef method);
-        static void _addMethodConst(PyMethodDef method);
-
-        static PyObject* _mapGet(PyObject* self, PyObject* key);
-        static int _mapSet(PyObject* self, PyObject* key, PyObject* value);
 
         typedef std::pair<const char* const*, constructor_t> ConstructorContainer;
         static std::vector<ConstructorContainer>& _constructors(){
             static std::vector<ConstructorContainer> container;
-            return container;
-        }
-
-        static std::map<std::string, PyMethodDef>& _methodCollection(){
-            static std::map<std::string, PyMethodDef> container;
-            return container;
-        }
-
-        static std::map<std::string, PyMethodDef>& _methodCollectionConst(){
-            static std::map<std::string, PyMethodDef> container;
-            return container;
-        }
-
-        static std::map<std::string, std::pair<std::function<PyObject*(PyObject*, PyObject*)>,
-                                     std::function<int(bool, PyObject*, PyObject*, PyObject*)>>
-                          >_mapMethodCollection;
-        static std::map<std::string, _getattrfunc >& _member_getters(){
-            static std::map<std::string, _getattrfunc > container;
-            return container;
-        }
-
-        static std::map<std::string, _setattrfunc >& _member_setters(){
-            static std::map<std::string, _setattrfunc > container;
-            return container;
-        }
-
-        static std::vector<_setattrfunc >& _assigners(){
-            static std::vector<_setattrfunc > container;
-            return container;
-        }
-
-        static std::vector<PyTypeObject *>& _baseClasses(){
-            static std::vector<PyTypeObject *> container;
-            return container;
-        }
-
-        static std::vector<PyTypeObject*(*)()>& _childrenReadyFunctions(){
-            static std::vector<PyTypeObject*(*)()> container;
             return container;
         }
 
@@ -442,37 +331,9 @@ namespace pyllars_internal {
             return container;
         }
 
-        static std::map<std::string, PyObject*>& _classObjects(){
-            static std::map<std::string, PyObject*> container;
-            return container;
-        }
-
-        static std::map<std::string, PyTypeObject* (*)()>& _classTypes(){
-            static std::map<std::string, PyTypeObject*(*)()> container;
-            return container;
-        }
-
-        static std::map<OpUnaryEnum, unaryfunc>& _unaryOperators(){
-            static std::map<OpUnaryEnum , unaryfunc> container;
-            return container;
-        }
-
-        static std::map<OpUnaryEnum, unaryfunc>& _unaryOperatorsConst(){
-            static std::map<OpUnaryEnum , unaryfunc> container;
-            return container;
-        }
-
-        static std::map<OpBinaryEnum, binaryfunc>& _binaryOperators(){
-            static std::map<OpBinaryEnum, binaryfunc> container;
-            return container;
-        }
-
-        static std::map<OpBinaryEnum, binaryfunc>& _binaryOperatorsConst(){
-            static std::map<OpBinaryEnum , binaryfunc> container;
-            return container;
-        }
     private:
-        static  PyTypeObject _Type;
+
+        static TypedProxy _Type;
 
     };
 

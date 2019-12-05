@@ -4,7 +4,6 @@
 #include "pyllars/internal/pyllars_classwrapper.hpp"
 #include "pyllars/internal/pyllars_classwrapper-enums.impl.hpp"
 #include "pyllars/internal/pyllars_classwrapper-type.impl.hpp"
-#include "pyllars/internal/pyllars_classwrapper-staticmethods.impl.hpp"
 #include "pyllars/internal/pyllars_conversions.impl.hpp"
 
 #ifndef PYLLARS_PYLLARS_ENUM_HPP
@@ -41,7 +40,7 @@ namespace pyllars{
 
                 if constexpr(name != nullptr) {
                     if constexpr (!is_base_of<pyllars::NSInfoBase, Parent>::value) {
-                       PythonClassWrapper<Parent>::addStaticType(name, &PythonClassWrapper<EnumType>::getPyType);
+                       PythonClassWrapper<Parent>::getTypeProxy().addStaticType(name, &PythonClassWrapper<EnumType>::getPyType);
                     }
                 }
 
@@ -52,7 +51,7 @@ namespace pyllars{
                         // (and will init the pyhconclasswrapper for EnumType)
                         auto obj = PyObject_Call ((PyObject*)PythonClassWrapper<EnumType>::getPyType(), NULL_ARGS(), nullptr);
                         ((PythonClassWrapper<EnumType>*)obj)->set_CObject(&v);
-                        PythonClassWrapper<Parent>::addClassObject(vnames[counter++], obj);
+                        PythonClassWrapper<Parent>::getTypeProxy().addClassObject(vnames[counter++], obj);
                     }
                 }
 

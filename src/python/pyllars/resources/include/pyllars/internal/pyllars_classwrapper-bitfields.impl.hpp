@@ -20,10 +20,10 @@ namespace pyllars_internal {
         char *doc_string = new char[strlen(name) + strlen(doc) + 1];
         snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
         BitFieldContainer<T_NoRef>::template Container<name, FieldType, bits>::_getter = getter;
-        _member_getters()[name] = BitFieldContainer<T_NoRef>::template Container<name, FieldType, bits>::get;
+        _Type._member_getters[name] = BitFieldContainer<T_NoRef>::template Container<name, FieldType, bits>::get;
         if (setter) {
             BitFieldContainer<T_NoRef>::template Container<name, FieldType, bits>::_setter = *setter;
-            _member_setters()[name] = BitFieldContainer<T_NoRef>::template Container<name, FieldType, bits>::set;
+            _Type._member_setters[name] = BitFieldContainer<T_NoRef>::template Container<name, FieldType, bits>::set;
         }
     }
 

@@ -61,12 +61,6 @@ namespace pyllars_internal {
         return *get_CObject();
     }
 
-    template<typename T>
-    std::map<std::string, std::pair<std::function<PyObject *(PyObject *, PyObject *)>,
-            std::function<int(bool is_const, PyObject *, PyObject *, PyObject *)> >
-    >
-            PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::_mapMethodCollection;
-
 
     namespace {
 
@@ -101,57 +95,6 @@ namespace pyllars_internal {
             for_each_init<T&, const volatile T_bare &,  const volatile T_bare &&, volatile T_bare , const volatile T_bare>();
             for_each_init<T&&, const volatile T_bare &,  const volatile T_bare &&, volatile T_bare , const volatile T_bare>();
         }
-    }
-
-
-    template<typename T>
-    bool PythonClassWrapper<T,
-            typename std::enable_if<is_rich_class<T>::value>::type>::
-    checkType(PyObject * obj) {
-        return PyObject_TypeCheck(obj, getPyType());
-    }
-
-
-    template<typename T>
-    int PythonClassWrapper<T,
-            typename std::enable_if<is_rich_class<T>::value>::type>::
-    _mapSet(PyObject *self, PyObject *key, PyObject *value) {
-        int status = -1;
-        for (auto const &[_, method]: _mapMethodCollection) {
-            (void) _;
-            try {
-                if ((status = method.second(std::is_const<T_NoRef>::value, self, key, value)) == 0) {
-                    PyErr_Clear();
-                    break;
-                }
-            } catch (PyllarsException &){
-                //just try the next one, as most likely an argumnet conversion exception thrown
-            } catch(std::exception const & e) {
-                PyllarsException::raise_internal_cpp(e.what());
-                return -1;
-            } catch (...){
-                PyllarsException::raise_internal_cpp();
-                status = -1;
-                break;
-            }
-        }
-        return status;
-    }
-
-    template<typename T>
-    PyObject *
-    PythonClassWrapper<T,
-            typename std::enable_if<is_rich_class<T>::value>::type>::
-    _mapGet(PyObject *self, PyObject *key) {
-        PyObject *value = nullptr;
-        for (auto const &[_, method]: _mapMethodCollection) {
-            (void) _;
-            if ((value = method.first(self, key))) {
-                PyErr_Clear();
-                break;
-            }
-        }
-        return value?value:Py_None;
     }
 
 
@@ -301,7 +244,7 @@ namespace pyllars_internal {
         _initAddCArgCasts();
 
 
-        for (auto const &ready: _childrenReadyFunctions()){
+        for (auto const &ready: _Type._childrenReadyFunctions){
             if(!ready()){
                 status |= -1;
             }
@@ -340,9 +283,9 @@ namespace pyllars_internal {
         //}
         self->_referenced = nullptr;
         PyTypeObject *const coreTypePtr = PythonClassWrapper<typename core_type<T>::type>::getPyType();
-        self->template populate_type_info<T>(&checkType, coreTypePtr);
-        if (!_member_getters().count("this")) {
-            _member_getters()["this"] = getThis;
+        self->template populate_type_info<T>([](PyObject* o){return _Type.checkType(o);}, coreTypePtr);
+        if (!_Type._member_getters.count("this")) {
+            _Type._member_getters["this"] = getThis;
         }
         return InitHelper<T>::init(self, args, kwds);
     }
@@ -368,7 +311,7 @@ namespace pyllars_internal {
 
         if constexpr (std::is_enum<T_NoRef >::value){
             typedef long long (*func_t)(const T_NoRef&);
-            addStaticMethod<value_name, value_kwlist, func_t, enum_convert<T_NoRef> >();
+            _Type.addStaticMethod<value_name, value_kwlist, func_t, enum_convert<T_NoRef> >();
         }
         //if constexpr (std::is_const<T_NoRef >::value){
         //    for ( auto & element : Basic::_constructors()){
@@ -383,32 +326,32 @@ namespace pyllars_internal {
                 METH_KEYWORDS | METH_CLASS | METH_VARARGS,
                 "allocate array of single dynamic instance of this class"
         };
-        //_methodCollectionConst() = Basic::_methodCollectionConst(); // make this same as type with no garnishment
+        //_Type._methodCollectionConst = Basic::_Type._methodCollectionConst; // make this same as type with no garnishment
         //if constexpr(!std::is_const<T>::value) {
-        //    _methodCollection() = Basic::_methodCollection(); // make this same as type with no garnishment
+        //    _Type._methodCollection = Basic::_Type._methodCollection; // make this same as type with no garnishment
         //}
-        _methodCollection()[alloc_name_] = pyMethAlloc;
-        if (!Basic::_baseClasses().empty()) {
-            if (Basic::_baseClasses().size() > 1) {
-                Type.tp_bases = PyTuple_New(Basic::_baseClasses().size());
+        _Type._methodCollection[alloc_name_] = pyMethAlloc;
+        if (!Basic::_Type._baseClasses.empty()) {
+            if (Basic::_Type._baseClasses.size() > 1) {
+                Type.tp_bases = PyTuple_New(Basic::_Type._baseClasses.size());
                 size_t index = 0;
-                std::for_each(_baseClasses().begin(), _baseClasses().end(),
+                std::for_each(_Type._baseClasses.begin(), _Type._baseClasses.end(),
                               [&index, Type](PyTypeObject * const baseClass) {
                                   PyTuple_SetItem(Type.tp_bases, index++, (PyObject *) baseClass);
                                   Py_INCREF(baseClass); //SetItem steals a reference
                               });
-            } else if (Basic::_baseClasses().size() == 1) {
-                Type.tp_base = Basic::_baseClasses()[0];
+            } else if (Basic::_Type._baseClasses.size() == 1) {
+                Type.tp_base = Basic::_Type._baseClasses[0];
             }
-            for (auto& baseClass : _baseClasses()){
+            for (auto& baseClass : _Type._baseClasses){
                 // tp_bases not usable for inheritance of methods/members as it doesn't really do the right thing and
                 // causes problems on lookup of base classes,
                 // so do this manually...
                 {
                     PyMethodDef *def = baseClass->tp_methods;
-                    if (_methodCollection().count(def->ml_name) == 0) {
+                    if (_Type._methodCollection.count(def->ml_name) == 0) {
                         while (def->ml_name != nullptr) {
-                            _methodCollection()[def->ml_name] = *def;
+                            _Type._methodCollection[def->ml_name] = *def;
                             ++def;
                         }
                     }
@@ -416,41 +359,46 @@ namespace pyllars_internal {
                 {
                     auto *def = baseClass->tp_getset;
                     while (def->name != nullptr) {
-                        if (Basic::_member_getters().count(def->name) == 0) {
-                            Basic::_member_setters()[def->name] = def->set;
-                            Basic::_member_getters()[def->name] = def->get;
+                        if (Basic::getTypeProxy()._member_getters.count(def->name) == 0) {
+                            Basic::getTypeProxy()._member_setters[def->name] = def->set;
+                            Basic::getTypeProxy()._member_getters[def->name] = def->get;
                         }
                         ++def;
                     }
                 }
             }
         }
-        Type.tp_methods = new PyMethodDef[_methodCollection().size() +_methodCollectionConst().size() + 1];
-        Type.tp_methods[_methodCollection().size() + _methodCollectionConst().size()] = {nullptr};
+        Type.tp_methods = new PyMethodDef[_Type._methodCollection.size() +_Type._methodCollectionConst.size() + 1];
+        Type.tp_methods[_Type._methodCollection.size() +_Type._methodCollectionConst.size()] = {nullptr};
 
-        static PyMappingMethods methods = {nullptr, _mapGet, _mapSet};
+        static PyMappingMethods methods =
+                {
+                nullptr,
+                [](PyObject* s, PyObject* k){return _Type.mapGet(s, k);},
+                [](PyObject* s, PyObject* k, PyObject* v){return _Type.mapSet(s, k, v,  std::is_const<T_NoRef>::value);}
+                };
         Type.tp_as_mapping = &methods;
         size_t index = 0;
-        for (auto const&[key, methodDef]: _methodCollection()) {
+        for (auto const&[key, methodDef]: _Type._methodCollection) {
             (void) key;
             Type.tp_methods[index] = methodDef;
             ++index;
         }
-        for (auto const&[key, methodDef]: _methodCollectionConst()) {
+        for (auto const&[key, methodDef]:_Type._methodCollectionConst) {
             (void) key;
             Type.tp_methods[index] = methodDef;
             ++index;
         }
-        _member_getters() = Basic::_member_getters();
-        _member_setters() = Basic::_member_setters();
+        _Type._member_getters = Basic::getTypeProxy()._member_getters;
+        _Type._member_setters = Basic::getTypeProxy()._member_setters;
 
-        Type.tp_getset = new PyGetSetDef[_member_getters().size() + 1];
-        Type.tp_getset[_member_getters().size()] = {nullptr};
+        Type.tp_getset = new PyGetSetDef[_Type._member_getters.size() + 1];
+        Type.tp_getset[_Type._member_getters.size()] = {nullptr};
         index = 0;
-        for (auto const&[key, getter]: Basic::_member_getters()) {
-            auto it = _member_setters().find(key);
+        for (auto const&[key, getter]: Basic::_Type._member_getters) {
+            auto it =_Type._member_setters.find(key);
             _setattrfunc setter = nullptr;
-            if (! std::is_const<T>::value && it != _member_setters().end()) {
+            if (! std::is_const<T>::value && it !=_Type._member_setters.end()) {
                 setter = it->second;
             } else {
                 setter = nullptr;
@@ -464,9 +412,9 @@ namespace pyllars_internal {
         }
 
         if constexpr (!std::is_const<T>::value) {
-            _unaryOperators() = Basic::_unaryOperators();
+            _Type._unaryOperators = Basic::_Type._unaryOperators;
         }
-        _unaryOperatorsConst() = Basic::_unaryOperatorsConst();
+        _Type._unaryOperatorsConst = Basic::_Type._unaryOperatorsConst;
 
         static  std::map<OpUnaryEnum, unaryfunc *> unary_mapping = {
                 {OpUnaryEnum::INV, &Type.tp_as_number->nb_invert},
@@ -474,22 +422,22 @@ namespace pyllars_internal {
                 {OpUnaryEnum::POS, &Type.tp_as_number->nb_positive}
         };
 
-        for (auto const&[name_, func]: _unaryOperators()) {
+        for (auto const&[name_, func]: _Type._unaryOperators) {
             if (unary_mapping.count(name_) == 0) {
                 return -1;
             }
             *unary_mapping[name_] = func;
         }
-        for (auto const&[name_, func]: _unaryOperatorsConst()) {
+        for (auto const&[name_, func]: _Type._unaryOperatorsConst) {
             if (unary_mapping.count(name_) == 0) {
                 return -1;
             }
             *unary_mapping[name_] = func;
         }
         if constexpr (!std::is_const<T>::value) {
-            _binaryOperators() = Basic::_binaryOperators();
+            _Type._binaryOperators = Basic::_Type._binaryOperators;
         }
-        _binaryOperatorsConst() = Basic::_binaryOperatorsConst();
+        _Type._binaryOperatorsConst = Basic::_Type._binaryOperatorsConst;
 
         static std::map<OpBinaryEnum , binaryfunc *> binary_mapping =
                 {{OpBinaryEnum::ADD,     &Type.tp_as_number->nb_add},
@@ -514,20 +462,20 @@ namespace pyllars_internal {
                  {OpBinaryEnum::ISUB,    &Type.tp_as_number->nb_inplace_subtract},
 
                 };
-        for (auto const&[name_, func]: _binaryOperators()) {
+        for (auto const&[name_, func]: _Type._binaryOperators) {
             if (binary_mapping.count(name_) == 0) {
                 throw PyllarsException(PyExc_SystemError, "Undefined operator name (internal error)");
             }
             *binary_mapping[name_] = func;
         }
-        for (auto const&[name_, func]: _binaryOperatorsConst()) {
+        for (auto const&[name_, func]: _Type._binaryOperatorsConst) {
             if (binary_mapping.count(name_) == 0) {
                 throw PyllarsException(PyExc_SystemError, "Undefined operator name (internal error)");
             }
             *binary_mapping[name_] = func;
         }
-        _baseClasses() = Basic::_baseClasses();
-        if (!Type.tp_base && _baseClasses().size() == 0) {
+        _Type._baseClasses = Basic::_Type._baseClasses;
+        if (!Type.tp_base && _Type._baseClasses.size() == 0) {
             if (PyType_Ready(CommonBaseWrapper::getRawType()) < 0) {
                 PyErr_SetString(PyExc_RuntimeError, "Failed to set_up type!");
                 return -1;
@@ -537,8 +485,8 @@ namespace pyllars_internal {
 
 
         Type.tp_dict = PyDict_New();
-        _classTypes() = Basic::_classTypes();
-        for (auto const &[name, type]: _classTypes()){
+        _Type._classTypes = Basic::_Type._classTypes;
+        for (auto const &[name, type]: _Type._classTypes){
             PyDict_SetItemString(Type.tp_dict, name.c_str(), (PyObject*)type());
         }
 
@@ -560,8 +508,8 @@ namespace pyllars_internal {
                 }
             }
         }
-        _classObjects() = Basic::_classObjects();
-        for (auto const&[name_, pyval]: _classObjects()) {
+        _Type._classObjects = Basic::_Type._classObjects;
+        for (auto const&[name_, pyval]: _Type._classObjects) {
             // can only be called after ready of Type:
             if (pyval) {
                 PyDict_SetItemString(Type.tp_dict, name_.c_str(), pyval);
@@ -643,8 +591,8 @@ namespace pyllars_internal {
     }
 
     template<typename T>
-    DLLEXPORT PyTypeObject  PythonClassWrapper<T,
-            typename std::enable_if<is_rich_class<T>::value>::type>::_Type = {
+    DLLEXPORT CommonBaseWrapper::TypedProxy  PythonClassWrapper<T,
+            typename std::enable_if<is_rich_class<T>::value>::type>::_Type = CommonBaseWrapper::TypedProxy(new PyTypeObject{
 #if PY_MAJOR_VERSION == 3
             PyVarObject_HEAD_INIT(NULL, 0)
 #else
@@ -697,7 +645,7 @@ namespace pyllars_internal {
                     nullptr,                          /*tp_weaklist*/
                     nullptr,                          /*tp_del*/
                     0,                          /*tp_version_tag*/
-            };
+            });
 
 
 
@@ -707,6 +655,41 @@ namespace pyllars_internal {
             typename std::enable_if<is_rich_class<T>::value>::type>::_isInitialized = false;
 
 
+    template<const char *const name, const char *const kwlist[], typename func_type, func_type method>
+    void CommonBaseWrapper::TypedProxy::
+    addStaticMethod() {
+        static std::string doc = std::string("Call class method ") + name;
+        PyMethodDef pyMeth = {
+                name,
+                (PyCFunction) StaticFunctionContainer<kwlist, func_type, method>::call,
+                METH_KEYWORDS | METH_CLASS | METH_VARARGS,
+                doc.c_str()
+        };
+        _methodCollectionConst[name] = pyMeth;
+    }
+
+
+    template<const char *const name, const char* const kwlist[], typename method_t, method_t method>
+    void CommonBaseWrapper::TypedProxy::
+    addMethod() {
+        typedef typename func_traits<method_t>::class_type Class;
+        static std::string doc = std::string("Call method ") +  func_traits<method_t>::type_name();
+        PyMethodDef pyMeth = {
+                name,
+                (PyCFunction) MethodContainer<kwlist, method_t, method>::call,
+                METH_KEYWORDS | METH_VARARGS,
+                doc.c_str()
+        };
+        if constexpr(func_traits<method_t>::is_const_method) {
+            _methodCollectionConst[name]  = pyMeth;
+            if constexpr (!std::is_const<Class>::value) {
+                PythonClassWrapper<const Class>::_Type.template addMethod<name, kwlist, method_t, method>();
+            }
+        } else {
+            _methodCollection[name] = pyMeth;
+        }
+    }
+
 }
 
-#endif //PYLLARS_PYLLARS_CLASSWRAPPER_METHODS_IMPL_HPP
+#endif

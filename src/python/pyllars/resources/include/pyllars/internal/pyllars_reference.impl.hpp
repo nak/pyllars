@@ -98,16 +98,16 @@ namespace pyllars_internal{
     }
 
     template<typename T>
-    PyTypeObject PythonClassWrapper<T&, void>::_Type = {
+    PyTypeObject PythonClassWrapper<T&, void>::_Type = CommonBaseWrapper::TypedProxy( new PyTypeObject{
         #if PY_MAJOR_VERSION == 3
             PyVarObject_HEAD_INIT(NULL, 0)
         #else
         PyObject_HEAD_INIT(nullptr)
                     0,                         /*ob_size*/
         #endif
-            pyllars_internal::type_name<T&>(),  /*tp_name*/
-        sizeof(PythonClassWrapper),             /*tp_basicsize*/
-        0,                                 /*tp_itemsize*/
+        pyllars_internal::type_name<T&>(), /*tp_name*/
+        sizeof(PythonClassWrapper),       /*tp_basicsize*/
+        0,                                /*tp_itemsize*/
         (destructor) PythonClassWrapper::_dealloc, /*tp_dealloc*/
         nullptr,                          /*tp_print*/
         getter(),                         /*tp_getattr*/
@@ -151,7 +151,7 @@ namespace pyllars_internal{
         nullptr,                          /*tp_weaklist*/
         nullptr,                          /*tp_del*/
         0,                                /*tp_version_tag*/
-        };
+        });
 
 ////////////////////////////////////////////////////////////////////////////
 

@@ -6,7 +6,6 @@
 #define PYLLARS_PYLLARS_CLASSWRAPPER_STATICMEMBERS_IMPL_HPP
 #include "pyllars_classwrapper.hpp"
 #include "pyllars/internal/pyllars_classmembersemantics.impl.hpp"
-#include "pyllars/internal/pyllars_classwrapper-methods.impl.hpp"
 
 namespace pyllars_internal {
 
@@ -26,7 +25,7 @@ namespace pyllars_internal {
                               METH_VARARGS | METH_KEYWORDS | METH_CLASS,
                               doc_string
         };
-        _addMethodConst(pyMeth);
+        _Type.addPyMethod(pyMeth, false);
     }
 
 }

@@ -609,6 +609,39 @@ namespace pyllars_internal {
     class PythonClassWrapper<const double>;
 
 
+    enum class DLLEXPORT OpUnaryEnum : unsigned char{
+        INV,
+        POS,
+        NEG
+    };
+
+    enum class DLLEXPORT OpBinaryEnum : unsigned char{
+        ADD = 3,
+        SUB,
+        MUL,
+        DIV,
+        AND,
+        OR,
+        XOR,
+        MOD,
+        LSHIFT,
+        RSHIFT,
+
+        IADD,
+        ISUB,
+        IMUL,
+        IDIV,
+        IAND,
+        IOR,
+        IXOR,
+        IMOD,
+        ILSHIFT,
+        IRSHIFT
+    };
+
+    typedef int (*_setattrfunc)(PyObject*, PyObject*, void*);
+    typedef PyObject* (*_getattrfunc)(PyObject*, void*);
+
     /**
      * Class common to all C++ wrapper classes
      **/
@@ -701,6 +734,98 @@ namespace pyllars_internal {
 
 
     protected:
+
+        struct TypedProxy{
+
+            TypedProxy(PyTypeObject* Type):_Type(Type){}
+
+            PyTypeObject & type(){
+                return *_Type;
+            }
+
+            operator PyTypeObject&(){
+                return *_Type;
+            }
+
+            bool checkType(PyObject * obj);
+
+            /**
+             * add a static method with a ReturnType to be available in this classes' corresponding  Python type object
+             *
+             * @templateparameter name: name of the method (as it will appear in Python, but should be same as C name)
+             * @templateparam func_type: function signature in form ReturnType(Args...)
+             * @templateparam method: pointer to method to be added
+             *
+             * @param method: the pointer to the metho to be added
+             * @param kwlist: list of keyword names of araguments
+            **/
+            template<const char *const name, const char *const kwlist[], typename func_type, func_type method>
+            void addStaticMethod();
+
+
+            /**
+             * add a method with given compile-time-known name to the contained collection
+             * @param name : name of method
+             * @param kwlist : nullptr-terminated list of parameter names
+             * @param method_t: signature of the method of form ReturnType (Class::*)(Args...)
+             * @param method: The address of method_t to be added
+             **/
+            template<const char *const name, const char* const kwlist[], typename method_t, method_t method>
+            void addMethod();
+
+            /**
+             * Add a direct python method
+             */
+             void addPyMethod(PyMethodDef& methodDef, const bool is_const);
+
+            /**
+             *  Adda a named type (a class-within-this-class), where typeobj may not have yet been
+             *  readied, but will be so during call to this's ready.  This allows us to handle a type
+             *  of chicken-and-egg situation
+             * @param name   name of type to add
+             * @param typeobj the type to add
+             */
+            void addStaticType( const char* const name, PyTypeObject* (*typeobj)()){
+                _classTypes[name] = typeobj;
+            }
+
+            /**
+             * Add a bare Python Object (of C-classification) to this Type (proxy)
+             * @param name
+             * @param obj
+             */
+            void addClassObject(const char* const name, PyObject* const obj){
+                _classObjects[name] = obj;
+            }
+
+
+            PyObject* mapGet(PyObject* self, PyObject* key );
+            int mapSet(PyObject* self, PyObject* key, PyObject* value,const bool is_const);
+
+
+            std::map<std::string, std::pair<std::function<PyObject*(PyObject*, PyObject*)>,
+                     std::function<int(bool, PyObject*, PyObject*, PyObject*)> > >_mapMethodCollection;
+
+            std::map<std::string, _getattrfunc > _member_getters;
+            std::map<std::string, _setattrfunc > _member_setters;
+            std::vector<_setattrfunc > _assigners;
+
+            std::map<std::string, PyMethodDef> _methodCollection;
+            std::map<std::string, PyMethodDef> _methodCollectionConst;
+
+            std::vector<PyTypeObject *> _baseClasses;
+            std::vector<PyTypeObject*(*)()> _childrenReadyFunctions;
+            std::map<std::string, PyObject*> _classObjects;
+            std::map<std::string, PyTypeObject*(*)()> _classTypes;
+
+            std::map<OpUnaryEnum , unaryfunc> _unaryOperators;
+            std::map<OpUnaryEnum , unaryfunc> _unaryOperatorsConst;
+            std::map<OpBinaryEnum, binaryfunc> _binaryOperators;
+            std::map<OpBinaryEnum, binaryfunc> _binaryOperatorsConst;
+
+        private:
+            PyTypeObject* _Type;
+        };
 
 
         static int

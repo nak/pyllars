@@ -12,7 +12,7 @@ namespace pyllars_internal {
     status_t
     PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::ready(){
         int status = 0;
-        for (const auto& ready_fnctn: _childrenReadyFunctions()){
+        for (const auto& ready_fnctn: _Type._childrenReadyFunctions){
             status |= (ready_fnctn() == nullptr);
         }
 
@@ -22,13 +22,13 @@ namespace pyllars_internal {
     template<typename T>
     PyTypeObject*
     PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::getRawType(){
-        return &_Type;
+        return &_Type.type();
     }
 
     template<typename T>
     PyTypeObject*
     PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::getPyType(){
-        return (initialize() == 0)?&_Type:nullptr;
+        return (initialize() == 0)?&_Type.type():nullptr;
     }
 
     template<typename T>
@@ -38,8 +38,8 @@ namespace pyllars_internal {
     addBaseClass() {
         PyTypeObject * base = PythonClassWrapper<Base>::getRawType();
         if (!base) return;
-        _baseClasses().insert(_baseClasses().begin(), base);
-        _childrenReadyFunctions().insert(_childrenReadyFunctions().begin(), &PythonClassWrapper<Base>::getPyType);
+        _Type._baseClasses.insert(_Type._baseClasses.begin(), base);
+        _Type._childrenReadyFunctions.insert(_Type._childrenReadyFunctions.begin(), &PythonClassWrapper<Base>::getPyType);
         auto baseTyp = PythonClassWrapper<Base>::getRawType();
         auto key = std::pair{baseTyp, getRawType()};
         castMap()[key] = &cast<Base>;
@@ -62,7 +62,7 @@ namespace pyllars_internal {
     PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type> *
     PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::
     fromCObject(T_NoRef &cobj) {
-        if (!_Type.tp_name) {
+        if (!_Type.type().tp_name) {
             PyErr_SetString(PyExc_RuntimeError, "Uninitialized type when creating object");
             return nullptr;
         }

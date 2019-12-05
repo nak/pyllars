@@ -29,7 +29,7 @@ namespace pyllars{
 
             static status_t init(){
                 using namespace pyllars_internal;
-                PythonClassWrapper<Class>::template addStaticMethod<name, kwlist, function_t, function>();
+                PythonClassWrapper<Class>::getTypeProxy().template addStaticMethod<name, kwlist, function_t, function>();
                 return 0;
             }
         };

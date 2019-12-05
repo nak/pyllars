@@ -98,7 +98,7 @@ namespace pyllars_internal {
                 };
 
         const std::string name = type_name<ValueType>() + std::string(":") + type_name<KeyType>();
-        _mapMethodCollection[name] = std::pair<std::function<PyObject *(PyObject *, PyObject *)>,
+        _Type._mapMethodCollection[name] = std::pair<std::function<PyObject *(PyObject *, PyObject *)>,
                 std::function<int(bool, PyObject *, PyObject *, PyObject *)>
         >(getter, setter);
 

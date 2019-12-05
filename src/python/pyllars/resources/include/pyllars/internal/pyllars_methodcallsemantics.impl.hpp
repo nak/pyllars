@@ -6,6 +6,7 @@
 #define __PYLLARS_INTERNAL__METHODCALLSEMANTICS_CPP_
 #include "pyllars_varargs.hpp"
 #include "pyllars_methodcallsemantics.hpp"
+#include "pyllars/internal/pyllars_conversions.impl.hpp"
 
 
 namespace pyllars_internal {

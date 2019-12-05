@@ -20,9 +20,9 @@ namespace pyllars_internal {
         const ssize_t array_size = ArraySize<FieldType>::size;
         MemberContainer<name, T_NoRef, FieldType>::member = member;
         MemberContainer<name, T_NoRef, FieldType>::array_size = array_size;
-        _member_getters()[name] = MemberContainer<name, T_NoRef, FieldType>::get;
+        _Type._member_getters[name] = MemberContainer<name, T_NoRef, FieldType>::get;
         if constexpr (!std::is_const<FieldType>::value) {
-            _member_setters()[name] = MemberContainer<name, T_NoRef, FieldType>::set;
+            _Type._member_setters[name] = MemberContainer<name, T_NoRef, FieldType>::set;
         }
     }
 

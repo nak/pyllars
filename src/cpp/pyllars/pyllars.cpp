@@ -414,6 +414,59 @@ namespace pyllars_internal {
         return strncmp(pytype->tp_name, ptrtp_name_prefix, ptrtp_name_prefix_len) == 0;
     }
 
+    bool CommonBaseWrapper::TypedProxy::checkType(PyObject *obj) {
+        return PyObject_TypeCheck(obj, _Type);
+    }
+
+
+
+    int CommonBaseWrapper::TypedProxy::
+    mapSet(PyObject *self, PyObject *key, PyObject *value, const bool is_const) {
+        int status = -1;
+        for (auto const &[_, method]: _mapMethodCollection) {
+            (void) _;
+            try {
+                if ((status = method.second(is_const, self, key, value)) == 0) {
+                    PyErr_Clear();
+                    break;
+                }
+            } catch (PyllarsException &){
+                //just try the next one, as most likely an argumnet conversion exception thrown
+            } catch(std::exception const & e) {
+                PyllarsException::raise_internal_cpp(e.what());
+                return -1;
+            } catch (...){
+                PyllarsException::raise_internal_cpp();
+                status = -1;
+                break;
+            }
+        }
+        return status;
+    }
+
+    PyObject *
+    CommonBaseWrapper::TypedProxy::
+    mapGet(PyObject *self, PyObject *key) {
+        PyObject *value = nullptr;
+        for (auto const &[_, method]: _mapMethodCollection) {
+            (void) _;
+            if ((value = method.first(self, key))) {
+                PyErr_Clear();
+                break;
+            }
+        }
+        return value?value:Py_None;
+    }
+
+    void CommonBaseWrapper::TypedProxy::
+    addPyMethod(PyMethodDef &pyMeth, const bool is_const) {
+        if (is_const) {
+            _methodCollectionConst[pyMeth.ml_name]  = pyMeth;
+        } else {
+            _methodCollection[pyMeth.ml_name] = pyMeth;
+        }
+    }
+
 }
 
 #include "pyllars_namespacewrapper.hpp"

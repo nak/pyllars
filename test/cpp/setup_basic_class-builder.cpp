@@ -8,7 +8,6 @@
 #include "pyllars/pyllars_class.hpp"
 #include "pyllars/internal/pyllars_classwrapper-type.impl.hpp"
 #include "pyllars/internal/pyllars_classwrapper.impl.hpp"
-#include "pyllars/internal/pyllars_classwrapper-staticmethods.impl.hpp"
 
 template struct pyllars_internal::PythonClassWrapper<BasicClass>;
 template struct pyllars_internal::PythonClassWrapper<BasicClass2>;
