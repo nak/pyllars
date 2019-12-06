@@ -669,10 +669,9 @@ namespace pyllars_internal {
     }
 
 
-    template<const char *const name, const char* const kwlist[], typename method_t, method_t method>
+    template<typename Class, const char *const name, const char* const kwlist[], typename method_t, method_t method>
     void CommonBaseWrapper::TypedProxy::
     addMethod() {
-        typedef typename func_traits<method_t>::class_type Class;
         static std::string doc = std::string("Call method ") +  func_traits<method_t>::type_name();
         PyMethodDef pyMeth = {
                 name,
@@ -683,7 +682,7 @@ namespace pyllars_internal {
         if constexpr(func_traits<method_t>::is_const_method) {
             _methodCollectionConst[name]  = pyMeth;
             if constexpr (!std::is_const<Class>::value) {
-                PythonClassWrapper<const Class>::_Type.template addMethod<name, kwlist, method_t, method>();
+                PythonClassWrapper<const Class>::_Type.template addMethod<const Class, name, kwlist, method_t, method>();
             }
         } else {
             _methodCollection[name] = pyMeth;

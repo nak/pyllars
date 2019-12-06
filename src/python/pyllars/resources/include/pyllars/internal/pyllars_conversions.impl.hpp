@@ -111,56 +111,16 @@ namespace pyllars_internal {
     toCArgument(PyObject &pyobj) {
         typedef typename std::remove_cv<typename std::remove_reference<T>::type>::type T_bare;
 
-       // PyTypeObject* typ = PythonClassWrapper<T>::getPyType();
         auto* casted = (PythonClassWrapper<T>*) CommonBaseWrapper::castToCArgument<T>(&pyobj);
         if (casted){
             return argument_capture<T>(casted->get_CObject());
         }
-        /*
-        if constexpr(std::is_const<typename std::remove_reference<T>::type>::value || !std::is_reference<T>::value) {
-            if (PythonClassWrapper<const T_bare>::checkType(&pyobj)) {
-                return argument_capture<T>((T&)((const PythonClassWrapper<const T_bare> *) &pyobj)->toCArgument());
-            } else if (PythonClassWrapper<const volatile T_bare>::checkType(&pyobj)) {
-                if constexpr (std::is_volatile<T>::value) {
-                    return (T&)((const PythonClassWrapper<const volatile T_bare> *) &pyobj)->toCArgument();
-                }
-            } else if (PythonClassWrapper<const T_bare &>::checkType(&pyobj)) {
-                return (T&)((const PythonClassWrapper<const T_bare &> *) &pyobj)->toCArgument();
-            } else if (PythonClassWrapper<const volatile T_bare &>::checkType(&pyobj)) {
-                if constexpr (std::is_volatile<T>::value) {
-                    return (T&)((const PythonClassWrapper<const volatile T_bare &> *) &pyobj)->toCArgument();
-                }
-            } else if (PythonClassWrapper<const volatile T_bare &&>::checkType(&pyobj)) {
-                if constexpr (std::is_volatile<T>::value) {
-                    return (T&)((const PythonClassWrapper<const volatile T_bare &&> *) &pyobj)->toCArgument();
-                }
-            } else if (PythonClassWrapper<const T_bare &&>::checkType(&pyobj)) {
-                return (T&)((const PythonClassWrapper<const T_bare &&> *) &pyobj)->toCArgument();
-            } else if (PythonClassWrapper<T_bare>::checkType(&pyobj)) {
-                return ((PythonClassWrapper<T_bare> *) &pyobj)->toCArgument();
-            } else if (PythonClassWrapper<T_bare&>::checkType(&pyobj)) {
-                return ((PythonClassWrapper<T_bare&> *) &pyobj)->toCArgument();
-            } else if (PythonClassWrapper<T_bare&&>::checkType(&pyobj)) {
-                return ((PythonClassWrapper<T_bare&&> *) &pyobj)->toCArgument();
-            } else if (PythonClassWrapper<volatile T_bare>::checkType(&pyobj)) {
-                if constexpr (std::is_volatile<T>::value) {
-                    return ((PythonClassWrapper<volatile T_bare> *) &pyobj)->toCArgument();
-                }
-            } else if (PythonClassWrapper<volatile T_bare &>::checkType(&pyobj)) {
-                if constexpr (std::is_volatile<T>::value) {
-                    return ((PythonClassWrapper<volatile T_bare &> *) &pyobj)->toCArgument();
-                }
-            } else if (PythonClassWrapper<volatile T_bare &&>::checkType(&pyobj)) {
-                if constexpr (std::is_volatile<T>::value) {
-                    return ((PythonClassWrapper<volatile T_bare &&> *) &pyobj)->toCArgument();
-                }
-            } else
-            */
+
         typedef typename std::remove_reference<T_bare>::type T_NoRef;
         if constexpr (is_bool<T_bare>::value && std::is_const<std::remove_reference_t <T> >::value){
             static  bool TRUE = true;
             static  bool FALSE = false;
-            TRUE = true;
+            TRUE = true; //ensure these always remain unchanged/proper
             FALSE = false;
             if (&pyobj == Py_True){
                 return argument_capture<T>(TRUE);

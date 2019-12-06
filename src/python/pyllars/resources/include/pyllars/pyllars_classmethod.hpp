@@ -31,7 +31,7 @@ namespace pyllars{
 
             static status_t init(){
                 using namespace pyllars_internal;
-                PythonClassWrapper<Class>::getTypeProxy().template addMethod<name, kwlist, method_t, method>();
+                PythonClassWrapper<Class>::getTypeProxy().template addMethod<Class, name, kwlist, method_t, method>();
                 return  0;
             }
         };
@@ -57,8 +57,8 @@ namespace pyllars{
 
             static status_t init(){
                 using namespace pyllars_internal;
-                PythonClassWrapper<Class>::getTypeProxy().template addMethod<name, kwlist, method_t, method>();
-                PythonClassWrapper<const Class>::getTypeProxy().template addMethod<name, kwlist, method_t, method>();
+                PythonClassWrapper<Class>::getTypeProxy().template addMethod<Class, name, kwlist, method_t, method>();
+                PythonClassWrapper<const Class>::getTypeProxy().template addMethod<const Class, name, kwlist, method_t, method>();
                 return 0;
             }
         };
@@ -110,8 +110,8 @@ namespace pyllars{
 
             static status_t init(){
                 using namespace pyllars_internal;
-                PythonClassWrapper<volatile Class>::getTypeProxy().template addMethod<name, kwlist, method_t, method>();
-                PythonClassWrapper<const volatile Class>::getTypeProxy().template addMethod<name, kwlist, method_t, method>();
+                PythonClassWrapper<volatile Class>::getTypeProxy().template addMethod<volatile Class, name, kwlist, method_t, method>();
+                PythonClassWrapper<const volatile Class>::getTypeProxy().template addMethod<const volatile Class, name, kwlist, method_t, method>();
                 return 0;
             }
         };
@@ -142,7 +142,7 @@ namespace pyllars{
 
             static status_t init(){
                 using namespace pyllars_internal;
-                PythonClassWrapper<Class>::getTypeProxy().template addMethod<name, kwlist, method_t, method>();
+                PythonClassWrapper<Class>::getTypeProxy().template addMethod<Class, name, kwlist, method_t, method>();
                 return  0;
             }
         };
@@ -169,8 +169,8 @@ namespace pyllars{
 
             static status_t init(){
                 using namespace pyllars_internal;
-                PythonClassWrapper<Class>::getTypeProxy().template addMethod<name, kwlist, method_t, method>();
-                PythonClassWrapper<const Class>::getTypeProxy().template addMethod<name, kwlist, method_t, method>();
+                PythonClassWrapper<Class>::getTypeProxy().template addMethod<Class, name, kwlist, method_t, method>();
+                PythonClassWrapper<const Class>::getTypeProxy().template addMethod<const Class, name, kwlist, method_t, method>();
                 return 0;
             }
         };
@@ -197,7 +197,7 @@ namespace pyllars{
 
             static status_t init(){
                 using namespace pyllars_internal;
-                PythonClassWrapper<volatile Class>::getTypeProxy().template addMethod<name, kwlist, method_t, method>();
+                PythonClassWrapper<volatile Class>::getTypeProxy().template addMethod<volatile Class, name, kwlist, method_t, method>();
                 return 0;
             }
         };
@@ -224,8 +224,8 @@ namespace pyllars{
 
             static status_t init(){
                 using namespace pyllars_internal;
-                PythonClassWrapper<volatile Class>::getTypeProxy().template addMethod<name, kwlist, method_t, method>();
-                PythonClassWrapper<const volatile Class>::getTypeProxy().template addMethod<name, kwlist, method_t, method>();
+                PythonClassWrapper<volatile Class>::getTypeProxy().template addMethod<volatile Class, name, kwlist, method_t, method>();
+                PythonClassWrapper<const volatile Class>::getTypeProxy().template addMethod<const volatile Class, name, kwlist, method_t, method>();
                 return 0;
             }
         };

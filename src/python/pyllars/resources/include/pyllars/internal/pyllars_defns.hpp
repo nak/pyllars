@@ -770,7 +770,7 @@ namespace pyllars_internal {
              * @param method_t: signature of the method of form ReturnType (Class::*)(Args...)
              * @param method: The address of method_t to be added
              **/
-            template<const char *const name, const char* const kwlist[], typename method_t, method_t method>
+            template<typename Class, const char *const name, const char* const kwlist[], typename method_t, method_t method>
             void addMethod();
 
             /**
