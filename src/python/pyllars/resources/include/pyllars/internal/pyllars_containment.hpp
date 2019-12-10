@@ -14,113 +14,6 @@ namespace pyllars_internal{
     // convert what would normally be a compil-time error in C to a more Pythonic run-time error
     /////////////////////////////////////
 
-    namespace {
-
-        /**
-         * Helper for dealing with schizoprhenic fixed arrays in c (is it a pointer or an object with contigous memory?)
-         * @tparam T: type of element in array
-         * @tparam size : size of array
-         */
-        template<typename T>
-        struct FixedArrayHelper;
-
-        template<typename T, size_t size>
-        struct FixedArrayHelper<T[size]>{
-            typedef T T_array[size];
-
-#ifndef MSVC
-            void * operator new(const std::size_t count,  T_array& from){
-                auto bytes = ::operator new(count);
-                assert (count >= sizeof(T)*size);
-                T* values = reinterpret_cast<T*>(bytes);
-                for(int i = 0; i < size; ++i){
-                    new (values+i) T(from[i]);
-                }
-                return bytes;
-            }
-#endif
-
-            void * operator new(const std::size_t count,  const T* const from){
-                auto bytes = ::operator new(count);
-                assert (count >= sizeof(T)*size);
-                T* values = reinterpret_cast<T*>(bytes);
-                typedef typename std::remove_volatile<T>::type T_base;
-                for(int i = 0; i < size; ++i){
-                    new ((void*)(values+i)) T(((T_base*)from)[i]);
-                }
-                return bytes;
-            }
-
-            T_array &values(){
-                return *reinterpret_cast<T_array*>(&_data);
-            }
-
-            T_array *ptr(){
-                return reinterpret_cast<T_array*>(&_data);
-            }
-
-            ~FixedArrayHelper(){
-                if constexpr (std::is_destructible<T>::value) {
-                    T *values = reinterpret_cast<T *>(_data);
-                    for (int i = 0; i < size; ++i) {
-                        values[i].~T();
-                    }
-                }
-            }
-
-            FixedArrayHelper():_values(reinterpret_cast<T*const>(_data)){
-            }
-
-        private:
-            unsigned char _data[size*sizeof(T)];
-            T *const _values;
-        };
-
-    }
-
-    template<typename T, size_t size>
-    struct FixedArrayHelper<const T[size]>{
-        typedef const T T_array[size];
-        typedef T T_nonconst_array[size];
-
-        void * operator new(const std::size_t count,  T_array from){
-            auto bytes = ::operator new(count);
-            T* values = reinterpret_cast<T*>(bytes);
-            for(int i = 0; i < size; ++i){
-                new (values+i) T(from[i]);
-            }
-            return bytes;
-        }
-
-
-        void * operator new(const std::size_t count,  T_nonconst_array from){
-            auto bytes = ::operator new(count);
-            T* values = reinterpret_cast<T*>(bytes);
-            for(int i = 0; i < size; ++i){
-                new (values+i) T(from[i]);
-            }
-            return bytes;
-        }
-
-        T_array &values(){
-            return *reinterpret_cast<T_array*>(&_data);
-        }
-
-        ~FixedArrayHelper(){
-            if constexpr (std::is_destructible<T>::value) {
-                T *values = reinterpret_cast<T *>(_data);
-                for (int i = 0; i < size; ++i) {
-                    values[i].~T();
-                }
-            }
-        }
-
-    private:
-        unsigned char _data[size*sizeof(T)];
-    };
-
-
-    /////////////////////////////////////////////////////
 
 
     // CONSTRUCTOR Logic
@@ -148,7 +41,7 @@ namespace pyllars_internal{
             }
             throw PyllarsException(PyExc_TypeError, "Request to instantiate non-constructible object");
         }
-
+/*
         template<typename ...Args>
         static T* allocate(Args ...args){
             if constexpr (sizeof...(args) == 0 && !std::is_default_constructible<T>::value){
@@ -167,7 +60,7 @@ namespace pyllars_internal{
             }
             throw PyllarsException(PyExc_TypeError, "Request to instantiate non-constructible object");
         }
-
+*/
 
         template<typename ...Args>
         static T* allocate_array(const size_t size, Args ...args){

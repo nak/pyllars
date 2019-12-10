@@ -9,26 +9,8 @@
 #include <pyllars/internal/pyllars_classwrapper.impl.hpp>
 #include <pyllars/internal/pyllars_varargs.hpp>
 #include <pyllars/internal/pyllars_function_wrapper.hpp>
-
-static void _pyllars_import_to_top(PyObject* pyllars_mod, PyObject* module){
-  if(!pyllars_mod || !module){
-    return;
-  }
-  PyObject *dir = PyObject_Dir(module);
-  if(!dir){
-    return;
-  }
-  PyObject *iterator = PyObject_GetIter(dir);
-  PyObject *name;
-  while((name = PyIter_Next(iterator))){
-    PyObject * obj = PyObject_GetAttr(module, name);
-    if (obj){
-      PyObject_SetAttr(pyllars_mod, name, obj);
-    }
-    Py_DECREF(name);
-  }
-  Py_XDECREF(dir);
-}
+#include <pyllars/internal/pyllars_reference.impl.hpp>
+#include <pyllars/internal/pyllars_pointer.impl.hpp>
 
 #if PY_MAJOR_VERSION == 3
 
@@ -295,8 +277,7 @@ namespace pyllars_internal {
                     generic_value.ptrvalue = (void*) PyString_AsString(arg);
                     arg_value = &generic_value.ptrvalue;
                 } else if (COBJ_TYPE == subtype) {
-                    static const size_t offset = offset_of<ArgType*, PythonClassWrapper<ArgType> >
-                            (&PythonClassWrapper<ArgType>::_CObject);
+                    static const size_t offset = PythonBaseWrapper<ArgType>::offset_of_CObj();
                     ArgType **ptrvalue = (ArgType **) (((char *) arg) + offset);
                     generic_value.ptrvalue = ptrvalue;
                 } else if (FUNC_TYPE == subtype) {
@@ -335,44 +316,6 @@ namespace pyllars_internal {
             return PyBytes_AsString(obj);
         }
         return nullptr;
-    }
-
-
-    template<>
-    PyObject *set_array_values<const char **, false, -1, void>(const char **values, const ssize_t size, PyObject *from,
-                                                               PyObject *referenced) {
-        if (!PyList_Check(referenced) || PyList_Size(referenced) != size) {
-            PyErr_SetString(PyExc_RuntimeError, "Internal error setting array elements");
-        }
-        if (PyList_Check(from)) {
-
-            //have python list to set from
-            if (PyList_Size(from) != size) {
-                PyErr_SetString(PyExc_TypeError, "Invalid array size");
-                return nullptr;
-            }
-            for (int i = 0; i < size; ++i) {
-                PyObject *item = PyList_GetItem(from, i);
-                if (!PyString_Check(item)) {
-                    return nullptr;
-                }
-                const char *asstr = PyString_AsString(item);
-
-                if (!asstr) {
-                    PyErr_SetString(PyExc_TypeError, "Not a string on array elements assignment");
-                    return nullptr;
-                } else {
-                    //make copy and keep reference
-                    PyObject *pystr = PyString_FromString(asstr);
-                    PyList_SetItem(referenced, i, pystr);
-                    values[i] = (const char *const) PyString_AsString(pystr);
-                }
-            }
-        } else {
-            PyErr_SetString(PyExc_TypeError, "Invalid argument type");
-            return nullptr;
-        }
-        return Py_None;
     }
 
     bool CommonBaseWrapper::IsClassType(PyObject* obj){
@@ -455,7 +398,7 @@ namespace pyllars_internal {
                 break;
             }
         }
-        return value?value:Py_None;
+        return value;
     }
 
     void CommonBaseWrapper::TypedProxy::
@@ -466,7 +409,6 @@ namespace pyllars_internal {
             _methodCollection[pyMeth.ml_name] = pyMeth;
         }
     }
-
 }
 
 #include "pyllars_namespacewrapper.hpp"

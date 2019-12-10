@@ -52,7 +52,6 @@ namespace pyllars_internal {
                         PyErr_SetString(PyExc_TypeError, "Cannot operate on nullptr");
                         return -1;
                     }
-
                     try {
                         if constexpr (std::is_reference<ValueType>::value) {
                             if constexpr(std::is_const<ValueType>::value){
@@ -66,7 +65,6 @@ namespace pyllars_internal {
                                         *value);
                                 argument_capture <KeyType> c_key = pyllars_internal::template toCArgument<KeyType>(
                                         *item);
-
                                 try {
                                     Assignment<ValueType>::assign((cobj->*method)(c_key.value()), c_value.value());
                                 } catch (PyllarsException &e) {
@@ -103,8 +101,6 @@ namespace pyllars_internal {
         >(getter, setter);
 
     }
-
-
 }
 
 

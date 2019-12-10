@@ -11,6 +11,8 @@
 #include "pyllars/internal/pyllars_classwrapper.hpp"
 #include "pyllars/internal/pyllars_pointer.hpp"
 #include "pyllars/pyllars_namespacewrapper.hpp"
+#include "pyllars_base.hpp"
+
 #ifdef MSVC
 typedef  long long __int128_t;
 #else
@@ -26,6 +28,11 @@ namespace  pyllars_internal {
 
         DLLIMPORT static PyTypeObject _Type;
          __int128_t (*toInt)(PyObject*);
+
+         template<typename to>
+         to reinterpret(){
+             return static_cast<to>((*toInt)((PyObject*)this));
+         }
 
          static PyTypeObject* getRawType();
          static PyTypeObject* getPyType(){
@@ -325,6 +332,17 @@ namespace  pyllars_internal {
         static status_t preinit();
 
 
+        void make_reference(PyObject *obj) {
+            if (_referenced) { Py_DECREF(_referenced); }
+            if (obj) { Py_INCREF(obj); }
+            _referenced = obj;
+        }
+
+        template <typename Other>
+        static bool is_convertible(){
+            return std::is_convertible<number_type, Other>::value;
+        }
+
     protected:
         static PyMethodDef _methods[];
         static int _initialize(PyTypeObject &type);
@@ -345,12 +363,6 @@ namespace  pyllars_internal {
 
         static PyObject *to_int(PyObject *self, PyObject *args, PyObject *kwds);
 
-        void make_reference(PyObject *obj) {
-            if (_referenced) { Py_DECREF(_referenced); }
-            if (obj) { Py_INCREF(obj); }
-            _referenced = obj;
-        }
-
 
         std::function<__int128_t()> asLongLong;
         PyObject *_referenced;
@@ -364,7 +376,7 @@ namespace  pyllars_internal {
 
     private:
         DLLIMPORT static PyTypeObject _Type;
-
+        static void _initAddCArgCasts();
     };
 
     template<>

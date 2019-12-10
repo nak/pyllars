@@ -140,7 +140,7 @@ TEST_F(PythonSetup, test_convert_basic_convert_pybasic){
     ASSERT_EQ(uint_value.value(), const_uint);
     auto float_obj = PyFloat_FromDouble(1.234);
     typedef const char* cstring;
-    ASSERT_THROW((toCArgument<long>(*float_obj)), PyllarsException);
+    ASSERT_EQ(toCArgument<long>(*float_obj).value(), 1);
 }
 
 TEST_F(PythonSetup, test_convert_pyfloat_to_cfloat){
@@ -293,28 +293,30 @@ TEST_F(PythonSetup, convert_array_class) {
 }
 
 
-template<typename T, void(*call)(T v[3], T y[3]), PyObject* (*PyFrom)(T), T (*PyTo)(PyObject*)>
-void test_conversion_from_native_py(T vals[3], T toVals[3]) {
+template<typename T,  PyObject* (*PyFrom)(T)>
+void test_conversion_from_native_py(T vals[3]) {
     using namespace pyllars_internal;
 
     auto obj = PyList_New(3);
     PythonClassWrapper<T>* o= (PythonClassWrapper<T>*)PyFrom(vals[0]);
+    ASSERT_FALSE(PyErr_Occurred());
     Py_INCREF(o);
     PyList_SetItem(obj, 0, (PyObject*)o);//PyFrom(vals[0]));
     PyList_SetItem(obj, 1, PyFrom(vals[1]));
     PyList_SetItem(obj, 2, PyFrom(vals[2]));
+    auto carg = toCArgument<const T[3]>(*obj);
+    ASSERT_FALSE(PyErr_Occurred());
     {
-        auto val = toCArgument<T[3]>(*obj);
-        call(val.value(), toVals);
+        auto toval = carg.value();
+        for (int i = 0; i < 3; ++i) {
+            if constexpr(std::is_same<std::remove_cv_t<T>, const char*>::value){
+                ASSERT_STREQ(toval[i], vals[i]);
+            } else {
+                ASSERT_EQ(toval[i], vals[i]);
+            }
+        }
     }
-    ASSERT_NE(PyList_GetItem(obj, 0), nullptr);
-    ASSERT_NE(PyList_GetItem(obj, 1), nullptr);
-    ASSERT_NE(PyList_GetItem(obj, 2), nullptr);
-    Assertion<T>::assert_equal(PyTo(PyList_GetItem(obj, 0)), toVals[0]);
-    Assertion<T>::assert_equal(PyTo(PyList_GetItem(obj, 1)), vals[1]);
-    Assertion<T>::assert_equal(PyTo(PyList_GetItem(obj, 2)), toVals[2]);
-
-    typedef const char* cstring;
+    (void) carg.value();//ensure doesn't go out of scope prematurely
     ASSERT_THROW((toCArgument<DisparateType>(*obj)), PyllarsException);
 }
 
@@ -344,26 +346,24 @@ T PyWrapper_AsValue(PyObject* obj){
 
 TEST_F(PythonSetup, convert_from_native_py_int) {
     int vals[3] = {1,2,3};
-    int toVals[3] = {999, 341, -783};
-    test_conversion_from_native_py<int, array_call<int>, __PyLong_FromInt, __PyLong_AsInt>(vals, toVals);
-    test_conversion_from_native_py<int, array_call<int>, PyWrapper_FromValue<int>, PyWrapper_AsValue<int> >(vals, toVals);
+    test_conversion_from_native_py<int, __PyLong_FromInt>(vals);
+    ASSERT_FALSE(PyErr_Occurred());
+    test_conversion_from_native_py<int, PyWrapper_FromValue<int> >(vals);
+    ASSERT_FALSE(PyErr_Occurred());
 }
 
 
 TEST_F(PythonSetup, convert_from_native_py_long) {
     long vals[3] = {1,2,3};
-    long toVals[3] = {999, 341, -783};
-    test_conversion_from_native_py<long, array_call<long>, PyLong_FromLong, PyLong_AsLong>(vals, toVals);
-    test_conversion_from_native_py<long, array_call<long>, PyWrapper_FromValue<long>, PyWrapper_AsValue<long> >(vals, toVals);
+    test_conversion_from_native_py<long, PyLong_FromLong>(vals);
+    test_conversion_from_native_py<long, PyWrapper_FromValue<long>>(vals);
 }
 
 
 TEST_F(PythonSetup, convert_from_native_py_ulong) {
     unsigned long vals[3] = {1,2,3};
-    unsigned long toVals[3] = {999, 341, 783};
-    test_conversion_from_native_py<unsigned long, array_call<unsigned long>, PyLong_FromInt, __PyLong_AsInt>(vals, toVals);
-    test_conversion_from_native_py<unsigned long, array_call<unsigned long>, PyWrapper_FromValue<unsigned long>,
-            PyWrapper_AsValue<unsigned long> >(vals, toVals);
+    test_conversion_from_native_py<unsigned long, PyLong_FromInt>(vals);
+    test_conversion_from_native_py<unsigned long, PyWrapper_FromValue<unsigned long> >(vals);
 }
 
 PyObject* _PyUnicode_FromString(const char* data){
@@ -376,19 +376,11 @@ const char* toCString(PyObject* obj){
 
 TEST_F(PythonSetup, convert_from_native_py_cstring) {
 
-try {
-
     const char *vals[3] = {"abc", "def", "ghi"};
-    const char *toVals[3] = {"rst", "uvw", "xyz"};
     typedef const char *(*func_t)(PyObject*);
 
-    test_conversion_from_native_py<const char *, array_call<const char *>,
-             PyUnicode_FromString, toCString>(vals, toVals);
-    test_conversion_from_native_py<const char *, array_call<const char *>,
-            PyWrapper_FromValue<const char *>, PyWrapper_AsValue<const char *> >(vals, toVals);
-} catch (const char* msg){
-    throw msg;
-}
+    test_conversion_from_native_py<const char *, PyUnicode_FromString>(vals);
+    test_conversion_from_native_py<const char *, PyWrapper_FromValue<const char *> >(vals);
 }
 
 const char* __PyUnicode_ToString(PyObject* obj) {
@@ -397,9 +389,7 @@ const char* __PyUnicode_ToString(PyObject* obj) {
 
 TEST_F(PythonSetup, convert_from_native_pybytes_cstring) {
     const char*  vals[3] = {"abc", "def", "ghi"};
-    const char*  toVals[3] = {"rst", "uvw", "xyz"};
-    test_conversion_from_native_py<const char* , array_call<const char* >,
-            PyUnicode_FromString, __PyUnicode_ToString>(vals, toVals);
+    test_conversion_from_native_py<const char* , PyUnicode_FromString>(vals);
 }
 
 template <typename T>
@@ -456,6 +446,111 @@ public:
     using Type = T;
 
 };
+
+
+/**
+    * Helper for dealing with schizoprhenic fixed arrays in c (is it a pointer or an object with contigous memory?)
+    * @tparam T: type of element in array
+    * @tparam size : size of array
+    */
+template<typename T>
+struct FixedArrayHelper;
+
+template<typename T, size_t size>
+struct FixedArrayHelper<T[size]>{
+    typedef T T_array[size];
+
+#ifndef MSVC
+    void * operator new(const std::size_t count,  T_array& from){
+        auto bytes = ::operator new(count);
+        assert (count >= sizeof(T)*size);
+        T* values = reinterpret_cast<T*>(bytes);
+        for(int i = 0; i < size; ++i){
+            new (values+i) T(from[i]);
+        }
+        return bytes;
+    }
+#endif
+
+    void * operator new(const std::size_t count,  const T* const from){
+        auto bytes = ::operator new(count);
+        assert (count >= sizeof(T)*size);
+        T* values = reinterpret_cast<T*>(bytes);
+        typedef typename std::remove_volatile<T>::type T_base;
+        for(int i = 0; i < size; ++i){
+            new ((void*)(values+i)) T(((T_base*)from)[i]);
+        }
+        return bytes;
+    }
+
+    T_array &values(){
+        return *reinterpret_cast<T_array*>(&_data);
+    }
+
+    T_array *ptr(){
+        return reinterpret_cast<T_array*>(&_data);
+    }
+
+    ~FixedArrayHelper(){
+        if constexpr (std::is_destructible<T>::value) {
+            T *values = reinterpret_cast<T *>(_data);
+            for (int i = 0; i < size; ++i) {
+                values[i].~T();
+            }
+        }
+    }
+
+    FixedArrayHelper():_values(reinterpret_cast<T*const>(_data)){
+    }
+
+private:
+    unsigned char _data[size*sizeof(T)];
+    T *const _values;
+};
+
+
+
+template<typename T, size_t size>
+struct FixedArrayHelper<const T[size]>{
+    typedef const T T_array[size];
+    typedef T T_nonconst_array[size];
+
+    void * operator new(const std::size_t count,  T_array from){
+        auto bytes = ::operator new(count);
+        T* values = reinterpret_cast<T*>(bytes);
+        for(int i = 0; i < size; ++i){
+            new (values+i) T(from[i]);
+        }
+        return bytes;
+    }
+
+
+    void * operator new(const std::size_t count,  T_nonconst_array from){
+        auto bytes = ::operator new(count);
+        T* values = reinterpret_cast<T*>(bytes);
+        for(int i = 0; i < size; ++i){
+            new (values+i) T(from[i]);
+        }
+        return bytes;
+    }
+
+    T_array &values(){
+        return *reinterpret_cast<T_array*>(&_data);
+    }
+
+    ~FixedArrayHelper(){
+        if constexpr (std::is_destructible<T>::value) {
+            T *values = reinterpret_cast<T *>(_data);
+            for (int i = 0; i < size; ++i) {
+                values[i].~T();
+            }
+        }
+    }
+
+private:
+    unsigned char _data[size*sizeof(T)];
+};
+
 
 using TypeList2 = testing::Types<A, const A>;
 TYPED_TEST_SUITE(ToPyTest2, TypeList2);

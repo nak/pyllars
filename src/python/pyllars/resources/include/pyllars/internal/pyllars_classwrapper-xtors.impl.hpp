@@ -38,19 +38,21 @@ namespace pyllars_internal {
 
     template<typename T>
     template<typename ...Args>
-    typename std::remove_reference<T>::type *
+    T*
     PythonClassWrapper<T,
             typename std::enable_if<is_rich_class<T>::value>::type>::
-    _createBaseBase(argument_capture<Args> ... args) {
+    _createBaseBase( unsigned char *location, argument_capture<Args> ... args) {
+        if (location)
+            return new (location) T_NoRef(std::forward<typename extent_as_pointer<Args>::type>(args.value())...);
         return new T_NoRef(std::forward<typename extent_as_pointer<Args>::type>(args.value())...);
     }
 
 
     template<typename T>
     template<typename ...Args, int ...S>
-    typename std::remove_reference<T>::type*
+    T*
     PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::
-    _createBase(PyObject *args, PyObject *kwds,
+    _createBase( unsigned char *location, PyObject *args, PyObject *kwds,
                 const char *const kwlist[], container<S...>, _____fake<Args> *...) {
         if (args && PyTuple_Size(args) != sizeof...(Args)) {
             return nullptr;
@@ -62,16 +64,16 @@ namespace pyllars_internal {
             return nullptr;
         }
 
-        return _createBaseBase<Args...>(pyllars_internal::toCArgument<Args>(*pyobjs[S])...);
+        return _createBaseBase<Args...>(location, pyllars_internal::toCArgument<Args>(*pyobjs[S])...);
     }
 
     template<typename T>
     template<typename ...Args>
-    typename std::remove_reference<T>::type*
+    T*
     PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::
     create(const char *const kwlist[], PyObject *args, PyObject *kwds,
            unsigned char *location) {
-        return _createBase<Args...>(args, kwds, kwlist, typename argGenerator<sizeof...(Args)>::type(),
+        return _createBase<Args...>(location, args, kwds, kwlist, typename argGenerator<sizeof...(Args)>::type(),
                                     (_____fake<Args> *) nullptr...);
 
     }

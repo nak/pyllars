@@ -7,7 +7,6 @@
 
 #include "pyllars/internal/pyllars_function_wrapper.hpp"
 #include "pyllars_staticfunctionsemantics.impl.hpp"
-#include "pyllars_utils.impl.hpp"
 #include "pyllars/internal/pyllars_conversions.impl.hpp"
 #include <cstddef>
 

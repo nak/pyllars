@@ -4,7 +4,6 @@
 #include "pyllars/internal/pyllars_classwrapper.hpp"
 #include "pyllars/internal/pyllars_classwrapper-enums.impl.hpp"
 #include "pyllars/internal/pyllars_classwrapper.impl.hpp"
-#include "pyllars/internal/pyllars_classwrapper-type.impl.hpp"
 
 #ifndef PYLLARS_PYLLARS_CLASSINSTANTITATION_IMPL_HPP
 #define PYLLARS_PYLLARS_CLASSINSTANTITATION_IMPL_HPP

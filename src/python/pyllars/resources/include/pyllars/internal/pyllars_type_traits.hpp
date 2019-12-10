@@ -24,7 +24,7 @@ namespace pyllars_internal {
 
     template<typename T>
     struct core_type{
-        typedef typename std::remove_const_t<std::remove_cv_t<T> > type;
+        typedef typename std::remove_cv_t<T> type;
     };
 
     template<typename T>

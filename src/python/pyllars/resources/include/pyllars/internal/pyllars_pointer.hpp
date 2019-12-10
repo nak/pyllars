@@ -13,7 +13,7 @@
 
 #include "pyllars/internal/pyllars_classwrapper.hpp"
 #include "pyllars/internal/pyllars_containment.hpp"
-
+#include "pyllars_base.hpp"
 
 namespace pyllars_internal {
 
@@ -23,7 +23,9 @@ namespace pyllars_internal {
      * @tparam T a pointer-like type to create a Python-wrapper-to-C-pointer
      */
     template<typename T>
-    struct PythonPointerWrapperBase: public CommonBaseWrapper{
+    struct PythonPointerWrapperBase: public PythonBaseWrapper<T>{
+
+        typedef PythonBaseWrapper<T> Base;
 
         template<typename Other, typename EE>
         friend struct PythonClassWrapper;
@@ -36,16 +38,14 @@ namespace pyllars_internal {
         // last element of array, or -1 if unknown extent
         static constexpr ssize_t last = ArraySize<T>::size - 1;
 
-        static status_t preinit(){
-            return 0;
-        }
+        static status_t preinit(){return 0;}
 
         template<typename Unused>
-        static status_t ready(){
-            return 0;
-        }
+        static status_t ready(){return 0;}
 
     protected:
+
+        static void _initAddCArgCasts();
 
         /**
          *
@@ -84,11 +84,6 @@ namespace pyllars_internal {
          */
         static int _initialize(PyTypeObject & Type);
 
-        /**
-         * @return a pointer to the pointer-object being wrapped
-         */
-        T *_get_CObject() const;
-
         size_t _depth{}; //only used for classes with pointer depth > 1, kept here for consistent PyType layout
 
     private:
@@ -117,7 +112,7 @@ namespace pyllars_internal {
             return nullptr;
         }
 
-/**
+         /**
          * Concatenate two objects representing C arrays into a single array and return
          * @param self: object to do in-place concat
          * @param other: object to be concatenated with
@@ -158,13 +153,23 @@ namespace pyllars_internal {
 
         static PySequenceMethods _seqmethods;
 
-        T *_CObject;
         unsigned char* _byte_bucket;
         ssize_t _max;
+        bool _directlyAllocated;
 
-        T* get_CObject() const{
-            return _CObject;
-        }
+
+        struct Iter{
+            PyObject_HEAD
+            PythonPointerWrapperBase* obj;
+            long long max;
+            long long i;
+            static const std::string name;
+            static PyTypeObject _Type;
+
+            static PyObject * iter(PyObject* self);
+            static PyObject * iternext(PyObject* self);
+        };
+
 
     };
 
@@ -185,31 +190,16 @@ namespace pyllars_internal {
            Base::_depth = ptr_depth<T>::value;
         }
 
-        T_NoRef * get_CObject() const{
-            T_NoRef * value = Base::_get_CObject();
-            return value;
-        }
-
-        static PyTypeObject *getPyType(){
-            if(initialize() != 0){
-                return nullptr;
-            }
-            return &_Type;
-        }
-
-        static PyTypeObject* getRawType(){
-            return &_Type;
-        }
-
         static int initialize(){
-            return Base::_initialize(_Type);
+            PyTypeObject* Type = Base::getRawType();
+            Type->tp_basicsize = sizeof(PythonClassWrapper) + 8;
+            Type->tp_methods = _methods;
+            Type->tp_init = (initproc) _init;
+            return Base::_initialize(*Type);
         }
-
-        static bool checkType(PyObject *obj);
-
 
         static PythonClassWrapper *fromCPointer(T& cobj, const ssize_t arraySize, PyObject *referencing = nullptr){
-            return reinterpret_cast<PythonClassWrapper*>(Base::fromCPointer(_Type, &cobj, arraySize, referencing, nullptr));
+            return reinterpret_cast<PythonClassWrapper*>(Base::fromCPointer(*Base::getRawType(), &cobj, arraySize, referencing, nullptr));
         }
 
         /**
@@ -221,17 +211,17 @@ namespace pyllars_internal {
          */
         template<typename ...Args>
         static PythonClassWrapper *allocateInstance(Args... args){
-            return (PythonClassWrapper*) Base::_createPyFromAllocatedInstance(_Type, args...,  -1);
+            return (PythonClassWrapper*) Base::_createPyFromAllocatedInstance(*Base::getRawType(), args...,  -1);
         }
 
         template<typename ...Args>
         static PythonClassWrapper *allocateArray( Args ...args, const ssize_t arraySize) {
             return reinterpret_cast<PythonClassWrapper *>(
-                    Base::_createPyFromAllocatedInstance(_Type, args..., arraySize));
+                    Base::_createPyFromAllocatedInstance(*Base::getRawType(), args..., arraySize));
         }
 
         static PythonClassWrapper *fromInPlaceAllocation( const ssize_t arraySize, unsigned char* byte_bucket){
-            return reinterpret_cast<PythonClassWrapper*>(Base::_createPyReference(_Type, nullptr, arraySize, nullptr, byte_bucket));
+            return reinterpret_cast<PythonClassWrapper*>(Base::_createPyReference(*Base::getRawType(), nullptr, arraySize, nullptr, byte_bucket));
         }
 
 
@@ -244,8 +234,6 @@ namespace pyllars_internal {
 
         static int _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds);
         static PyMethodDef _methods[];
-    private:
-        static PyTypeObject _Type;
     };
 
 
@@ -255,44 +243,32 @@ namespace pyllars_internal {
         typedef PythonPointerWrapperBase<T>  Base;
         typedef typename std::remove_reference<T>::type T_NoRef;
 
-        T_NoRef* get_CObject() const{
-            return PythonPointerWrapperBase<T>::_get_CObject();
-        }
-
-        static PyTypeObject *getPyType(){
-            if(initialize() != 0){
-                return nullptr;
-            }
-            return &_Type;
-        }
-
-        static PyTypeObject* getRawType(){
-            return &_Type;
-        }
 
         static int initialize(){
-            return Base::_initialize(_Type);
+            PyTypeObject* Type = Base::getRawType();
+            Type->tp_basicsize = sizeof(PythonClassWrapper) + 8;
+            Type->tp_methods = _methods;
+            Type->tp_init = (initproc) _init;
+            return Base::_initialize(*Type);
         }
 
-        static bool checkType(PyObject *obj);
-
         static PythonClassWrapper *fromCPointer( T & cobj, const ssize_t arraySize, PyObject *referencing = nullptr){
-            return reinterpret_cast<PythonClassWrapper*>(Base::fromCPointer(_Type, &cobj, arraySize, referencing, nullptr));
+            return reinterpret_cast<PythonClassWrapper*>(Base::fromCPointer(*Base::getRawType(), &cobj, arraySize, referencing, nullptr));
         }
 
         static PythonClassWrapper *fromInPlaceAllocation( const ssize_t arraySize, unsigned char* byte_bucket){
-            return reinterpret_cast<PythonClassWrapper*>(Base::fromCPointer(_Type, nullptr, arraySize, nullptr, byte_bucket));
+            return reinterpret_cast<PythonClassWrapper*>(Base::fromCPointer(*Base::getRawType(), nullptr, arraySize, nullptr, byte_bucket));
         }
 
         template<typename ...Args>
         static PythonClassWrapper *allocateInstance(Args... args){
-            return (PythonClassWrapper*) Base::template createAllocatedInstance<Args...>(_Type, args...,  -1);
+            return (PythonClassWrapper*) Base::template createAllocatedInstance<Args...>(*Base::getRawType(), args...,  -1);
         }
 
         template<typename ...Args>
         static PythonClassWrapper *allocateArray( Args ...args, const ssize_t arraySize) {
             return reinterpret_cast<PythonClassWrapper *>(
-                    Base::template createAllocatedInstance<Args...>(_Type, args..., arraySize));
+                    Base::template createAllocatedInstance<Args...>(*Base::getRawType(), args..., arraySize));
         }
 
 
@@ -305,21 +281,7 @@ namespace pyllars_internal {
         static PyMethodDef _methods[];
 
      private:
-        static PyTypeObject _Type;
         PythonClassWrapper<T_NoRef *> *createPyReferenceToAddr();
-
-        struct Iter{
-            PyObject_HEAD
-            PythonClassWrapper* obj;
-            long long max;
-            long long i;
-            static const std::string name;
-            static PyTypeObject _Type;
-
-            static PyObject * iter(PyObject* self);
-            static PyObject * iternext(PyObject* self);
-        };
-
 
     };
 

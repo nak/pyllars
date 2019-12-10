@@ -9,10 +9,9 @@
 
 namespace pyllars_internal {
 
-    template<typename T>
+    template<typename T, typename TrueType>
     template<typename EnumT>
-    int PythonClassWrapper<T,
-            typename std::enable_if<is_rich_class<T>::value>::type>::
+    int PythonClassWrapper_Base<T, TrueType>::
     addEnumValue( const char* const name, const EnumT &value){
         _classEnumValues()[name] = &value;
         return 0;

@@ -4,7 +4,7 @@
 
 #include <pyllars/internal/pyllars_integer.hpp>
 #include <pyllars/internal/pyllars_classwrapper.impl.hpp>
-#include <pyllars/internal/pyllars_reference.impl.hpp>
+#include <pyllars/internal/pyllars_reference.hpp>
 
 #include "pyllars_class.hpp"
 #include "pyllars_namespacewrapper.hpp"
@@ -83,6 +83,7 @@ namespace pyllars_internal {
         static int rc = -1;
         if (inited) return rc;
         inited = true;
+        _initAddCArgCasts();
 
         PyNumberCustomObject::getRawType()->tp_base = PyNumberCustomBase::getRawType();
         rc = PyType_Ready(PyNumberCustomBase::getRawType());
@@ -679,5 +680,54 @@ namespace pyllars_internal {
         PyErr_SetString(PyExc_TypeError, "Recevied null self !?#");
         return -1;
     }
+
+
+
+    namespace {
+
+
+        template<typename T, typename ...Other>
+        void for_each_init2() {
+            int unused[] = {(CommonBaseWrapper::addCast<T, Other>(
+                    PythonClassWrapper<T>::getRawType(),
+                    PythonClassWrapper<Other>::getRawType(),
+                    &CommonBaseWrapper::template interpret_cast<T, Other>
+                    ), 0)...};
+            (void)unused;
+        }
+
+        template <typename number_type>
+        void for_each_init_(){
+            static_assert(!std::is_reference<number_type>::value);
+            typedef std::remove_cv_t<number_type > Basic;
+            if constexpr (!std::is_const<number_type>::value && !std::is_volatile<number_type>::value) {
+                for_each_init2<number_type,   Basic &, const Basic &, const Basic&&, const Basic>();
+                for_each_init2<number_type&,  Basic &, const Basic &, const Basic&&, const Basic, Basic>();
+                for_each_init2<number_type&&, Basic &, const Basic &, const Basic&&, const Basic, Basic>();
+            } else if (std::is_const<number_type>::value && !std::is_volatile<number_type>::value){
+                for_each_init2<number_type,    const Basic &, const Basic &&, Basic>();
+                for_each_init2<number_type&,   const Basic &&, const Basic, Basic>();
+                for_each_init2<number_type&&, const Basic &, const Basic, Basic>();
+            } else if (!std::is_const<number_type>::value && std::is_volatile<number_type>::value){
+                for_each_init2<number_type,    volatile Basic &, volatile Basic &&,  const volatile Basic&, const volatile Basic &&, const volatile Basic>();
+                for_each_init2<number_type&,   volatile Basic &&,  const volatile Basic&, const volatile Basic &&, const volatile Basic, volatile Basic>();
+                for_each_init2<number_type&&, volatile Basic &, const volatile Basic&, const volatile Basic &&, const volatile Basic, volatile Basic>();
+            } else {
+                for_each_init2<number_type,    const volatile Basic&, const volatile Basic &&, volatile Basic>();
+                for_each_init2<number_type&,   const volatile Basic &&, const volatile Basic, volatile Basic>();
+                for_each_init2<number_type&&, const volatile Basic&, const volatile Basic, volatile Basic>();
+            }
+        }
+
+    }
+
+
+    template <typename  number_type>
+    void PyNumberCustomObject<number_type>::_initAddCArgCasts(){
+        static_assert(!std::is_reference<number_type>::value && !std::is_pointer<number_type>::value);
+        typedef std::remove_cv_t <number_type> ntype_bare;
+        for_each_init_<number_type>();
+    }
+
 
 }

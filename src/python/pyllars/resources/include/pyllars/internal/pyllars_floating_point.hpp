@@ -3,15 +3,23 @@
 
 #include "pyllars/internal/pyllars_classwrapper.hpp"
 #include "pyllars/pyllars_namespacewrapper.hpp"
+#include "pyllars_base.hpp"
 
 namespace pyllars_internal{
 
     template<typename number_type>
     struct DLLEXPORT FloatingPointType;
 
-    struct DLLEXPORT PyFloatingPtCustomBase: CommonBaseWrapper{
+    struct DLLEXPORT PyFloatingPtCustomBase: public CommonBaseWrapper{
         PyObject_HEAD
         DLLIMPORT static PyTypeObject _Type;
+
+        double (*toDouble)(PyFloatingPtCustomBase*);
+
+        template<typename to>
+        to reinterpret(){
+            return static_cast<float>((*toDouble)(this));
+        }
 
         static PyTypeObject* getRawType();
 
@@ -65,6 +73,15 @@ namespace pyllars_internal{
         }
 
         static status_t preinit();
+
+        static double convertToDouble(PyFloatingPtCustomBase* o){
+            return static_cast<double>(*((PyFloatingPtCustomObject*) o)->get_CObject());
+        }
+
+        template <typename Other>
+        static bool is_convertible(){
+            return std::is_convertible<number_type, Other>::value;
+        }
 
     protected:
 

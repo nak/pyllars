@@ -11,11 +11,10 @@ namespace pyllars_internal {
 
     template<typename T>
     template<const char *const name, typename FieldType, const size_t bits>
-    void PythonClassWrapper<T,
-            typename std::enable_if<is_rich_class<T>::value>::type>::
+    void PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::
     addBitField(
-            typename std::function< FieldType(const T_NoRef&)> &getter,
-            typename  std::function< FieldType(T_NoRef&, const FieldType&)>  *setter) {
+            typename std::function< FieldType(const T&)> &getter,
+            typename  std::function< FieldType(T&, const FieldType&)>  *setter) {
         static const char *const doc = "Get bit-field attribute ";
         char *doc_string = new char[strlen(name) + strlen(doc) + 1];
         snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);

@@ -5,9 +5,8 @@
 #include <pyllars/internal/pyllars_floating_point.hpp>
 #include <pyllars/internal/pyllars_integer.hpp>
 #include <pyllars/internal/pyllars_classwrapper.impl.hpp>
-#include <pyllars/internal/pyllars_pointer.impl.hpp>
-#include <pyllars/internal/pyllars_reference.impl.hpp>
-
+#include <pyllars/internal/pyllars_pointer.hpp>
+#include <pyllars/internal/pyllars_reference.hpp>
 
 namespace pyllars_internal {
 
@@ -663,6 +662,7 @@ namespace pyllars_internal {
 
     template<typename number_type>
     int PyFloatingPtCustomObject<number_type>::_init(PyFloatingPtCustomObject *self, PyObject *args, PyObject *kw) {
+        self->toDouble = &convertToDouble;
         self->compare = [](CommonBaseWrapper *self_, CommonBaseWrapper *other) -> bool {
             return PyObject_TypeCheck(other, getPyType()) &&
                    (*reinterpret_cast<PyFloatingPtCustomObject *>(self_)->get_CObject() ==

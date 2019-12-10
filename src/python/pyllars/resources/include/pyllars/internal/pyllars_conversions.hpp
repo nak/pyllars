@@ -28,6 +28,7 @@ namespace pyllars_internal {
         typedef typename std::remove_reference<T>::type T_bare;
         static constexpr auto empty_func = [](){};
 
+
         /**
          *
          * @param value : reference-to-instance to be captured
@@ -45,20 +46,17 @@ namespace pyllars_internal {
          * @param array_allocated : whether array-allocation used or not to allocate instance
          * @param revers_capture : as above
          */
-        argument_capture(T_bare *value,
-                std::function<void()> revers_capture=empty_func):
-            _reverse_capture(revers_capture), _valueP(value), _value(*_valueP){}
 
         ~argument_capture(){
             _reverse_capture();
             _valueP = nullptr;
         }
 
-        inline T_bare& value(){
+        inline std::remove_reference_t <T>& value(){
             return _value;
         }
 
-        inline const T_bare& value() const{
+        inline const std::remove_reference_t <T>& value() const{
             return _value;
         }
 
@@ -68,8 +66,8 @@ namespace pyllars_internal {
 
     private:
         std::function<void()> _reverse_capture;
-        T_bare * _valueP;
-        T_bare & _value;
+        std::remove_reference_t <T>* _valueP;
+        std::remove_reference_t <T>& _value;
     };
 
     /**
