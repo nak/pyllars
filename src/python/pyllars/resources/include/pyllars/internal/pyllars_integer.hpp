@@ -37,7 +37,7 @@ namespace  pyllars_internal {
          static PyTypeObject* getRawType();
          static PyTypeObject* getPyType(){
              if(!getRawType()->tp_base) {
-                 getRawType()->tp_base = CommonBaseWrapper::getRawType();
+                 getRawType()->tp_base = CommonBaseWrapper::getBaseType();
                  PyType_Ready(getRawType());
              }
              return getRawType();
@@ -349,6 +349,8 @@ namespace  pyllars_internal {
 
         static int _init(PyNumberCustomObject *subtype, PyObject *args, PyObject *kwds);
 
+        static void _dealloc(PyObject *self);
+
         static void free(void* self){
             if constexpr (!std::is_reference<number_type>::value){
                 delete ((PyNumberCustomObject*)self)->_CObject;
@@ -368,9 +370,6 @@ namespace  pyllars_internal {
         PyObject *_referenced;
         size_t _depth;
         number_type *_CObject;
-
-
-        static void _dealloc(PyObject* self){}
 
         static void _free(void* self){}
 

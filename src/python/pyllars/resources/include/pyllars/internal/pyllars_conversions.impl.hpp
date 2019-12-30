@@ -68,6 +68,9 @@ namespace pyllars_internal {
 
         auto *casted = (PythonClassWrapper<T> *) CommonBaseWrapper::reinterpret<T>(&pyobj);
         if (casted) {
+            if (!casted->get_CObject()){
+                throw PyllarsException(PyExc_RuntimeError, "Error casting through known conversion");
+            }
             return argument_capture<T>(*casted->get_CObject());
         }
         if constexpr ((!std::is_reference<T>::value  || std::is_const<std::remove_reference_t <T>>::value) &&
@@ -76,7 +79,7 @@ namespace pyllars_internal {
                 auto obj = (PyNumberCustomBase *) &pyobj;
                 auto *new_val = new std::remove_reference_t<T>(obj->template reinterpret<std::remove_reference_t <T> >());
                 return argument_capture<T>(*new_val, [new_val]() { delete new_val; });
-            } else if (PyObject_TypeCheck(&pyobj, PyFloatingPtCustomBase::getPyType())) {
+            } else if (PyObject_TypeCheck(&pyobj, PyFloatingPtCustomBase::getRawType())) {
                 auto obj = (PyFloatingPtCustomBase *) &pyobj;
                 auto *new_val = new std::remove_reference_t<T>(obj->template reinterpret<std::remove_reference_t <T> >());
                 return argument_capture<T>(*new_val, [new_val]() { delete new_val; });
@@ -132,8 +135,15 @@ namespace pyllars_internal {
                             throw PyllarsException(PyExc_TypeError,
                                                    "Conversion to C array of extent of different size requested");
                         }
-                        T_element a_value = CObjectConversionHelper<T_element>::toCArgument(*element).value();
+                        auto arg = CObjectConversionHelper<T_element>::toCArgument(*element);
+                        //if (!arg){
+                        //    throw PyllarsException(PyExc_RuntimeError, "Unable to convert to C argument");
+                       // }
+                        T_element a_value = arg.value();
                         auto *values_ptr = (std::remove_reference_t<T>*) new std::remove_reference_t<T>{{a_value}};
+                        if (PyErr_Occurred()){
+                            throw PyllarsException(PyExc_RuntimeError, "Unable to convert to C argument");
+                        }
                         for (size_t i = 1; i < size; ++i) {
                             element = PyList_GetItem(&pyobj, i);
                             (const_cast<std::remove_const_t<T_element> *>(*values_ptr))[i] = CObjectConversionHelper<T_element>::toCArgument(
@@ -240,13 +250,13 @@ namespace pyllars_internal {
             PyObject *pyobj = nullptr;
             if constexpr ( (std::is_array<T>::value ) || std::is_pointer<T>::value) {
                 //if constexpr (!std::is_array<T>::_CObject){
-                typedef typename std::remove_pointer<typename extent_as_pointer<T_NoRef>::type>::type T_base;
+                typedef typename std::remove_pointer_t<typename extent_as_pointer<T_NoRef>::type> T_element;
+                typedef typename extent_as_pointer<T>::type T_bare;
                 if constexpr (ArraySize<T_NoRef>::size > 0) {
-
-                    //the rules of C++ and fixed arrays vs pointers and pass-by-reference are strange and mysterious...
-                    T_base** v = new (T_base*)(&var[0]);
-                    T* vv = (T*) *v;
-                    pyobj = (PyObject *) ClassWrapper::fromCPointer((T&)*vv, array_size);
+                    typedef  std::remove_pointer_t <typename ClassWrapper::storage_type> storage_type;
+                    T_bare vv = var;
+                    auto * v = (storage_type) vv;
+                    pyobj = (PyObject *) ClassWrapper::fromCPointer(v, array_size);
                 } else {
                     typename std::remove_reference<T>::type *v = nullptr;
                     v = new T(var);

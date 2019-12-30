@@ -10,10 +10,9 @@
 #include <functional>
 
 namespace pyllars_internal {
-    template<typename T>
+   template<typename T, typename TrueType>
     template<typename KeyType, typename method_t, method_t method>
-    void PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::
-    addMapOperator() {
+    void PythonClassWrapper_Base<T, TrueType>::addMapOperator() {
         typedef typename func_traits<method_t>::ReturnType ValueType;
         if constexpr(func_traits<method_t>::is_const_method) {
             _addMapOperatorMethod <KeyType, ValueType, ValueType(CClass::*)(KeyType) const, method > ();
@@ -22,13 +21,12 @@ namespace pyllars_internal {
         }
     }
 
-    template<typename T>
+   template<typename T, typename TrueType>
     template<typename KeyType, typename ValueType, typename method_t, method_t method>
-    void PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::
-    _addMapOperatorMethod() {
+    void PythonClassWrapper_Base<T, TrueType>::_addMapOperatorMethod() {
 
         std::function<PyObject *(PyObject *, PyObject *)> getter = [](PyObject *self, PyObject *item) -> PyObject * {
-            PythonClassWrapper *self_ = (PythonClassWrapper *) self;
+            auto *self_ = (PythonClassWrapper_Base *) self;
             try {
                 auto c_key = pyllars_internal::toCArgument<KeyType>(*item);
                 return toPyObject<ValueType>((self_->get_CObject()->*method)(c_key.value()), 1);
@@ -46,7 +44,7 @@ namespace pyllars_internal {
         // since elements can be mutable, even const map operators must allow for setters
         std::function<int(bool, PyObject *, PyObject *, PyObject *)> setter =
                 [](bool obj_is_const, PyObject *self, PyObject *item, PyObject *value) -> int {
-                    PythonClassWrapper *self_ = (PythonClassWrapper *) self;
+                    auto *self_ = (PythonClassWrapper_Base *) self;
                     auto cobj = self_->get_CObject();
                     if (!cobj){
                         PyErr_SetString(PyExc_TypeError, "Cannot operate on nullptr");
@@ -96,7 +94,7 @@ namespace pyllars_internal {
                 };
 
         const std::string name = type_name<ValueType>() + std::string(":") + type_name<KeyType>();
-        _Type._mapMethodCollection[name] = std::pair<std::function<PyObject *(PyObject *, PyObject *)>,
+        Base::getTypeProxy()._mapMethodCollection[name] = std::pair<std::function<PyObject *(PyObject *, PyObject *)>,
                 std::function<int(bool, PyObject *, PyObject *, PyObject *)>
         >(getter, setter);
 

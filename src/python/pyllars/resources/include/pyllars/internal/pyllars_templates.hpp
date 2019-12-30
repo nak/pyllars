@@ -21,7 +21,7 @@ struct std::hash<PyObject*> {
 
                 if (PyType_Check(item)) {
                     h = hasher((void *) item);
-                } else if (PyObject_TypeCheck(item, pyllars_internal::CommonBaseWrapper::getPyType())) {
+                } else if (PyObject_TypeCheck(item, pyllars_internal::CommonBaseWrapper::getBaseType())) {
                     if (!reinterpret_cast<CommonBaseWrapper *>(item)->hash) {
                         throw PyllarsException(PyExc_SystemError, "System Error: null hash function encountered");
                     }
@@ -34,7 +34,7 @@ struct std::hash<PyObject*> {
 
             if (PyType_Check(item)) {
                 h = hasher((void *) item);
-            } else if (PyObject_TypeCheck(item, pyllars_internal::CommonBaseWrapper::getPyType())) {
+            } else if (PyObject_TypeCheck(item, pyllars_internal::CommonBaseWrapper::getBaseType())) {
                 if (!reinterpret_cast<CommonBaseWrapper *>(item)->hash) {
                     throw PyllarsException(PyExc_SystemError, "System Error: null hash function encountered");
                 }
@@ -128,8 +128,8 @@ namespace pyllars_internal{
                     return false;
                 } else if (PyType_Check(item1)) {
                     return item1 == item2;
-                } else if (!PyObject_TypeCheck(item1, CommonBaseWrapper::getPyType()) ||
-                           !PyObject_TypeCheck(item2, CommonBaseWrapper::getPyType())) {
+                } else if (!PyObject_TypeCheck(item1, CommonBaseWrapper::getBaseType()) ||
+                           !PyObject_TypeCheck(item2, CommonBaseWrapper::getBaseType())) {
                     return false;
                 } else {
                     return ((CommonBaseWrapper *) item1)->compare((CommonBaseWrapper *) item1,

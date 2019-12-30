@@ -9,20 +9,20 @@
 
 namespace pyllars_internal {
 
-    template<typename T>
+    template<typename T, typename TrueType>
     template<const char *const name, typename FieldType, const size_t bits>
-    void PythonClassWrapper<T, typename std::enable_if<is_rich_class<T>::value>::type>::
+    void PythonClassWrapper_Base<T, TrueType>::
     addBitField(
             typename std::function< FieldType(const T&)> &getter,
             typename  std::function< FieldType(T&, const FieldType&)>  *setter) {
         static const char *const doc = "Get bit-field attribute ";
         char *doc_string = new char[strlen(name) + strlen(doc) + 1];
         snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
-        BitFieldContainer<T_NoRef>::template Container<name, FieldType, bits>::_getter = getter;
-        _Type._member_getters[name] = BitFieldContainer<T_NoRef>::template Container<name, FieldType, bits>::get;
+        BitFieldContainer<T>::template Container<name, FieldType, bits>::_getter = getter;
+        Base::getTypeProxy()._member_getters[name] = BitFieldContainer<T>::template Container<name, FieldType, bits>::get;
         if (setter) {
-            BitFieldContainer<T_NoRef>::template Container<name, FieldType, bits>::_setter = *setter;
-            _Type._member_setters[name] = BitFieldContainer<T_NoRef>::template Container<name, FieldType, bits>::set;
+            BitFieldContainer<T>::template Container<name, FieldType, bits>::_setter = *setter;
+            Base::getTypeProxy()._member_setters[name] = BitFieldContainer<T>::template Container<name, FieldType, bits>::set;
         }
     }
 

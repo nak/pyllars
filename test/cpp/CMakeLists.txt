@@ -7,7 +7,7 @@ include_directories(
         ../../src/python/pyllars/resources/include/pyllars
         ../..)
 
-add_library(setupBasicClassLib SHARED setup_basic_class.cpp setup_basic_class-builder.cpp)
+add_library(setupBasicClassLib SHARED setup_basic_class.cpp setup_basic_class-builder.cpp setup_basic_class_BasicClass.cpp setup_basic_class_BasicClass2.cpp)
 target_link_libraries(setupBasicClassLib pyllars gtest gtest_main)
 add_library(setupInheritanceLib SHARED setup_inheritance_test.cpp )
 target_link_libraries(setupInheritanceLib pyllars gtest gtest_main setupBasicClassLib)

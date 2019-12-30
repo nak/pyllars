@@ -6,6 +6,7 @@
 
 #include "pyllars_conversions.impl.hpp"
 #include "pyllars_methodcallsemantics.impl.hpp"
+#include <cstring>
 
 namespace pyllars_internal {
 
@@ -149,12 +150,22 @@ namespace pyllars_internal {
                         return -1;
                     }
                 } else if (PythonClassWrapper<T>::checkType(pyVal)) {
-                    T *val = reinterpret_cast<PythonClassWrapper<T> *>(pyVal)->get_CObject();
-                    Assignment<T>::assign(_this->get_CObject()->*member, *val);
+                    if constexpr (ArraySize<T>::size > 0){
+                        typedef std::remove_pointer_t <typename extent_as_pointer<T>::type> T_element;
+                        T* val =    reinterpret_cast<PythonClassWrapper<T> *>(pyVal)->get_CObject();
+                        std::memcpy(&(_this->get_CObject()->*member)[0], *val, sizeof(T_element)*ArraySize<T>::size);
+
+                    } else {
+                        T *val = reinterpret_cast<PythonClassWrapper<T> *>(pyVal)->get_CObject();
+                        Assignment<T>::assign(_this->get_CObject()->*member, *val);
+                    }
                     return 0;
                 } else if (PythonClassWrapper<typename extent_as_pointer<T>::type>::checkType(pyVal)) {
                     if constexpr(std::is_array<T>::value && ArraySize<T>::size > 0){
-                        Assignment<T>::assign(_this->get_CObject()->*member, * reinterpret_cast<PythonClassWrapper<T> *>(pyVal)->get_CObject(), ArraySize<T>::size);
+                        typedef std::remove_pointer_t <typename extent_as_pointer<T>::type> T_element;
+                        T* val =    reinterpret_cast<PythonClassWrapper<T> *>(pyVal)->get_CObject();
+                        std::memcpy(&(_this->get_CObject()->*member)[0], *val, sizeof(T_element)*ArraySize<T>::size);
+
                     } else {
                         T_base **val = reinterpret_cast<PythonClassWrapper<typename extent_as_pointer<T>::type> *>(pyVal)->get_CObject();
                         T_base * toVal = _this->get_CObject()->*member;

@@ -300,10 +300,10 @@ void test_conversion_from_native_py(T vals[3]) {
     auto obj = PyList_New(3);
     PythonClassWrapper<T>* o= (PythonClassWrapper<T>*)PyFrom(vals[0]);
     ASSERT_FALSE(PyErr_Occurred());
-    Py_INCREF(o);
     PyList_SetItem(obj, 0, (PyObject*)o);//PyFrom(vals[0]));
     PyList_SetItem(obj, 1, PyFrom(vals[1]));
     PyList_SetItem(obj, 2, PyFrom(vals[2]));
+    ASSERT_FALSE(PyErr_Occurred());
     auto carg = toCArgument<const T[3]>(*obj);
     ASSERT_FALSE(PyErr_Occurred());
     {
@@ -318,6 +318,7 @@ void test_conversion_from_native_py(T vals[3]) {
     }
     (void) carg.value();//ensure doesn't go out of scope prematurely
     ASSERT_THROW((toCArgument<DisparateType>(*obj)), PyllarsException);
+    Py_DECREF(obj);
 }
 
 PyObject* __PyLong_FromInt(int v){

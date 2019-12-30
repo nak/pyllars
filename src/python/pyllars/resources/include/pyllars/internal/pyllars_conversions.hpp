@@ -38,7 +38,11 @@ namespace pyllars_internal {
          *    as C allows modification of its non-const-by-reference inputs to functions
          */
         argument_capture(T& value,  std::function<void()> reverse_capture=empty_func):
-                _reverse_capture(reverse_capture), _valueP(nullptr), _value(value){}
+                _reverse_capture(reverse_capture), _valueP(nullptr), _value(value){
+            if (&value == nullptr){
+                throw PyllarsException(PyExc_RuntimeError, "Error in argument conversion");
+            }
+        }
 
         /**
          *

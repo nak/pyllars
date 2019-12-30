@@ -7,6 +7,7 @@
 #include "pyllars/internal/pyllars_integer.hpp"
 #include "pyllars/pyllars_class.hpp"
 #include <pyllars/internal/pyllars_pointer-type.impl.hpp>
+#include <pyllars/internal/pyllars_pointer.impl.hpp>
 
 namespace pyllars_internal {
 

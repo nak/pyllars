@@ -8,11 +8,22 @@
 #include "pyllars/pyllars.hpp"
 #include "pyllars_pointer.hpp"
 #include "pyllars/internal/pyllars_floating_point.hpp"
-#include "pyllars/internal/pyllars_integer.hpp"
-#include "pyllars/internal/pyllars_classwrapper.impl.hpp"
-#include "pyllars/internal/pyllars_reference.impl.hpp"
-#include "pyllars/internal/pyllars_type_traits.hpp"
+#include "pyllars_integer.hpp"
+#include "pyllars_classwrapper.impl.hpp"
+#include "pyllars_classwrapper-type.impl.hpp"
 #include "pyllars_reference.impl.hpp"
+#include "pyllars_type_traits.hpp"
+#include "pyllars_reference.impl.hpp"
+#include "pyllars_base.impl.hpp"
+
+template<class T, class...>
+struct are_same : std::true_type
+{};
+
+template<class T, class U, class... TT>
+struct are_same<T, U, TT...>
+        : std::integral_constant<bool, std::is_same<T,U>{} && are_same<T, TT...>{}>
+{};
 
 namespace pyllars_internal {
 
@@ -55,13 +66,13 @@ namespace pyllars_internal {
     PyObject *
     PythonPointerWrapperBase<T>::
     _concat(PyObject *self, PyObject *other) {
-        if constexpr (std::is_void<T_base>::value ){
+        if constexpr (std::is_void<T_element>::value ){
             PyErr_SetString(PyExc_TypeError, "Cannot concatenate arrays of void");
             return nullptr;
-        } else if constexpr (std::is_void<T_base>::value || !std::is_assignable<T_base&, T_base>::value){
+        } else if constexpr (std::is_void<T_element>::value || !std::is_assignable<T_element&, T_element>::value){
             PyErr_SetString(PyExc_TypeError, "Cannot concatenate arrays of types tha are unassignable");
             return nullptr;
-        } else if constexpr (!std::is_constructible<T_base>::value){
+        } else if constexpr (!std::is_constructible<T_element>::value){
             PyErr_SetString(PyExc_TypeError, "Cannot concatenate arrays of types tha are non-constructble");
             return nullptr;
         } else {
@@ -76,25 +87,27 @@ namespace pyllars_internal {
                 }
                 // TODO: FIX ME!!!!!
                 const ssize_t new_size = (ssize_t) self_->_max + 1 + other_->_max + 1;
-                auto values = new T_base[new_size];
+                auto values = new T_element[new_size];
                 auto *self__ = reinterpret_cast<PythonClassWrapper<T>*>(self);
-                T &cobj = *self__->get_CObject();
-                if constexpr (std::is_void<T_base>::value) {
+                auto &cobj = *self__->get_CObject();
+                if constexpr (std::is_void<T_element>::value) {
                     throw PyllarsException(PyExc_TypeError, "Cannot index into void-pointer/array");
-                } else if constexpr (!is_complete<T_base>::value) {
+                } else if constexpr (!is_complete<T_element>::value) {
                     throw PyllarsException(PyExc_TypeError, "Cannot index into incomplete type");
                 } else {
+                    auto * self_cobj = (T_element**) self_->get_CObject();
                     for (ssize_t i = 0; i <= self_->_max; ++i) {
-                        if (!cobj || !self_->get_CObject()[0]) {
+                        if (!cobj || !self_cobj || !self_cobj[0]) {
                             throw PyllarsException(PyExc_ValueError, "Cannot dereference null object");
                         }
-                        values[i] = self_->get_CObject()[0][i];
+                        T_element * val = self_cobj[0];
+                        values[i] = self_cobj[0][i];
                     }
                     for (ssize_t i = self_->_max + 1; i < new_size; ++i) {
-                        values[i] = other_->get_CObject()[0][i - self_->_max - 1];
+                        values[i] = ((T_element**)other_->get_CObject())[0][i - self_->_max - 1];
                     }
                 }
-                return (PyObject*)PythonClassWrapper<T_base*>::fromCPointer(values, new_size);
+                return (PyObject*)PythonClassWrapper<T_element*>::fromCPointer(values, new_size);
             }
         }
         PyErr_SetString(PyExc_TypeError, "Type inconsistency when concatenating C arrays");
@@ -106,10 +119,10 @@ namespace pyllars_internal {
     int
     PythonPointerWrapperBase<T>::
     _set_item(PyObject *self, Py_ssize_t index, PyObject *obj) {
-        if constexpr (std::is_void<T_base>::value ){
+        if constexpr (std::is_void<T_element>::value ){
             PyErr_SetString(PyExc_TypeError, "Underlying C type for elements of this array are void and unassignable");
             return -1;
-        } else if constexpr (std::is_void<T_base>::value || !std::is_assignable<T_base&, T_base>::value){
+        } else if constexpr (std::is_void<T_element>::value || !std::is_assignable<T_element&, T_element>::value){
             PyErr_SetString(PyExc_TypeError, "Underlying C type for elements of this array are unassignable");
             return -1;
         } else {
@@ -121,11 +134,11 @@ namespace pyllars_internal {
                     PyErr_SetString(PyExc_TypeError, "Array size unknown");
                     return -1;
                 };
-                if (!PythonClassWrapper<T_base>::checkType(obj) && !PythonClassWrapper<const T_base>::checkType(obj)) {
+                if (!PythonClassWrapper<T_element>::checkType(obj) && !PythonClassWrapper<const T_element>::checkType(obj)) {
                     PyErr_SetString(PyExc_TypeError, "Setting item from incompatible type");
                     return -1;
                 }
-                auto *obj_ = (PythonClassWrapper<T_base> *) obj;
+                auto *obj_ = (PythonClassWrapper<T_element> *) obj;
                 self__->get_CObject()[0][index] = *obj_->get_CObject();
                 return 0;
             } catch (PyllarsException &e){
@@ -146,18 +159,18 @@ namespace pyllars_internal {
     int
     PythonPointerWrapperBase<T>::
     _contains(PyObject *self, PyObject *o2) {
-        typedef std::remove_volatile_t <T_base> T_bare;
+        typedef std::remove_volatile_t <T_element> T_bare;
         auto self_ = reinterpret_cast<PythonPointerWrapperBase*>(self); (void)self_;
-        if constexpr (!has_operator_compare<T_base, T_base>::value){
+        if constexpr (!has_operator_compare<T_element, T_element>::value){
             PyErr_SetString(PyExc_TypeError, "Underlying C type does not allow comparison");
             return -1;
         } else if constexpr(ArraySize<T>::size > 0){
-            if (!PythonClassWrapper<T_base>::checkType(o2) && !PythonClassWrapper<T_base&>::checkType(o2)){
+            if (!PythonClassWrapper<T_element>::checkType(o2) && !PythonClassWrapper<T_element&>::checkType(o2)){
                 return 0;
             }
             for (ssize_t i = 9; i < ArraySize<T>::size; ++i){
                 T_bare& v1 = ((T_bare*)*self_->get_CObject())[i];
-                T_bare& v2 = *((T_bare*)reinterpret_cast<PythonClassWrapper<T_base >*>(o2)->get_CObject());
+                T_bare& v2 = *((T_bare*)reinterpret_cast<PythonClassWrapper<T_element >*>(o2)->get_CObject());
                 return v1 == v2 ? 1 : 0;
             }
             return 0;
@@ -181,16 +194,17 @@ namespace pyllars_internal {
     PyObject *
     PythonPointerWrapperBase<T>::
     _get_item(PyObject *self, Py_ssize_t index) {
-        if constexpr (!is_complete<T_base>::value){
+        if constexpr (!is_complete<T_element>::value){
             PyErr_SetString(PyExc_TypeError, "Cannot index into array of opaque types");
             return nullptr;
-        } else if constexpr (std::is_void<T_base>::value){
+        } else if constexpr (std::is_void<T_element>::value){
             PyErr_SetString(PyExc_TypeError, "Cannot index into array of void");
             return nullptr;
         } else {
             ////////typedef typename remove_all_pointers<typename extent_as_pointer<typename std::remove_reference<T>::type>::type>::type T_bare;
             auto *self_ = reinterpret_cast<PythonPointerWrapperBase *>(self);
-            if (!self_ || !self_->get_CObject()) {
+            auto * self_cobj = (T_element**) self_->get_CObject();
+            if (!self_ || !self_cobj) {
                 PyErr_SetString(PyExc_RuntimeError, "Null pointer dereference");
                 return nullptr;
             }
@@ -202,21 +216,21 @@ namespace pyllars_internal {
                     PyErr_SetString(PyExc_IndexError, "Index out of range");
                     return nullptr;
                 }
-                ssize_t element_array_size = std::extent<T_base>::value;
+                ssize_t element_array_size = std::extent<T_element>::value;
                 if (element_array_size == 0) { element_array_size = UNKNOWN_SIZE; }
 
-                T_base &var = self_->get_CObject()[0][index];
+                T_element &var = self_cobj[0][index];
                 PyObject *res = nullptr;
-                if constexpr (is_pointer_like<T_base>::value) {
-                    if (self_->_depth == 2) {
-                        res = (PyObject *) PythonClassWrapper<T_base &>::fromCPointer(var, element_array_size,
+                if constexpr (is_pointer_like<T_element>::value) {
+                    if (self_->get_depth() == 2) {
+                        res = (PyObject *) PythonClassWrapper<T_element &>::fromCPointer(var, element_array_size,
                                                                                       self);
                     } else {
                         res = (PyObject *) PythonClassWrapper<T &>::fromCPointer((T &) var, element_array_size,
                                                                                  self);
                     }
                 } else {
-                    res = (PyObject *) PythonClassWrapper<T_base &>::fromCObject(var, self);
+                    res = (PyObject *) PythonClassWrapper<T_element &>::fromCObject(var, self);
                 }
                 if (!res) {
                     if (PyErr_Occurred()) PyErr_Print();
@@ -224,8 +238,8 @@ namespace pyllars_internal {
                     PyErr_SetString(PyExc_TypeError, "Unknown error creating wrapper to C element");
                     return nullptr;
                 }
-                if constexpr (is_pointer_like<T_base>::value) {
-                    ((PythonPointerWrapperBase<T_base> *) res)->_depth = self_->_depth - 1;
+                if constexpr (is_pointer_like<T_element>::value) {
+                    ((PythonPointerWrapperBase<T_element> *) res)->set_depth(self_->get_depth() - 1);
                 }
 
                 return res;
@@ -295,7 +309,7 @@ namespace pyllars_internal {
     template<typename T>
     PythonPointerWrapperBase <T> *
     PythonPointerWrapperBase<T>::
-    fromCPointer(PyTypeObject &Type,  T *cobj, const ssize_t arraySize, PyObject *referencing, unsigned char* byte_bucket) {
+    fromCPointer(PyTypeObject &Type,  typename extent_as_pointer<T>::type *cobj, const ssize_t arraySize, PyObject *referencing, unsigned char* byte_bucket) {
         if (_initialize(Type) != 0) {
             PyErr_SetString(PyExc_SystemError, "System error: failed to initialize type");
             return nullptr;
@@ -308,12 +322,11 @@ namespace pyllars_internal {
             return nullptr;
         }
         assert(pyobj->get_CObject() == nullptr);
-        //T * v=  ObjectLifecycleHelpers::Copy<T >::new_copy((typename extent_as_pointer<T>::type)cobj);
         pyobj->_byte_bucket = byte_bucket;
         if(cobj) {
             pyobj->set_CObject(cobj);
         } else if(byte_bucket){
-          pyobj->set_CObject((T*)&byte_bucket);
+          pyobj->set_CObject((typename extent_as_pointer<T>::type*)&byte_bucket);
         } else {
             PyErr_SetString(PyExc_TypeError, "Cannot make pointer reference to null");
             return nullptr;
@@ -323,14 +336,13 @@ namespace pyllars_internal {
         return pyobj;
     }
 
-
     template<typename T>
     template<typename ...Args>
     PythonPointerWrapperBase <T> *
     PythonPointerWrapperBase<T>::
     createAllocatedInstance(PyTypeObject &Type,Args... args,  ssize_t arraySize) {
         //constexpr bool is_same_type[] = {std::is_same<typename std::remove_reference<Args>::type, T>::value...};
-        if constexpr (!std::is_constructible<T_base, Args...>::value){
+        if constexpr (!std::is_constructible<T_element, Args...>::value){
             PyErr_SetString(PyExc_TypeError, "Type is not constructible base on provided arguments");
             return nullptr;
         } else {
@@ -353,19 +365,19 @@ namespace pyllars_internal {
                 return nullptr;
             }
             assert(pyobj->get_CObject() == nullptr);
-            typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
+            typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_element;
 
             if (arraySize >= 0) {
                 try {
-                    typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
-                    if constexpr (std::is_volatile<T>::value || std::is_volatile<T_base>::value){
+                    typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_element;
+                    if constexpr (std::is_volatile<T>::value || std::is_volatile<T_element>::value){
                         PyErr_SetString(PyExc_TypeError, "Unable to allocate array of volatile instances");
                         return nullptr;
                     } else {
-                        pyobj->set_CObject (new T());
-                        auto result = Constructor<T_base>::template allocate_array<Args...>((size_t) arraySize,
-                                                                                            args...);
-                        *pyobj->get_CObject() = static_cast<T>(result);
+                        pyobj->set_CObject ((typename PythonPointerWrapperBase::storage_type) new T());
+                        auto  * cobj = (typename Base::storage_type) new (T_element*)(Constructor<T_element>::template allocate_array<Args...>((size_t) arraySize,
+                                                                                                                                      args...));
+                        pyobj->set_CObject(cobj);
                     }
                 } catch (PyllarsException &e) {
                     e.raise();
@@ -378,9 +390,9 @@ namespace pyllars_internal {
                     return nullptr;
                 }
             } else {
-                pyobj->set_CObject(new typename extent_as_pointer<T>::type(nullptr));
-                T_base *new_value = new T_base(args...);
-                *pyobj->get_CObject() =  new_value;
+                pyobj->set_CObject(nullptr);
+                T_element *new_value = (T_element*) new T_element(args...);
+                pyobj->set_CObject((typename Base::storage_type ) &new_value);
             }
             if (arraySize > 0) { pyobj->_max = arraySize - 1; }
             return pyobj;
@@ -394,7 +406,7 @@ namespace pyllars_internal {
         PythonPointerWrapperBase* self = reinterpret_cast<PythonPointerWrapperBase*>(self_);
         if(self->_byte_bucket){
             typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
-            if constexpr (std::is_destructible<T_base>::value && ArraySize<T_base>::size <= 0){
+            if constexpr (std::is_destructible<T_base>::value && ArraySize<T_base>::size <= 0 && !std::is_pointer<typename extent_as_pointer<T_base>::type>::value){
                 for(ssize_t i = 0; i < ArraySize<T_base>::size; ++i){
                     (*self->get_CObject())[i].~T_base();
                 }
@@ -433,8 +445,7 @@ namespace pyllars_internal {
     PythonPointerWrapperBase<T>::_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
         (void) args;
         (void) kwds;
-        PythonPointerWrapperBase *self;
-        self = (PythonPointerWrapperBase *) type->tp_alloc(type, 0);
+        PythonPointerWrapperBase *self = (PythonPointerWrapperBase *) type->tp_alloc(type, 0);
         if (self != nullptr) {
             self->set_CObject(nullptr);
         }
@@ -514,7 +525,7 @@ namespace pyllars_internal {
         // nother pointer-wrapper class with one more pointer level deep.
         // Therefore, for pointer depth > 1, we just use the _CObject as a generic pointer (in a sense) and
         // let the logic know the depth
-        pyobj->set_CObject = ((T*) &(this->get_CObject()));
+        pyobj->set_CObject(this->get_CObject());
         pyobj->make_reference((PyObject *) this);
         return pyobj;
     }
@@ -533,7 +544,7 @@ namespace pyllars_internal {
         try {
             auto *pyobj = reinterpret_cast<PythonClassWrapper < T_bare ** > * > (
                     self->createPyReferenceToAddr());
-            pyobj->_depth = self->_depth + 1;
+            pyobj->set_depth(self->get_depth() + 1);
             return reinterpret_cast<PyObject *>(pyobj);
         } catch (PyllarsException &e){
             e.raise();
@@ -554,7 +565,7 @@ namespace pyllars_internal {
 
     template<typename T>
     PyObject *
-    PythonClassWrapper<T, typename std::enable_if<is_pointer_like<T>::value && (ptr_depth<T>::value == 1)>::type>::
+    PythonClassWrapper<T, typename std::enable_if<is_pointer_like<T>::value && (ptr_depth<T>::value <= 1)>::type>::
     _addr(PyObject *self_, PyObject *) {
         auto *self = reinterpret_cast<PythonClassWrapper*>(self_);
         if (!self->get_CObject()) {
@@ -563,7 +574,7 @@ namespace pyllars_internal {
         }
         try {
             auto *pyobj = self->createPyReferenceToAddr();//1, obj, ContainmentKind ::BY_REFERENCE, (PyObject *) self);
-            pyobj->_depth = 2;
+            pyobj->set_depth(2);
             return reinterpret_cast<PyObject *>(pyobj);
         } catch (PyllarsException &e){
             e.raise();
@@ -581,23 +592,66 @@ namespace pyllars_internal {
 
     template<typename T>
     PythonClassWrapper<typename std::remove_reference<T>::type*> *
-    PythonClassWrapper<T, typename std::enable_if<is_pointer_like<T>::value && (ptr_depth<T>::value == 1)>::type>::
+    PythonClassWrapper<T, typename std::enable_if<is_pointer_like<T>::value && (ptr_depth<T>::value <= 1)>::type>::
     createPyReferenceToAddr() {
         auto addrType = PythonClassWrapper<T*>::getPyType();
 
         static PyObject *args = PyTuple_New(0);
         static PyObject *kwds = PyDict_New();
-        auto *pyobj = (PythonClassWrapper < T* > *)PyObject_Call((PyObject *) addrType, args, kwds);
+
+        typedef PythonClassWrapper < T* > PtrWrapper;
+        auto *pyobj = (PtrWrapper*)PyObject_Call((PyObject *) addrType, args, kwds);
         if (!pyobj) {
             PyErr_SetString(PyExc_RuntimeError, "Unable to create Python Object");
             return nullptr;
         }
         assert(pyobj->get_CObject() == nullptr);
-        pyobj->set_CObject(&reinterpret_cast<PythonClassWrapper*>(this)->get_CObject());
+        pyobj->set_CObject( &reinterpret_cast<PythonClassWrapper*>(this)->get_CObject());
         pyobj->make_reference((PyObject*) this);
         return pyobj;
     }
 
+
+    template<typename T>
+    template<typename ...Args>
+    PythonClassWrapper <T, typename std::enable_if<is_pointer_like<T>::value && (ptr_depth<T>::value <= 1)>::type> *
+    PythonClassWrapper<T, typename std::enable_if<is_pointer_like<T>::value && (ptr_depth<T>::value <= 1)>::type>::allocateArray( Args ...args, const ssize_t arraySize) {
+        return reinterpret_cast<PythonClassWrapper *>(
+                Base::template createAllocatedInstance<Args...>(*Base::getRawType(), args..., arraySize));
+    }
+
+
+    template<typename T>
+    template<typename ...Args>
+    PythonClassWrapper <T, typename std::enable_if<is_pointer_like<T>::value && (ptr_depth<T>::value <= 1)>::type> *
+    PythonClassWrapper<T, typename std::enable_if<is_pointer_like<T>::value && (ptr_depth<T>::value <= 1)>::type>::allocateInstance( Args ...args) {
+        return (PythonClassWrapper*) Base::template createAllocatedInstance<std::remove_reference_t <Args>&...>(*Base::getRawType(), args...,  -1);
+    }
+
+
+
+    template<typename T>
+    template<typename ...Args>
+    PythonClassWrapper <T, typename std::enable_if<is_pointer_like<T>::value && (ptr_depth<T>::value > 1)>::type> *
+    PythonClassWrapper<T, typename std::enable_if<is_pointer_like<T>::value && (ptr_depth<T>::value > 1)>::type>::allocateArray( Args ...args, const ssize_t arraySize) {
+        return reinterpret_cast<PythonClassWrapper *>(
+                Base::template createAllocatedInstance<Args...>(*Base::getRawType(), args..., arraySize));
+    }
+
+    template<typename T>
+    template<typename ...Args>
+    PythonClassWrapper <T, typename std::enable_if<is_pointer_like<T>::value && (ptr_depth<T>::value > 1)>::type> *
+    PythonClassWrapper<T, typename std::enable_if<is_pointer_like<T>::value && (ptr_depth<T>::value > 1)>::type>::allocateInstance( Args ...args) {
+        return (PythonClassWrapper*) createAllocatedInstance(*Base::getRawType(), args...,  -1);
+    }
+
+    template<typename T>
+    typename PythonClassWrapper<T, typename std::enable_if<is_pointer_like<T>::value && (ptr_depth<T>::value <= 1)>::type >::Initializer
+            PythonClassWrapper<T, typename std::enable_if<is_pointer_like<T>::value && (ptr_depth<T>::value <= 1)>::type >::initializer;
+
+    template<typename T>
+    typename PythonClassWrapper<T, typename std::enable_if<is_pointer_like<T>::value && (ptr_depth<T>::value > 1)>::type>::Initializer
+            PythonClassWrapper<T, typename std::enable_if<is_pointer_like<T>::value && (ptr_depth<T>::value > 1)>::type>::initializer;
 
 
 }

@@ -20,21 +20,21 @@
 
 namespace pyllars_internal {
 
-    template<typename T, typename TrueType>
+    template<typename T, typename TrueType >
     struct PythonClassWrapper_Base;
 
     template<typename T>
-    struct DLLEXPORT PythonClassWrapper<T&, void> : public PythonClassWrapper_Base<T, T&> {
+    struct DLLEXPORT PythonClassWrapper<T&, void> : public PythonClassWrapper_Base<T, T& > {
 
         typedef PythonClassWrapper_Base<T, T&> Base;
         typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
 
 
-        static PyTypeObject *getPyType(){
-            return (initialize() == 0)?&_Type:nullptr;
-        }
-
         static int initialize();
+
+        static PyTypeObject* getPyType(){
+            return initialize() == 0?Base::getRawType():nullptr;
+        }
 
         static PythonClassWrapper *fromCObject(T& cobj, PyObject *referencing = nullptr);
 
@@ -51,7 +51,6 @@ namespace pyllars_internal {
 
     protected:
         static int _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds);
-        static PyTypeObject _Type;
 
     private:
         typedef int (*set_t)(PyObject *self, char *attrname, PyObject * value);
@@ -88,6 +87,14 @@ namespace pyllars_internal {
             ((Base*)self)->set_CObject(nullptr);
             Base::_dealloc(self);
         }
+
+        struct Initializer{
+            Initializer(){
+                Init::registerInit(&PythonClassWrapper::initialize);
+            }
+        };
+
+        static Initializer initializer;
     };
 
 
@@ -100,7 +107,10 @@ namespace pyllars_internal {
 
 
         static int initialize(){
-            PyTypeObject* Type = PythonBaseWrapper<T>::getRawType();
+            static bool inited = false;
+            static int status = 0;
+            if (inited) return status;
+            PyTypeObject* Type = Base::getRawType();
             Type->tp_basicsize = sizeof(PythonClassWrapper);
             Type->tp_itemsize = 0;
             Type->tp_dealloc = (destructor) _dealloc;
@@ -109,7 +119,21 @@ namespace pyllars_internal {
             Type->tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_CHECKTYPES;
             Type->tp_init = (initproc) _init;
             Type->tp_free = _free;
-            return Base::_initialize(*Type);
+            Type->tp_base = PythonClassWrapper_Base<T, T>::getRawType();
+
+            if (Base::_initialize(*Type) == 0) {
+                inited = true;
+                Base::getRawType()->tp_base = PythonClassWrapper<T>::getRawType();
+                return PyType_Ready(Base::getRawType());
+            } else {
+                PyErr_SetString(PyExc_SystemError, "Failed to initializer Python type wrapper to C object reference");
+                status = -1;
+                return status;
+            }
+        }
+
+        static PyTypeObject* getPyType(){
+            return initialize() == 0?Base::getRawType():nullptr;
         }
 
         static PythonClassWrapper *fromCObject(T&& cobj, PyObject *referencing = nullptr);
@@ -122,7 +146,7 @@ namespace pyllars_internal {
         static int _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds);
 
     private:
-        PythonClassWrapper():PythonClassWrapper_Base<T, T&&>(){
+        PythonClassWrapper():PythonClassWrapper_Base<T, T&& >(){
             // Base::_depth = 1;
         }
 
@@ -136,6 +160,14 @@ namespace pyllars_internal {
             self->set_CObject(nullptr);
             Base::_dealloc((PyObject*)self);
         }
+
+        struct Initializer{
+            Initializer(){
+                Init::registerInit(&PythonClassWrapper::initialize);
+            }
+        };
+
+        static Initializer initializer;
     };
 }
 #endif

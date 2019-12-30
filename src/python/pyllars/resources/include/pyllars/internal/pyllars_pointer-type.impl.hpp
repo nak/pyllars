@@ -26,6 +26,9 @@ namespace pyllars_internal {
         static bool initialized = false;
         if (initialized) return 0;
         initialized = true;
+
+        Base::_addReinterpretations();
+
         assert(Type.tp_basicsize > 0);
         Type.tp_dealloc =  (destructor) &_dealloc;
         Type.tp_as_sequence = &_seqmethods;
@@ -35,11 +38,7 @@ namespace pyllars_internal {
         assert(Type.tp_methods);
         Type.tp_new = _new;
 
-        if (PyType_Ready(CommonBaseWrapper::getRawType()) < 0) {
-            PyErr_SetString(PyExc_RuntimeError, "Failed to set_up type!");
-            return -1;
-        }
-        if (PyType_Ready(&Type) < 0) {
+        if (PyType_Ready(CommonBaseWrapper::getBaseType()) < 0) {
             PyErr_SetString(PyExc_RuntimeError, "Failed to set_up type!");
             return -1;
         }
@@ -54,6 +53,10 @@ namespace pyllars_internal {
 
         Type.tp_as_sequence = &_seqmethods;
 
+        if (PyType_Ready(&Type) < 0) {
+            PyErr_SetString(PyExc_RuntimeError, "Failed to set_up type!");
+            return -1;
+        }
         Py_INCREF(&Type);
         return 0;
     }
@@ -67,6 +70,7 @@ namespace pyllars_internal {
         self->_referenced = nullptr;
         self->_max = last;
         self->_directlyAllocated = false;
+        self->set_CObject(nullptr);
         if (kwds && PyDict_Size(kwds) > 1) {
             PyErr_SetString(PyExc_TypeError, "Unexpected keyword argument(s) in Pointer cosntructor");
             return -1;
@@ -126,7 +130,6 @@ namespace pyllars_internal {
             }
             return self->get_CObject() ? 0 : -1;
         } else {
-            self->set_CObject(nullptr);
             return 0;
         }
     }
@@ -145,11 +148,12 @@ namespace pyllars_internal {
         if (!self) { return -1; }
 
         self->_referenced = nullptr;
+        self->set_depth(ptr_depth<T>::value);
         PyTypeObject *const coreTypePtr = PythonClassWrapper<typename core_type<T>::type>::getPyType();
         self->template populate_type_info<T>(&Base::checkType, coreTypePtr);
         int result = Base::_initbase(self, args, kwds, Base::getRawType());
 
-        if (result == ERROR_TYPE_MISMATCH && (ptr_depth<T>::value == 1) &&
+        if (result == ERROR_TYPE_MISMATCH && (ptr_depth<T>::value <= 1) &&
             (PythonClassWrapper<const char *>::checkType((PyObject *) self) ||
              PythonClassWrapper<const char *const>::checkType((PyObject *) self)
             )) {
@@ -180,7 +184,7 @@ namespace pyllars_internal {
 
     template<typename T>
     PyMethodDef
-    PythonClassWrapper<T, typename std::enable_if<is_pointer_like<T>::value && (ptr_depth<T>::value == 1)>::type>::
+    PythonClassWrapper<T, typename std::enable_if<is_pointer_like<T>::value && (ptr_depth<T>::value <= 1)>::type>::
     _methods[] = {{address_name, (PyCFunction) PythonClassWrapper::_addr, METH_KEYWORDS | METH_VARARGS, nullptr},
              {"at",         (PyCFunction) Base::_at,                 METH_KEYWORDS | METH_VARARGS, nullptr},
              {nullptr,      nullptr, 0, nullptr} /*sentinel*/
@@ -191,12 +195,12 @@ namespace pyllars_internal {
 
     template<typename T>
     int
-    PythonClassWrapper<T, typename std::enable_if<is_pointer_like<T>::value && (ptr_depth<T>::value == 1)>::type>::
+    PythonClassWrapper<T, typename std::enable_if<is_pointer_like<T>::value && (ptr_depth<T>::value <= 1)>::type>::
     _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds) {
-
-
+        self->set_CObject(nullptr);
+        self->set_depth(ptr_depth<T>::value);
         self->compare = [](CommonBaseWrapper* self_, CommonBaseWrapper* other)->bool{
-            return PyObject_TypeCheck(other, Base::getPyType()) &&
+            return PyObject_TypeCheck(other, getPyType()) &&
                    (*reinterpret_cast<PythonClassWrapper *>(self_)->get_CObject() ==
                     *reinterpret_cast<PythonClassWrapper *>(other)->get_CObject());
         };
@@ -213,9 +217,9 @@ namespace pyllars_internal {
         PyTypeObject *const coreTypePtr = PythonClassWrapper<typename core_type<T>::type>::getPyType();
         self->template populate_type_info<T>(&Base::checkType, coreTypePtr);
 
-        int result = Base::_initbase(self, args, kwds, Base::getPyType());
+        int result = Base::_initbase(self, args, kwds, getPyType());
 
-        if (result == ERROR_TYPE_MISMATCH && (ptr_depth<T>::value == 1) &&
+        if (result == ERROR_TYPE_MISMATCH && (ptr_depth<T>::value <= 1) &&
             (PythonClassWrapper<const char *>::checkType((PyObject *) self) ||
              PythonClassWrapper<const char *const>::checkType((PyObject *) self))) {
             if constexpr (std::is_same<T, const char*>::value || std::is_same<T, const char* const>::value) {
@@ -296,43 +300,6 @@ namespace pyllars_internal {
             nullptr,                          /*tp_del*/
             0,                          /*tp_version_tag*/
     };
-
-    namespace {
-
-        template<typename T, typename ...Other>
-        void for_each_init_ptr() {
-            int unused[] = {(CommonBaseWrapper::addCast<T, Other>(
-                    PythonClassWrapper<T>::getRawType(),
-                    PythonClassWrapper<Other>::getRawType(),
-                    &CommonBaseWrapper::template interpret_cast<T, Other>), 0)...};
-            (void)unused;
-        }
-    }
-
-    template <typename  T>
-    void PythonPointerWrapperBase<T>::_initAddCArgCasts(){
-        static_assert(is_pointer_like<T>::value);
-        typedef std::remove_cv_t <T> T_bare;
-
-        if constexpr (!std::is_const<T>::value && !std::is_volatile<T>::value) {
-            for_each_init_ptr<T, T_bare &, const T_bare &, const T_bare>();
-            for_each_init_ptr<T&, T_bare &, const T_bare &, T_bare &&, const T_bare &&, const T_bare>();
-            for_each_init_ptr<T&&, T_bare &, const T_bare &, T_bare &&, const T_bare &&, const T_bare>();
-        } else if (std::is_const<T>::value && !std::is_volatile<T>::value){
-            for_each_init_ptr<T, const T_bare &, const T_bare &&, T_bare , const T_bare>();
-            for_each_init_ptr<T&, const T_bare &, const T_bare &&, T_bare , const T_bare>();
-            for_each_init_ptr<T&&, const T_bare &, const T_bare &&, T_bare , const T_bare>();
-        } else if (!std::is_const<T>::value && std::is_volatile<T>::value){
-            for_each_init_ptr<T, volatile T_bare &, const volatile T_bare &, volatile T_bare &&, const volatile T_bare &&, const volatile T_bare>();
-            for_each_init_ptr<T&, volatile T_bare &, const volatile T_bare &,volatile T_bare &&, const volatile T_bare &&, const volatile T_bare>();
-            for_each_init_ptr<T&&, volatile T_bare &, const volatile T_bare &,volatile T_bare &&, const volatile T_bare &&, const volatile T_bare>();
-        } else {
-            for_each_init_ptr<T, const volatile T_bare &,const volatile T_bare &&, volatile T_bare , const volatile T_bare>();
-            for_each_init_ptr<T&, const volatile T_bare &,  const volatile T_bare &&, volatile T_bare , const volatile T_bare>();
-            for_each_init_ptr<T&&, const volatile T_bare &,  const volatile T_bare &&, volatile T_bare , const volatile T_bare>();
-        }
-
-    }
 
 
 }

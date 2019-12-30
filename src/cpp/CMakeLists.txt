@@ -29,5 +29,5 @@ set_target_properties(pyllars PROPERTIES LIBRARY_OUTPUT_DIRECTORY ../python/pyll
 
 if(MSVC)
 else()
-	target_link_libraries(pyllars PUBLIC -Wl,-rpath '$ORIGIN' ${Python3_LIBRARIES})
+	target_link_libraries(pyllars PUBLIC -Wl,--no-undefined  -Wl,-rpath '$ORIGIN' ${Python3_LIBRARIES} -lffi)
 endif()

@@ -7,6 +7,7 @@
 #include <pyllars/internal/pyllars_classwrapper.impl.hpp>
 #include <pyllars/internal/pyllars_pointer.hpp>
 #include <pyllars/internal/pyllars_reference.hpp>
+#include <pyllars/internal/pyllars_pointer.impl.hpp>
 
 namespace pyllars_internal {
 
@@ -524,7 +525,7 @@ namespace pyllars_internal {
                 PyErr_SetString(PyExc_SystemError, "Internal error getting tuple _CObject");
                 return nullptr;
             }
-            if (!bool(PyLong_Check(item)) || bool(PyObject_TypeCheck(item, PyFloatingPtCustomBase::getPyType()))) {
+            if (!bool(PyLong_Check(item)) || bool(PyObject_TypeCheck(item, PyFloatingPtCustomObject::getPyType()))) {
                 PyErr_SetString(PyExc_ValueError, "Argument must be of integral type");
                 return nullptr;
             }
@@ -647,7 +648,7 @@ namespace pyllars_internal {
             return rc;
         }
         static PyObject *module = pyllars::GlobalNS::module();
-        rc = PyType_Ready(CommonBaseWrapper::getPyType()) |
+        rc = PyType_Ready(CommonBaseWrapper::getBaseType()) |
              PyType_Ready(&PyFloatingPtCustomBase::_Type) |
              PyType_Ready(&PyFloatingPtCustomObject::_Type);
         Py_INCREF(&PyFloatingPtCustomBase::_Type);

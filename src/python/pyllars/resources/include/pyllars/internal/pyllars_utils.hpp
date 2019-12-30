@@ -5,9 +5,7 @@
 #define PyString_Check PyUnicode_Check
 #define PyString_AsString(X) PyUnicode_AsUTF8((X))
 #define PyInt_Check PyLong_Check
-#define PyInt_FromLong PyLong_FromLong
 #define PyInt_AsLong PyLong_AsLong
-#define PyInt_Type PyLong_Type
 #define PyString_FromString PyUnicode_FromString
 
 #define Py_TPFLAGS_CHECKTYPES 0
@@ -32,34 +30,45 @@ namespace pyllars_internal {
     template<typename T>
     struct ptr_depth {
         static constexpr size_t value = 0;
+        typedef T type_repr;
     };
+
     template<typename T>
     struct ptr_depth<T&> {
         static constexpr size_t value = ptr_depth<T>::value;
+        typedef T& type_repr;
     };
+
     template<typename T>
     struct ptr_depth<T *> {
         static constexpr size_t value = ptr_depth<T>::value + 1;
+        typedef typename ptr_depth<std::remove_pointer_t <T> >::type_repr* type_repr;
     };
 
     template<typename T>
     struct ptr_depth<T *const> {
         static constexpr size_t value = ptr_depth<T>::value + 1;
+        typedef typename ptr_depth<std::remove_pointer_t <T> >::type_repr* const type_repr;
     };
 
     template<typename T>
     struct ptr_depth<T *const volatile> {
         static constexpr size_t value = ptr_depth<T>::value + 1;
+        typedef typename ptr_depth<std::remove_pointer_t <T> >::type_repr* const volatile type_repr;
     };
+
 
     template<typename T>
     struct ptr_depth<T *volatile> {
         static constexpr size_t value = ptr_depth<T>::value + 1;
+        typedef typename ptr_depth<std::remove_pointer_t <T> >::type_repr * volatile type_repr;
     };
 
     template<typename T, size_t size>
     struct ptr_depth<T[size]> {
         static constexpr size_t value = ptr_depth<T>::value + 1;
+        typedef typename ptr_depth<T*>::type_repr type_repr;
+//        typedef T* type_repr;//[size];
     };
 
     template<typename T, size_t depth>
@@ -75,6 +84,13 @@ namespace pyllars_internal {
     template<typename T, size_t depth, size_t size>
     struct ptr_of_depth<T[size], depth> {
         typedef typename ptr_of_depth<T, depth - 1>::type type[size];
+    };
+
+
+
+    template<typename T, size_t size>
+    struct ptr_of_depth<T[size], 0> {
+        typedef T type[size];
     };
 
 

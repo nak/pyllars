@@ -41,9 +41,11 @@ namespace pyllars_internal {
         PythonClassWrapper_Base *self_ = reinterpret_cast<PythonClassWrapper_Base *>(self);
         PyObject* obj;
         if(self_->get_CObject()){
-            obj = PyObject_Call((PyObject*)PythonClassWrapper<T*>::getPyType(), NULL_ARGS(), nullptr);
-            ((PythonClassWrapper<T*>*)obj)->set_CObject(&self_->get_CObject());
-            ((PythonClassWrapper<T*>*)obj)->make_reference(self);
+            typedef PythonClassWrapper<T*> PtrWrapper;
+            typedef typename ptr_depth<T*>::type_repr  T_repr;
+            obj = PyObject_Call((PyObject*)PtrWrapper::getPyType(), NULL_ARGS(), nullptr);
+            ((PtrWrapper *) obj)->set_CObject(&self_->get_CObject());
+            ((PtrWrapper*)obj)->make_reference(self);
             PyErr_Clear();
             (reinterpret_cast<PythonClassWrapper<T *>*>(obj))->make_reference(self);
         } else {
@@ -59,42 +61,6 @@ namespace pyllars_internal {
     PythonClassWrapper_Base<T, TrueType>::
     toCArgument() const{
         return *PythonBaseWrapper<T>::get_CObject();
-    }
-
-
-    namespace {
-
-        template<typename T, typename ...Other>
-        void for_each_init_ptrs() {
-            int unused[] = {(CommonBaseWrapper::addCast<T, Other>(
-                    PythonClassWrapper<T>::getRawType(),
-                    PythonClassWrapper<Other>::getRawType(),
-                    &CommonBaseWrapper::template interpret_cast<T, Other>), 0)...};
-            (void)unused;
-        }
-    }
-
-    template <typename  T, typename TrueType>
-    void PythonClassWrapper_Base<T, TrueType>::_initAddCArgCasts(){
-        static_assert(!std::is_reference<T>::value && !std::is_pointer<T>::value);
-        typedef std::remove_cv_t <T> T_bare;
-        if constexpr (!std::is_const<T>::value && !std::is_volatile<T>::value) {
-            for_each_init_ptrs<T, T_bare &, const T_bare &, const T_bare>();
-            for_each_init_ptrs<T&, T_bare &, const T_bare &, T_bare &&, const T_bare &&, const T_bare>();
-            for_each_init_ptrs<T&&, T_bare &, const T_bare &, T_bare &&, const T_bare &&, const T_bare>();
-        } else if (std::is_const<T>::value && !std::is_volatile<T>::value){
-            for_each_init_ptrs<T, const T_bare &, const T_bare &&, T_bare , const T_bare>();
-            for_each_init_ptrs<T&, const T_bare &, const T_bare &&, T_bare , const T_bare>();
-            for_each_init_ptrs<T&&, const T_bare &, const T_bare &&, T_bare , const T_bare>();
-        } else if (!std::is_const<T>::value && std::is_volatile<T>::value){
-            for_each_init_ptrs<T, volatile T_bare &, const volatile T_bare &, volatile T_bare &&, const volatile T_bare &&, const volatile T_bare>();
-            for_each_init_ptrs<T&, volatile T_bare &, const volatile T_bare &,volatile T_bare &&, const volatile T_bare &&, const volatile T_bare>();
-            for_each_init_ptrs<T&&, volatile T_bare &, const volatile T_bare &,volatile T_bare &&, const volatile T_bare &&, const volatile T_bare>();
-        } else {
-            for_each_init_ptrs<T, const volatile T_bare &,const volatile T_bare &&, volatile T_bare , const volatile T_bare>();
-            for_each_init_ptrs<T&, const volatile T_bare &,  const volatile T_bare &&, volatile T_bare , const volatile T_bare>();
-            for_each_init_ptrs<T&&, const volatile T_bare &,  const volatile T_bare &&, volatile T_bare , const volatile T_bare>();
-        }
     }
 
 
@@ -116,7 +82,7 @@ namespace pyllars_internal {
     _free(void *self_) {
         auto *self = (PythonClassWrapper_Base *) self_;
         if (!self->get_CObject()) return;
-        if constexpr (std::is_destructible<T>::value) {
+        if constexpr (std::is_destructible<T>::value && !std::is_reference<TrueType>::value) {
             delete self->get_CObject();
         }
         self->set_CObject(nullptr);
@@ -175,6 +141,8 @@ namespace pyllars_internal {
 
             if constexpr(!is_complete<T>::value){
                 throw PyllarsException(PyExc_ValueError, "Cannot allocate multiple disparate instances using incomplete type");
+            } else if constexpr(std::is_same<Base, PythonBaseWrapper<TrueType> >::value){
+                throw PyllarsException(PyExc_ValueError, "Cannot allocate reference type");
             } else {
                 const ssize_t size = PyList_Size(arg);
                 if (size < 0) {
@@ -189,27 +157,12 @@ namespace pyllars_internal {
                     PyObject *constructor_args = PyList_GetItem(arg, i);
                     if (!constructor_args || !PyTuple_Check(constructor_args)) {
                         PyErr_SetString(PyExc_TypeError,
-                                        "Invalid constructor arguments: not a tuple as expected, or index out of range");
+                                "Invalid constructor arguments: not a tuple as expected, or index out of range");
                         return nullptr;
                     }
-                    T *cobj = nullptr;
-                    for (auto const &[kwlist_, constructor_] : PythonClassWrapper_Base<T, TrueType>::_constructors()) {
-                        try {
-                            cobj = constructor_(kwlist_, constructor_args, nullptr, bytebucket + i);
-                            if (cobj) break;
-                        } catch (PyllarsException &) {
-                            //try next one
-                        } catch(std::exception const & e) {
-                            PyllarsException::raise_internal_cpp(e.what());
-                            return nullptr;
-                        } catch (...){
-                            PyllarsException::raise_internal_cpp();
-                            return nullptr;
-                        }
-                        PyErr_Clear();
-                    }
+                    T *cobj = Base::allocate(constructor_args, nullptr, bytebucket + i);
                     if (!cobj) {
-                        if constexpr (std::is_destructible<T>::value) {
+                        if constexpr (std::is_destructible<T>::value  && !has_finite_extent<T>::value) {
                             for (ssize_t j = 0; j < i; ++j) {
                                 cobj_ptr[j].~T();
                             }
@@ -221,6 +174,7 @@ namespace pyllars_internal {
                 auto pyobj = PythonClassWrapper<T *>::fromInPlaceAllocation(size, bytebucket);
                 return (PyObject *) pyobj;
             }
+
         }
         throw PyllarsException(PyExc_ValueError, "Invalid constructor arguments");
     }
@@ -231,8 +185,6 @@ namespace pyllars_internal {
     int PythonClassWrapper_Base<T, TrueType>::
     _init(PythonClassWrapper_Base *self, PyObject *args, PyObject *kwds) {
         int status = 0;
-        _initAddCArgCasts();
-
 
         for (auto const &ready: Base::getTypeProxy()._childrenReadyFunctions){
             if(!ready()){
@@ -247,7 +199,7 @@ namespace pyllars_internal {
             self->compare = [](CommonBaseWrapper *self_, CommonBaseWrapper *other) -> bool {
                 if constexpr(has_operator_compare<T, T>::value) {
                     typedef std::remove_volatile_t <T> T_bare;
-                    return PyObject_TypeCheck(other, getPyType()) &&
+                    return PyObject_TypeCheck(other, PythonClassWrapper<TrueType>::getPyType()) &&
                            (*((T_bare*)reinterpret_cast<PythonClassWrapper_Base *>(self_)->get_CObject()) ==
                            * ((T_bare*)reinterpret_cast<PythonClassWrapper_Base *>(other)->get_CObject()));
                 } else {
@@ -282,38 +234,17 @@ namespace pyllars_internal {
             self->set_CObject((T*)kwds);
             return 0;
         }
-
-        for (auto const &[kwlist_, constructor] : PythonClassWrapper_Base<T, TrueType>::_constructors()) {
-            (void) kwlist_;
-            try {
-                self->set_CObject(constructor(kwlist, args, kwds, nullptr));
-                if (self->get_CObject()) {
-                    self->_isInitialized = true;
-                    return 0;
-                }
-            } catch (PyllarsException &) {
-                //try next one
-            } catch(std::exception const & e) {
-                PyllarsException::raise_internal_cpp(e.what());
-                return -1;
-            } catch (...){
-                PyllarsException::raise_internal_cpp();
+        if constexpr (!std::is_reference<TrueType>::value){
+            auto obj = Base::allocate(args, kwds);
+            if (obj) {
+                self->set_CObject(obj);
+                return 0;
+            } else {
                 return -1;
             }
-            PyErr_Clear();
-        }
-        if ((PyTuple_Size(args) == 0) && kwds && PyDict_Size(kwds) == 0) {
-            PyErr_SetString(PyExc_RuntimeError, "Creation of null C object not allowed");
-            return -1;
         } else {
-            if(!PyErr_Occurred()) {
-                PyErr_SetString(PyExc_TypeError, "Invalid constructor argument(s)");
-            }
-            return -1;
+            return 0;
         }
-
-        PyErr_SetString(PyExc_TypeError, "Unknown type for init");
-        return -1;
     }
 
 
@@ -334,10 +265,9 @@ namespace pyllars_internal {
         typedef PythonClassWrapper_Base<basic_type, basic_type> Basic;
         static bool inited = false;
         if (inited) return 0;
-        _isInitialized = false;
         inited = true;
-        
-        if(Type.tp_basicsize == -1) {
+        Base::_addReinterpretations();
+        if( Type.tp_basicsize == -1) {
             Type.tp_basicsize = sizeof(PythonClassWrapper_Base);
             Type.tp_dealloc = (destructor) _dealloc;
             Type.tp_getattr = _pyGetAttr;
@@ -509,27 +439,25 @@ namespace pyllars_internal {
         }
         Base::getTypeProxy()._baseClasses = Base::getTypeProxy()._baseClasses;
         if (!Type.tp_base && Base::getTypeProxy()._baseClasses.size() == 0) {
-            if (PyType_Ready(CommonBaseWrapper::getRawType()) < 0) {
-                PyErr_SetString(PyExc_RuntimeError, "Failed to set_up type!");
-                return -1;
-            }
-            Type.tp_base = CommonBaseWrapper::getRawType();
+            Type.tp_base = CommonBaseWrapper::getBaseType();
         }
-
-
+        assert(Type.tp_base != &Type);
         Type.tp_dict = PyDict_New();
         Base::getTypeProxy()._classTypes = Base::getTypeProxy()._classTypes;
         for (auto const &[name, type]: Base::getTypeProxy()._classTypes){
-            PyDict_SetItemString(Type.tp_dict, name.c_str(), (PyObject*)type());
+            PyTypeObject* typ = type();
+            PyType_Ready(typ);
+            PyDict_SetItemString(Type.tp_dict, name.c_str(), (PyObject*) typ);
         }
 
-        if constexpr (std::is_enum<T>::value || is_scoped_enum<T>::value) {
-            _classEnumValues() = Basic::_classEnumValues();
-            for (auto const&[name_, value]: _classEnumValues()) {
+        if constexpr ((std::is_enum<TrueType>::value || is_scoped_enum<TrueType>::value) &&
+                      !std::is_same<Base, PythonBaseWrapper<T> >::value){
+            Base::_classEnumValues() = Basic::_classEnumValues();
+            for (auto const&[name_, value]: Base::_classEnumValues()) {
                 // can only be called after ready of Type:
 
                 const Shadow<T> *shadowed = reinterpret_cast<const Shadow<T> *>(value);
-                PythonClassWrapper<Shadow<T>>::_initAddCArgCasts();
+                PythonBaseWrapper<Shadow<T>>::_addReinterpretations();
                 auto *pyval = (PythonClassWrapper<const Shadow<T> > *) PyObject_Call(
                         (PyObject *) PythonClassWrapper<const Shadow<T> >::getPyType(), NULL_ARGS(), nullptr);
                 pyval->set_CObject(shadowed);
@@ -554,31 +482,50 @@ namespace pyllars_internal {
 
         if constexpr (!std::is_const<T>::value) {
             static const char *const const_name = "const";
-            typedef const typename std::remove_const_t<T> T_const;
-            PyDict_SetItemString(Type.tp_dict, const_name, (PyObject *) PythonClassWrapper<T_const>::getPyType());
+            typedef const typename std::remove_const_t<TrueType> T_const;
+            auto const_Type =  (PyObject *) PythonClassWrapper<T_const>::getPyType();
+            PyDict_SetItemString(Type.tp_dict, const_name, const_Type);
         }
         PyDict_SetItemString(Type.tp_dict, "this", (PyObject*) PythonClassWrapper<T*>::getPyType());
         if constexpr(!std::is_volatile<T>::value) {
             static const char *const volatile_name = "volatile";
-            typedef volatile typename std::remove_volatile_t<T> T_volatile;
-            PyDict_SetItemString(Type.tp_dict, volatile_name, (PyObject *) PythonClassWrapper<T_volatile>::getPyType());
+            typedef volatile typename std::remove_volatile_t<TrueType> T_volatile;
+            auto * typ = (PyObject *) PythonClassWrapper<T_volatile>::getPyType();
+            PyDict_SetItemString(Type.tp_dict, volatile_name, typ);
         }
 
+        if (Type.tp_base) {
+            if (PyType_Ready(Type.tp_base) < 0) {
+                PyErr_SetString(PyExc_RuntimeError, "Failed to ready base type");
+                return -1;
+            }
+        }
+        if (Type.tp_bases){
+            for (int i = 0; i < PyTuple_Size(Type.tp_bases); ++i){
+                if (PyType_Ready((PyTypeObject*) PyTuple_GetItem(Type.tp_bases, i)) < 0){
+                    PyErr_SetString(PyExc_RuntimeError, "Failed to ready base type");
+                    return -1;
+                }
+            }
+        }
         if (PyType_Ready(&Type) < 0) {
-            PyErr_SetString(PyExc_RuntimeError, "Failed to set_up type!");
+            PyErr_SetString(PyExc_RuntimeError, "Failed to ready type!");
             return -1;
         }
+
+
         PyObject *const type = reinterpret_cast<PyObject *>(&Type);
         Py_INCREF(type);
 
-        _isInitialized = inited;
         return 0;
     }
 
 
-
     template<typename T, typename TrueType>
-    bool PythonClassWrapper_Base<T, TrueType>::_isInitialized = false;
+    int
+    PythonClassWrapper_Base<T, TrueType>::readyType() {
+
+    }
 
 
     template<const char *const name, const char *const kwlist[], typename func_type, func_type method>
@@ -608,7 +555,7 @@ namespace pyllars_internal {
         if constexpr(func_traits<method_t>::is_const_method) {
             _methodCollectionConst[name]  = pyMeth;
             if constexpr (!std::is_const<Class>::value) {
-                PythonClassWrapper<const Class>::_Type.template addMethod<const Class, name, kwlist, method_t, method>();
+                PythonClassWrapper<const Class>::getTypeProxy().template addMethod<const Class, name, kwlist, method_t, method>();
             }
         } else {
             _methodCollection[name] = pyMeth;

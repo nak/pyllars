@@ -29,8 +29,7 @@ namespace pyllars_internal{
             hash_t hash;
 
 
-            static PyTypeObject* getPyType();
-            static PyTypeObject* getRawType();
+            static PyTypeObject* getBaseType();
 
             static bool IsClassType(PyObject *obj);
 
@@ -50,15 +49,7 @@ namespace pyllars_internal{
                  * @return true if such a conversion allowed, false otherwise
                  */
             template<typename T>
-            static bool checkImplicitArgumentConversion(PyObject *obj){
-                static constexpr bool to_is_const = std::is_const<T>::value;
-                static constexpr bool to_is_reference = std::is_reference<T>::value;
-                typedef typename core_type<T>::type core_t;
-                auto const self = reinterpret_cast<CommonBaseWrapper*>(obj);
-                return (bool) PyObject_TypeCheck(obj, CommonBaseWrapper::getRawType()) && // is truly wrapping a C object
-                       (self->_coreTypePtr == PythonClassWrapper<core_t>::getPyType()) && //core type match
-                       (to_is_const || !to_is_reference || !self->_is_const); // logic for conversion-is-allowed
-            }
+            static bool checkImplicitArgumentConversion(PyObject *obj);
 
             static std::map< std::pair<PyTypeObject*, PyTypeObject*>, PyObject* (*)(PyObject*)> & castMap();
 
@@ -75,19 +66,11 @@ namespace pyllars_internal{
             }
 
             template <typename Class, typename Other>
-            static PyObject* interpret_cast(PyObject* self){
-                auto self_ = (PythonClassWrapper<Class>*)self;
-                auto castWrapper = reinterpret_cast<PythonClassWrapper<Other>*>(
-                        PyObject_Call((PyObject*)PythonClassWrapper<Other>::getPyType(),
-                                      NULL_ARGS(), nullptr));
-                typedef typename std::remove_reference_t <Other> Other_NoRef;
-                castWrapper->set_CObject(const_cast<Other_NoRef *>(self_->get_CObject()));
-                return (PyObject*) castWrapper;
-            }
+            static PyObject* interpret_cast(PyObject* self);
 
 
-            template<typename From, typename To>
             static void addCast(PyTypeObject* o, PyTypeObject* o2, PyObject*(*)(PyObject*));
+
 
             protected:
             static std::map<std::pair<PyTypeObject*, PyTypeObject*>, PyObject*(*)(PyObject*)>& _castAsCArgument();
@@ -186,10 +169,6 @@ namespace pyllars_internal{
             };
 
 
-            static int
-            inline __init(PyObject *self, PyObject *args, PyObject *kwds){
-                return 0;
-            }
 
             static PyObject *_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 
@@ -222,15 +201,22 @@ namespace pyllars_internal{
     template<typename T>
     struct DLLEXPORT PythonBaseWrapper: public CommonBaseWrapper{
 
+        //to prevent infinite recursions in supporting an "addr" method to take address of an element,
+        //we represent all point-to-pointer(-to-pointer...) as simply a point-to-pointer type, and so assert
+        //that we never have a base represenetation of pointer depth greater than 2
+        static_assert(ptr_depth<T>::value <= 2);
+
         typedef std::remove_reference_t <T> T_bare;
+
+        typedef T_bare* storage_type;
 
         /**
          * return the C-like object associated with this Python wrapper
          */
-        inline T_bare *get_CObject() const{return _CObject;}
-        inline T_bare * & get_CObject(){return _CObject;}
+        inline storage_type  get_CObject() const{return _CObject;}
+        inline storage_type & get_CObject(){return _CObject;}
 
-        inline void set_CObject(T_bare * value ){_CObject = value;}
+        inline void set_CObject(const storage_type value ){_CObject = value;}
 
         inline static constexpr TypedProxy & getTypeProxy(){return _Type;}
 
@@ -244,17 +230,88 @@ namespace pyllars_internal{
          */
         static PyTypeObject * getRawType(){return &_Type.type();}
 
+        static void _addReinterpretations();
+
         static size_t offset_of_CObj(){
             return  offset_of<T*, PythonBaseWrapper >(&PythonBaseWrapper::_CObject);
         }
 
+
+        /**
+          * Create an instance of underlying class based on python arguments converting them to C to call
+          * the constructor
+          *
+          * @param kwlist: list of keyword names of the Python parameters
+          * @param args: list of Python args from the Python call into the C constructor
+          * @params kwds: keywoards bassed into the copnstructor
+          **/
+        template<typename ...Args>
+        static T_bare* create(const char *const kwlist[], PyObject *args, PyObject *kwds, unsigned char* location=nullptr) ;
+
+        /**
+         * add a constructor method with given compile-time-known name to the contained collection
+         *
+         * @templateparams Args varidic list of templat argument types
+         *
+         * @param kwlist: list of keyword names of parameter names for name association
+         **/
+        template<const char*  const kwlist[], typename ...Args>
+        static void addConstructor();
+
+    protected:
+
+        template <typename T_NoRef = T> //to force instantiation only for non-reference types (references cannot be allocated)
+        static storage_type allocate(PyObject *args, PyObject *kwds, unsigned char* location=nullptr);
+
+        static std::map<std::string, const std::remove_reference_t<typename std::remove_cv_t<T>>*>& _classEnumValues(){
+            static std::map<std::string, const std::remove_reference_t<typename std::remove_cv_t<T>>*> container;
+            return container;
+        }
+
+        void set_depth(size_t depth){_ptrDepth = depth;}
+
+        size_t get_depth() const{return _ptrDepth;}
+
+
     private:
 
-        static TypedProxy _Type;
+        typedef T_bare* (*constructor_t)(const char *const kwlist[], PyObject *args, PyObject *kwds,
+                                    unsigned char* const location);
+
+        template<typename ...PyO>
+        static bool _parsePyArgs(const char *const kwlist[], PyObject *args, PyObject *kwds, PyO *&...pyargs);
+
+
+        template <typename Z>
+        struct _____fake{
+
+        };
+
+        /**
+         * in order to convert args to a parameter list of args, need to go through
+         * two lower level create functions
+         **/
+        template<typename ...Args>
+        static T_bare* _createBaseBase( unsigned char *location, argument_capture<Args> ... args);
+
+        template<typename ...Args, int ...S >
+        static T_bare* _createBase( unsigned char *location, PyObject *args, PyObject *kwds,
+                               const char *const kwlist[], container<S...> unused1, _____fake<Args> *... unused2);
+
+        typedef std::pair<const char* const*, constructor_t> ConstructorContainer;
+        static std::vector<ConstructorContainer>& _constructors(){
+            static std::vector<ConstructorContainer> container;
+            return container;
+        }
+
+
+        static CommonBaseWrapper::TypedProxy _Type;
 
         T_bare * _CObject;
+        size_t _ptrDepth;
 
     };
+
 
 }
 

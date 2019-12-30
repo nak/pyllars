@@ -20,23 +20,25 @@ namespace pyllars_internal {
         return status;
     }
 
-    template<typename T, typename TrueType>
+    template<typename T>
     PyTypeObject*
-    PythonClassWrapper_Base<T, TrueType>::getPyType(){
+    PythonClassWrapper<T, typename std::enable_if< is_rich_class<T>::value>::type>::getPyType(){
         return (initialize() == 0)?Base::getRawType():nullptr;
     }
 
     template<typename T, typename TrueType>
-    template<typename Base>
+    template<typename BaseClass>
     void PythonClassWrapper_Base<T, TrueType>::
     addBaseClass() {
-        PyTypeObject * base = PythonClassWrapper<Base>::getRawType();
+        PyTypeObject * base = PythonClassWrapper<BaseClass>::getRawType();
         if (!base) return;
         PythonClassWrapper<T>::getTypeProxy()._baseClasses.insert(PythonClassWrapper<T>::getTypeProxy()._baseClasses.begin(), base);
-        PythonClassWrapper<T>::getTypeProxy()._childrenReadyFunctions.insert(PythonClassWrapper<T>::getTypeProxy()._childrenReadyFunctions.begin(), &PythonClassWrapper<Base>::getPyType);
-        auto baseTyp = PythonClassWrapper<Base>::getRawType();
+        PythonClassWrapper<T>::getTypeProxy()._childrenReadyFunctions.insert(
+                PythonClassWrapper<T>::getTypeProxy()._childrenReadyFunctions.begin(), 
+                &PythonClassWrapper<BaseClass>::getPyType);
+        auto baseTyp = PythonClassWrapper<BaseClass>::getRawType();
         auto key = std::pair{baseTyp, PythonBaseWrapper<T>::getRawType()};
-        CommonBaseWrapper::castMap()[key] = &cast<Base>;
+        CommonBaseWrapper::castMap()[key] = &cast<BaseClass>;
     }
 
 
@@ -56,17 +58,17 @@ namespace pyllars_internal {
     PythonClassWrapper_Base<T, TrueType> *
     PythonClassWrapper_Base<T, TrueType>::
     fromCObject(T &cobj) {
-        if (!PythonClassWrapper<T>::getTypeProxy().type().tp_name) {
+        if (!PythonClassWrapper<TrueType>::getTypeProxy().type().tp_name) {
             PyErr_SetString(PyExc_RuntimeError, "Uninitialized type when creating object");
             return nullptr;
         }
         auto pyobj = (PythonClassWrapper_Base *) PyObject_Call(
-                reinterpret_cast<PyObject *>(getPyType()), NULL_ARGS(), nullptr);
+                reinterpret_cast<PyObject *>(PythonClassWrapper<TrueType>::getPyType()), NULL_ARGS(), nullptr);
         if (pyobj) {
             if constexpr (std::is_reference<T>::value){
-                pyobj->_CObject = &cobj;
+                pyobj->set_CObject(&cobj);
             } else if constexpr (std::is_copy_constructible<T>::value){
-                pyobj->_CObject = new T(cobj);//ObjectLifecycleHelpers::Copy<T>::new_copy(cobj);
+                pyobj->set_CObject(new T(cobj));
             } else {
                 PyErr_Format(PyExc_RuntimeError, "Attempt to make copy of non-copiable type %s", Types<T>::type_name());
                 return nullptr;
@@ -75,17 +77,9 @@ namespace pyllars_internal {
         return pyobj;
     }
 
-
-    template <typename From, typename To>
-    void CommonBaseWrapper::addCast(PyTypeObject* from, PyTypeObject* to, PyObject*(*convert)(PyObject*)){
-        static_assert((std::is_void<From>::value || is_complete<From>::value) && is_complete<To>::value);
-        if constexpr(!std::is_void<From>::value) {
-            static_assert(sizeof(std::remove_reference_t<From>) == sizeof(std::remove_reference_t<To>));
-        }
-        if (from != to) {
-            _castAsCArgument().insert(std::pair{std::pair{from, to}, convert});
-        }
-    }
+    template<typename T, typename TrueType>
+    typename PythonClassWrapper_Base<T, TrueType>::Initializer
+    PythonClassWrapper_Base<T, TrueType>::initializer;
 
 }
 #endif

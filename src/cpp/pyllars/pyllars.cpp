@@ -161,7 +161,7 @@ namespace pyllars_internal {
         nullptr,                         /* tp_descr_get */
         nullptr,                         /* tp_descr_set */
         0,                         /* tp_dictoffset */
-        CommonBaseWrapper::__init,  /* tp_init */
+        nullptr,  /* tp_init */
         nullptr,                         /* tp_alloc */
         CommonBaseWrapper::_new,             /* tp_new */
         nullptr,                         /*tp_free*/
@@ -329,8 +329,7 @@ namespace pyllars_internal {
         _referenced = obj;
     }
 
-    PyTypeObject* CommonBaseWrapper::getPyType() {return &_BaseType;}
-    PyTypeObject* CommonBaseWrapper::getRawType() {return &_BaseType;}
+    PyTypeObject* CommonBaseWrapper::getBaseType() {return &_BaseType;}
 
     std::map< std::pair<PyTypeObject*, PyTypeObject*>, PyObject* (*)(PyObject*)> & CommonBaseWrapper::castMap() {
         static std::map< std::pair<PyTypeObject*, PyTypeObject*>, PyObject* (*)(PyObject*)> map;
@@ -409,6 +408,14 @@ namespace pyllars_internal {
             _methodCollection[pyMeth.ml_name] = pyMeth;
         }
     }
+
+
+    void CommonBaseWrapper::addCast(PyTypeObject* from, PyTypeObject* to, PyObject*(*convert)(PyObject*)){
+        if (from != to) {
+            _castAsCArgument().insert(std::pair{std::pair{from, to}, convert});
+        }
+    }
+
 }
 
 #include "pyllars_namespacewrapper.hpp"

@@ -10,22 +10,21 @@
 namespace pyllars_internal {
 
 
-    template<typename Class>
+    template<typename T, typename TrueType>
     template<const char *const name, typename FieldType>
-    void PythonClassWrapper<Class,
-            typename std::enable_if<is_rich_class<Class>::value>::type>::
-    addStaticAttribute(FieldType *member) {
+    void
+    PythonClassWrapper_Base<T, TrueType>::addStaticAttribute(FieldType *member) {
 
         static const char *const doc = "Get attribute ";
         char *doc_string = new char[strlen(name) + strlen(doc) + 1];
         snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
-        ClassMember<name, T_NoRef, FieldType>::member = member;
+        ClassMember<name, T, FieldType>::member = member;
         PyMethodDef pyMeth = {name,
-                              (PyCFunction) ClassMember<name, T_NoRef, FieldType>::call,
+                              (PyCFunction) ClassMember<name, T, FieldType>::call,
                               METH_VARARGS | METH_KEYWORDS | METH_CLASS,
                               doc_string
         };
-        _Type.addPyMethod(pyMeth, false);
+        Base::getTypeProxy().addPyMethod(pyMeth, false);
     }
 
 }

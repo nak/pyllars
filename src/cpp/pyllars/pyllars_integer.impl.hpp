@@ -8,6 +8,7 @@
 
 #include "pyllars_class.hpp"
 #include "pyllars_namespacewrapper.hpp"
+#include "pyllars/internal/pyllars_pointer.impl.hpp"
 
 namespace pyllars_internal {
 
@@ -88,7 +89,7 @@ namespace pyllars_internal {
         PyNumberCustomObject::getRawType()->tp_base = PyNumberCustomBase::getRawType();
         rc = PyType_Ready(PyNumberCustomBase::getRawType());
         rc |= PyType_Ready(getRawType());
-        rc |= PyType_Ready(CommonBaseWrapper::getPyType());
+        rc |= PyType_Ready(CommonBaseWrapper::getBaseType());
         rc |= PyType_Ready(PyNumberCustomObject::getRawType());
         Py_INCREF(getRawType());
         Py_INCREF(PyNumberCustomBase::getRawType());
@@ -349,7 +350,7 @@ namespace pyllars_internal {
             pyllars_internal::type_name<number_type>(), /*tp_name*/
             sizeof(PyNumberCustomObject<number_type>), /*tp_basicsize*/
             0, /*tp_itemsize*/
-            nullptr, /*tp_dealloc*/
+            PyNumberCustomObject::_dealloc, /*tp_dealloc*/
             nullptr, /*tp_print*/
             nullptr, /*tp_getattr*/
             nullptr, /*tp_setattr*/
@@ -615,6 +616,13 @@ namespace pyllars_internal {
 
 
     template<typename number_type>
+    void PyNumberCustomObject<number_type>::_dealloc(PyObject* self){
+        auto * self_ = reinterpret_cast<PyNumberCustomObject*>(self);
+        delete self_->_CObject;
+        self_->_CObject = nullptr;
+    }
+
+    template<typename number_type>
     int PyNumberCustomObject<number_type>::_init(PyNumberCustomObject *self, PyObject *args, PyObject *) {
         self->compare = [](CommonBaseWrapper *self_, CommonBaseWrapper *other) -> bool {
             return PyObject_TypeCheck(other, getPyType()) &&
@@ -634,7 +642,6 @@ namespace pyllars_internal {
             self->_CObject = nullptr;
             return 0;
         } else if (self) {
-
 
             if (PyTuple_Size(args) == 0) {
                 if constexpr (std::is_reference<number_type>::value) {
@@ -688,7 +695,7 @@ namespace pyllars_internal {
 
         template<typename T, typename ...Other>
         void for_each_init2() {
-            int unused[] = {(CommonBaseWrapper::addCast<T, Other>(
+            int unused[] = {(CommonBaseWrapper::addCast(
                     PythonClassWrapper<T>::getRawType(),
                     PythonClassWrapper<Other>::getRawType(),
                     &CommonBaseWrapper::template interpret_cast<T, Other>
