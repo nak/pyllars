@@ -598,16 +598,12 @@ namespace pyllars_internal {
     template<typename T>
     struct DLLEXPORT argument_capture;
 
-    template<typename T, typename E = void>
+    template<typename T>
     struct DLLEXPORT PythonClassWrapper;
 
-    template<>
-    class PythonClassWrapper<const float>;
 
-
-    template<>
-    class PythonClassWrapper<const double>;
-
+    template<typename T>
+    struct DLLEXPORT PythonFunctionWrapper;
 
     enum class DLLEXPORT OpUnaryEnum : unsigned char{
         INV,

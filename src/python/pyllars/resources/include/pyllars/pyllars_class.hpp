@@ -38,7 +38,6 @@ namespace pyllars {
         public:
             explicit Initializer() {
                 using namespace pyllars_internal;
-                Init::registerInit(PythonClassWrapper<Class>::preinit);
                 Init::registerInit(init);
                 Init::registerReady(ready);
             }
@@ -52,14 +51,14 @@ namespace pyllars {
             struct ForEach{
             public:
                 ForEach() {
-		            static std::vector<int> unused {(PythonClassWrapper<typename ApplyCv<CvBaseClass, Class>::type>::template addBaseClass<CvBaseClass>(), 0)...};
+		            static std::vector<int> unused {(Classes<typename ApplyCv<CvBaseClass, Class>::type>::template addBaseClass<CvBaseClass>(), 0)...};
 		            (void)unused;
                 }
             };
 
             static status_t ready(){
                 using namespace pyllars_internal;
-		if constexpr(is_complete<Parent>::value) {
+		        if constexpr(is_complete<Parent>::value) {
                     //for incomplete types the following will be evaled and cause compile errors if included in if constexpr above
                     if constexpr(!std::is_base_of<pyllars::NSInfoBase, Parent>::value) {
                         PythonClassWrapper<Parent>::addClassObject(Types<Class>::type_name(),
@@ -69,9 +68,7 @@ namespace pyllars {
                 //add each base class in parameter pack...
                 static std::vector<int> unused{(ForEach<BaseClass, const BaseClass, volatile BaseClass, const volatile BaseClass>(), 0)...};
                 (void)unused;
-
-                //we are now ready to ready the Python type associated with this class:
-                int status = PythonClassWrapper<Class>::template ready<Parent>();
+                int status = 0;
                 if constexpr(is_complete<Parent>::value) {
                     //for incomplete types the following will be evaled and cause compile errors if included in if constexpr above
                     if constexpr(std::is_base_of<pyllars::NSInfoBase, Parent>::value) {

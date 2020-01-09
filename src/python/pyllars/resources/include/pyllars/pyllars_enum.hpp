@@ -35,7 +35,7 @@ namespace pyllars{
                 static std::vector<EnumType> evalues{values...};
                 unsigned int counter = 0;
                 for(auto &v: evalues){
-                    PythonClassWrapper<EnumType>::addEnumValue(vnames[counter++], v);
+                    Classes<EnumType>::addEnumValue(vnames[counter++], v);
                 }
 
                 if constexpr(name != nullptr) {

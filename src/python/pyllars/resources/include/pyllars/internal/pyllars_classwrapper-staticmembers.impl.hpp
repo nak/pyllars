@@ -10,17 +10,17 @@
 namespace pyllars_internal {
 
 
-    template<typename T, typename TrueType>
+    template<typename T>
     template<const char *const name, typename FieldType>
     void
-    PythonClassWrapper_Base<T, TrueType>::addStaticAttribute(FieldType *member) {
+    Classes<T>::addStaticAttribute(FieldType *member) {
 
         static const char *const doc = "Get attribute ";
         char *doc_string = new char[strlen(name) + strlen(doc) + 1];
         snprintf(doc_string, strlen(name) + strlen(doc) + 1, "%s%s", doc, name);
-        ClassMember<name, T, FieldType>::member = member;
+        ClassMember<name, T_NoRef, FieldType>::member = member;
         PyMethodDef pyMeth = {name,
-                              (PyCFunction) ClassMember<name, T, FieldType>::call,
+                              (PyCFunction) ClassMember<name, T_NoRef, FieldType>::call,
                               METH_VARARGS | METH_KEYWORDS | METH_CLASS,
                               doc_string
         };

@@ -5,6 +5,7 @@
 #include <pyllars/internal/pyllars_pointer-type.impl.hpp>
 #include "pyllars/internal/pyllars_classwrapper-type.impl.hpp"
 #include "pyllars/internal/pyllars_pointer.impl.hpp"
+#include <pyllars/internal/pyllars_pointer-createAllocatedInstance.impl.hpp>
 #include "pyllars/internal/pyllars_reference.impl.hpp"
 #include "pyllars/internal/pyllars_integer.hpp"
 #include "pyllars/pyllars_class.hpp"

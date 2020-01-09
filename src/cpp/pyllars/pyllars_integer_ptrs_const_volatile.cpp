@@ -8,6 +8,7 @@
 #include "pyllars/pyllars_class.hpp"
 #include <pyllars/internal/pyllars_pointer-type.impl.hpp>
 #include <pyllars/internal/pyllars_pointer.impl.hpp>
+#include <pyllars/internal/pyllars_pointer-createAllocatedInstance.impl.hpp>
 
 namespace pyllars_internal {
 
@@ -52,128 +53,42 @@ namespace pyllars_internal {
     template
     struct DLLEXPORT PythonClassWrapper<const volatile unsigned long long *>;
 
-    template
-    struct DLLEXPORT PythonClassWrapper<const volatile bool &>;
 
     template
-    struct DLLEXPORT PythonClassWrapper<const volatile char &>;
+    struct DLLEXPORT Pointers<const volatile bool *>;
 
     template
-    struct DLLEXPORT PythonClassWrapper<const volatile signed char &>;
+    struct DLLEXPORT Pointers<const volatile char *>;
 
     template
-    struct DLLEXPORT PythonClassWrapper<const volatile short &>;
+    struct DLLEXPORT Pointers<const volatile signed char *>;
 
     template
-    struct DLLEXPORT PythonClassWrapper<const volatile int &>;
+    struct DLLEXPORT Pointers<const volatile short *>;
 
     template
-    struct DLLEXPORT PythonClassWrapper<const volatile long &>;
+    struct DLLEXPORT Pointers<const volatile int *>;
 
     template
-    struct DLLEXPORT PythonClassWrapper<const volatile long long &>;
+    struct DLLEXPORT Pointers<const volatile long *>;
 
     template
-    struct DLLEXPORT PythonClassWrapper<const volatile unsigned char &>;
+    struct DLLEXPORT Pointers<const volatile long long *>;
 
     template
-    struct DLLEXPORT PythonClassWrapper<const volatile unsigned short &>;
-
-    template
-    struct DLLEXPORT PythonClassWrapper<const volatile unsigned int &>;
-
-    template
-    struct DLLEXPORT PythonClassWrapper<const volatile unsigned long &>;
-
-    template
-    struct DLLEXPORT PythonClassWrapper<const volatile unsigned long long &>;
-
-
+    struct DLLEXPORT Pointers<const volatile unsigned char *>;
 
 
     template
-    struct DLLEXPORT PythonClassWrapper<const volatile bool &&>;
+    struct DLLEXPORT Pointers<const volatile unsigned short *>;
 
     template
-    struct DLLEXPORT PythonClassWrapper<const volatile char &&>;
+    struct DLLEXPORT Pointers<const volatile unsigned int *>;
 
     template
-    struct DLLEXPORT PythonClassWrapper<const volatile signed char &&>;
+    struct DLLEXPORT Pointers<const volatile unsigned long *>;
 
     template
-    struct DLLEXPORT PythonClassWrapper<const volatile short &&>;
-
-    template
-    struct DLLEXPORT PythonClassWrapper<const volatile int &&>;
-
-    template
-    struct DLLEXPORT PythonClassWrapper<const volatile long &&>;
-
-    template
-    struct DLLEXPORT PythonClassWrapper<const volatile long long &&>;
-
-    template
-    struct DLLEXPORT PythonClassWrapper<const volatile unsigned char &&>;
-
-    template
-    struct DLLEXPORT PythonClassWrapper<const volatile unsigned short &&>;
-
-    template
-    struct DLLEXPORT PythonClassWrapper<const volatile unsigned int &&>;
-
-    template
-    struct DLLEXPORT PythonClassWrapper<const volatile unsigned long &&>;
-
-    template
-    struct DLLEXPORT PythonClassWrapper<const volatile unsigned long long &&>;
-
-}
-
-namespace pyllars{
-
-
-
-    template
-    class DLLEXPORT PyllarsClass<const volatile char, GlobalNS>;
-
-
-    template
-    class DLLEXPORT PyllarsClass<const volatile unsigned char, GlobalNS>;
-
-
-    template
-    class DLLEXPORT PyllarsClass<const volatile signed char, GlobalNS>;
-
-
-    template
-    class DLLEXPORT PyllarsClass<const volatile short, GlobalNS>;
-
-
-    template
-    class DLLEXPORT PyllarsClass<const volatile unsigned short, GlobalNS>;
-
-
-    template
-    class DLLEXPORT PyllarsClass<const volatile int, GlobalNS>;
-
-
-    template
-    class DLLEXPORT PyllarsClass<const volatile unsigned int, GlobalNS>;
-
-
-    template
-    class DLLEXPORT PyllarsClass<const volatile long, GlobalNS>;
-
-
-    template
-    class DLLEXPORT PyllarsClass<const volatile unsigned long, GlobalNS>;
-
-
-    template
-    class DLLEXPORT PyllarsClass<const volatile long long, GlobalNS>;
-
-
-    template
-    class DLLEXPORT PyllarsClass<const volatile unsigned long long, GlobalNS>;
+    struct DLLEXPORT Pointers<const volatile unsigned long long *>;
 
 }

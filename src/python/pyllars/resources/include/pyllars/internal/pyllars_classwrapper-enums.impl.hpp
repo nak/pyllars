@@ -9,9 +9,9 @@
 
 namespace pyllars_internal {
 
-    template<typename T, typename TrueType>
+    template<typename T>
     template<typename EnumT>
-    int PythonClassWrapper_Base<T, TrueType>::
+    int Classes<T>::
     addEnumValue( const char* const name, const EnumT &value){
         Base::_classEnumValues()[name] = &value;
         return 0;

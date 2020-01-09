@@ -4,6 +4,7 @@
 
 
 #include "pyllars_integer.impl.hpp"
+#include <pyllars/internal/pyllars_pointer-createAllocatedInstance.impl.hpp>
 
 namespace pyllars_internal {
 

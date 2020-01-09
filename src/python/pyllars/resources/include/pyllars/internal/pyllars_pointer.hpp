@@ -16,12 +16,13 @@
 #include "pyllars_base.hpp"
 
 namespace pyllars_internal {
-
+#ifdef NOT_DEFINED
     /**
      * A class that wraps a c-pointer-like type to represent in Python
      *
      * @tparam T a pointer-like type to create a Python-wrapper-to-C-pointer
      */
+
     template<typename T>
     struct PythonPointerWrapperBase: public PythonBaseWrapper<typename ptr_depth<T>::type_repr>{
 
@@ -46,7 +47,7 @@ namespace pyllars_internal {
 
     protected:
 
-        static void _initAddCArgCasts();
+        //static void _initAddCArgCasts();
 
         /**
          *
@@ -158,7 +159,7 @@ namespace pyllars_internal {
         ssize_t _max;
         bool _directlyAllocated;
 
-
+/*
         struct Iter{
             PyObject_HEAD
             PythonPointerWrapperBase* obj;
@@ -170,7 +171,7 @@ namespace pyllars_internal {
             static PyObject * iter(PyObject* self);
             static PyObject * iternext(PyObject* self);
         };
-
+*/
 
     };
 
@@ -324,6 +325,6 @@ namespace pyllars_internal {
         PythonClassWrapper<T_NoRef *> *createPyReferenceToAddr();
     };
 
-
+#endif
 }
 #endif

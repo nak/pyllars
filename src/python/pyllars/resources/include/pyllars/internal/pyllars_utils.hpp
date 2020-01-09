@@ -36,7 +36,7 @@ namespace pyllars_internal {
     template<typename T>
     struct ptr_depth<T&> {
         static constexpr size_t value = ptr_depth<T>::value;
-        typedef T& type_repr;
+        typedef typename ptr_depth<std::remove_reference_t <T>>::type_repr  & type_repr;
     };
 
     template<typename T>

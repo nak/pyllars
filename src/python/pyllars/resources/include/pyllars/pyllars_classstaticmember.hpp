@@ -28,7 +28,7 @@ namespace pyllars{
 
             static status_t init(){
                 using namespace pyllars_internal;
-                PythonClassWrapper<Class>::template addStaticAttribute<name, Attr>(attr);
+                Classes<Class>::template addStaticAttribute<name, Attr>(attr);
                 return 0;
             }
         };

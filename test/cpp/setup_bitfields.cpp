@@ -44,7 +44,7 @@ SetupBitfields::SetUpTestSuite() {
                     c.bit = value;
                     return value;
                 };
-        Class::addBitField<bit_name, unsigned char, 1>(getter, &setter);
+        Classes<BitFieldContainerClass>::addBitField<bit_name, unsigned char, 1>(getter, &setter);
         ASSERT_EQ(Class::initialize(), 0);
     }
 }

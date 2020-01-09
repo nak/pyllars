@@ -30,7 +30,7 @@ namespace pyllars{
                 using namespace pyllars_internal;
                 typedef ValueType (Class::*method_t)(KeyType);
                 typedef ValueType  (Class::*method_v_t)(KeyType) volatile;
-                PythonClassWrapper<Class>::template addMapOperator<KeyType, method_t, method>();
+                Classes<Class>::template addMapOperator<KeyType, method_t, method>();
                 return 0;
             }
         };
@@ -58,8 +58,8 @@ namespace pyllars{
             static status_t init(){
                 using namespace pyllars_internal;
                 typedef ValueType (Class::*method_t)(KeyType) const;
-                PythonClassWrapper<Class>::template addMapOperator<KeyType, method_t, method>();
-                PythonClassWrapper<const Class>::template addMapOperator<KeyType, method_t, method>();
+                Classes<Class>::template addMapOperator<KeyType, method_t, method>();
+                Classes<const Class>::template addMapOperator<KeyType, method_t, method>();
                 return 0;
             }
         };

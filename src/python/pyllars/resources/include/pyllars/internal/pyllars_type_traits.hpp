@@ -250,6 +250,20 @@ namespace pyllars_internal {
     }
     template<typename X, typename Y> using has_operator_compare = typename check::ComparisonExists<X, Y>;
 
+
+    template<typename method_t>
+    struct is_const_method;
+
+    template<typename CClass, typename ReturnType, typename ArgType>
+    struct is_const_method< ReturnType (CClass::*)(ArgType)>{
+        static constexpr bool value = false;
+    };
+
+    template<typename CClass, typename ReturnType, typename ArgType>
+    struct is_const_method< ReturnType (CClass::*)(ArgType) const>{
+        static constexpr bool value = true;
+    };
+
 }
 
 #endif

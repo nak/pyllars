@@ -20,46 +20,41 @@
 
 namespace pyllars_internal {
 
-    template<typename T, typename TrueType >
-    struct PythonClassWrapper_Base;
-
+/*
     template<typename T>
-    struct DLLEXPORT PythonClassWrapper<T&, void> : public PythonClassWrapper_Base<T, T& > {
+    struct DLLEXPORT PythonClassWrapper<T&, void> : public PythonClassWrapper<T& > {
 
-        typedef PythonClassWrapper_Base<T, T&> Base;
-        typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
+     //   typedef PythonClassWrapper_Base<T&> Base;
+     //   typedef typename std::remove_pointer<typename extent_as_pointer<T>::type>::type T_base;
 
 
         static int initialize();
 
-        static PyTypeObject* getPyType(){
-            return initialize() == 0?Base::getRawType():nullptr;
-        }
+    //    static PyTypeObject* getPyType(){
+    //        return initialize() == 0?Base::getRawType():nullptr;
+    //    }
 
-        static PythonClassWrapper *fromCObject(T& cobj, PyObject *referencing = nullptr);
+      //  static PythonClassWrapper *fromCObject(T& cobj, PyObject *referencing = nullptr);
 
-        static PythonClassWrapper *fromCPointer(T& cobj, const ssize_t size, PyObject *referencing = nullptr);
+    //    static PythonClassWrapper *fromCPointer(T& cobj, const ssize_t size, PyObject *referencing = nullptr);
 
 
-        /**
-         * Add a base class to this Python definition (called before initialize)
-         **/
-        template<typename Base>
-        static void addBaseClass() {
-            PythonClassWrapper<std::remove_reference_t <T> >::template addBaseClass<Base>();
-        }
+      //  template<typename Base>
+      //  static void addBaseClass() {
+      //      PythonClassWrapper<std::remove_reference_t <T> >::template addBaseClass<Base>();
+      //  }
 
     protected:
-        static int _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds);
+      //  static int _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds);
 
     private:
         typedef int (*set_t)(PyObject *self, char *attrname, PyObject * value);
         typedef PyObject* (*get_t)(PyObject* self,  char* attrname);
 
 
-        PythonClassWrapper():PythonClassWrapper_Base<T, T&>(){
-          //  Base::_depth = 1;
-        }
+     //   PythonClassWrapper():PythonClassWrapper_Base<T&>(){
+     //     //  Base::_depth = 1;
+     //   }
 
         constexpr static set_t setter() {
             if constexpr (is_rich_class<T>::value){
@@ -100,9 +95,9 @@ namespace pyllars_internal {
 
 
     template<typename T>
-    struct DLLEXPORT PythonClassWrapper<T&&, void> : public PythonClassWrapper_Base<T, T&&> {
+    struct DLLEXPORT PythonClassWrapper<T&&, void> : public PythonClassWrapper_Base<T&&> {
 
-        typedef PythonClassWrapper_Base<T,  T&&> Base;
+      //  typedef PythonClassWrapper_Base<T&&> Base;
 
 
 
@@ -119,7 +114,7 @@ namespace pyllars_internal {
             Type->tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_CHECKTYPES;
             Type->tp_init = (initproc) _init;
             Type->tp_free = _free;
-            Type->tp_base = PythonClassWrapper_Base<T, T>::getRawType();
+            Type->tp_base = PythonClassWrapper_Base<T>::getRawType();
 
             if (Base::_initialize(*Type) == 0) {
                 inited = true;
@@ -132,13 +127,13 @@ namespace pyllars_internal {
             }
         }
 
-        static PyTypeObject* getPyType(){
-            return initialize() == 0?Base::getRawType():nullptr;
-        }
+       // static PyTypeObject* getPyType(){
+       //     return initialize() == 0?Base::getRawType():nullptr;
+       // }
 
-        static PythonClassWrapper *fromCObject(T&& cobj, PyObject *referencing = nullptr);
+       // static PythonClassWrapper *fromCObject(T&& cobj, PyObject *referencing = nullptr);
 
-        static PythonClassWrapper *fromCPointer(T& cobj, const ssize_t size, PyObject *referencing = nullptr);
+      //  static PythonClassWrapper *fromCPointer(T& cobj, const ssize_t size, PyObject *referencing = nullptr);
 
 
     protected:
@@ -146,7 +141,7 @@ namespace pyllars_internal {
         static int _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds);
 
     private:
-        PythonClassWrapper():PythonClassWrapper_Base<T, T&& >(){
+        PythonClassWrapper():PythonClassWrapper_Base<T&&>(){
             // Base::_depth = 1;
         }
 
@@ -169,5 +164,6 @@ namespace pyllars_internal {
 
         static Initializer initializer;
     };
+    */
 }
 #endif

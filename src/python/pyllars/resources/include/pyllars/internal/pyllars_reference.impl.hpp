@@ -5,6 +5,9 @@
 
 namespace pyllars_internal{
 
+
+
+/*
     template <typename T>
     int PythonClassWrapper<T&, void>::_init(PythonClassWrapper *self, PyObject *args, PyObject *kwds){
         // Must have at least one arg to reference or we ar bootstrapping
@@ -43,15 +46,15 @@ namespace pyllars_internal{
         if (inited) return 0;
 
         PyTypeObject* Type = PythonBaseWrapper<T&>::getRawType();
-        Type->tp_basicsize = sizeof(PythonClassWrapper);
-        Type->tp_itemsize = 0;
-        Type->tp_dealloc = (destructor) _dealloc;
-        Type->tp_getattr = (getattrfunc) getter();
-        Type->tp_setattr = (setattrfunc) setter();
-        Type->tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_CHECKTYPES;
-        Type->tp_init = (initproc) _init;
-        Type->tp_free = _free;
-        Type->tp_base = PythonClassWrapper_Base<T, T>::getRawType();
+        // Type->tp_basicsize = sizeof(PythonClassWrapper);
+      //  Type->tp_itemsize = 0;
+    //    Type->tp_dealloc = (destructor) _dealloc;
+   //     Type->tp_getattr = (getattrfunc) getter();
+    //    Type->tp_setattr = (setattrfunc) setter();
+     //   Type->tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_CHECKTYPES;
+     //   Type->tp_init = (initproc) _init;
+     //   Type->tp_free = _free;
+    //    Type->tp_base = PythonClassWrapper_Base<T>::getRawType();
 
         if (Base::_initialize(*Type) == 0) {
             inited = true;
@@ -60,22 +63,6 @@ namespace pyllars_internal{
             PyErr_SetString(PyExc_SystemError, "Failed to initializer Python type wrapper to C object reference");
             return -1;
         }
-    }
-
-    template <typename T>
-    PythonClassWrapper<T&, void> *
-    PythonClassWrapper<T&, void>::fromCObject(T& cobj, PyObject *referencing){
-        PyTypeObject *type_ = getPyType();
-
-        if (!type_ || !type_->tp_name) {
-            PyErr_SetString(PyExc_RuntimeError, "Uninitialized type when creating object");
-            return nullptr;
-        }
-        auto pyobj = (PythonClassWrapper *) PyObject_Call(reinterpret_cast<PyObject *>(type_), NULL_ARGS(), nullptr);
-        if (pyobj) {
-            pyobj->set_CObject(&cobj);
-        }
-        return pyobj;
     }
 
 
@@ -96,9 +83,9 @@ namespace pyllars_internal{
         return pyobj;
     }
 
-
+*/
 ////////////////////////////////////////////////////////////////////////////
-
+/*
 
     template <typename T>
     int PythonClassWrapper<T&&, void>::_init(PythonClassWrapper *self, PyObject *args, PyObject *kwds){
@@ -129,6 +116,7 @@ namespace pyllars_internal{
         return 0;
     }
 
+
     template <typename T>
     PythonClassWrapper<T&&, void> *
     PythonClassWrapper<T&&, void>::fromCObject(T&& cobj, PyObject *referencing){
@@ -153,6 +141,7 @@ namespace pyllars_internal{
     template <typename T>
     typename PythonClassWrapper<T&, void>::Initializer
             PythonClassWrapper<T&, void>::initializer;
+            */
 
 }
 #endif

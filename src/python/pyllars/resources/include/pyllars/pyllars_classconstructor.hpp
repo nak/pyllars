@@ -2,7 +2,6 @@
 // Created by jrusnak on 10/13/19.
 //
 #include "pyllars/internal/pyllars_classwrapper.hpp"
-#include "pyllars/internal/pyllars_classwrapper-xtors.impl.hpp"
 
 #ifndef PYLLARS_PYLLARS_CLASSCONSTRUCTOR_HPP
 #define PYLLARS_PYLLARS_CLASSCONSTRUCTOR_HPP

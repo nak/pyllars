@@ -10,9 +10,9 @@
 #include <functional>
 
 namespace pyllars_internal {
-   template<typename T, typename TrueType>
+   template<typename T>
     template<typename KeyType, typename method_t, method_t method>
-    void PythonClassWrapper_Base<T, TrueType>::addMapOperator() {
+    void Classes<T>::addMapOperator() {
         typedef typename func_traits<method_t>::ReturnType ValueType;
         if constexpr(func_traits<method_t>::is_const_method) {
             _addMapOperatorMethod <KeyType, ValueType, ValueType(CClass::*)(KeyType) const, method > ();
@@ -21,12 +21,12 @@ namespace pyllars_internal {
         }
     }
 
-   template<typename T, typename TrueType>
+   template<typename T>
     template<typename KeyType, typename ValueType, typename method_t, method_t method>
-    void PythonClassWrapper_Base<T, TrueType>::_addMapOperatorMethod() {
+    void Classes<T>::_addMapOperatorMethod() {
 
         std::function<PyObject *(PyObject *, PyObject *)> getter = [](PyObject *self, PyObject *item) -> PyObject * {
-            auto *self_ = (PythonClassWrapper_Base *) self;
+            auto *self_ = (PythonClassWrapper<T>*) self;
             try {
                 auto c_key = pyllars_internal::toCArgument<KeyType>(*item);
                 return toPyObject<ValueType>((self_->get_CObject()->*method)(c_key.value()), 1);
@@ -44,7 +44,7 @@ namespace pyllars_internal {
         // since elements can be mutable, even const map operators must allow for setters
         std::function<int(bool, PyObject *, PyObject *, PyObject *)> setter =
                 [](bool obj_is_const, PyObject *self, PyObject *item, PyObject *value) -> int {
-                    auto *self_ = (PythonClassWrapper_Base *) self;
+                    auto *self_ = (PythonClassWrapper<T> *) self;
                     auto cobj = self_->get_CObject();
                     if (!cobj){
                         PyErr_SetString(PyExc_TypeError, "Cannot operate on nullptr");

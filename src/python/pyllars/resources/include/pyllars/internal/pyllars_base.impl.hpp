@@ -117,58 +117,6 @@ namespace pyllars_internal {
     }
 
     template<typename T>
-    bool
-    CommonBaseWrapper::checkImplicitArgumentConversion(PyObject *obj) {
-        static constexpr bool to_is_const = std::is_const<T>::value;
-        static constexpr bool to_is_reference = std::is_reference<T>::value;
-        typedef typename core_type<T>::type core_t;
-        auto const self = reinterpret_cast<CommonBaseWrapper *>(obj);
-        return (bool) PyObject_TypeCheck(obj, CommonBaseWrapper::getBaseType()) && // is truly wrapping a C object
-               (self->_coreTypePtr == PythonBaseWrapper<core_t>::getRawType()) && //core type match
-               (to_is_const || !to_is_reference || !self->_is_const); // logic for conversion-is-allowed
-    }
-
-    namespace {
-
-        template<typename T, typename ...Other>
-        void for_each_init_ptrs() {
-
-            int unused[] = {(CommonBaseWrapper::addCast(
-                    PythonBaseWrapper<T>::getRawType(),
-                    PythonBaseWrapper<Other>::getRawType(),
-                    &CommonBaseWrapper::template interpret_cast<T, Other>), 0)...};
-            (void) unused;
-
-        }
-    }
-
-    template<typename T>
-    void PythonBaseWrapper<T>::_addReinterpretations() {
-        if constexpr(!std::is_reference<T>::value) {
-            typedef std::remove_cv_t<T> T_bare;
-            if constexpr (!std::is_const<T>::value && !std::is_volatile<T>::value) {
-                for_each_init_ptrs<T, T_bare &, const T_bare &, const T_bare>();
-                for_each_init_ptrs<T &, T_bare &, const T_bare &, T_bare &&, const T_bare &&, const T_bare>();
-                for_each_init_ptrs<T &&, T_bare &, const T_bare &, T_bare &&, const T_bare &&, const T_bare>();
-            } else if (std::is_const<T>::value && !std::is_volatile<T>::value) {
-                for_each_init_ptrs<T, const T_bare &, const T_bare &&, T_bare, const T_bare>();
-                for_each_init_ptrs<T &, const T_bare &, const T_bare &&, T_bare, const T_bare>();
-                for_each_init_ptrs<T &&, const T_bare &, const T_bare &&, T_bare, const T_bare>();
-            } else if (!std::is_const<T>::value && std::is_volatile<T>::value) {
-                for_each_init_ptrs<T, volatile T_bare &, const volatile T_bare &, volatile T_bare &&, const volatile T_bare &&, const volatile T_bare>();
-                for_each_init_ptrs<T &, volatile T_bare &, const volatile T_bare &, volatile T_bare &&, const volatile T_bare &&, const volatile T_bare>();
-                for_each_init_ptrs<T &&, volatile T_bare &, const volatile T_bare &, volatile T_bare &&, const volatile T_bare &&, const volatile T_bare>();
-            } else {
-                for_each_init_ptrs<T, const volatile T_bare &, const volatile T_bare &&, volatile T_bare, const volatile T_bare>();
-                for_each_init_ptrs<T &, const volatile T_bare &, const volatile T_bare &&, volatile T_bare, const volatile T_bare>();
-                for_each_init_ptrs<T &&, const volatile T_bare &, const volatile T_bare &&, volatile T_bare, const volatile T_bare>();
-            }
-        }
-    }
-
-
-
-    template<typename T>
     template<const char *const kwlist[], typename ...Args>
     void PythonBaseWrapper<T>::
     addConstructor() {
@@ -225,6 +173,76 @@ namespace pyllars_internal {
                                     (_____fake < Args > *)
                                     nullptr...);
     }
+
+
+    template<typename T>
+    void PythonBaseWrapper<T>::
+    _dealloc(PyObject *self_) {
+        auto * self = reinterpret_cast<PythonBaseWrapper*>(self_);
+        if (!self) return;
+        if (self->_referenced) {
+            Py_DECREF(self->_referenced);
+            self->_referenced = nullptr;
+        } else {
+            _free(self);
+        }
+    }
+
+
+    template<typename T>
+    void PythonBaseWrapper<T>::
+    _free(void *self_) {
+        auto *self = (PythonBaseWrapper *) self_;
+        if (!self->get_CObject()) return;
+        if constexpr (std::is_destructible<T>::value && !std::is_reference<T>::value) {
+            delete self->get_CObject();
+        }
+        self->set_CObject(nullptr);
+    }
+
+
+    template<typename T>
+    PyObject *PythonBaseWrapper<T>::
+    addr(PyObject *self, PyObject *args) {
+        typedef std::remove_reference_t <T> T_NoRef;
+        if ((args && PyTuple_Size(args) > 0)) {
+            PyErr_BadArgument();
+            return nullptr;
+        }
+        PythonClassWrapper<T_NoRef*>::initialize();
+        auto *self_ = reinterpret_cast<PythonBaseWrapper *>(self);
+        PyObject* obj;
+        if(self_->get_CObject()){
+            try {
+                typedef PythonClassWrapper<T_NoRef *> PtrWrapper;
+                obj = PyObject_Call((PyObject *) PtrWrapper::getPyType(), NULL_ARGS(), nullptr);
+                ((PtrWrapper *) obj)->set_CObject(&self_->get_CObject());
+                (reinterpret_cast<PtrWrapper *>(obj))->make_reference(self);
+                self_->set_ptr_depth(self_->get_ptr_depth() + 1);
+                assert(!PyErr_Occurred());
+            } catch (PyllarsException &e){
+                PyErr_Clear();
+                e.raise();
+                return nullptr;
+            } catch(std::exception const & e) {
+                PyErr_Clear();
+                PyllarsException::raise_internal_cpp(e.what());
+                return nullptr;
+            } catch(...) {
+                PyErr_Clear();
+                PyllarsException::raise_internal_cpp();
+                return nullptr;
+            }
+        } else {
+            obj = Py_None;
+        }
+        return obj;
+    }
+
+    template <typename T>
+    typename PythonBaseWrapper<T>::Initializer
+    PythonBaseWrapper<T>::initializer;
 }
 
+#include "pyllars_base-conversions.impl.hpp"
 #endif //PYLLARS_PYTHON_BASE_IMPL_HPP

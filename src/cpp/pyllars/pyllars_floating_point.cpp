@@ -6,8 +6,8 @@
 #include <pyllars/internal/pyllars_integer.hpp>
 #include <pyllars/internal/pyllars_classwrapper.impl.hpp>
 #include <pyllars/internal/pyllars_pointer.hpp>
+#include <pyllars/internal/pyllars_pointer-createAllocatedInstance.impl.hpp>
 #include <pyllars/internal/pyllars_reference.hpp>
-#include <pyllars/internal/pyllars_pointer.impl.hpp>
 
 namespace pyllars_internal {
 
@@ -22,53 +22,53 @@ namespace pyllars_internal {
     PyObject_HEAD_INIT(nullptr)
     0,                         /*ob_size*/
 #endif
-            "PyllarsFloatingPtBase", /*tp_name*/
-            sizeof(PyFloatingPtCustomBase), /*tp_basicsize*/
-            0, /*tp_itemsize*/
-            nullptr, /*tp_dealloc*/
-            nullptr, /*tp_print*/
-            nullptr, /*tp_getattr*/
-            nullptr, /*tp_setattr*/
-            nullptr, /*tp_as_sync*/
-            nullptr, /*tp_repr*/
+        "PyllarsFloatingPtBase", /*tp_name*/
+        sizeof(PyFloatingPtCustomBase), /*tp_basicsize*/
+        0, /*tp_itemsize*/
+        nullptr, /*tp_dealloc*/
+        nullptr, /*tp_print*/
+        nullptr, /*tp_getattr*/
+        nullptr, /*tp_setattr*/
+        nullptr, /*tp_as_sync*/
+        nullptr, /*tp_repr*/
 
-            nullptr, /*tp_as_number*/
-            nullptr,                         /*tp_as_sequence*/
-            nullptr,                         /*tp_as_mapping*/
-            nullptr,                         /*tp_hash */
-            nullptr,                         /*tp_call*/
-            nullptr,                         /*tp_str*/
-            nullptr,                         /*tp_getattro*/
-            nullptr,                         /*tp_setattro*/
-            nullptr,                         /*tp_as_buffer*/
-            Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_CHECKTYPES, /*tp_flags*/
-            "Base floating point type in pyllars",           /* tp_doc */
-            nullptr,                       /* tp_traverse */
-            nullptr,                       /* tp_clear */
-            nullptr,                       /* tp_richcompare */
-            0,                               /* tp_weaklistoffset */
-            nullptr,                       /* tp_iter */
-            nullptr,                       /* tp_iternext */
-            nullptr,             /* tp_methods */
-            nullptr,             /* tp_members */
-            nullptr,                         /* tp_getset */
-            nullptr,                         /* tp_base */
-            nullptr,                         /* tp_dict */
-            nullptr,                         /* tp_descr_get */
-            nullptr,                         /* tp_descr_set */
-            0,                         /* tp_dictoffset */
-            nullptr,  /* tp_init */
-            nullptr,                         /* tp_alloc */
-            PyType_GenericNew,             /* tp_new */
-            nullptr,                         /*tp_free*/
-            nullptr,                         /*tp_is_gc*/
-            nullptr,                         /*tp_bases*/
-            nullptr,                         /*tp_mro*/
-            nullptr,                         /*tp_cache*/
-            nullptr,                         /*tp_subclasses*/
-            nullptr,                          /*tp_weaklist*/
-            nullptr,                          /*tp_del*/
-            0,                          /*tp_version_tag*/
+        nullptr, /*tp_as_number*/
+        nullptr,                         /*tp_as_sequence*/
+        nullptr,                         /*tp_as_mapping*/
+        nullptr,                         /*tp_hash */
+        nullptr,                         /*tp_call*/
+        nullptr,                         /*tp_str*/
+        nullptr,                         /*tp_getattro*/
+        nullptr,                         /*tp_setattro*/
+        nullptr,                         /*tp_as_buffer*/
+        Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_CHECKTYPES, /*tp_flags*/
+        "Base floating point type in pyllars",           /* tp_doc */
+        nullptr,                       /* tp_traverse */
+        nullptr,                       /* tp_clear */
+        nullptr,                       /* tp_richcompare */
+        0,                               /* tp_weaklistoffset */
+        nullptr,                       /* tp_iter */
+        nullptr,                       /* tp_iternext */
+        nullptr,             /* tp_methods */
+        nullptr,             /* tp_members */
+        nullptr,                         /* tp_getset */
+        nullptr,                         /* tp_base */
+        nullptr,                         /* tp_dict */
+        nullptr,                         /* tp_descr_get */
+        nullptr,                         /* tp_descr_set */
+        0,                         /* tp_dictoffset */
+        nullptr,  /* tp_init */
+        nullptr,                         /* tp_alloc */
+        PyType_GenericNew,             /* tp_new */
+        nullptr,                         /*tp_free*/
+        nullptr,                         /*tp_is_gc*/
+        nullptr,                         /*tp_bases*/
+        nullptr,                         /*tp_mro*/
+        nullptr,                         /*tp_cache*/
+        nullptr,                         /*tp_subclasses*/
+        nullptr,                          /*tp_weaklist*/
+        nullptr,                          /*tp_del*/
+        0,                          /*tp_version_tag*/
     };
 
 
@@ -482,7 +482,7 @@ namespace pyllars_internal {
     }
 
     template<typename number_type>
-    PythonClassWrapper<typename std::remove_reference<number_type>::type *> *
+    PyObject*
     PyFloatingPtCustomObject<number_type>::alloc(PyObject *, PyObject *args, PyObject *kwds) {
         if (kwds && PyDict_Size(kwds) > 0) {
             static const char *const msg = "Allocator does not accept keywords";
@@ -541,9 +541,9 @@ namespace pyllars_internal {
             }
         }
         if (count <= 1) {
-            return PythonClassWrapper<number_type_basic *>::template allocateInstance<number_type_basic>(value);
+            return PythonClassWrapper<number_type_basic *>::template createAllocatedInstance<number_type_basic>(value);
         } else {
-            return PythonClassWrapper<number_type_basic *>::template allocateArray<number_type_basic>(value, count);
+            return PythonClassWrapper<number_type_basic *>::template createAllocatedInstance<number_type_basic>(value, count);
         }
     }
 
@@ -736,6 +736,199 @@ namespace pyllars_internal {
         return *const_cast<const number_type *>(get_CObject());
     }
 
+    template <typename T>
+    typename PyFloatingPtCustomObject<T>::Initializer
+            PyFloatingPtCustomObject<T>::initializer;
+
+    template <typename T>
+    template <typename To>
+    void PyFloatingPtCustomObject<T>::addConversion() {
+        static_assert(std::is_assignable<To, T>::value || std::is_convertible<T, To>::value ||
+            std::is_constructible<To, std::remove_reference_t<T>& >::value);
+        if constexpr (!std::is_same<T, To>::value){
+            PyTypeObject* selfType = PythonClassWrapper<T>::getRawType();
+            PyTypeObject* toType = PythonClassWrapper<T>::getRawType();
+            CommonBaseWrapper::addConversion(selfType, toType,  &interpret_cast<T, To>);
+        }
+    }
+
+    template <typename T>
+    template <typename T_element>
+    void PyFloatingPtCustomObject<T>::Initializer::addPointers() {
+        typedef std::remove_cv_t <T> T_bare;
+        if constexpr(std::is_volatile<T>::value &&std::is_const<T>::value) {
+            // T_element *  const volatile
+            addConversion<T_element * >();
+            addConversion<T_element * const >();
+            addConversion<T_element * volatile >();
+            addConversion<T_element * const volatile >();
+            addConversion<T_element * const volatile &>();
+            addConversion<T_element * const volatile &&>();
+        } else if constexpr(std::is_const<T>::value) {
+            // T_element * const
+            addConversion<T_element * >();
+            addConversion<T_element * volatile >();
+            addConversion<T_element * const volatile>();
+            addConversion<T_element * const &>();
+            addConversion<T_element * const volatile &>();
+            addConversion<T_element * const &&>();
+            addConversion<T_element * const volatile &&>();
+        } else if constexpr(std::is_volatile<T>::value) {
+            // T_element * volatile
+            addConversion<T_bare>();
+            addConversion<T_element * const>();
+            addConversion<T_element * const volatile>();
+            addConversion<T_element * volatile &>();
+            addConversion<T_element * const volatile &>();
+            addConversion<T_element * volatile &&>();
+            addConversion<T_element * const volatile &&>();
+        } else {
+            addConversion<T_element *>();
+            addConversion<T_element * const >();
+            addConversion<T_element * volatile *>();
+            addConversion<T_element * const volatile>();
+            addConversion<T_element * &>();
+            addConversion<T_element * const &>();
+            addConversion<T_element * volatile &>();
+            addConversion<T_element * const volatile &>();
+            addConversion<T_element * &&>();
+            addConversion<T_element * const &&>();
+            addConversion<T_element * volatile &&>();
+            addConversion<T_element * const volatile &&>();
+        }
+    }
+
+    template <typename T>
+    PyFloatingPtCustomObject<T>::Initializer::Initializer() {
+        if constexpr (std::is_rvalue_reference<T>::value) {
+            typedef std::remove_reference_t<T> T_NoRef;
+            typedef std::remove_cv_t <T_NoRef > T_bare;
+
+            addConversion<T_NoRef>();
+            if constexpr(std::is_volatile<T>::value && std::is_const<T>::value){
+                addConversion<const volatile T_bare &>();
+                addConversion<T_bare >();
+                addConversion<const T_bare >();
+                addConversion<volatile T_bare >();
+                addConversion<const volatile T_bare >();
+            } else if constexpr(std::is_const<T>::value) {
+                addConversion<const T_bare &>();
+                addConversion<const volatile T_bare &&>();
+                addConversion<const volatile T_bare &>();
+                addConversion<T_bare>();
+                addConversion<const T_bare>();
+                addConversion<const T_bare&>();
+            } else if constexpr(std::is_volatile<T>::value){
+                addConversion<volatile T_bare &>();
+                addConversion<const volatile T_bare &>();
+                addConversion<const volatile T_bare &&>();
+                addConversion<T_bare>();
+                addConversion<const T_bare>();
+                addConversion<const volatile T_bare>();
+            } else {
+                addConversion<T_bare&>();
+                addConversion<const T_bare>();
+                addConversion<const T_bare&>();
+                addConversion<const T_bare&&>();
+                addConversion<const volatile T_bare>();
+                addConversion<const volatile T_bare&>();
+                addConversion<const volatile T_bare&&>();
+            }
+        } else if constexpr(std::is_reference<T>::value) {
+            typedef std::remove_reference_t<T> T_NoRef;
+            typedef std::remove_cv_t<T_NoRef> T_bare;
+
+            addConversion<T_NoRef>();
+            if constexpr(std::is_volatile<T>::value &&std::is_const<T>::value) {
+                //const volatile T_bare&
+                addConversion<T_bare>();
+                addConversion<const T_bare>();
+                addConversion<volatile T_bare>();
+                addConversion<const volatile T_bare>();
+            } else if constexpr(std::is_const<T>::value) {
+                //const  & T_bare
+                addConversion<T_bare>();
+                addConversion<const T_bare>();
+                addConversion<volatile T_bare>();
+                addConversion<const volatile T_bare>();
+                addConversion<const volatile T_bare &>();
+            } else if constexpr(std::is_volatile<T>::value) {
+                //volatile T_bare&
+                addConversion<T_bare>();
+                addConversion<const T_bare>();
+                addConversion<const volatile T_bare>();
+                addConversion<const volatile T_bare&>();
+            } else {
+                //T_bare &
+                addConversion<T_bare>();
+                addConversion<const T_bare>();
+                addConversion<const volatile T_bare>();
+                addConversion<T_bare &&>();
+                addConversion<const T_bare &>();
+                addConversion<volatile T_bare &>();
+                addConversion<const volatile T_bare &>();
+            }
+        } else if constexpr(std::is_pointer<T>::value){
+            typedef std::remove_pointer_t<T> T_element;
+            typedef std::remove_cv_t<T_element> T_bare_element;
+            typedef T_bare_element * T_ptr_bare;
+
+            addPointers<T_element>();
+            if constexpr(std::is_volatile<T>::value &&std::is_const<T>::value) {
+                // const volatile T_element *
+                addPointers<const volatile T_element>();
+            } else if constexpr(std::is_const<T>::value) {
+                addPointers<const T_element>();
+                addPointers<const volatile T_element>();
+            } else if constexpr(std::is_volatile<T>::value) {
+                addPointers<volatile T_element>();
+                addPointers<const volatile T_element>();
+            } else {
+                addPointers<const volatile T_element>();
+            }
+        } else if constexpr(is_pointer_like<T>::value){ // fixed array types
+
+        } else {
+            typedef std::remove_cv_t<T> T_bare;
+
+            if constexpr(std::is_volatile<T>::value &&std::is_const<T>::value) {
+                //const volatile T_bare
+                addConversion<T_bare>();
+                addConversion<const T_bare>();
+                addConversion<volatile T_bare>();
+                addConversion<const volatile T_bare &>();
+                addConversion<const volatile T_bare &&>();
+            } else if constexpr(std::is_const<T>::value) {
+                //const  T_bare
+                addConversion<T_bare>();
+                addConversion<volatile T_bare>();
+                addConversion<const volatile T_bare>();
+                addConversion<const T_bare &>();
+                addConversion<const volatile T_bare &>();
+                addConversion<const T_bare &&>();
+                addConversion<const volatile T_bare &&>();
+            } else if constexpr(std::is_volatile<T>::value) {
+                //volatile T_bare
+                addConversion<T_bare>();
+                addConversion<const T_bare>();
+                addConversion<const volatile T_bare>();
+                addConversion<volatile T_bare&>();
+                addConversion<const volatile T_bare&>();
+                addConversion<volatile T_bare &&>();
+                addConversion<const volatile T_bare &&>();
+            } else {
+                //T_bare
+                addConversion<T_bare>();
+                addConversion<const T_bare>();
+                addConversion<T_bare &>();
+                addConversion<const T_bare &>();
+                addConversion<T_bare &&>();
+                addConversion<const T_bare &&>();
+            }
+        }
+    }
+
+
     template
     struct PyFloatingPtCustomObject<float>;
 
@@ -763,3 +956,4 @@ namespace pyllars_internal {
     template
     struct PyFloatingPtCustomObject<volatile const double>;
 }
+

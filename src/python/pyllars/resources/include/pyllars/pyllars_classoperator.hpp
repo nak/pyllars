@@ -88,7 +88,7 @@ namespace pyllars{
 
             static status_t init(){
                 using namespace pyllars_internal;
-                PythonClassWrapper<Class>::template Op<kind,  ReturnType(Class::*)() const, method>::addUnaryOperator();
+                Classes<Class>::template Op<kind,  ReturnType(Class::*)() const, method>::addUnaryOperator();
                 return 0;
             }
         };
@@ -115,7 +115,7 @@ namespace pyllars{
 
             static status_t init(){
                 using namespace pyllars_internal;
-                PythonClassWrapper<Class>::template BinaryOp<kind,  ReturnType(Class::*)(ArgType), method>::addBinaryOperator();
+                Classes<Class>::template BinaryOp<kind,  ReturnType(Class::*)(ArgType), method>::addBinaryOperator();
                 return 0;
             }
         };
@@ -142,7 +142,7 @@ namespace pyllars{
 
             static status_t init(){
                 using namespace pyllars_internal;
-                PythonClassWrapper<Class>::template BinaryOp<kind,  ReturnType(Class::*)(ArgType) const, method>::addBinaryOperator();
+                Classes<Class>::template BinaryOp<kind,  ReturnType(Class::*)(ArgType) const, method>::addBinaryOperator();
                 return 0;
             }
         };

@@ -19,7 +19,7 @@
 #endif
 
 namespace pyllars_internal {
-
+#ifdef NOT_DEFINED
     template<typename T>
     int
     PythonPointerWrapperBase<T>::_initialize(PyTypeObject &Type) {
@@ -27,22 +27,22 @@ namespace pyllars_internal {
         if (initialized) return 0;
         initialized = true;
 
-        Base::_addReinterpretations();
+      //  Base::_addReinterpretations();
 
         assert(Type.tp_basicsize > 0);
         Type.tp_dealloc =  (destructor) &_dealloc;
-        Type.tp_as_sequence = &_seqmethods;
-        Type.tp_flags =  Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE|  Py_TPFLAGS_HAVE_ITER;
+      //  Type.tp_as_sequence = &_seqmethods;
+       // Type.tp_flags =  Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE|  Py_TPFLAGS_HAVE_ITER;
         Type.tp_iter = Iter::iter;
         Type.tp_iternext = Iter::iter;
         assert(Type.tp_methods);
         Type.tp_new = _new;
-
+/*
         if (PyType_Ready(CommonBaseWrapper::getBaseType()) < 0) {
             PyErr_SetString(PyExc_RuntimeError, "Failed to set_up type!");
             return -1;
         }
-        _seqmethods.sq_length = _size;
+       _seqmethods.sq_length = _size;
         _seqmethods.sq_concat = _concat;
         _seqmethods.sq_repeat = _repeat;
         _seqmethods.sq_item = _get_item;
@@ -59,6 +59,7 @@ namespace pyllars_internal {
         }
         Py_INCREF(&Type);
         return 0;
+        */
     }
 
 
@@ -146,6 +147,7 @@ namespace pyllars_internal {
     PythonClassWrapper<T, typename std::enable_if<is_pointer_like<T>::value && (ptr_depth<T>::value > 1)>::type>::
     _init(PythonClassWrapper *self, PyObject *args, PyObject *kwds) {
         if (!self) { return -1; }
+        self->set_ptr_depth(ptr_depth<T>::value);
 
         self->_referenced = nullptr;
         self->set_depth(ptr_depth<T>::value);
@@ -239,14 +241,15 @@ namespace pyllars_internal {
         return result;
     }
 
+#endif
 
     template<typename T>
     const std::string
-    PythonPointerWrapperBase<T>::Iter::name = std::string(type_name<T>()) + std::string(" iterator");
+    Pointers<T>::Iter::name = std::string(type_name<T>()) + std::string(" iterator");
 
     template<typename T>
     PyTypeObject
-    PythonPointerWrapperBase<T>::Iter::_Type = {
+    Pointers<T>::Iter::_Type = {
     #if PY_MAJOR_VERSION == 3
             PyVarObject_HEAD_INIT(nullptr, 0)
     #else

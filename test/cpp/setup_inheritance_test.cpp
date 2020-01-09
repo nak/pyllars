@@ -14,7 +14,6 @@
 
 #include "pyllars/internal/pyllars_classwrapper-type.impl.hpp"
 #include "pyllars/internal/pyllars_classwrapper.impl.hpp"
-#include "pyllars/internal/pyllars_classwrapper-xtors.impl.hpp"
 
 namespace {
     const char new_method_name[] = "new_method";

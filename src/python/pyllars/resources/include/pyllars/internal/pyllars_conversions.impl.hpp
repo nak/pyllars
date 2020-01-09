@@ -237,8 +237,6 @@ namespace pyllars_internal {
 
     };
 
-    template<typename T>
-    struct PythonClassWrapper<T&, void>;
 
     template<typename T>
     PyObject *
@@ -256,11 +254,11 @@ namespace pyllars_internal {
                     typedef  std::remove_pointer_t <typename ClassWrapper::storage_type> storage_type;
                     T_bare vv = var;
                     auto * v = (storage_type) vv;
-                    pyobj = (PyObject *) ClassWrapper::fromCPointer(v, array_size);
+                    pyobj = (PyObject *) Pointers<T>::fromCArray(v, array_size);
                 } else {
                     typename std::remove_reference<T>::type *v = nullptr;
                     v = new T(var);
-                    pyobj = (PyObject *) ClassWrapper::fromCPointer(*v, array_size);
+                    pyobj = (PyObject *) Pointers<T>::fromCArray(*v, array_size);
                 }
             } else {
                 pyobj = (PyObject *) ClassWrapper::fromCObject(var);

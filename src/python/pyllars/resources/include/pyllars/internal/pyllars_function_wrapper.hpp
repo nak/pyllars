@@ -170,12 +170,14 @@ namespace pyllars_internal {
         }
     }
 
+    /*
     template<typename func_type>
     class PythonClassWrapper<func_type, typename std::enable_if<std::is_function<typename std::remove_pointer<func_type>::type>::value>::type>
             :
                     public PythonFunctionWrapper<func_type> {
 
     };
+     */
 }
 
 #endif

@@ -31,7 +31,8 @@ namespace pyllars_internal{
         typedef typename std::remove_reference<number_type>::type number_type_basic;
         typedef std::remove_volatile_t <number_type> nonv_number_t;
 
-        static PythonClassWrapper<number_type_basic *> *alloc(PyObject *cls, PyObject *args, PyObject *kwds);
+        static PyObject *alloc(PyObject *cls, PyObject *args, PyObject *kwds);
+
         static PyObject* to_float(PyObject *cls, PyObject *args, PyObject *kwds);
 
         static PyTypeObject *getPyType();
@@ -112,6 +113,19 @@ namespace pyllars_internal{
     private:
         DLLIMPORT static PyTypeObject _Type;
         static PyMethodDef _methods[];
+
+        template<typename To>
+        static void addConversion();
+
+        struct Initializer{
+            Initializer();
+
+        private:
+            template <typename T_element>
+            static void addPointers();
+        };
+
+        static Initializer initializer;
     };
 
 

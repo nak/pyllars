@@ -4,6 +4,8 @@
 
 
 #include "pyllars/internal/pyllars_integer.hpp"
+#include "pyllars/pyllars_class.hpp"
+#include "pyllars/pyllars_namespacewrapper.hpp"
 
 namespace pyllars_internal {
 
@@ -70,6 +72,64 @@ namespace pyllars_internal {
             nullptr,                          /*tp_del*/
             0,                          /*tp_version_tag*/
     };
+
+
+}
+
+
+namespace pyllars{
+
+    template
+    class DLLEXPORT PyllarsClass<bool, GlobalNS>;
+
+    template
+    class DLLEXPORT PyllarsClass<const bool, GlobalNS>;
+
+
+    template
+    class DLLEXPORT PyllarsClass<char, GlobalNS>;
+
+
+    template
+    class DLLEXPORT PyllarsClass<unsigned char, GlobalNS>;
+
+
+    template
+    class DLLEXPORT PyllarsClass<signed char, GlobalNS>;
+
+
+    template
+    class DLLEXPORT PyllarsClass<short, GlobalNS>;
+
+
+    template
+    class DLLEXPORT PyllarsClass<unsigned short, GlobalNS>;
+
+
+    template
+    class DLLEXPORT PyllarsClass<int, GlobalNS>;
+
+
+    template
+    class DLLEXPORT PyllarsClass<unsigned int, GlobalNS>;
+
+
+    template
+    class DLLEXPORT PyllarsClass<long, GlobalNS>;
+
+
+    template
+    class DLLEXPORT PyllarsClass<unsigned long, GlobalNS>;
+
+
+    template
+    class DLLEXPORT PyllarsClass<long long, GlobalNS>;
+
+
+    template
+    class DLLEXPORT PyllarsClass<unsigned long long, GlobalNS>;
+
+    ///////////////////
 
 
 }

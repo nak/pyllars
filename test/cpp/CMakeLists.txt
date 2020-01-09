@@ -14,7 +14,7 @@ target_link_libraries(setupInheritanceLib pyllars gtest gtest_main setupBasicCla
 add_library(setupBitFieldsLib SHARED setup_bitfields.cpp )
 target_link_libraries(setupBitFieldsLib pyllars gtest gtest_main)
 
-add_library(setupAnonEnumsLib SHARED setup_anon_enums.cpp )
+add_library(setupAnonEnumsLib SHARED setup_anon_enums.cpp setup_anon_enums-Enum.cpp)
 target_link_libraries(setupAnonEnumsLib pyllars gtest gtest_main)
 add_library(setupFunctions SHARED setup_functions.cpp )
 target_link_libraries(setupFunctions pyllars gtest gtest_main)
@@ -29,7 +29,6 @@ if (MSVC)
 
     add_executable(runAllPyllarsTest
             test_anon_enums.cpp
-            setup_anon_enums.hpp
             test_basic_classes.cpp
             test_inheritance.cpp
             test_bit_fields.cpp
@@ -42,13 +41,12 @@ else()
 
     add_executable(runAllPyllarsTest
             test_anon_enums.cpp
-            setup_anon_enums.hpp
             test_conversions.cpp
             test_basic_classes.cpp
             test_inheritance.cpp
             test_bit_fields.cpp
             test_functions.cpp
-            function_defns.hpp globals.h globals.cpp)
+            globals.cpp)
     target_link_libraries(runAllPyllarsTest PUBLIC -L/usr/local/lib64 ${Python3_LIBRARIES} gtest_main
         setupBasicClassLib setupInheritanceLib setupBitFieldsLib setupAnonEnumsLib setupFunctions
         pyllars pthread  ffi dl util gtest_main)

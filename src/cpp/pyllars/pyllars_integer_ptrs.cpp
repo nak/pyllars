@@ -8,6 +8,7 @@
 #include "pyllars/pyllars_class.hpp"
 #include <pyllars/internal/pyllars_pointer-type.impl.hpp>
 #include <pyllars/internal/pyllars_pointer.impl.hpp>
+#include <pyllars/internal/pyllars_pointer-createAllocatedInstance.impl.hpp>
 
 namespace pyllars_internal {
 
@@ -53,149 +54,44 @@ namespace pyllars_internal {
     template
     struct DLLEXPORT PythonClassWrapper<unsigned long long *>;
 
-    ////////////////
-    // refs
-    ////////////////
 
     template
-    struct DLLEXPORT PythonClassWrapper<bool &>;
+    struct DLLEXPORT Pointers<bool *>;
 
     template
-    struct DLLEXPORT PythonClassWrapper<char &>;
+    struct DLLEXPORT Pointers<char *>;
 
     template
-    struct DLLEXPORT PythonClassWrapper<signed char &>;
+    struct DLLEXPORT Pointers<signed char *>;
 
     template
-    struct DLLEXPORT PythonClassWrapper<short &>;
+    struct DLLEXPORT Pointers<short *>;
 
     template
-    struct DLLEXPORT PythonClassWrapper<int &>;
+    struct DLLEXPORT Pointers<int *>;
 
     template
-    struct DLLEXPORT PythonClassWrapper<long &>;
+    struct DLLEXPORT Pointers<long *>;
 
     template
-    struct DLLEXPORT PythonClassWrapper<long long &>;
+    struct DLLEXPORT Pointers<long long *>;
 
     template
-    struct DLLEXPORT PythonClassWrapper<unsigned char &>;
+    struct DLLEXPORT Pointers<unsigned char *>;
 
 
     template
-    struct DLLEXPORT PythonClassWrapper<unsigned short &>;
+    struct DLLEXPORT Pointers<unsigned short *>;
 
     template
-    struct DLLEXPORT PythonClassWrapper<unsigned int &>;
+    struct DLLEXPORT Pointers<unsigned int *>;
 
     template
-    struct DLLEXPORT PythonClassWrapper<unsigned long &>;
-
-
-    template
-    struct DLLEXPORT PythonClassWrapper<unsigned long long &>;
-
-
-
-    ////////////////
-    // ref declarators
-    ////////////////
-
-    template
-    struct DLLEXPORT PythonClassWrapper<bool &&>;
-
-    template
-    struct DLLEXPORT PythonClassWrapper<char &&>;
-
-    template
-    struct DLLEXPORT PythonClassWrapper<signed char &&>;
-
-    template
-    struct DLLEXPORT PythonClassWrapper<short &&>;
-
-    template
-    struct DLLEXPORT PythonClassWrapper<int &&>;
-
-    template
-    struct DLLEXPORT PythonClassWrapper<long &&>;
-
-    template
-    struct DLLEXPORT PythonClassWrapper<long long &&>;
-
-    template
-    struct DLLEXPORT PythonClassWrapper<unsigned char &&>;
+    struct DLLEXPORT Pointers<unsigned long *>;
 
 
     template
-    struct DLLEXPORT PythonClassWrapper<unsigned short &&>;
-
-    template
-    struct DLLEXPORT PythonClassWrapper<unsigned int &&>;
-
-    template
-    struct DLLEXPORT PythonClassWrapper<unsigned long &&>;
-
-
-    template
-    struct DLLEXPORT PythonClassWrapper<unsigned long long &&>;
-
-
-
-}
-
-namespace pyllars{
-
-    template
-    class DLLEXPORT PyllarsClass<bool, GlobalNS>;
-
-    template
-    class DLLEXPORT PyllarsClass<const bool, GlobalNS>;
-
-
-    template
-    class DLLEXPORT PyllarsClass<char, GlobalNS>;
-
-
-    template
-    class DLLEXPORT PyllarsClass<unsigned char, GlobalNS>;
-
-
-    template
-    class DLLEXPORT PyllarsClass<signed char, GlobalNS>;
-
-
-    template
-    class DLLEXPORT PyllarsClass<short, GlobalNS>;
-
-
-    template
-    class DLLEXPORT PyllarsClass<unsigned short, GlobalNS>;
-
-
-    template
-    class DLLEXPORT PyllarsClass<int, GlobalNS>;
-
-
-    template
-    class DLLEXPORT PyllarsClass<unsigned int, GlobalNS>;
-
-
-    template
-    class DLLEXPORT PyllarsClass<long, GlobalNS>;
-
-
-    template
-    class DLLEXPORT PyllarsClass<unsigned long, GlobalNS>;
-
-
-    template
-    class DLLEXPORT PyllarsClass<long long, GlobalNS>;
-
-
-    template
-    class DLLEXPORT PyllarsClass<unsigned long long, GlobalNS>;
-
-    ///////////////////
+    struct DLLEXPORT Pointers<unsigned long long *>;
 
 
 }

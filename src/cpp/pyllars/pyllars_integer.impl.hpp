@@ -5,10 +5,10 @@
 #include <pyllars/internal/pyllars_integer.hpp>
 #include <pyllars/internal/pyllars_classwrapper.impl.hpp>
 #include <pyllars/internal/pyllars_reference.hpp>
+#include <pyllars/internal/pyllars_pointer-createAllocatedInstance.impl.hpp>
 
 #include "pyllars_class.hpp"
 #include "pyllars_namespacewrapper.hpp"
-#include "pyllars/internal/pyllars_pointer.impl.hpp"
 
 namespace pyllars_internal {
 
@@ -405,111 +405,6 @@ namespace pyllars_internal {
         return PyString_FromString(name.c_str());
     }
 
-
-    template<typename number_type>
-    PyObject *
-    PyNumberCustomObject<number_type>::alloc(PyObject *, PyObject *args, PyObject *kwds) {
-        if (kwds && PyDict_Size(kwds) > 0) {
-            static const char *const msg = "Allocator does not accept keywords";
-            PyErr_SetString(PyExc_TypeError, msg);
-            return nullptr;
-        }
-        const ssize_t size = PyTuple_Size(args);
-        if (size > 2) {
-            static const char *const msg = "Too many arguments to call to allocations";
-            PyErr_SetString(PyExc_TypeError, msg);
-            return nullptr;
-        }
-        if constexpr (std::is_reference<number_type>::value) {
-            PyErr_SetString(PyExc_TypeError, "Cannot allocate a reference type");
-            return nullptr;
-        } else {
-            typename std::remove_cv_t<number_type> value = 0;
-            typedef std::remove_volatile_t<number_type> bare_t;
-            if (size >= 1) {
-                PyObject *item = PyTuple_GetItem(args, 0);
-                if (size ==1 && PyTuple_Check(item)){
-                    auto size = PyTuple_Size(item);
-                    auto result =  PythonClassWrapper<number_type *>::template allocateArray<number_type>(value,
-                            size);
-                    for (size_t i = 0; i < size; ++i){
-                        auto pyitem = PyTuple_GetItem(item, i);
-                        if  (!NumberType<number_type>::isIntegerObject(pyitem)){
-                            PyErr_SetString(PyExc_ValueError, "All argument values must be of integral type");
-                            return nullptr;
-                        }
-                        const __int128_t long_value = NumberType<bare_t>::toLongLong(pyitem);
-                        if (PyErr_Occurred()){
-                            return nullptr;
-                        }
-                        (const_cast<std::remove_const_t<number_type>*>(*result->get_CObject()))[i] = long_value;
-                    }
-                    return (PyObject*) result;
-                } else if (size ==1 && PyList_Check(item)){
-                    auto size = PyList_Size(item);
-                    auto result =  PythonClassWrapper<number_type *>::template allocateArray<number_type>(value,
-                                                                                                          size);
-                    for (size_t i = 0; i < size; ++i){
-                        auto pyitem = PyList_GetItem(item, i);
-                        if  (!NumberType<number_type>::isIntegerObject(pyitem)){
-                            PyErr_SetString(PyExc_ValueError, "All argument values must be of integral type");
-                            return nullptr;
-                        }
-                        const __int128_t long_value = NumberType<bare_t>::toLongLong(pyitem);
-                        (const_cast<std::remove_const_t<number_type>*>(*result->get_CObject()))[i] = long_value;
-                    }
-                    return (PyObject*) result;
-                }
-                if (!item) {
-                    PyErr_SetString(PyExc_SystemError, "Internal error getting tuple _CObject");
-                    return nullptr;
-                }
-                if (!NumberType<number_type>::isIntegerObject(item)) {
-                    PyErr_SetString(PyExc_ValueError, "Argument must be of integral type");
-                    return nullptr;
-                }
-                const __int128_t long_value = NumberType<bare_t>::toLongLong(item);
-                if (long_value < (__int128_t) NumberType<bare_t>::min() ||
-                    long_value > (__int128_t) NumberType<bare_t>::max) {
-                    PyErr_SetString(PyExc_ValueError, "Argument out of range");
-                    return nullptr;
-                }
-                value = (bare_t) long_value;
-            }
-            ssize_t count = 1;
-            typedef std::remove_volatile_t<number_type> bare_t;
-            if (size == 2) {
-                PyObject *item = PyTuple_GetItem(args, 1);
-                if (!item) {
-                    PyErr_SetString(PyExc_SystemError, "Internal error getting tuple _CObject");
-                    return nullptr;
-                }
-                if (!NumberType<bare_t>::isIntegerObject(item)) {
-                    PyErr_SetString(PyExc_ValueError, "Argument must be of integral type");
-                    return nullptr;
-                }
-                const __int128_t long_value = NumberType<bare_t>::toLongLong(item);
-                if (long_value < (__int128_t) NumberType<bare_t>::min() ||
-                    long_value > (__int128_t) NumberType<bare_t>::max) {
-                    PyErr_SetString(PyExc_ValueError, "Argument out of range");
-                    return nullptr;
-                }
-                count = static_cast<ssize_t>(long_value);
-                if (count <= 0) {
-                    PyErr_SetString(PyExc_ValueError, "Number of elements to allocate must be greater then 0");
-                    return nullptr;
-                }
-            }
-            if (count == 1) {
-                return (PyObject *) PythonClassWrapper<number_type *>::template allocateInstance<number_type>(
-                        value);
-            } else {
-                return (PyObject *) PythonClassWrapper<number_type *>::template allocateArray<number_type>(value,
-                                                                                                           count);
-            }
-        }
-    }
-
     template<typename number_type>
     status_t PyNumberCustomObject<number_type>::_initialize(PyTypeObject &type) {
         return 0;
@@ -693,38 +588,6 @@ namespace pyllars_internal {
     namespace {
 
 
-        template<typename T, typename ...Other>
-        void for_each_init2() {
-            int unused[] = {(CommonBaseWrapper::addCast(
-                    PythonClassWrapper<T>::getRawType(),
-                    PythonClassWrapper<Other>::getRawType(),
-                    &CommonBaseWrapper::template interpret_cast<T, Other>
-                    ), 0)...};
-            (void)unused;
-        }
-
-        template <typename number_type>
-        void for_each_init_(){
-            static_assert(!std::is_reference<number_type>::value);
-            typedef std::remove_cv_t<number_type > Basic;
-            if constexpr (!std::is_const<number_type>::value && !std::is_volatile<number_type>::value) {
-                for_each_init2<number_type,   Basic &, const Basic &, const Basic&&, const Basic>();
-                for_each_init2<number_type&,  Basic &, const Basic &, const Basic&&, const Basic, Basic>();
-                for_each_init2<number_type&&, Basic &, const Basic &, const Basic&&, const Basic, Basic>();
-            } else if (std::is_const<number_type>::value && !std::is_volatile<number_type>::value){
-                for_each_init2<number_type,    const Basic &, const Basic &&, Basic>();
-                for_each_init2<number_type&,   const Basic &&, const Basic, Basic>();
-                for_each_init2<number_type&&, const Basic &, const Basic, Basic>();
-            } else if (!std::is_const<number_type>::value && std::is_volatile<number_type>::value){
-                for_each_init2<number_type,    volatile Basic &, volatile Basic &&,  const volatile Basic&, const volatile Basic &&, const volatile Basic>();
-                for_each_init2<number_type&,   volatile Basic &&,  const volatile Basic&, const volatile Basic &&, const volatile Basic, volatile Basic>();
-                for_each_init2<number_type&&, volatile Basic &, const volatile Basic&, const volatile Basic &&, const volatile Basic, volatile Basic>();
-            } else {
-                for_each_init2<number_type,    const volatile Basic&, const volatile Basic &&, volatile Basic>();
-                for_each_init2<number_type&,   const volatile Basic &&, const volatile Basic, volatile Basic>();
-                for_each_init2<number_type&&, const volatile Basic&, const volatile Basic, volatile Basic>();
-            }
-        }
 
     }
 
@@ -733,8 +596,110 @@ namespace pyllars_internal {
     void PyNumberCustomObject<number_type>::_initAddCArgCasts(){
         static_assert(!std::is_reference<number_type>::value && !std::is_pointer<number_type>::value);
         typedef std::remove_cv_t <number_type> ntype_bare;
-        for_each_init_<number_type>();
+//        for_each_init_<number_type>();
     }
 
+
+    template<typename number_type>
+    PyObject *
+    PyNumberCustomObject<number_type>::alloc(PyObject *, PyObject *args, PyObject *kwds) {
+        if (kwds && PyDict_Size(kwds) > 0) {
+            static const char *const msg = "Allocator does not accept keywords";
+            PyErr_SetString(PyExc_TypeError, msg);
+            return nullptr;
+        }
+        const ssize_t size = PyTuple_Size(args);
+        if (size > 2) {
+            static const char *const msg = "Too many arguments to call to allocations";
+            PyErr_SetString(PyExc_TypeError, msg);
+            return nullptr;
+        }
+        if constexpr (std::is_reference<number_type>::value) {
+            PyErr_SetString(PyExc_TypeError, "Cannot allocate a reference type");
+            return nullptr;
+        } else {
+            typename std::remove_cv_t<number_type> value = 0;
+            typedef std::remove_volatile_t<number_type> bare_t;
+            if (size >= 1) {
+                PyObject *item = PyTuple_GetItem(args, 0);
+                if (size ==1 && PyTuple_Check(item)){
+                    auto size = PyTuple_Size(item);
+                    auto result =  Pointers<number_type *>::template createAllocatedInstance<number_type>(value,size);
+                    for (size_t i = 0; i < size; ++i){
+                        auto pyitem = PyTuple_GetItem(item, i);
+                        if  (!NumberType<number_type>::isIntegerObject(pyitem)){
+                            PyErr_SetString(PyExc_ValueError, "All argument values must be of integral type");
+                            return nullptr;
+                        }
+                        const __int128_t long_value = NumberType<bare_t>::toLongLong(pyitem);
+                        if (PyErr_Occurred()){
+                            return nullptr;
+                        }
+                        auto * result_ = reinterpret_cast<PythonClassWrapper<number_type*>* >(result);
+                        (const_cast<std::remove_const_t<number_type>*>(*result_->get_CObject()))[i] = long_value;
+                    }
+                    return result;
+                } else if (size ==1 && PyList_Check(item)){
+                    auto size = PyList_Size(item);
+                    auto result = Pointers<number_type *>::template createAllocatedInstance<number_type>(value, size);
+                    for (size_t i = 0; i < size; ++i){
+                        auto pyitem = PyList_GetItem(item, i);
+                        if  (!NumberType<number_type>::isIntegerObject(pyitem)){
+                            PyErr_SetString(PyExc_ValueError, "All argument values must be of integral type");
+                            return nullptr;
+                        }
+                        const __int128_t long_value = NumberType<bare_t>::toLongLong(pyitem);
+                        auto * result_ = reinterpret_cast<PythonClassWrapper<number_type*>* >(result);
+                        (const_cast<std::remove_const_t<number_type>*>(*result_->get_CObject()))[i] = long_value;
+                    }
+                    return result;
+                }
+                if (!item) {
+                    PyErr_SetString(PyExc_SystemError, "Internal error getting tuple _CObject");
+                    return nullptr;
+                }
+                if (!NumberType<number_type>::isIntegerObject(item)) {
+                    PyErr_SetString(PyExc_ValueError, "Argument must be of integral type");
+                    return nullptr;
+                }
+                const __int128_t long_value = NumberType<bare_t>::toLongLong(item);
+                if (long_value < (__int128_t) NumberType<bare_t>::min() ||
+                    long_value > (__int128_t) NumberType<bare_t>::max) {
+                    PyErr_SetString(PyExc_ValueError, "Argument out of range");
+                    return nullptr;
+                }
+                value = (bare_t) long_value;
+            }
+            ssize_t count = 1;
+            typedef std::remove_volatile_t<number_type> bare_t;
+            if (size == 2) {
+                PyObject *item = PyTuple_GetItem(args, 1);
+                if (!item) {
+                    PyErr_SetString(PyExc_SystemError, "Internal error getting tuple _CObject");
+                    return nullptr;
+                }
+                if (!NumberType<bare_t>::isIntegerObject(item)) {
+                    PyErr_SetString(PyExc_ValueError, "Argument must be of integral type");
+                    return nullptr;
+                }
+                const __int128_t long_value = NumberType<bare_t>::toLongLong(item);
+                if (long_value < (__int128_t) NumberType<bare_t>::min() ||
+                    long_value > (__int128_t) NumberType<bare_t>::max) {
+                    PyErr_SetString(PyExc_ValueError, "Argument out of range");
+                    return nullptr;
+                }
+                count = static_cast<ssize_t>(long_value);
+                if (count <= 0) {
+                    PyErr_SetString(PyExc_ValueError, "Number of elements to allocate must be greater then 0");
+                    return nullptr;
+                }
+            }
+            if (count == 1) {
+                return PythonClassWrapper<number_type *>::template createAllocatedInstance<number_type>(value);
+            } else {
+                return PythonClassWrapper<number_type *>::template createAllocatedInstance<number_type>(value, count);
+            }
+        }
+    }
 
 }

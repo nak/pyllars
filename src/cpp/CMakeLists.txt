@@ -18,11 +18,15 @@ add_library(pyllars SHARED
 		pyllars/pyllars_integer_nonconst.cpp
 		pyllars/pyllars_integer_nonconstvolatile.cpp
 		pyllars/pyllars_templates.cpp
+		pyllars/pyllars_integer_refs.cpp
+		pyllars/pyllars_integer_refs_const.cpp
+		pyllars/pyllars_integer_refs_volatile.cpp
+		pyllars/pyllars_integer_refs_const_volatile.cpp
 		pyllars/pyllars_integer_ptrs.cpp
 		pyllars/pyllars_integer_ptrs_volatile.cpp
 		pyllars/pyllars_integer_ptrs_const.cpp
 		pyllars/pyllars_integer_ptrs_const_volatile.cpp
-		pyllars/pyllars_floating_point_ptrs.cpp ../python/pyllars/resources/include/pyllars/internal/pyllars_base.hpp ../python/pyllars/resources/include/pyllars/internal/pyllars_base.impl.hpp)
+		pyllars/pyllars_floating_point_ptrs.cpp ../python/pyllars/resources/include/pyllars/internal/pyllars_base.hpp ../python/pyllars/resources/include/pyllars/internal/pyllars_base.impl.hpp ../python/pyllars/resources/include/pyllars/internal/pyllars_base-conversions.impl.hpp)
 
 
 set_target_properties(pyllars PROPERTIES LIBRARY_OUTPUT_DIRECTORY ../python/pyllars/resources/lib)

@@ -29,7 +29,7 @@ namespace pyllars{
 
             static status_t init(){
                 using namespace pyllars_internal;
-                PythonClassWrapper<Class>::template addAttribute<name, AttrType>(attr);
+                Classes<Class>::template addAttribute<name, AttrType>(attr);
                 return 0;
             }
         };
